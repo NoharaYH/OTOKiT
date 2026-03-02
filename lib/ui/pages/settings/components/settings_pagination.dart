@@ -6,25 +6,40 @@ import '../../../design_system/kit_shared/game_page_item.dart';
 /// 使用 KitGameCarousel 引擎。以解决长列表配置的视觉疲劳。
 class SettingsPagination extends StatefulWidget {
   final List<GamePageItem> categories;
+  final int initialPage;
+  final ValueChanged<int>? onPageChanged;
+  final PageController? controller;
 
-  const SettingsPagination({super.key, required this.categories});
+  const SettingsPagination({
+    super.key,
+    required this.categories,
+    this.initialPage = 0,
+    this.onPageChanged,
+    this.controller,
+  });
 
   @override
   State<SettingsPagination> createState() => _SettingsPaginationState();
 }
 
 class _SettingsPaginationState extends State<SettingsPagination> {
-  late PageController _pageController;
+  late PageController _internalController;
+  PageController get _pageController =>
+      widget.controller ?? _internalController;
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
+    if (widget.controller == null) {
+      _internalController = PageController(initialPage: widget.initialPage);
+    }
   }
 
   @override
   void dispose() {
-    _pageController.dispose();
+    if (widget.controller == null) {
+      _internalController.dispose();
+    }
     super.dispose();
   }
 
@@ -34,9 +49,7 @@ class _SettingsPaginationState extends State<SettingsPagination> {
       child: KitGameCarousel(
         items: widget.categories,
         controller: _pageController,
-        onPageChanged: (index) {
-          // 可以在此分发 category 切换事件
-        },
+        onPageChanged: widget.onPageChanged,
       ),
     );
   }
