@@ -94,35 +94,34 @@ class _SettingsPageState extends State<SettingsPage>
 
   @override
   Widget build(BuildContext context) {
+    final topPadding = MediaQuery.of(context).padding.top;
+    final skinExtension =
+        Theme.of(context).extension<SkinExtension>() ??
+        const StarBackgroundSkin();
+
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (didPop) return;
         _handleBack();
       },
-      child: AnimatedBuilder(
-        animation: Listenable.merge([_fadeAnimation, _expansionAnimation]),
-        builder: (context, child) {
-          final topPadding = MediaQuery.of(context).padding.top;
-
-          final skinExtension =
-              Theme.of(context).extension<SkinExtension>() ??
-              const StarBackgroundSkin();
-
-          return Theme(
-            data: Theme.of(context).copyWith(extensions: [skinExtension]),
-            child: Material(
-              color: Colors.transparent,
-              child: Stack(
-                children: [
-                  // 1. 全局背景拦截 (仅淡入)
-                  Positioned.fill(
-                    child: GestureDetector(
-                      onTap: () => _activeCategoryIndex == null
-                          ? _handleBack()
-                          : _handleCategoryBack(),
-                      child: Opacity(
-                        opacity: _fadeAnimation.value,
+      child: Theme(
+        data: Theme.of(context).copyWith(extensions: [skinExtension]),
+        child: Material(
+          color: Colors.transparent,
+          child: Stack(
+            children: [
+              // 1. 全局背景拦截 (仅随 _fadeAnimation 变化)
+              Positioned.fill(
+                child: GestureDetector(
+                  onTap: () => _activeCategoryIndex == null
+                      ? _handleBack()
+                      : _handleCategoryBack(),
+                  child: AnimatedBuilder(
+                    animation: _fadeAnimation,
+                    builder: (context, _) => Opacity(
+                      opacity: _fadeAnimation.value,
+                      child: RepaintBoundary(
                         child: BackdropFilter(
                           filter: ImageFilter.blur(sigmaX: 15.0, sigmaY: 15.0),
                           child: Container(
@@ -132,103 +131,63 @@ class _SettingsPageState extends State<SettingsPage>
                       ),
                     ),
                   ),
+                ),
+              ),
 
-                  // 2. 核心内容区 (解耦动效)
-                  Column(
-                    children: [
-                      // 动态 Header 区域 - 向下滑入 (Slide Down)
-                      ClipRect(
-                        child: Align(
-                          alignment: Alignment.topCenter,
-                          heightFactor: _fadeAnimation.value,
-                          child: SizedBox(
-                            height: topPadding + 54,
-                            child: Stack(
-                              children: [
-                                // Phase A: "返回首页" Header - 收缩
-                                ClipRect(
-                                  child: Align(
-                                    alignment: Alignment.topCenter,
-                                    heightFactor: 1 - _expansionAnimation.value,
-                                    child: Opacity(
-                                      opacity:
-                                          (1 - _expansionAnimation.value) *
-                                          _fadeAnimation.value,
-                                      child: SettingHeader(
-                                        title: '返回首页',
-                                        icon: Icons.home_outlined,
-                                        iconColor: Colors.transparent,
-                                        onBack: _handleBack,
-                                        isSubPage: false,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-
-                                // Phase B: 二级页 Header - 扩张
-                                if (_activeCategoryIndex != null)
-                                  ClipRect(
-                                    child: Align(
-                                      alignment: Alignment.topCenter,
-                                      heightFactor: _expansionAnimation.value,
-                                      child: SettingHeader(
-                                        title: categories[_activeCategoryIndex!]
-                                            .title,
-                                        icon: categories[_activeCategoryIndex!]
-                                            .icon,
-                                        iconColor:
-                                            categories[_activeCategoryIndex!]
-                                                .color,
-                                        expansionProgress:
-                                            _expansionAnimation.value,
-                                        onBack: _handleCategoryBack,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      // 列表/二级页内容区域 - 向上滑入 (Slide Up 对冲)
-                      Expanded(
-                        child: Transform.translate(
-                          offset: Offset(0, 40 * (1 - _fadeAnimation.value)),
+              // 2. 核心内容区 (分段响应动效)
+              AnimatedBuilder(
+                animation: Listenable.merge([
+                  _fadeAnimation,
+                  _expansionAnimation,
+                ]),
+                builder: (context, _) => Column(
+                  children: [
+                    // 动态 Header 区域 - 向下滑入 (Slide Down)
+                    ClipRect(
+                      child: Align(
+                        alignment: Alignment.topCenter,
+                        heightFactor: _fadeAnimation.value,
+                        child: SizedBox(
+                          height: topPadding + 54,
                           child: Stack(
                             children: [
-                              // 1. 主列表
-                              Opacity(
-                                opacity:
-                                    (1 - _expansionAnimation.value) *
-                                    _fadeAnimation.value,
-                                child: IgnorePointer(
-                                  ignoring: _activeCategoryIndex != null,
-                                  child: _buildMainList(),
+                              // Phase A: "返回首页" Header - 收缩
+                              ClipRect(
+                                child: Align(
+                                  alignment: Alignment.topCenter,
+                                  heightFactor: 1 - _expansionAnimation.value,
+                                  child: Opacity(
+                                    opacity:
+                                        (1 - _expansionAnimation.value) *
+                                        _fadeAnimation.value,
+                                    child: SettingHeader(
+                                      title: '返回首页',
+                                      icon: Icons.home_outlined,
+                                      iconColor: Colors.transparent,
+                                      onBack: _handleBack,
+                                      isSubPage: false,
+                                    ),
+                                  ),
                                 ),
                               ),
 
-                              // 2. 二级页内容
+                              // Phase B: 二级页 Header - 扩张
                               if (_activeCategoryIndex != null)
-                                Opacity(
-                                  opacity: _expansionAnimation.value,
-                                  child: Transform.translate(
-                                    offset: Offset(
-                                      0,
-                                      40 * (1 - _expansionAnimation.value),
-                                    ),
-                                    child: Theme(
-                                      data: Theme.of(context).copyWith(
-                                        extensions: [
-                                          skinExtension.copyWith(
-                                            medium:
-                                                categories[_activeCategoryIndex!]
-                                                    .color,
-                                          ),
-                                        ],
-                                      ),
-                                      child: categories[_activeCategoryIndex!]
-                                          .page,
+                                ClipRect(
+                                  child: Align(
+                                    alignment: Alignment.topCenter,
+                                    heightFactor: _expansionAnimation.value,
+                                    child: SettingHeader(
+                                      title: categories[_activeCategoryIndex!]
+                                          .title,
+                                      icon: categories[_activeCategoryIndex!]
+                                          .icon,
+                                      iconColor:
+                                          categories[_activeCategoryIndex!]
+                                              .color,
+                                      expansionProgress:
+                                          _expansionAnimation.value,
+                                      onBack: _handleCategoryBack,
                                     ),
                                   ),
                                 ),
@@ -236,14 +195,89 @@ class _SettingsPageState extends State<SettingsPage>
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+
+                    // 列表/二级页内容区域 - 向上滑入 (Slide Up 对冲)
+                    Expanded(
+                      child: Transform.translate(
+                        offset: Offset(0, 40 * (1 - _fadeAnimation.value)),
+                        child: Stack(
+                          children: [
+                            // 1. 主列表
+                            Opacity(
+                              opacity:
+                                  (1 - _expansionAnimation.value) *
+                                  _fadeAnimation.value,
+                              child: IgnorePointer(
+                                ignoring: _activeCategoryIndex != null,
+                                child: _buildMainList(),
+                              ),
+                            ),
+
+                            // 2. 二级页内容
+                            if (_activeCategoryIndex != null)
+                              RepaintBoundary(
+                                child: Opacity(
+                                  opacity: _expansionAnimation.value,
+                                  child: Transform.translate(
+                                    offset: Offset(
+                                      0,
+                                      40 * (1 - _expansionAnimation.value),
+                                    ),
+                                    child:
+                                        _cachedSubPage ??
+                                        const SizedBox.shrink(),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          );
-        },
+            ],
+          ),
+        ),
       ),
+    );
+  }
+
+  Widget? _cachedSubPage;
+
+  void _handleCategoryTap(int index) {
+    setState(() {
+      _activeCategoryIndex = index;
+      _cachedSubPage = _buildThemedSubPage(context);
+    });
+    _expansionController.forward();
+  }
+
+  void _handleCategoryBack() {
+    _expansionController.reverse().then((_) {
+      setState(() {
+        _activeCategoryIndex = null;
+        _cachedSubPage = null;
+      });
+    });
+  }
+
+  /// 物理隔离：预构建二级页，隔离 AnimatedBuilder 的高频重绘。
+  Widget _buildThemedSubPage(BuildContext context) {
+    if (_activeCategoryIndex == null) return const SizedBox.shrink();
+
+    final cat = categories[_activeCategoryIndex!];
+    final skin =
+        Theme.of(context).extension<SkinExtension>() ??
+        const StarBackgroundSkin();
+
+    return Theme(
+      key: ValueKey('themed_page_${_activeCategoryIndex}'),
+      data: Theme.of(
+        context,
+      ).copyWith(extensions: [skin.copyWith(medium: cat.color)]),
+      child: cat.page,
     );
   }
 
@@ -268,21 +302,6 @@ class _SettingsPageState extends State<SettingsPage>
         }),
       ),
     );
-  }
-
-  void _handleCategoryTap(int index) {
-    setState(() {
-      _activeCategoryIndex = index;
-    });
-    _expansionController.forward();
-  }
-
-  void _handleCategoryBack() {
-    _expansionController.reverse().then((_) {
-      setState(() {
-        _activeCategoryIndex = null;
-      });
-    });
   }
 
   void _handleBack() {

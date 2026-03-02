@@ -8,8 +8,8 @@ import '../../../design_system/kit_setting/setting_card.dart';
 import '../../../design_system/kit_setting/setting_menu.dart';
 import '../../../design_system/kit_setting/setting_expandable_menu.dart';
 
-/// 设置页: 应用设置专页 (v3.1 - Dropdown Hierarchy)
-/// 专注于应用流程控制，实现三级联动启动页偏好设置。
+/// 设置页: 应用设置专页 (v4.0 - Two-Tier Startup Pref)
+/// 专注于应用流程控制，实现两级联动启动页偏好设置。
 class AppSettingsPage extends StatelessWidget {
   const AppSettingsPage({super.key, Color? themeColor});
 
@@ -36,7 +36,7 @@ class AppSettingsPage extends StatelessWidget {
   }
 }
 
-/// 三级联动启动页偏好选择器。
+/// 两级联动启动页偏好选择器。
 ///
 /// 临时状态在 State 内闭环（短期记忆隔离机制），每次选择后立即 commit 写入 Provider。
 class StartupPrefMenu extends StatefulWidget {
@@ -49,7 +49,6 @@ class StartupPrefMenu extends StatefulWidget {
 class _StartupPrefMenuState extends State<StartupPrefMenu> {
   late StartupPrimary _tempPrimary;
   late StartupSecondary _tempSecondary;
-  late StartupTertiary _tempTertiary;
 
   @override
   void initState() {
@@ -57,38 +56,24 @@ class _StartupPrefMenuState extends State<StartupPrefMenu> {
     final pref = context.read<GameProvider>().startupPref;
     _tempPrimary = pref.primary;
     _tempSecondary = pref.secondary;
-    _tempTertiary = pref.tertiary;
   }
 
   void _onPrimarySelect(StartupPrimary value) {
     setState(() {
       _tempPrimary = value;
       _tempSecondary = StartupSecondary.none;
-      _tempTertiary = StartupTertiary.none;
     });
     _commit();
   }
 
   void _onSecondarySelect(StartupSecondary value) {
-    setState(() {
-      _tempSecondary = value;
-      _tempTertiary = StartupTertiary.none;
-    });
-    _commit();
-  }
-
-  void _onTertiarySelect(StartupTertiary value) {
-    setState(() => _tempTertiary = value);
+    setState(() => _tempSecondary = value);
     _commit();
   }
 
   void _commit() {
     context.read<GameProvider>().setStartupPref(
-      StartupPrefModel(
-        primary: _tempPrimary,
-        secondary: _tempSecondary,
-        tertiary: _tempTertiary,
-      ),
+      StartupPrefModel(primary: _tempPrimary, secondary: _tempSecondary),
     );
   }
 
@@ -100,11 +85,6 @@ class _StartupPrefMenuState extends State<StartupPrefMenu> {
     final showSecondary =
         _tempPrimary == StartupPrimary.sync ||
         _tempPrimary == StartupPrimary.detail;
-
-    final showTertiary =
-        _tempPrimary == StartupPrimary.sync &&
-        (_tempSecondary == StartupSecondary.mai ||
-            _tempSecondary == StartupSecondary.chu);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -123,53 +103,20 @@ class _StartupPrefMenuState extends State<StartupPrefMenu> {
           leadingIcon: Icons.launch_outlined,
         ),
 
-        // ── 二级可展开下拉选择器 ──────────────────────────────
+        // ── 二级可展开下拉选择器（仅 sync/detail 时显示）──────
         SettingExpandableMenu<StartupSecondary>(
           isExpanded: showSecondary,
           expansionKey: 'secondary_${_tempPrimary.name}',
-          sectionLabel: _tempPrimary == StartupPrimary.sync ? '选择游戏' : '选择平台',
+          sectionLabel: '选择游戏',
           indent: 16,
-          options: _tempPrimary == StartupPrimary.sync
-              ? const [
-                  StartupSecondary.mai,
-                  StartupSecondary.chu,
-                  StartupSecondary.inherit,
-                ]
-              : const [StartupSecondary.mai, StartupSecondary.chu],
-          labels: _tempPrimary == StartupPrimary.sync
-              ? const ['舞萌 DX', '中二节奏', '以退出时游戏为准']
-              : const ['舞萌 DX', '中二节奏'],
+          options: const [StartupSecondary.mai, StartupSecondary.chu],
+          labels: const ['舞萌 DX', '中二节奏'],
           current: _tempSecondary == StartupSecondary.none
               ? StartupSecondary.mai
               : _tempSecondary,
           onSelect: _onSecondarySelect,
           accentColor: accent,
           leadingIcon: Icons.sports_esports_outlined,
-        ),
-
-        // ── 三级可展开下拉选择器（仅 Sync 下具体游戏时显示）──
-        SettingExpandableMenu<StartupTertiary>(
-          isExpanded: showTertiary,
-          expansionKey: 'tertiary_${_tempSecondary.name}',
-          sectionLabel: '选择数据源',
-          indent: 32,
-          options: const [
-            StartupTertiary.divingFish,
-            StartupTertiary.luoXue,
-            StartupTertiary.dual,
-            StartupTertiary.inherit,
-          ],
-          labels: const ['水鱼查分器', '落雪查分器', '双模式（两者）', '以退出时选择为准'],
-          current:
-              (_tempTertiary == StartupTertiary.none ||
-                  _tempTertiary == StartupTertiary.inherit)
-              ? (_tempTertiary == StartupTertiary.inherit
-                    ? StartupTertiary.inherit
-                    : StartupTertiary.divingFish)
-              : _tempTertiary,
-          onSelect: _onTertiarySelect,
-          accentColor: accent,
-          leadingIcon: Icons.cloud_outlined,
         ),
       ],
     );

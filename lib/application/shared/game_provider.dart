@@ -65,17 +65,6 @@ class GameProvider extends ChangeNotifier {
           _activeGame = 'Mai';
           break;
       }
-      switch (_startupPref.tertiary) {
-        case StartupTertiary.luoXue:
-          _activeService = 'LuoXue';
-          break;
-        case StartupTertiary.dual:
-          _activeService = 'Dual';
-          break;
-        default:
-          _activeService = 'DivingFish';
-          break;
-      }
     }
 
     _currentIndex = initialIndex.clamp(0, 1);
