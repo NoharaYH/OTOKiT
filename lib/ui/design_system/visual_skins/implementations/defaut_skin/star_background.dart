@@ -66,6 +66,8 @@ class _StarBackgroundState extends State<_StarBackground>
   late final AnimationController _controller;
   late final List<_AuroraBlobDNA> _auroraBlobs;
   final math.Random _random = math.Random(1337); // 固定种子保证 UI 稳定性
+  // 记录初始化时间戳，用于计算相对时间，避免大基数导致的浮点精度丢失
+  late final int _baseTime = DateTime.now().millisecondsSinceEpoch;
 
   @override
   void initState() {
@@ -147,9 +149,12 @@ class _StarBackgroundState extends State<_StarBackground>
           child: AnimatedBuilder(
             animation: _controller,
             builder: (context, _) {
-              // 沿用基于当前真实时间的增量旋转，不受 controller.value 回弹影响
+              // 使用相对时间偏移，确保传入 Painter 的数值量级在安全范围内
               final now = DateTime.now().millisecondsSinceEpoch;
-              return CustomPaint(painter: _StarTrailPainter(elapsedMs: now));
+              final relativeMs = now - _baseTime;
+              return CustomPaint(
+                painter: _StarTrailPainter(elapsedMs: relativeMs),
+              );
             },
           ),
         ),
@@ -285,7 +290,9 @@ class _StarTrailPainter extends CustomPainter {
 
     for (final star in stars) {
       final radius = star.radiusFactor * maxRadius;
-      final currentAngle = star.initialAngle - (star.angularSpeed * elapsedMs);
+      // 增加模运算，确保角度始终在 [0, 2π] 范围内，极致规避精度偏离
+      final currentAngle =
+          (star.initialAngle - (star.angularSpeed * elapsedMs)) % (math.pi * 2);
 
       paint.color = star.color;
       paint.strokeWidth = star.strokeWidth;

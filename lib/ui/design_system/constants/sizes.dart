@@ -27,6 +27,7 @@ class UiSizes {
   // --- Component Specific Heights ---
   static const double inputFieldHeight = 44.0;
   static const double logoHeight = 84.0;
+  static const double logoWidth = 280.0;
   static const double logoAreaHeight = 110.0;
   static const double minLogPanelHeight = 100.0;
   static const double fallbackLogPanelHeight = 180.0;

@@ -6,14 +6,14 @@ import '../../../design_system/visual_skins/skin_extension.dart';
 class ScoreSyncLogoWrapper extends StatelessWidget {
   final String logoPath;
   final String subtitle;
-  final Color themeColor;
+  final Color? themeColor;
   final Widget child;
 
   const ScoreSyncLogoWrapper({
     super.key,
     required this.logoPath,
     required this.subtitle,
-    required this.themeColor,
+    this.themeColor,
     required this.child,
   });
 
@@ -36,7 +36,8 @@ class ScoreSyncLogoWrapper extends StatelessWidget {
                   child: Builder(
                     builder: (context) {
                       final skin = Theme.of(context).extension<SkinExtension>();
-                      final color = skin?.subtitleColor ?? themeColor;
+                      final color =
+                          skin?.subtitleColor ?? themeColor ?? Colors.blue;
                       return Text(
                         subtitle,
                         style: TextStyle(
@@ -56,6 +57,7 @@ class ScoreSyncLogoWrapper extends StatelessWidget {
                   child: Image.asset(
                     logoPath,
                     height: UiSizes.logoHeight,
+                    width: UiSizes.logoWidth,
                     fit: BoxFit.contain,
                   ),
                 ),

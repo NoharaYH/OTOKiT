@@ -77,7 +77,7 @@ class _MusicDataPageState extends State<MusicDataPage> {
             logoPath: AppAssets.logoMaimai,
             subtitle: 'MUSIC LIBRARY',
             themeColor: const StarBackgroundSkin().medium,
-            child: const Expanded(child: MaiMusicAssembly()),
+            child: const MaiMusicAssembly(),
           ),
         ),
         GamePageItem(
@@ -87,7 +87,7 @@ class _MusicDataPageState extends State<MusicDataPage> {
             logoPath: AppAssets.logoChunithm,
             subtitle: 'MUSIC LIBRARY',
             themeColor: const StarBackgroundSkin().medium,
-            child: const Expanded(child: ChuMusicAssembly()),
+            child: const ChuMusicAssembly(),
           ),
         ),
       ],

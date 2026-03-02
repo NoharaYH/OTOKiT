@@ -28,9 +28,8 @@ class AppAssets {
       'assets/background/chunithm/verse/bottom_left.png.webp';
 
   // Logos
-  static const String logoMaimai =
-      'assets/logo/UI_CMN_TabTitle_MaimaiTitle_Ver260.png';
-  static const String logoChunithm = 'assets/logo/top_main_logo.webp';
+  static const String logoMaimai = 'assets/logo/circle.webp';
+  static const String logoChunithm = 'assets/logo/verse.webp';
 
   // Maimai Difficulties
   static const String difficultyBasic = 'assets/difficulty/maimaidx/basic.webp';
