@@ -134,10 +134,6 @@ class _RootPageState extends State<RootPage> {
                       right: UiSizes.getHorizontalMargin(context) + 12.0,
                       child: Consumer<NavigationProvider>(
                         builder: (context, nav, child) {
-                          if (nav.isSettingsOpen) {
-                            return const SizedBox.shrink();
-                          }
-
                           return Container(
                             padding: EdgeInsets.zero,
                             child: Row(
