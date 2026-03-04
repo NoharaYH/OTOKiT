@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
+export 'theme_annotation.dart';
 
 /// 强约束域划分
 enum ThemeDomain { universal, maimai, chunithm }
 
-/// 极简注解类，作为靶向信标
-class GameTheme {
-  const GameTheme();
-}
+// GameTheme 注解已迁移至 theme_annotation.dart，此处通过 export 透出。
 
 /// 全新主题基类：AppTheme
 abstract class AppTheme extends ThemeExtension<AppTheme> {
