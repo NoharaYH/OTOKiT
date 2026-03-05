@@ -20,7 +20,7 @@ void main() {
         ChangeNotifierProvider(create: (_) => GameProvider()),
         ChangeNotifierProvider(create: (_) => getIt<TransferProvider>()),
         ChangeNotifierProvider(create: (_) => NavigationProvider()),
-        ChangeNotifierProvider(create: (_) => ToastProvider()),
+        ChangeNotifierProvider(create: (_) => getIt<ToastProvider>()),
         ChangeNotifierProvider(create: (_) => MaiMusicProvider()),
         ChangeNotifierProvider(create: (_) => ChuMusicDataProvider()),
       ],

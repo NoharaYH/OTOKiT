@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:injectable/injectable.dart';
 
 enum ToastType { verifying, confirmed, error, warning }
 
@@ -16,6 +17,7 @@ class ToastItem {
   });
 }
 
+@lazySingleton
 class ToastProvider extends ChangeNotifier {
   final List<ToastItem> _toasts = [];
 
