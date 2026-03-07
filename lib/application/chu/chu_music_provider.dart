@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../logic/chu_music_data/library/chu_library.dart';
-import '../../logic/chu_music_data/data_sync/chu_sync_handler.dart';
-import '../../logic/chu_music_data/data_formats/chu_music.dart';
+import 'package:injectable/injectable.dart';
 
+import '../../logic/chu_music_data/data_formats/chu_music.dart';
+import '../../logic/chu_music_data/data_sync/chu_sync_handler.dart';
+import '../../logic/chu_music_data/library/chu_library.dart';
+
+@injectable
 class ChuMusicDataProvider extends ChangeNotifier {
   final ChuLibrary _library = ChuLibrary();
   final ChuSyncHandler _syncHandler = ChuSyncHandler();

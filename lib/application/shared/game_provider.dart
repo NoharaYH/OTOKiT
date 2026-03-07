@@ -1,13 +1,19 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:injectable/injectable.dart';
+
 import '../../kernel/models/startup_pref_model.dart';
 import '../../kernel/models/theme_preferences_model.dart';
 import '../../kernel/services/storage_service.dart';
-import '../../kernel/di/injection.dart';
 import '../../ui/design_system/theme/core/app_theme.dart';
 import 'navigation_provider.dart';
 
+@injectable
 class GameProvider extends ChangeNotifier {
+  GameProvider(this._storageService);
+
+  final StorageService _storageService;
   int _currentIndex = 0;
   final ValueNotifier<double> pageValueNotifier = ValueNotifier<double>(0.0);
 
@@ -41,20 +47,19 @@ class GameProvider extends ChangeNotifier {
 
   /// 初始化：读取启动页偏好并应用，返回目标大页面 tag 供调用方注入 NavigationProvider。
   Future<PageTag> init() async {
-    final storage = getIt<StorageService>();
-    final prefStr = await storage.read(StorageService.kStartupPrefConfig);
-    final lastStateStr = await storage.read(StorageService.kLastActiveState);
-    final themePrefsStr = await storage.read(StorageService.kThemePreferences);
+    final prefStr = await _storageService.read(StorageService.kStartupPrefConfig);
+    final lastStateStr = await _storageService.read(StorageService.kLastActiveState);
+    final themePrefsStr = await _storageService.read(StorageService.kThemePreferences);
 
     _startupPref = StartupPrefModel.parse(prefStr);
     _themePrefs = ThemePreferencesModel.parse(themePrefsStr);
     _activeSkinId =
-        await storage.read(StorageService.kActiveSkinId) ?? 'star_trails';
+        await _storageService.read(StorageService.kActiveSkinId) ?? 'star_trails';
 
-    final themeModeStr = await storage.read(StorageService.kThemeMode);
+    final themeModeStr = await _storageService.read(StorageService.kThemeMode);
     _isThemeGlobal = themeModeStr != 'independent';
-    _maiSkinId = await storage.read(StorageService.kMaiSkinId) ?? 'mai_circle';
-    _chuSkinId = await storage.read(StorageService.kChuSkinId) ?? 'chu_verse';
+    _maiSkinId = await _storageService.read(StorageService.kMaiSkinId) ?? 'mai_circle';
+    _chuSkinId = await _storageService.read(StorageService.kChuSkinId) ?? 'chu_verse';
 
     int initialIndex = 0;
     PageTag initialTag = PageTag.scoreSync;
@@ -131,7 +136,7 @@ class GameProvider extends ChangeNotifier {
       'tertiary_id': _activeService,
       'index': _currentIndex,
     });
-    await getIt<StorageService>().save(
+    await _storageService.save(
       StorageService.kLastActiveState,
       payload,
     );
@@ -141,7 +146,7 @@ class GameProvider extends ChangeNotifier {
   Future<void> setStartupPref(StartupPrefModel pref) async {
     if (_startupPref == pref) return;
     _startupPref = pref;
-    await getIt<StorageService>().save(
+    await _storageService.save(
       StorageService.kStartupPrefConfig,
       pref.serialize(),
     );
@@ -168,7 +173,7 @@ class GameProvider extends ChangeNotifier {
   Future<void> setThemePreferences(ThemePreferencesModel prefs) async {
     if (_themePrefs == prefs) return;
     _themePrefs = prefs;
-    await getIt<StorageService>().save(
+    await _storageService.save(
       StorageService.kThemePreferences,
       prefs.serialize(),
     );
@@ -180,14 +185,14 @@ class GameProvider extends ChangeNotifier {
   Future<void> setActiveSkin(String skinId) async {
     if (_activeSkinId == skinId) return;
     _activeSkinId = skinId;
-    await getIt<StorageService>().save(StorageService.kActiveSkinId, skinId);
+    await _storageService.save(StorageService.kActiveSkinId, skinId);
     notifyListeners();
   }
 
   Future<void> setThemeMode(bool isGlobal) async {
     if (_isThemeGlobal == isGlobal) return;
     _isThemeGlobal = isGlobal;
-    await getIt<StorageService>().save(
+    await _storageService.save(
       StorageService.kThemeMode,
       isGlobal ? 'global' : 'independent',
     );
@@ -197,14 +202,14 @@ class GameProvider extends ChangeNotifier {
   Future<void> setMaiSkin(String skinId) async {
     if (_maiSkinId == skinId) return;
     _maiSkinId = skinId;
-    await getIt<StorageService>().save(StorageService.kMaiSkinId, skinId);
+    await _storageService.save(StorageService.kMaiSkinId, skinId);
     notifyListeners();
   }
 
   Future<void> setChuSkin(String skinId) async {
     if (_chuSkinId == skinId) return;
     _chuSkinId = skinId;
-    await getIt<StorageService>().save(StorageService.kChuSkinId, skinId);
+    await _storageService.save(StorageService.kChuSkinId, skinId);
     notifyListeners();
   }
 

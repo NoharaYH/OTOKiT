@@ -1,16 +1,21 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
-import '../../kernel/di/injection.dart';
+import 'package:injectable/injectable.dart';
+
 import '../../kernel/storage/sql/daos/mai_music_dao.dart';
-import '../../logic/mai_music_data/data_sync/mai_oss_sync_handler.dart';
 import '../../logic/mai_music_data/data_formats/mai_music.dart';
+import '../../logic/mai_music_data/data_sync/mai_oss_sync_handler.dart';
 import '../../logic/mai_music_data/transform/mai_db_mapper.dart';
 import '../shared/toast_provider.dart';
 
+@injectable
 class MaiMusicProvider extends ChangeNotifier {
-  final _syncHandler = MaiOssSyncHandler();
-  final _maiMusicDao = getIt<MaiMusicDao>();
-  final _toastProvider = getIt<ToastProvider>();
+  MaiMusicProvider(this._maiMusicDao, this._syncHandler, this._toastProvider);
+
+  final MaiMusicDao _maiMusicDao;
+  final MaiOssSyncHandler _syncHandler;
+  final ToastProvider _toastProvider;
 
   StreamSubscription? _musicSubscription;
   StreamSubscription? _utageSubscription;
@@ -20,16 +25,23 @@ class MaiMusicProvider extends ChangeNotifier {
 
   bool _isInitialized = false;
   bool _isLoading = false;
+  bool _isUtageMode = false;
   SyncPhase _syncPhase = SyncPhase.idle;
 
   bool get isInitialized => _isInitialized;
   bool get isLoading => _isLoading;
+  bool get isUtageMode => _isUtageMode;
   SyncPhase get syncPhase => _syncPhase;
   int get syncCurrent => 0;
   int get syncTotal => 0;
   bool get hasData => _musics.isNotEmpty;
-  List<MaiMusic> get musics => _musics;
+  List<MaiMusic> get musics => _isUtageMode ? _utageMusics : _musics;
   List<MaiMusic> get utageMusics => _utageMusics;
+
+  void toggleUtageMode() {
+    _isUtageMode = !_isUtageMode;
+    notifyListeners();
+  }
 
   @override
   void dispose() {

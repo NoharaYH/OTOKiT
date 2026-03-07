@@ -14,6 +14,9 @@ part 'app_database.g.dart';
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
+  /// 测试用：传入 executor（如 NativeDatabase.memory()）以使用内存库。
+  AppDatabase.forTest(QueryExecutor executor) : super(executor);
+
   @override
   int get schemaVersion => 3;
 

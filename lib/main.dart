@@ -17,12 +17,12 @@ void main() {
   runApp(
     MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (_) => GameProvider()),
+        ChangeNotifierProvider(create: (_) => getIt<GameProvider>()),
         ChangeNotifierProvider(create: (_) => getIt<TransferProvider>()),
-        ChangeNotifierProvider(create: (_) => NavigationProvider()),
+        ChangeNotifierProvider(create: (_) => getIt<NavigationProvider>()),
         ChangeNotifierProvider(create: (_) => getIt<ToastProvider>()),
-        ChangeNotifierProvider(create: (_) => MaiMusicProvider()),
-        ChangeNotifierProvider(create: (_) => ChuMusicDataProvider()),
+        ChangeNotifierProvider(create: (_) => getIt<MaiMusicProvider>()),
+        ChangeNotifierProvider(create: (_) => getIt<ChuMusicDataProvider>()),
       ],
       child: const MyApp(),
     ),

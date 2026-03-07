@@ -1,10 +1,13 @@
+import 'package:injectable/injectable.dart';
+
 import '../data_formats/mai_song_row.dart';
 
 enum SyncPhase { idle, pulling, writing }
 
 /// OSS 提供两个 JSON：普通曲、宴谱。拉取后分别解析为 [MaiMusicRow] 与 [MaiUtageRow]。
+@injectable
 class MaiOssSyncHandler {
-  // TODO: 替换为实际 OSS 地址
+  /// 实际 URL 存于 test/sql/secrets/oss_urls.json（该目录已 gitignore），此处不硬编码。
   static const String ossNormalUrl = '';
   static const String ossUtageUrl = '';
 

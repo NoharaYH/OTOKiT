@@ -1,8 +1,11 @@
 import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:injectable/injectable.dart';
 
 enum PageTag { scoreSync, musicData }
 
+@injectable
 class NavigationProvider extends ChangeNotifier {
   PageTag _currentTag = PageTag.scoreSync;
   bool _isDeckOpen = false;
