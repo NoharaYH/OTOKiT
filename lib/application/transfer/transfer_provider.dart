@@ -2,29 +2,48 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
+
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:injectable/injectable.dart';
 import 'package:app_links/app_links.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../kernel/config/env.dart';
+
+import '../../domain/entities/vpn_start_config.dart';
+import '../../domain/entities/vpn_status.dart';
+import '../../domain/repositories/vpn_repository.dart';
+import '../../kernel/config/chunithm_config.dart';
 import '../../kernel/config/endpoints.dart';
+import '../../kernel/config/env.dart';
+import '../../kernel/config/maimai_config.dart';
 import '../../kernel/config/system_config.dart';
-import '../../kernel/services/storage_service.dart';
 import '../../kernel/services/api_service.dart';
 import '../../kernel/services/maimai_html_parser.dart';
-import '../../kernel/config/maimai_config.dart';
-import '../../kernel/config/chunithm_config.dart';
+import '../../kernel/services/storage_service.dart';
 import '../../ui/design_system/constants/strings.dart';
 
 /// TransferProvider：纯 UI 状态中转层。
 @injectable
 class TransferProvider extends ChangeNotifier {
+  TransferProvider(
+    this._apiService,
+    this._storageService,
+    this._vpnRepo,
+  ) {
+    _loadTokens();
+    _statusSubscription = _vpnRepo.statusStream.listen(_onVpnStatus);
+    _logSubscription = _vpnRepo.logStream.listen(_handleLog);
+    _initDeepLinks();
+  }
+
   final ApiService _apiService;
   final StorageService _storageService;
+  final VpnRepository _vpnRepo;
   final _appLinks = AppLinks();
   StreamSubscription<Uri>? _linkSubscription;
+  StreamSubscription<VpnStatus>? _statusSubscription;
+  StreamSubscription<String>? _logSubscription;
 
   // 数据状态
   String dfToken = '';
@@ -43,13 +62,10 @@ class TransferProvider extends ChangeNotifier {
   bool _isTracking = false;
   bool _pendingWechat = false; // 等 VPN 真正启动后再跳微信
   int? _trackingGameType;
-  int _lastMode = 0; // 记录最近一次启动模式，供权限回调恢复使用
   Set<int> _currentDifficulties = {0, 1, 2, 3, 4, 5};
   String? _errorMessage;
   String? _successMessage;
   final Map<int, String> _gameLogs = {};
-
-  static const _channel = MethodChannel(SystemConfig.vpnChannelName);
 
   // Getters (Legacy - primarily for back-compat or active tab)
   bool get isLoading => _isLoading;
@@ -81,10 +97,18 @@ class TransferProvider extends ChangeNotifier {
 
   Timer? _logNotifyTimer;
 
-  TransferProvider(this._apiService, this._storageService) {
-    _loadTokens();
-    _initChannel();
-    _initDeepLinks();
+  void _onVpnStatus(VpnStatus status) {
+    _isVpnRunning = status.isRunning;
+    if (status.statusText != null) _successMessage = status.statusText;
+    if (status.isDone || status.statusText == UiStrings.syncFinish) {
+      _isTracking = false;
+      _vpnRepo.stop();
+    }
+    if (status.isRunning && _pendingWechat) {
+      _pendingWechat = false;
+      _afterVpnReady();
+    }
+    notifyListeners();
   }
 
   void _initDeepLinks() {
@@ -290,11 +314,11 @@ class TransferProvider extends ChangeNotifier {
             }
           }
           // 重要：反馈给原生侧，解除同步锁，允许切换至落雪平台
-          await _channel.invokeMethod('notifyDivingFishTaskDone');
+          await _vpnRepo.notifyDivingFishTaskDone();
         }
       } catch (e) {
         appendLog("${UiStrings.logTagError} ${UiStrings.logErrParse}: $e");
-        await _channel.invokeMethod('notifyDivingFishTaskDone');
+        await _vpnRepo.notifyDivingFishTaskDone();
       }
       return;
     }
@@ -323,117 +347,75 @@ class TransferProvider extends ChangeNotifier {
   /// 向控制台追加一行日志（UI 层调用，走防抖通知路径）。
   void appendLog(String msg) => _handleLog(msg);
 
-  void _initChannel() {
-    _channel.setMethodCallHandler((call) async {
-      switch (call.method) {
-        case 'onStatusChanged':
-          _isVpnRunning = call.arguments['isRunning'];
-          final status = call.arguments['status'] as String?;
-          if (status != null) _successMessage = status;
-
-          // 根据 MainActivity 的推送语义分离业务生命周期：
-          // [DONE] 推送: status="传分完成", isRunning=false
-          // [ERROR] 推送: status=null, isRunning=false
-          if (status == UiStrings.syncFinish ||
-              (status == null && !_isVpnRunning)) {
-            _isTracking = false;
-            // 显式保留 _trackingGameType 以避免 SyncLogPanel 被 auto-hidden 机制强制折叠
-            stopVpn(resetState: false);
-          }
-          notifyListeners();
-          break;
-        case 'onLogReceived':
-          _handleLog(call.arguments as String);
-          break;
-        case 'onVpnPrepared':
-          if (call.arguments == true) {
-            await startVpn(mode: _lastMode);
-          }
-          break;
-      }
-    });
-  }
-
   Future<void> startVpn({required int mode}) async {
-    final ok = await _channel.invokeMethod<bool>('prepareVpn');
-    if (ok == true) {
-      // 根据 mode 决定下发的 Token
-      final finalDfToken = (mode == 0 || mode == 1) ? dfToken : "";
-      final finalLxnsToken = (mode == 2 || mode == 1) ? lxnsToken : "";
+    final finalDfToken = (mode == 0 || mode == 1) ? dfToken : "";
+    final finalLxnsToken = (mode == 2 || mode == 1) ? lxnsToken : "";
 
-      // 动态拼装落雪上传地址
-      final String lxnsUploadPath = (_trackingGameType == 1)
-          ? ChunithmConfig.lxnsUploadPath
-          : MaimaiConfig.lxnsUploadPath;
-      final String fullLxnsUploadUrl =
-          "${Endpoints.lxnsBaseUrl}/$lxnsUploadPath";
+    final String lxnsUploadPath = (_trackingGameType == 1)
+        ? ChunithmConfig.lxnsUploadPath
+        : MaimaiConfig.lxnsUploadPath;
+    final String fullLxnsUploadUrl =
+        "${Endpoints.lxnsBaseUrl}/$lxnsUploadPath";
 
-      // 动态拼装水鱼上传地址
-      final String dfUploadPath = (_trackingGameType == 1)
-          ? ChunithmConfig.dfUploadPath
-          : MaimaiConfig.dfUploadPath;
-      final String fullDfUploadUrl = "${Endpoints.dfBaseUrl}/$dfUploadPath";
+    final String dfUploadPath = (_trackingGameType == 1)
+        ? ChunithmConfig.dfUploadPath
+        : MaimaiConfig.dfUploadPath;
+    final String fullDfUploadUrl = "${Endpoints.dfBaseUrl}/$dfUploadPath";
 
-      // 动态拼装官方地址
-      final String wahlapBaseUrl = (_trackingGameType == 1)
-          ? ChunithmConfig.wahlapBase
-          : MaimaiConfig.wahlapBase;
-      final String wahlapAuthLabel = (_trackingGameType == 1)
-          ? ChunithmConfig.wahlapAuthLabel
-          : MaimaiConfig.wahlapAuthLabel;
-      final String fullWahlapAuthUrl =
-          "${Endpoints.wahlapAuthBaseUrl}$wahlapAuthLabel";
+    final String wahlapBaseUrl = (_trackingGameType == 1)
+        ? ChunithmConfig.wahlapBase
+        : MaimaiConfig.wahlapBase;
+    final String wahlapAuthLabel = (_trackingGameType == 1)
+        ? ChunithmConfig.wahlapAuthLabel
+        : MaimaiConfig.wahlapAuthLabel;
+    final String fullWahlapAuthUrl =
+        "${Endpoints.wahlapAuthBaseUrl}$wahlapAuthLabel";
 
-      // 构造爬取 URL 字典
-      final Map<int, String> fetchUrlMap = {};
-      if (_trackingGameType == 0) {
-        // Maimai
-        fetchUrlMap[-1] = "${wahlapBaseUrl}friend/userFriendCode/";
-        fetchUrlMap[-2] = "${wahlapBaseUrl}record/";
-        fetchUrlMap[10] =
-            "${wahlapBaseUrl}record/musicGenre/search/?genre=99&diff=10";
-        for (var d in _currentDifficulties) {
-          if (d >= 0 && d != 10) {
-            fetchUrlMap[d] =
-                "${wahlapBaseUrl}record/musicSort/search/?search=V&sort=1&playCheck=on&diff=$d";
-          }
-        }
-      } else {
-        // Chunithm
-        fetchUrlMap[-1] = "${wahlapBaseUrl}home/playerData";
-        fetchUrlMap[-2] = "${wahlapBaseUrl}record/playlog";
-        fetchUrlMap[5] = "${wahlapBaseUrl}record/worldsEndList";
-        fetchUrlMap[10] = "${wahlapBaseUrl}record/worldsEndList";
-        for (var d in _currentDifficulties) {
-          if (d >= 0 && d < 5) {
-            fetchUrlMap[d] = "${wahlapBaseUrl}record/musicGenre?difficulty=$d";
-          }
+    final Map<int, String> fetchUrlMap = {};
+    if (_trackingGameType == 0) {
+      fetchUrlMap[-1] = "${wahlapBaseUrl}friend/userFriendCode/";
+      fetchUrlMap[-2] = "${wahlapBaseUrl}record/";
+      fetchUrlMap[10] =
+          "${wahlapBaseUrl}record/musicGenre/search/?genre=99&diff=10";
+      for (var d in _currentDifficulties) {
+        if (d >= 0 && d != 10) {
+          fetchUrlMap[d] =
+              "${wahlapBaseUrl}record/musicSort/search/?search=V&sort=1&playCheck=on&diff=$d";
         }
       }
-
-      // 乐曲分类列表 (仅舞萌需要)
-      final List<String> genreList = (_trackingGameType == 1)
-          ? ChunithmConfig.genreList
-          : MaimaiConfig.genreList;
-
-      // 将 Token 凭证与难度配置一同下发，供原生 DataContext 存储后使用
-      await _channel.invokeMethod('startVpn', {
-        'username': finalDfToken,
-        'password': finalLxnsToken,
-        'lxnsUploadUrl': fullLxnsUploadUrl,
-        'dfUploadUrl': fullDfUploadUrl,
-        'wahlapBaseUrl': wahlapBaseUrl,
-        'wahlapAuthUrl': fullWahlapAuthUrl,
-        'genreList': genreList,
-        'fetchUrlMap': fetchUrlMap,
-        'gameType': _trackingGameType,
-        'difficulties': _currentDifficulties.toList(),
-      });
-      // VPN 已实际启动，此时再执行微信跳转
-      if (_pendingWechat) {
-        _pendingWechat = false;
-        await _afterVpnReady();
+    } else {
+      fetchUrlMap[-1] = "${wahlapBaseUrl}home/playerData";
+      fetchUrlMap[-2] = "${wahlapBaseUrl}record/playlog";
+      fetchUrlMap[5] = "${wahlapBaseUrl}record/worldsEndList";
+      fetchUrlMap[10] = "${wahlapBaseUrl}record/worldsEndList";
+      for (var d in _currentDifficulties) {
+        if (d >= 0 && d < 5) {
+          fetchUrlMap[d] = "${wahlapBaseUrl}record/musicGenre?difficulty=$d";
+        }
       }
+    }
+
+    final List<String> genreList = (_trackingGameType == 1)
+        ? ChunithmConfig.genreList
+        : MaimaiConfig.genreList;
+
+    final config = VpnStartConfig(
+      dfToken: finalDfToken,
+      lxnsToken: finalLxnsToken,
+      lxnsUploadUrl: fullLxnsUploadUrl,
+      dfUploadUrl: fullDfUploadUrl,
+      wahlapBaseUrl: wahlapBaseUrl,
+      wahlapAuthUrl: fullWahlapAuthUrl,
+      genreList: genreList,
+      fetchUrlMap: fetchUrlMap,
+      gameTypeIndex: _trackingGameType,
+      difficulties: _currentDifficulties.toList(),
+    );
+
+    await _vpnRepo.prepareAndStart(config);
+    if (_pendingWechat) {
+      _pendingWechat = false;
+      await _afterVpnReady();
     }
   }
 
@@ -463,7 +445,7 @@ class TransferProvider extends ChangeNotifier {
     if (isManually) {
       appendLog("${UiStrings.logTagSystem} ${UiStrings.logSysTerminated}");
     }
-    await _channel.invokeMethod('stopVpn');
+    await _vpnRepo.stop();
     if (resetState) {
       if (_trackingGameType != null && isManually) {
         // 手动终止时清理对应游戏的日志缓存，实现彻底隔离
@@ -495,7 +477,6 @@ class TransferProvider extends ChangeNotifier {
   }) async {
     _isTracking = true;
     _trackingGameType = gameType;
-    _lastMode = mode;
     _currentDifficulties = difficulties;
     _gameLogs[gameType] = "";
     notifyListeners();
@@ -522,6 +503,8 @@ class TransferProvider extends ChangeNotifier {
   void dispose() {
     _logNotifyTimer?.cancel();
     _linkSubscription?.cancel();
+    _statusSubscription?.cancel();
+    _logSubscription?.cancel();
     super.dispose();
   }
 

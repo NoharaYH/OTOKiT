@@ -20,8 +20,15 @@ import '../../application/shared/game_provider.dart' as _i822;
 import '../../application/shared/navigation_provider.dart' as _i155;
 import '../../application/shared/toast_provider.dart' as _i533;
 import '../../application/transfer/transfer_provider.dart' as _i1034;
+import '../../domain/repositories/vpn_repository.dart' as _i1017;
+import '../../infrastructure/native/channel/vpn_channel_gateway.dart' as _i106;
+import '../../infrastructure/network/clients/divingfish_api_client.dart'
+    as _i586;
+import '../../infrastructure/network/clients/lxns_api_client.dart' as _i937;
 import '../../logic/mai_music_data/data_sync/mai_oss_sync_handler.dart'
     as _i790;
+import '../../shared/env/app_env.dart' as _i187;
+import '../config/prod_env.dart' as _i543;
 import '../services/api_service.dart' as _i137;
 import '../services/storage_service.dart' as _i306;
 import '../storage/sql/app_database.dart' as _i903;
@@ -40,11 +47,19 @@ extension GetItInjectableX on _i174.GetIt {
     gh.factory<_i155.NavigationProvider>(() => _i155.NavigationProvider());
     gh.factory<_i790.MaiOssSyncHandler>(() => _i790.MaiOssSyncHandler());
     gh.lazySingleton<_i533.ToastProvider>(() => _i533.ToastProvider());
+    gh.lazySingleton<_i106.VpnChannelGateway>(() => _i106.VpnChannelGateway());
+    gh.lazySingleton<_i543.ProdEnv>(() => const _i543.ProdEnv());
     gh.lazySingleton<_i361.Dio>(() => registerModule.dio);
     gh.lazySingleton<_i558.FlutterSecureStorage>(
       () => registerModule.secureStorage,
     );
     gh.lazySingleton<_i903.AppDatabase>(() => _i903.AppDatabase());
+    gh.lazySingleton<_i586.DivingFishApiClient>(
+      () => _i586.DivingFishApiClient(gh<_i361.Dio>(), gh<_i187.AppEnv>()),
+    );
+    gh.lazySingleton<_i937.LxnsApiClient>(
+      () => _i937.LxnsApiClient(gh<_i361.Dio>(), gh<_i187.AppEnv>()),
+    );
     gh.lazySingleton<_i80.MaiMusicDao>(
       () => _i80.MaiMusicDao(gh<_i903.AppDatabase>()),
     );
@@ -59,14 +74,15 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i533.ToastProvider>(),
       ),
     );
-    gh.factory<_i822.GameProvider>(
-      () => _i822.GameProvider(gh<_i306.StorageService>()),
-    );
     gh.factory<_i1034.TransferProvider>(
       () => _i1034.TransferProvider(
         gh<_i137.ApiService>(),
         gh<_i306.StorageService>(),
+        gh<_i1017.VpnRepository>(),
       ),
+    );
+    gh.factory<_i822.GameProvider>(
+      () => _i822.GameProvider(gh<_i306.StorageService>()),
     );
     return this;
   }
