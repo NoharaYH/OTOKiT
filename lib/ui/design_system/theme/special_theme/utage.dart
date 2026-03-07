@@ -124,6 +124,7 @@ class _UtageTiledBackgroundState extends State<_UtageTiledBackground>
         ),
         const _UtageShineEffects(),
         const _UtageDiscoBall(),
+        const _UtageWanderingLights(),
         Positioned(
           top: MediaQuery.of(context).size.height * 0.4,
           left: 0,
@@ -482,6 +483,210 @@ class _UtageShineEffectsState extends State<_UtageShineEffects>
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _UtageWanderingLights extends StatelessWidget {
+  const _UtageWanderingLights();
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      clipBehavior: Clip.none,
+      children: [
+        // light1 ~ 3, 上 40%
+        for (int i = 0; i < 3; i++)
+          const _UtageParticle(
+            asset: 'assets/background/maimaidx/utage/light_1.webp',
+            minY: 0.0,
+            maxY: 0.4,
+            minSize: 100,
+            maxSize: 160,
+          ),
+        for (int i = 0; i < 3; i++)
+          const _UtageParticle(
+            asset: 'assets/background/maimaidx/utage/light_2.webp',
+            minY: 0.0,
+            maxY: 0.4,
+            minSize: 80,
+            maxSize: 140,
+          ),
+        for (int i = 0; i < 3; i++)
+          const _UtageParticle(
+            asset: 'assets/background/maimaidx/utage/light_3.webp',
+            minY: 0.0,
+            maxY: 0.4,
+            minSize: 90,
+            maxSize: 150,
+          ),
+
+        // warm1 ~ 3, 下 70% (minY = 0.3, maxY = 1.0)
+        for (int i = 0; i < 3; i++)
+          const _UtageParticle(
+            asset: 'assets/background/maimaidx/utage/warm_1.webp',
+            minY: 0.3,
+            maxY: 1.0,
+            visualScale: 1.3,
+            minSize: 120,
+            maxSize: 200,
+          ),
+        for (int i = 0; i < 3; i++)
+          const _UtageParticle(
+            asset: 'assets/background/maimaidx/utage/warm_2.webp',
+            minY: 0.3,
+            maxY: 1.0,
+            visualScale: 1.3,
+            minSize: 100,
+            maxSize: 180,
+          ),
+        for (int i = 0; i < 3; i++)
+          const _UtageParticle(
+            asset: 'assets/background/maimaidx/utage/warm_3.webp',
+            minY: 0.3,
+            maxY: 1.0,
+            visualScale: 1.3,
+            minSize: 110,
+            maxSize: 190,
+          ),
+      ],
+    );
+  }
+}
+
+class _UtageParticle extends StatefulWidget {
+  final String asset;
+  final double minY;
+  final double maxY;
+  final double minSize;
+  final double maxSize;
+  final double visualScale; // 新增缩放比例支持，方便直接看到图片本原尺寸变化
+
+  const _UtageParticle({
+    required this.asset,
+    required this.minY,
+    required this.maxY,
+    this.minSize = 80.0,
+    this.maxSize = 160.0,
+    this.visualScale = 1.0,
+  });
+
+  @override
+  State<_UtageParticle> createState() => _UtageParticleState();
+}
+
+class _UtageParticleState extends State<_UtageParticle> {
+  final math.Random _rnd = math.Random();
+  late double _x;
+  late double _y;
+  late double _opacity;
+  late double _scale;
+  late double _baseSizeFactor; // 持久化随机因子，替代之前的固定baseSize
+  late Duration _duration;
+  late Size _screenSize;
+  Timer? _timer;
+  bool _initialized = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      _initialized = true;
+      _screenSize = MediaQuery.of(context).size;
+      _initRandomPosition();
+      Future.delayed(Duration(milliseconds: 100 + _rnd.nextInt(2000)), _wander);
+    }
+  }
+
+  void _initRandomPosition() {
+    _baseSizeFactor = _rnd.nextDouble();
+    _x = _rnd.nextDouble() * _screenSize.width;
+    _y =
+        _screenSize.height * widget.minY +
+        _rnd.nextDouble() * (_screenSize.height * (widget.maxY - widget.minY));
+    _opacity = 0.0;
+    _scale = 0.5 + _rnd.nextDouble() * 0.5;
+    _duration = Duration.zero;
+  }
+
+  void _wander() {
+    if (!mounted) return;
+
+    setState(() {
+      _duration = Duration(milliseconds: 4000 + _rnd.nextInt(6000)); // 4~10秒
+
+      // 持续生成新的尺寸因子可以呈现呼吸式的形变，但为了稳定，基础大小不变，仅改变附加scale
+      double dx = (_rnd.nextDouble() - 0.5) * _screenSize.width * 0.8;
+      double dy = (_rnd.nextDouble() - 0.5) * _screenSize.height * 0.4;
+
+      _x += dx;
+      _y += dy;
+
+      final currentSize =
+          (widget.minSize +
+              _baseSizeFactor * (widget.maxSize - widget.minSize)) *
+          widget.visualScale *
+          _scale;
+      _x = _x.clamp(-currentSize, _screenSize.width + currentSize);
+
+      final minYLimit = _screenSize.height * widget.minY - currentSize;
+      final maxYLimit = _screenSize.height * widget.maxY + currentSize;
+      _y = _y.clamp(minYLimit, maxYLimit);
+
+      if (_rnd.nextDouble() < 0.25) {
+        // 25% 随机消失
+        _opacity = 0.0;
+      } else {
+        // 改变透明度
+        _opacity = 0.4 + _rnd.nextDouble() * 0.6;
+      }
+
+      // 轻微缩放
+      _scale = 0.6 + _rnd.nextDouble() * 0.8;
+    });
+
+    _timer?.cancel();
+    _timer = Timer(_duration, _wander);
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_initialized) return const SizedBox.shrink();
+    _screenSize = MediaQuery.of(context).size;
+
+    // 将 baseSize 移至 build 内动态运算以响应热重载和视觉参数的直接修改
+    final currentBaseSize =
+        (widget.minSize + _baseSizeFactor * (widget.maxSize - widget.minSize)) *
+        widget.visualScale;
+
+    return AnimatedPositioned(
+      duration: _duration,
+      curve: Curves.easeInOut,
+      left: _x - (currentBaseSize / 2),
+      top: _y - (currentBaseSize / 2),
+      child: AnimatedOpacity(
+        duration: _duration,
+        opacity: _opacity,
+        curve: Curves.easeInOut,
+        child: AnimatedScale(
+          duration: _duration,
+          scale: _scale,
+          curve: Curves.easeInOut,
+          child: Image.asset(
+            widget.asset,
+            width: currentBaseSize,
+            height: currentBaseSize,
+            fit: BoxFit.contain,
           ),
         ),
       ),
