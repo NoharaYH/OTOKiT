@@ -47,6 +47,18 @@ class AppAssets {
       'assets/background/chunithm/verse/top_right.png.webp';
   static const String chunithmBottomLeft =
       'assets/background/chunithm/verse/bottom_left.png.webp';
+  static const String chunithmVerseGlobe =
+      'assets/background/chunithm/verse/globe.png.webp';
+  static const String chunithmVerseGlobeCenter =
+      'assets/background/chunithm/verse/globe_center.png.webp';
+  static const String chunithmVerseGlobeCross =
+      'assets/background/chunithm/verse/globe_cross.png.webp';
+  static const String chunithmVerseFloatingText =
+      'assets/background/chunithm/verse/floating_text.png.webp';
+  static const String chunithmVerseBeltLeft =
+      'assets/background/chunithm/verse/verse_belt-left.png.webp';
+  static const String chunithmVerseBeltRight =
+      'assets/background/chunithm/verse/verse_belt-right.png.webp';
 
   // Logos
   static const String logoMaimai = 'assets/logo/circle.webp';
