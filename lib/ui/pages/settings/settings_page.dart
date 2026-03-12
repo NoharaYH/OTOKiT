@@ -10,6 +10,8 @@ import '../../design_system/kit_setting/setting_tile.dart';
 import 'categories/app_settings_page.dart';
 import 'categories/personalization_page.dart';
 import 'categories/sync_service_page.dart';
+import '../../design_system/constants/responsive_layout_scope.dart';
+import '../../design_system/constants/sizes.dart';
 import '../../design_system/theme/core/app_theme.dart';
 import '../../design_system/theme/universal_theme/star_trails.dart';
 import 'categories/about_page.dart';
@@ -72,13 +74,14 @@ class _SettingsPageState extends State<SettingsPage>
   @override
   void initState() {
     super.initState();
+    // 与右侧二级内容淡出一致：500ms + easeInOutQuart，返回效果统一
     _fadeController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 200),
+      duration: const Duration(milliseconds: 500),
     );
     _fadeAnimation = CurvedAnimation(
       parent: _fadeController,
-      curve: Curves.easeOut,
+      curve: Curves.easeInOutQuart,
     );
 
     _expansionController = AnimationController(
@@ -179,6 +182,9 @@ class _SettingsPageState extends State<SettingsPage>
     final topPadding = MediaQuery.of(context).padding.top;
     final skinExtension =
         Theme.of(context).extension<AppTheme>() ?? const StarTrailsTheme();
+    final scope = ResponsiveLayoutScope.maybeOf(context);
+    final width = scope?.primaryPaneWidth ?? MediaQuery.sizeOf(context).width;
+    final isLargeScreen = width > 600;
 
     return PopScope(
       canPop: false,
@@ -197,9 +203,7 @@ class _SettingsPageState extends State<SettingsPage>
                 child: Consumer<NavigationProvider>(
                   builder: (context, nav, _) {
                     return GestureDetector(
-                      onTap: () => _activeCategoryIndex == null
-                          ? _handleBack()
-                          : _handleCategoryBack(),
+                      onTap: _handleBack,
                       child: AnimatedBuilder(
                         animation: _fadeAnimation,
                         builder: (context, _) => Opacity(
@@ -242,18 +246,21 @@ class _SettingsPageState extends State<SettingsPage>
                   _fadeAnimation,
                   _expansionAnimation,
                 ]),
-                builder: (context, _) => Column(
-                  children: [
-                    // 动态 Header 区域 - 向下滑入 (Slide Down)
-                    ClipRect(
-                      child: Align(
-                        alignment: Alignment.topCenter,
-                        heightFactor: _fadeAnimation.value,
-                        child: SizedBox(
+                builder: (context, _) {
+                  // 平板模式：顶部不播扩张动画，仅保留「返回首页」常驻；手机模式：保留原有 Phase A/B 动画
+                  // 扁平层级：任意返回均直接回功能页，与右侧二级淡出效果一致
+                  final headerChild = isLargeScreen
+                      ? SettingHeader(
+                          title: '返回首页',
+                          icon: Icons.home_outlined,
+                          iconColor: Colors.transparent,
+                          onBack: _handleBack,
+                          isSubPage: false,
+                        )
+                      : SizedBox(
                           height: topPadding + 54,
                           child: Stack(
                             children: [
-                              // Phase A: "返回首页" Header - 收缩
                               ClipRect(
                                 child: Align(
                                   alignment: Alignment.topCenter,
@@ -272,8 +279,6 @@ class _SettingsPageState extends State<SettingsPage>
                                   ),
                                 ),
                               ),
-
-                              // Phase B: 二级页 Header - 扩张
                               if (_activeCategoryIndex != null)
                                 ClipRect(
                                   child: Align(
@@ -289,55 +294,50 @@ class _SettingsPageState extends State<SettingsPage>
                                               .color,
                                       expansionProgress:
                                           _expansionAnimation.value,
-                                      onBack: _handleCategoryBack,
+                                      onBack: _handleBack,
                                     ),
                                   ),
                                 ),
                             ],
                           ),
-                        ),
-                      ),
-                    ),
+                        );
 
-                    // 列表/二级页内容区域 - 向上滑入 (Slide Up 对冲)
-                    Expanded(
-                      child: Transform.translate(
-                        offset: Offset(0, 40 * (1 - _fadeAnimation.value)),
-                        child: Stack(
-                          children: [
-                            // 1. 主列表
-                            Opacity(
-                              opacity:
-                                  (1 - _expansionAnimation.value) *
-                                  _fadeAnimation.value,
-                              child: IgnorePointer(
-                                ignoring: _activeCategoryIndex != null,
-                                child: _buildMainList(),
-                              ),
+                  return Opacity(
+                    opacity: _fadeAnimation.value,
+                    child: Column(
+                      children: [
+                        ClipRect(
+                          child: Align(
+                            alignment: Alignment.topCenter,
+                            heightFactor: _fadeAnimation.value,
+                            child: isLargeScreen
+                                ? SizedBox(
+                                    height: topPadding + 54,
+                                    child: headerChild,
+                                  )
+                                : headerChild,
+                          ),
+                        ),
+                        Expanded(
+                          child: Transform.translate(
+                            offset: Offset(0, 40 * (1 - _fadeAnimation.value)),
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                final scope =
+                                    ResponsiveLayoutScope.maybeOf(context);
+                                final width = scope?.primaryPaneWidth ??
+                                    MediaQuery.sizeOf(context).width;
+                                final isLarge = width > 600;
+                                if (isLarge) return _buildLargeScreenContent();
+                                return _buildPhoneContent();
+                              },
                             ),
-
-                            // 2. 二级页内容
-                            if (_activeCategoryIndex != null)
-                              RepaintBoundary(
-                                child: Opacity(
-                                  opacity: _expansionAnimation.value,
-                                  child: Transform.translate(
-                                    offset: Offset(
-                                      0,
-                                      40 * (1 - _expansionAnimation.value),
-                                    ),
-                                    child:
-                                        _cachedSubPage ??
-                                        const SizedBox.shrink(),
-                                  ),
-                                ),
-                              ),
-                          ],
+                          ),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
-                ),
+                  );
+                },
               ),
             ],
           ),
@@ -348,21 +348,98 @@ class _SettingsPageState extends State<SettingsPage>
 
   Widget? _cachedSubPage;
 
+  /// 大屏：左右 5:11 分栏，中间间距为选项卡片间距 2 倍，正中 2px 白线（不贯穿，上下标准间距）
+  Widget _buildLargeScreenContent() {
+    const cardSpacing = UiSizes.spaceS; // 12，与 _buildMainList 中 bottom 一致
+    const gapWidth = cardSpacing * 2; // 24
+    const lineInset = UiSizes.spaceM; // 16，标准间距
+    const lineWidth = 2.0;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // 左侧 5 份：分类列表（平板常驻；右侧无 padding，仅保留中间缝间距）
+        Expanded(
+          flex: 5,
+          child: _buildMainList(forLargeScreen: true),
+        ),
+        // 中间：间距 + 不贯穿白线（上下各 lineInset）
+        SizedBox(
+          width: gapWidth,
+          child: Column(
+            children: [
+              const SizedBox(height: lineInset),
+              Expanded(
+                child: Center(
+                  child: Container(
+                    width: lineWidth,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              const SizedBox(height: lineInset),
+            ],
+          ),
+        ),
+        // 右侧 11 份：二级页或空白（左移抵消二级页自身 horizontal margin，避免与中间缝叠加）
+        Expanded(
+          flex: 11,
+          child: _activeCategoryIndex != null
+              ? RepaintBoundary(
+                  child: Opacity(
+                    opacity: _expansionAnimation.value,
+                    child: Transform.translate(
+                      offset: Offset(
+                        -UiSizes.getHorizontalMargin(context),
+                        40 * (1 - _expansionAnimation.value),
+                      ),
+                      child:
+                          _cachedSubPage ?? const SizedBox.shrink(),
+                    ),
+                  ),
+                )
+              : const SizedBox.shrink(),
+        ),
+      ],
+    );
+  }
+
+  /// 手机：保持原有整屏 Stack 切换
+  Widget _buildPhoneContent() {
+    return Stack(
+      children: [
+        Opacity(
+          opacity:
+              (1 - _expansionAnimation.value) * _fadeAnimation.value,
+          child: IgnorePointer(
+            ignoring: _activeCategoryIndex != null,
+            child: _buildMainList(),
+          ),
+        ),
+        if (_activeCategoryIndex != null)
+          RepaintBoundary(
+            child: Opacity(
+              opacity: _expansionAnimation.value,
+              child: Transform.translate(
+                offset: Offset(
+                  0,
+                  40 * (1 - _expansionAnimation.value),
+                ),
+                child:
+                    _cachedSubPage ?? const SizedBox.shrink(),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
   void _handleCategoryTap(int index) {
     setState(() {
       _activeCategoryIndex = index;
       _cachedSubPage = _buildThemedSubPage(context);
     });
     _expansionController.forward();
-  }
-
-  void _handleCategoryBack() {
-    _expansionController.reverse().then((_) {
-      setState(() {
-        _activeCategoryIndex = null;
-        _cachedSubPage = null;
-      });
-    });
   }
 
   /// 物理隔离：预构建二级页，隔离 AnimatedBuilder 的高频重绘。
@@ -382,9 +459,13 @@ class _SettingsPageState extends State<SettingsPage>
     );
   }
 
-  Widget _buildMainList() {
+  /// [forLargeScreen] 为 true 时右侧无 padding，避免与中间缝叠加成双倍间距。
+  Widget _buildMainList({bool forLargeScreen = false}) {
+    final padding = forLargeScreen
+        ? const EdgeInsets.only(left: 16, top: 20, bottom: 20, right: 0)
+        : const EdgeInsets.symmetric(horizontal: 16, vertical: 20);
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+      padding: padding,
       child: Column(
         children: List.generate(categories.length, (index) {
           final cat = categories[index];
@@ -407,13 +488,16 @@ class _SettingsPageState extends State<SettingsPage>
     );
   }
 
+  /// 扁平层级：任意选项内返回均直接回功能页，淡出与右侧二级内容一致（500ms easeInOutQuart）
   void _handleBack() {
-    if (_activeCategoryIndex != null) {
-      _handleCategoryBack();
-      return;
-    }
     _fadeController.reverse().then((_) {
-      context.read<NavigationProvider>().closeSettings();
+      if (mounted) {
+        setState(() {
+          _activeCategoryIndex = null;
+          _cachedSubPage = null;
+        });
+        context.read<NavigationProvider>().closeSettings();
+      }
     });
   }
 }
