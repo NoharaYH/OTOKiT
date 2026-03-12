@@ -261,15 +261,15 @@ class _ScoreSyncAssemblyState extends State<ScoreSyncAssembly> {
     final dfToken = dfController.text.trim();
     final lxnsToken = lxnsController.text.trim();
 
-    // UI状态打包下沉给中枢：用户敲击结束后，确认执行那刻才提交数据
-    provider.updateTokens(
-      gameType: widget.gameType,
-      df: dfToken,
-      lxns: lxnsToken,
-    );
-
     final needsDf = mode == 0 || mode == 1;
     final needsLxns = mode == 2 || mode == 1;
+
+    // UI状态打包下沉给中枢：按当前模式按需提交，避免跨平台互清验证状态
+    provider.updateTokens(
+      gameType: widget.gameType,
+      df: needsDf ? dfToken : null,
+      lxns: needsLxns ? lxnsToken : null,
+    );
 
     if (needsDf && dfToken.isEmpty) {
       context.read<ToastProvider>().show('请输入水鱼查分Token', ToastType.error);

@@ -490,9 +490,7 @@ class TransferController extends ChangeNotifier {
     bool needsSave = false;
     if (df != null) {
       dfToken = df;
-      for (final gt in [0, 1]) {
-        _isDivingFishVerifiedMap[gt] = false;
-      }
+      _isDivingFishVerifiedMap[gameType ?? _activeGameType] = false;
       needsSave = true;
     }
     if (lxns != null) {
