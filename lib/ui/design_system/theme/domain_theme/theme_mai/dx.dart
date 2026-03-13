@@ -33,50 +33,38 @@ class DxTheme extends AppTheme {
 
   @override
   Widget buildBackground(BuildContext context) {
-    final w = MediaQuery.sizeOf(context).width;
-    final h = MediaQuery.sizeOf(context).height;
-    final bool isCompact = w < 600;
-
-    // ── L2 地球（两档，Phase A-5）──
-    final double earthW = isCompact ? double.infinity : 1101.0;
-    final double earthH = isCompact ? 420.0 : 1140.0;
-    final double earthBottom = isCompact ? -(h * 0.34) : -640.0;
-
-    // ── L4 云朵 / 环 尺寸在子组件内按 isCompact 两档 ──
-    // _FloatingRing 位置固定像素两档（A-6）
-    final double ring1Top = isCompact ? 40.0 : 100.0;
-    final double ring1Left = isCompact ? -56.0 : -140.0;
-    final double ring2Top = isCompact ? 120.0 : 300.0;
-    final double ring2Right = isCompact ? -24.0 : -80.0;
-    final double ring3Top = isCompact ? 180.0 : 450.0;
-    final double ring3Left = isCompact ? -20.0 : -50.0;
-
-    // 彩虹/网格层仍用比例居中（Phase B 再改 L1），暂保留
-    final double rainbowWidth = (isCompact ? w : 1101.0) * 0.7;
-    final double rainbowTop = isCompact ? (h * 0.50 - 120) : (h * 0.50 - 200);
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    // 继承 _RotatingEarth 的地球比例 1.7
+    final earthWidth = screenWidth * 1.7;
+    // 窄于地球宽度的 10%
+    final rainbowWidth = earthWidth * 0.7;
 
     return Stack(
       fit: StackFit.expand,
       children: [
+        // 0. 基础填充层
         const ColoredBox(color: Color(0xFF00B9EF)),
-        _RotatingEarth(
-          earthW: earthW,
-          earthH: earthH,
-          earthBottom: earthBottom,
-        ),
+
+        // 4. 地球 (旋转且放大)
+        const _RotatingEarth(),
+
+        // 1 & 2. 复合网格与彩虹层 (宽度为地球的 90%，中心点设在屏幕 50% 高度)
         Positioned(
-          top: rainbowTop,
-          left: (w - rainbowWidth) / 2,
+          top: screenHeight * 0.50 - 200,
+          left: (screenWidth - rainbowWidth) / 2,
           width: rainbowWidth,
           child: Stack(
             alignment: Alignment.center,
             children: [
+              // 蓝色网格 (平铺纹理)
               Image.asset(
                 'assets/background/maimaidx/dx/dot_bg.webp',
                 repeat: ImageRepeat.repeat,
                 width: rainbowWidth,
                 height: 400,
               ),
+              // 彩虹
               Image.asset(
                 'assets/background/maimaidx/dx/rainbow.webp',
                 width: rainbowWidth,
@@ -85,38 +73,36 @@ class DxTheme extends AppTheme {
             ],
           ),
         ),
-        _FloatingRing(
-          top: ring1Top,
-          left: ring1Left,
-          right: null,
+
+        // 3. 按照标注位置分布的小环形装饰 (层级最上方)
+        const _FloatingRing(
+          top: 0.1,
+          left: -0.14,
+          size: 0.30,
           clockwise: true,
-        ),
-        _FloatingRing(
-          top: ring2Top,
-          left: null,
-          right: ring2Right,
+        ), // 左上角
+        const _FloatingRing(
+          top: 0.3,
+          right: -0.08,
+          size: 0.3,
           clockwise: false,
-        ),
-        _FloatingRing(
-          top: ring3Top,
-          left: ring3Left,
-          right: null,
+        ), // 右侧中段边缘
+        const _FloatingRing(
+          top: 0.45,
+          left: -0.05,
+          size: 0.20,
           clockwise: true,
-        ),
+        ), // 左下彩虹区域
+        // 5. 漂浮云朵 (1个从左向右，2个从右向左，始终保持屏幕最多3个)
         const _DriftingCloud(
-          topRatio: 0.15,
+          top: 0.15,
           speed: 0.04,
           delay: 0,
           fromRight: false,
         ),
+        const _DriftingCloud(top: 0.25, speed: 0.03, delay: 5, fromRight: true),
         const _DriftingCloud(
-          topRatio: 0.25,
-          speed: 0.03,
-          delay: 5,
-          fromRight: true,
-        ),
-        const _DriftingCloud(
-          topRatio: 0.35,
+          top: 0.35,
           speed: 0.06,
           delay: 10,
           fromRight: true,
@@ -151,85 +137,13 @@ class DxTheme extends AppTheme {
 }
 
 class _RotatingEarth extends StatefulWidget {
-  final double earthW;
-  final double earthH;
-  final double earthBottom;
-
-  const _RotatingEarth({
-    required this.earthW,
-    required this.earthH,
-    required this.earthBottom,
-  });
+  const _RotatingEarth();
 
   @override
   State<_RotatingEarth> createState() => _RotatingEarthState();
 }
 
 class _RotatingEarthState extends State<_RotatingEarth>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 80),
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final w = MediaQuery.sizeOf(context).width;
-
-    return Positioned(
-      bottom: widget.earthBottom,
-      left: widget.earthW == double.infinity ? 0 : (w - widget.earthW) / 2,
-      child: SizedBox(
-        width: widget.earthW == double.infinity ? w : widget.earthW,
-        height: widget.earthH,
-        child: AnimatedBuilder(
-          animation: _controller,
-          builder: (context, child) => Transform.rotate(
-            angle: 2 * math.pi * _controller.value,
-            child: child,
-          ),
-          child: Image.asset(
-            'assets/background/maimaidx/dx/earth.webp',
-            width: widget.earthW,
-            height: widget.earthH,
-            fit: BoxFit.contain,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _FloatingRing extends StatefulWidget {
-  final double top;
-  final double? left;
-  final double? right;
-  final bool clockwise;
-
-  const _FloatingRing({
-    required this.top,
-    this.left,
-    this.right,
-    required this.clockwise,
-  });
-
-  @override
-  State<_FloatingRing> createState() => _FloatingRingState();
-}
-
-class _FloatingRingState extends State<_FloatingRing>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
@@ -250,13 +164,87 @@ class _FloatingRingState extends State<_FloatingRing>
 
   @override
   Widget build(BuildContext context) {
-    final w = MediaQuery.sizeOf(context).width;
-    final ringSize = w < 600 ? 80.0 : 160.0;
+    final screenWidth = MediaQuery.of(context).size.width;
+    // 放大 120%
+    final earthWidth = screenWidth * 1.8;
 
     return Positioned(
-      top: widget.top,
-      left: widget.left,
-      right: widget.right,
+      // 固定圆心在屏幕正下方边缘：
+      // 底部偏移为半径的负值，左侧偏移使中心对齐
+      bottom: -earthWidth / 2,
+      left: (screenWidth - earthWidth) / 2,
+      child: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, child) {
+          // 匀速顺时针旋转且整体水平拉宽 15%
+          return Transform.scale(
+            scaleX: 1.15,
+            child: Transform.rotate(
+              angle: 2 * math.pi * _controller.value,
+              child: child,
+            ),
+          );
+        },
+        child: Image.asset(
+          'assets/background/maimaidx/dx/earth.webp',
+          width: earthWidth,
+          height: earthWidth,
+          fit: BoxFit.contain,
+        ),
+      ),
+    );
+  }
+}
+
+class _FloatingRing extends StatefulWidget {
+  final double top;
+  final double? left;
+  final double? right;
+  final double size; // 屏幕宽度的比例
+  final bool clockwise;
+
+  const _FloatingRing({
+    required this.top,
+    this.left,
+    this.right,
+    required this.size,
+    required this.clockwise,
+  });
+
+  @override
+  State<_FloatingRing> createState() => _FloatingRingState();
+}
+
+class _FloatingRingState extends State<_FloatingRing>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    // 速度与地球相同：60s 一圈
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 60),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final ringSize = screenWidth * widget.size;
+
+    return Positioned(
+      top: screenHeight * widget.top,
+      left: widget.left != null ? screenWidth * widget.left! : null,
+      right: widget.right != null ? screenWidth * widget.right! : null,
       child: AnimatedBuilder(
         animation: _controller,
         builder: (context, child) {
@@ -277,13 +265,13 @@ class _FloatingRingState extends State<_FloatingRing>
 }
 
 class _DriftingCloud extends StatefulWidget {
-  final double topRatio;
+  final double top;
   final double speed;
   final double delay;
   final bool fromRight;
 
   const _DriftingCloud({
-    required this.topRatio,
+    required this.top,
     required this.speed,
     required this.delay,
     this.fromRight = false,
@@ -297,15 +285,21 @@ class _DriftingCloudState extends State<_DriftingCloud>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final String _assetPath;
+  late final double _cloudWidth;
 
   @override
   void initState() {
     super.initState();
+    // 随机选择一个云朵资源
     final random = math.Random();
     _assetPath =
         'assets/background/maimaidx/dx/cloud${random.nextInt(4) + 1}.webp';
+    _cloudWidth = 100.0 + random.nextDouble() * 100.0;
 
+    // 计算动画时长：(1 + 宽度占比) / 速度
+    // 假设云朵宽度约为 0.3 屏幕宽，总行程为 1.3
     final durationSeconds = 1.3 / widget.speed;
+
     _controller = AnimationController(
       vsync: this,
       duration: Duration(milliseconds: (durationSeconds * 1000).toInt()),
@@ -313,6 +307,7 @@ class _DriftingCloudState extends State<_DriftingCloud>
 
     _controller.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
+        // 完成一次漂流后，随机休息 5-10 秒再开始下一次
         final restDuration = 5 + math.Random().nextInt(6);
         Future.delayed(Duration(seconds: restDuration), () {
           if (mounted) _controller.forward(from: 0);
@@ -320,8 +315,11 @@ class _DriftingCloudState extends State<_DriftingCloud>
       }
     });
 
+    // 延迟启动
     Future.delayed(Duration(seconds: widget.delay.toInt()), () {
-      if (mounted) _controller.forward();
+      if (mounted) {
+        _controller.forward();
+      }
     });
   }
 
@@ -333,29 +331,30 @@ class _DriftingCloudState extends State<_DriftingCloud>
 
   @override
   Widget build(BuildContext context) {
-    final w = MediaQuery.sizeOf(context).width;
-    final h = MediaQuery.sizeOf(context).height;
-    final double cloudSize = w < 600 ? 110.0 : 160.0;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
 
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, child) {
-        final totalDistance = w + cloudSize;
-        final double x = widget.fromRight
-            ? w - (totalDistance * _controller.value)
-            : -cloudSize + (totalDistance * _controller.value);
+        final totalDistance = screenWidth + _cloudWidth;
+        double x;
+
+        if (widget.fromRight) {
+          // 从右侧外部屏幕移动到左侧外部
+          x = screenWidth - (totalDistance * _controller.value);
+        } else {
+          // 从左侧外部屏幕移动到右侧外部
+          x = -_cloudWidth + (totalDistance * _controller.value);
+        }
+
         return Positioned(
-          top: h * widget.topRatio,
+          top: screenHeight * widget.top,
           left: x,
           child: child!,
         );
       },
-      child: Image.asset(
-        _assetPath,
-        width: cloudSize,
-        height: cloudSize,
-        fit: BoxFit.contain,
-      ),
+      child: Image.asset(_assetPath, width: _cloudWidth, fit: BoxFit.contain),
     );
   }
 }
