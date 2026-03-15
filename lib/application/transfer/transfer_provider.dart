@@ -69,7 +69,7 @@ class TransferController extends ChangeNotifier {
   // UI 状态
   bool _isLoading = false;
   bool _isStorageLoaded = false;
-  final Map<int, bool> _isDivingFishVerifiedMap = {};
+  bool _isDivingFishVerified = false;
   bool _isLxnsVerified = false;
   bool _isVpnRunning = false;
   bool _isTracking = false;
@@ -83,8 +83,7 @@ class TransferController extends ChangeNotifier {
   // Getters (Legacy - primarily for back-compat or active tab)
   bool get isLoading => _isLoading;
   bool get isStorageLoaded => _isStorageLoaded;
-  bool get isDivingFishVerified =>
-      _isDivingFishVerifiedMap[_activeGameType] ?? false;
+  bool get isDivingFishVerified => _isDivingFishVerified;
   bool get isLxnsVerified => _isLxnsVerified;
   bool get isVpnRunning => _isVpnRunning;
   bool get isTracking => _isTracking;
@@ -95,14 +94,14 @@ class TransferController extends ChangeNotifier {
   String getVpnLog(int gameType) => _gameLogs[gameType] ?? "";
   bool get isLxnsOAuthDone => _isLxnsOAuthDone;
 
-  bool isDivingFishVerifiedFor(int gameType) =>
-      _isDivingFishVerifiedMap[gameType] ?? false;
+  bool isDivingFishVerifiedFor(int gameType) => _isDivingFishVerified;
   bool isLxnsVerifiedFor(int gameType) => _isLxnsVerified;
   bool isLxnsOAuthDoneFor(int gameType) => _isLxnsOAuthDone;
   String lxnsTokenFor(int gameType) => lxnsToken;
 
   // 当前选中的游戏类型（表单页中接收）
   int _activeGameType = 0;
+  int get activeGameType => _activeGameType;
   void setActiveGameType(int gameType) {
     _activeGameType = gameType;
     notifyListeners();
@@ -449,9 +448,7 @@ class TransferController extends ChangeNotifier {
 
     if (bundle.dfToken.isNotEmpty) {
       dfToken = bundle.dfToken;
-      for (final gt in [0, 1]) {
-        _isDivingFishVerifiedMap[gt] = true;
-      }
+      _isDivingFishVerified = true;
     }
     if (bundle.lxnsToken.isNotEmpty) {
       lxnsToken = bundle.lxnsToken;
@@ -479,7 +476,7 @@ class TransferController extends ChangeNotifier {
   }
 
   void resetVerification({int? gameType, bool df = false, bool lxns = false}) {
-    if (df) _isDivingFishVerifiedMap[gameType ?? _activeGameType] = false;
+    if (df) _isDivingFishVerified = false;
     if (lxns) _isLxnsVerified = false;
     _errorMessage = null;
     _successMessage = null;
@@ -490,7 +487,7 @@ class TransferController extends ChangeNotifier {
     bool needsSave = false;
     if (df != null) {
       dfToken = df;
-      _isDivingFishVerifiedMap[gameType ?? _activeGameType] = false;
+      _isDivingFishVerified = false;
       needsSave = true;
     }
     if (lxns != null) {
@@ -530,8 +527,8 @@ class TransferController extends ChangeNotifier {
         dfToken = bundle.dfToken;
         lxnsToken = bundle.lxnsToken;
         lxnsRefreshToken = bundle.lxnsRefreshToken;
-        _isDivingFishVerifiedMap[gameType] = true;
-        _isLxnsVerified = modeEnum.needsLxns;
+        if (modeEnum.needsDivingFish) _isDivingFishVerified = true;
+        if (modeEnum.needsLxns) _isLxnsVerified = true;
         _successMessage = DomainConstants.verifySuccess;
         _isLoading = false;
         notifyListeners();
