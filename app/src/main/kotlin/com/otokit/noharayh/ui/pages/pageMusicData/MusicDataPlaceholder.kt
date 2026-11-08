@@ -5,6 +5,7 @@ import android.view.Gravity
 import android.view.View
 import android.widget.TextView
 import com.otokit.noharayh.R
+import com.otokit.noharayh.ui.kit.common.AppTypography
 
 /**
  * 歌曲详情占位。
@@ -17,5 +18,6 @@ object MusicDataPlaceholder {
         setText(R.string.placeholder_music_data)
         gravity = Gravity.CENTER
         setTextAppearance(android.R.style.TextAppearance_Material_Large)
+        AppTypography.applyAppTypeface(this)
     }
 }

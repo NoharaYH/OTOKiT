@@ -5,6 +5,7 @@ import android.view.Gravity
 import android.view.View
 import android.widget.TextView
 import com.otokit.noharayh.R
+import com.otokit.noharayh.ui.kit.common.AppTypography
 
 /**
  * 成绩同步占位。
@@ -17,5 +18,6 @@ object ScoreSyncPlaceholder {
         setText(R.string.placeholder_score_sync)
         gravity = Gravity.CENTER
         setTextAppearance(android.R.style.TextAppearance_Material_Large)
+        AppTypography.applyAppTypeface(this)
     }
 }

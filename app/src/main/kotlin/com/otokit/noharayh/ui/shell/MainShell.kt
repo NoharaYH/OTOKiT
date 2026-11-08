@@ -9,6 +9,7 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import com.otokit.noharayh.R
+import com.otokit.noharayh.ui.kit.common.AppTypography
 import com.otokit.noharayh.ui.pages.pageMusicData.MusicDataPlaceholder
 import com.otokit.noharayh.ui.pages.pageScoreSync.ScoreSyncPlaceholder
 import com.otokit.noharayh.ui.shell.navigation.Destination
@@ -170,6 +171,7 @@ class MainShell(
         setText(textRes)
         gravity = Gravity.CENTER
         setTextAppearance(android.R.style.TextAppearance_Material_Large)
+        AppTypography.applyAppTypeface(this)
     }
 
     private fun resolveColorBackground(context: Context): Int {
