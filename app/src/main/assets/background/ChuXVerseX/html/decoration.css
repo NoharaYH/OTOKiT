@@ -1,0 +1,696 @@
+@charset "UTF-8";
+
+/* 与 MaiCirclePlus 一致：盒模型与全屏根 */
+*, :after, :before {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  min-height: 100dvh;
+}
+
+body {
+  overflow: hidden;
+}
+
+/* 中二：无舞萌式「外层渐变 + 内缩圆角框」，仅单层铺满视口 */
+.chuXVerseXDecoration {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -100;
+  pointer-events: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+.chuXVerseXDecoration .background-layer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 100dvh;
+  overflow: hidden;
+}
+
+/* --- 官网 components.css：main-bg-base ～ verse-belt（WebP 单路，路径 ../static/）--- */
+.chuXVerseXDecoration .main-bg-base {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* 底图放在 ::before，避免负 z-index 子层被画在背景图下方（手机上看不见城堡） */
+.chuXVerseXDecoration .main-bg-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 100%;
+  min-height: 100dvh;
+  isolation: isolate;
+}
+
+.chuXVerseXDecoration .main-bg-inner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-size: cover, cover, cover;
+  background-position: center, center, center;
+  background-repeat: no-repeat, no-repeat, no-repeat;
+  background-image:
+    url(../static/bg.jpg.webp),
+    radial-gradient(ellipse 140% 90% at 50% 88%, rgba(255, 255, 255, 0.22) 0%, transparent 55%),
+    linear-gradient(155deg, #5cdbff 0%, #6f8cff 40%, #b070ff 72%, #ff7bc8 100%);
+}
+
+@media screen and (max-width: 601px) {
+  .chuXVerseXDecoration .main-bg-inner::before {
+    background-image:
+      url(../static/bg_sp.jpg.webp),
+      url(../static/bg.jpg.webp),
+      radial-gradient(ellipse 140% 90% at 50% 88%, rgba(255, 255, 255, 0.22) 0%, transparent 55%),
+      linear-gradient(155deg, #5cdbff 0%, #6f8cff 40%, #b070ff 72%, #ff7bc8 100%);
+    background-size: cover, cover, cover, cover;
+    background-position: center, center, center, center;
+    background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
+  }
+}
+
+.chuXVerseXDecoration .frame {
+  position: absolute;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  z-index: 3;
+}
+
+.chuXVerseXDecoration .frame.top-right {
+  top: 0;
+  right: 0;
+  width: 845px;
+  height: 182px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: right top;
+  background-image: url(../static/top_right.png.webp);
+}
+
+@media screen and (max-width: 601px) {
+  .chuXVerseXDecoration .frame.top-right {
+    width: 400px;
+    height: 96px;
+  }
+}
+
+.chuXVerseXDecoration .frame.bottom-left {
+  bottom: 0;
+  left: 0;
+  width: 923px;
+  height: 188px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: left bottom;
+  background-image: url(../static/bottom_left.png.webp);
+}
+
+@media screen and (max-width: 601px) {
+  .chuXVerseXDecoration .frame.bottom-left {
+    width: 400px;
+    height: 96px;
+  }
+}
+
+@keyframes arrow {
+  0% {
+    opacity: 0;
+    transform: translateY(-100%);
+  }
+  10% {
+    opacity: 1;
+  }
+  30% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-20%);
+  }
+  60% {
+    transform: translateY(0);
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+}
+
+.chuXVerseXDecoration .frame-arrow {
+  display: block;
+  position: absolute;
+  overflow: hidden;
+  width: 200px;
+  height: 130px;
+}
+
+@media screen and (max-width: 601px) {
+  .chuXVerseXDecoration .frame-arrow {
+    width: 58px;
+    height: 58px;
+  }
+}
+
+.chuXVerseXDecoration .frame-arrow.top-right {
+  top: 0;
+  right: 0;
+  -webkit-clip-path: polygon(0 0, 100% 0, 100% 100%, 0 74%);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 74%);
+}
+
+@media screen and (max-width: 601px) {
+  .chuXVerseXDecoration .frame-arrow.top-right {
+    -webkit-clip-path: polygon(0 0, 100% 0, 100% 100%, 0 82%);
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 82%);
+  }
+}
+
+.chuXVerseXDecoration .frame-arrow.top-right::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 90px;
+  height: 100px;
+  background-repeat: no-repeat;
+  background-size: contain;
+  animation: arrow 6s ease-in-out infinite;
+  background-image: url(../static/arrow_down.png.webp);
+}
+
+@media screen and (max-width: 601px) {
+  .chuXVerseXDecoration .frame-arrow.top-right::after {
+    width: 40px;
+    height: 48px;
+  }
+}
+
+.chuXVerseXDecoration .frame-arrow.bottom-left {
+  bottom: 0;
+  left: 0;
+  -webkit-clip-path: polygon(0 0, 100% 24%, 100% 100%, 0 100%);
+  clip-path: polygon(0 0, 100% 24%, 100% 100%, 0 100%);
+}
+
+@media screen and (max-width: 601px) {
+  .chuXVerseXDecoration .frame-arrow.bottom-left {
+    -webkit-clip-path: polygon(0 0, 100% 16%, 100% 100%, 0 100%);
+    clip-path: polygon(0 0, 100% 16%, 100% 100%, 0 100%);
+  }
+}
+
+.chuXVerseXDecoration .frame-arrow.bottom-left::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 90px;
+  height: 100px;
+  background-repeat: no-repeat;
+  background-size: contain;
+  animation: arrow 6s ease-in-out infinite reverse;
+  background-image: url(../static/arrow_up.png.webp);
+}
+
+@media screen and (max-width: 601px) {
+  .chuXVerseXDecoration .frame-arrow.bottom-left::after {
+    width: 60px;
+    height: 58px;
+  }
+}
+
+.chuXVerseXDecoration .corner-text {
+  position: absolute;
+  z-index: 5;
+  width: calc(712px * 3);
+  background-size: contain;
+  background-repeat: repeat;
+  background-position: left bottom;
+  opacity: 0;
+  background-image: url(../static/floating_text.png.webp);
+}
+
+.chuXVerseXDecoration .corner-text.top-right {
+  top: -108px;
+  right: 0;
+  height: 48px;
+  transform: rotate(8.4deg);
+  animation: cornerText 60s linear infinite reverse;
+}
+
+@media screen and (max-width: 601px) {
+  .chuXVerseXDecoration .corner-text.top-right {
+    top: -148px;
+    right: 21px;
+    height: 28px;
+  }
+}
+
+.chuXVerseXDecoration .corner-text.bottom-left {
+  bottom: -132px;
+  left: 0;
+  height: 64px;
+  transform: rotate(8.4deg);
+  animation: cornerText 60s linear infinite;
+}
+
+@media screen and (max-width: 601px) {
+  .chuXVerseXDecoration .corner-text.bottom-left {
+    bottom: -146px;
+    height: 28px;
+  }
+}
+
+@keyframes cornerText {
+  0% {
+    opacity: 0;
+    transform: rotate(8.4deg) translate(-50%);
+  }
+  4% {
+    opacity: 0.6;
+  }
+  96% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(8.4deg) translate(50%);
+  }
+}
+
+.chuXVerseXDecoration .frame-particle {
+  width: 100%;
+}
+
+.chuXVerseXDecoration .frame-particle.top-right {
+  height: 130px;
+  animation: frameParticle 6s ease infinite reverse;
+}
+
+@media screen and (max-width: 601px) {
+  .chuXVerseXDecoration .frame-particle.top-right {
+    height: 60px;
+  }
+}
+
+.chuXVerseXDecoration .frame-particle.top-right::after {
+  content: "";
+  position: absolute;
+  top: -2px;
+  left: 130px;
+  width: 6px;
+  height: 6px;
+  background-color: #fff;
+  transform: rotate(45deg);
+  animation: colorChange01 6s ease infinite;
+}
+
+@media screen and (max-width: 601px) {
+  .chuXVerseXDecoration .frame-particle.top-right::after {
+    top: -6px;
+    left: 40px;
+  }
+}
+
+.chuXVerseXDecoration .frame-particle.bottom-left {
+  height: 135px;
+  animation: frameParticle 6s ease 1s infinite reverse;
+}
+
+@media screen and (max-width: 601px) {
+  .chuXVerseXDecoration .frame-particle.bottom-left {
+    height: 60px;
+  }
+}
+
+.chuXVerseXDecoration .frame-particle.bottom-left::after {
+  content: "";
+  position: absolute;
+  top: 71px;
+  left: 0;
+  width: 6px;
+  height: 6px;
+  background-color: #fff;
+  animation: colorChange02 6s ease infinite;
+  transform: rotate(45deg);
+}
+
+@media screen and (max-width: 601px) {
+  .chuXVerseXDecoration .frame-particle.bottom-left::after {
+    top: 40px;
+    left: -8px;
+  }
+}
+
+@keyframes frameParticle {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  4% {
+    opacity: 1;
+  }
+  96% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(100%, 100%);
+  }
+}
+
+@keyframes colorChange01 {
+  0% {
+    background-color: #e036ff;
+  }
+  70% {
+    background-color: #e036ff;
+  }
+  75% {
+    background-color: #2c84f3;
+  }
+  80% {
+    background-color: #18f2d1;
+  }
+  83% {
+    background-color: #beff00;
+  }
+  85% {
+    background-color: #18f2d1;
+  }
+  88% {
+    background-color: #2c84f3;
+  }
+  100% {
+    background-color: #e036ff;
+  }
+}
+
+@keyframes colorChange02 {
+  0% {
+    background-color: #18f2d1;
+  }
+  5% {
+    background-color: #2c84f3;
+  }
+  10% {
+    background-color: #e036ff;
+  }
+  90% {
+    background-color: #e036ff;
+  }
+  95% {
+    background-color: #2c84f3;
+  }
+  97% {
+    background-color: #18f2d1;
+  }
+  100% {
+    background-color: #beff00;
+  }
+}
+
+.chuXVerseXDecoration .globe {
+  position: absolute;
+  top: 32%;
+  left: 46%;
+  z-index: 4;
+  transform: translate(-50%, -50%);
+  width: 420px;
+  height: 420px;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-image: url(../static/globe_cross.png.webp);
+}
+
+@media screen and (max-width: 601px) {
+  .chuXVerseXDecoration .globe {
+    top: 49%;
+    left: 50%;
+    width: 200px;
+    height: 200px;
+  }
+}
+
+.chuXVerseXDecoration .globe::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: -2;
+  opacity: 0.9;
+  transform: translate(-50%, -50%) rotate(0deg);
+  transform-origin: center;
+  width: 450px;
+  height: 450px;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  animation: globe 240s linear infinite;
+  background-image: url(../static/globe.png.webp);
+}
+
+@media screen and (max-width: 601px) {
+  .chuXVerseXDecoration .globe::before {
+    width: 200px;
+    height: 200px;
+  }
+}
+
+@keyframes globe {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+.chuXVerseXDecoration .globe::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: -3;
+  transform: translate(-50%, -50%);
+  width: 492px;
+  height: 492px;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  animation: globeCenter 60s ease infinite reverse;
+  background-image: url(../static/globe_center.png.webp);
+}
+
+@keyframes globeCenter {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg) scale(0.6);
+  }
+  50% {
+    transform: translate(-50%, -50%) rotate(180deg) scale(1);
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg) scale(0.6);
+  }
+}
+
+@media screen and (max-width: 601px) {
+  .chuXVerseXDecoration .globe::after {
+    width: 290px;
+    height: 290px;
+  }
+}
+
+.chuXVerseXDecoration .globe-cross {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: -2;
+  transform: translate(-50%, -50%);
+  width: 420px;
+  height: 420px;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-image: url(../static/globe_cross.png.webp);
+}
+
+@media screen and (max-width: 601px) {
+  .chuXVerseXDecoration .globe-cross {
+    width: 200px;
+    height: 200px;
+  }
+}
+
+.chuXVerseXDecoration .verse-town {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  background-image: url(../static/verse-town.png.webp);
+  background-repeat: no-repeat;
+  background-position: bottom center;
+  background-size: cover;
+}
+
+@media screen and (min-width: 602px) {
+  .chuXVerseXDecoration .verse-town {
+    top: 10%;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}
+
+@media screen and (max-width: 601px) {
+  .chuXVerseXDecoration .verse-town {
+    top: auto;
+    /* 略宽于视口并整体右移，使城堡中空与居中球体（left:50%）对齐，接近官网窄屏裁切 */
+    left: 50%;
+    right: auto;
+    width: 118%;
+    height: 65%;
+    min-height: 38vh;
+    bottom: 0;
+    transform: translateX(calc(-50% + clamp(12px, 5.5vw, 28px)));
+    /* sp 缺文件时回退桌面城堡图 */
+    background-image:
+      url(../static/verse-town_sp.png.webp),
+      url(../static/verse-town.png.webp);
+    background-size: cover, cover;
+    background-position: 47% bottom, 47% bottom;
+    background-repeat: no-repeat, no-repeat;
+  }
+}
+
+.chuXVerseXDecoration .verse-belt {
+  position: absolute;
+  background-size: contain;
+  background-position: top center;
+  background-repeat: no-repeat;
+  z-index: 1;
+}
+
+.chuXVerseXDecoration .verse-belt.left {
+  top: 0;
+  left: 80px;
+  width: 220px;
+  height: 200%;
+  animation: verseBeltLeft 15s linear infinite;
+  background-image: url(../static/verse_belt-left.png.webp);
+}
+
+@media screen and (max-width: 601px) {
+  .chuXVerseXDecoration .verse-belt.left {
+    left: 8px;
+    width: 156px;
+  }
+}
+
+.chuXVerseXDecoration .verse-belt.center-left {
+  top: 0;
+  left: 460px;
+  width: 200px;
+  height: 200%;
+  animation: verseBeltLeft 20s linear infinite;
+  background-image: url(../static/verse_belt-left.png.webp);
+}
+
+@media screen and (max-width: 601px) {
+  .chuXVerseXDecoration .verse-belt.center-left {
+    left: 50px;
+    width: 150px;
+  }
+}
+
+.chuXVerseXDecoration .verse-belt.center-right {
+  top: 0;
+  right: 402px;
+  width: 220px;
+  height: 200%;
+  animation: verseBeltRight 25s linear infinite;
+  background-image: url(../static/verse_belt-right.png.webp);
+}
+
+@media screen and (max-width: 601px) {
+  .chuXVerseXDecoration .verse-belt.center-right {
+    right: 0;
+    width: 140px;
+  }
+}
+
+.chuXVerseXDecoration .verse-belt.right {
+  top: 0;
+  right: 102px;
+  width: 180px;
+  height: 200%;
+  animation: verseBeltRight 15s linear infinite;
+  background-image: url(../static/verse_belt-right.png.webp);
+}
+
+@media screen and (max-width: 601px) {
+  .chuXVerseXDecoration .verse-belt.right {
+    width: 100px;
+    right: -50px;
+  }
+}
+
+@keyframes verseBeltLeft {
+  0% {
+    opacity: 0;
+    transform: translate(-40%, -40%);
+  }
+  4% {
+    opacity: 1;
+  }
+  96% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(40%, 40%);
+  }
+}
+
+@keyframes verseBeltRight {
+  0% {
+    opacity: 0;
+    transform: translate(40%, -40%);
+  }
+  4% {
+    opacity: 1;
+  }
+  96% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-40%, 40%);
+  }
+}
+
