@@ -1,5 +1,6 @@
 package com.otokit.noharayh.ui.shell
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.util.TypedValue
 import android.view.Gravity
@@ -43,9 +44,6 @@ class MainShell(
     private var contentAccessibility: Int = View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
     private var contentFocusability: Int = ViewGroup.FOCUS_BEFORE_DESCENDANTS
     private var lifecycleState = LifecycleState.New
-    private var appliedContentRects: ContentRects? = null
-    private var appliedRootWidthPx: Int = -1
-    private var appliedRootHeightPx: Int = -1
 
     val state: NavigationState
         get() = controller.state
@@ -83,9 +81,6 @@ class MainShell(
         overlayHost.removeAllViews()
         mountedDestination = null
         appliedSettingsOpen = null
-        appliedContentRects = null
-        appliedRootWidthPx = -1
-        appliedRootHeightPx = -1
     }
 
     fun navigate(destination: Destination) {
@@ -121,37 +116,29 @@ class MainShell(
     fun updateWindow(snapshot: WindowSnapshot) {
         if (lifecycleState != LifecycleState.Attached) return
         val rects = ContentGeometry.compute(snapshot, AppChromeInsets.Zero)
-        val rootWidth = snapshot.metrics.rootWidthPx
-        val rootHeight = snapshot.metrics.rootHeightPx
-        if (rects == appliedContentRects &&
-            rootWidth == appliedRootWidthPx &&
-            rootHeight == appliedRootHeightPx
-        ) {
-            return
-        }
-
-        appliedContentRects = rects
-        appliedRootWidthPx = rootWidth
-        appliedRootHeightPx = rootHeight
-
         applyContentRect(backgroundHost, rects.base, snapshot.metrics)
         applyContentRect(contentHost, rects.interactive, snapshot.metrics)
         applyContentRect(overlayHost, rects.interactive, snapshot.metrics)
     }
 
     private fun applyContentRect(host: View, rect: PixelRect, metrics: WindowMetricsSnapshot) {
-        val params = host.layoutParams as? ViewGroup.MarginLayoutParams ?: return
-        val left = (rect.left - metrics.rootLeftPx).coerceAtLeast(0)
-        val top = (rect.top - metrics.rootTopPx).coerceAtLeast(0)
-        val right = (metrics.rootLeftPx + metrics.rootWidthPx - rect.right).coerceAtLeast(0)
-        val bottom = (metrics.rootTopPx + metrics.rootHeightPx - rect.bottom).coerceAtLeast(0)
-        if (params.leftMargin == left && params.topMargin == top &&
-            params.rightMargin == right && params.bottomMargin == bottom
+        val params = host.layoutParams as? FrameLayout.LayoutParams ?: return
+        val localRect = ContentGeometry.relativeToRoot(rect, metrics.rootLeftPx, metrics.rootTopPx)
+        // 窗口矩形使用物理左上坐标，不随 RTL 镜像；超出根的部分由父容器裁剪。
+        @SuppressLint("RtlHardcoded") // 这是物理窗口坐标，不是随语言切换的内容起始方向。
+        val gravity = Gravity.TOP or Gravity.LEFT
+        if (params.width == localRect.width && params.height == localRect.height &&
+            params.leftMargin == localRect.left && params.topMargin == localRect.top &&
+            params.rightMargin == 0 && params.bottomMargin == 0 && params.gravity == gravity
         ) {
             return
         }
 
-        params.setMargins(left, top, right, bottom)
+        // 明确尺寸，避免 match_parent 随 IME 缩小的根重新测量背景。
+        params.width = localRect.width
+        params.height = localRect.height
+        params.gravity = gravity
+        params.setMargins(localRect.left, localRect.top, 0, 0)
         host.layoutParams = params
     }
 

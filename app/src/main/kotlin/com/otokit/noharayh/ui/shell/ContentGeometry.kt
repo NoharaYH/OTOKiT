@@ -33,6 +33,14 @@ data class ContentRects(
  */
 object ContentGeometry {
 
+    /** 窗口矩形转为根局部坐标；保留原尺寸和负坐标，父容器只负责裁剪。 */
+    internal fun relativeToRoot(rect: PixelRect, rootLeftPx: Int, rootTopPx: Int): PixelRect = PixelRect(
+        left = rect.left - rootLeftPx,
+        top = rect.top - rootTopPx,
+        right = rect.right - rootLeftPx,
+        bottom = rect.bottom - rootTopPx,
+    )
+
     fun compute(snapshot: WindowSnapshot, chrome: AppChromeInsets = AppChromeInsets.Zero): ContentRects {
         val width = snapshot.metrics.widthPx
         val height = snapshot.metrics.heightPx

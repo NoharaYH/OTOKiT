@@ -1,6 +1,6 @@
 package com.otokit.noharayh.ui.window
 
-/** 纯像素矩形，坐标为应用窗口坐标，左上右下的语义与 Android Rect 一致。 */
+/** 纯像素矩形，坐标系由调用方约定，左上右下的语义与 Android Rect 一致。 */
 data class PixelRect(
     val left: Int,
     val top: Int,
