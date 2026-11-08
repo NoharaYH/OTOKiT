@@ -15,6 +15,9 @@ import com.otokit.noharayh.ui.pages.pageScoreSync.ScoreSyncPlaceholder
 import com.otokit.noharayh.ui.shell.navigation.Destination
 import com.otokit.noharayh.ui.shell.navigation.NavigationController
 import com.otokit.noharayh.ui.shell.navigation.NavigationState
+import com.otokit.noharayh.ui.window.PixelRect
+import com.otokit.noharayh.ui.window.WindowSnapshot
+import com.otokit.noharayh.ui.window.metrics.WindowMetricsSnapshot
 
 /**
  * 主壳：唯一知道“往哪一层挂什么”的地方。
@@ -40,6 +43,9 @@ class MainShell(
     private var contentAccessibility: Int = View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
     private var contentFocusability: Int = ViewGroup.FOCUS_BEFORE_DESCENDANTS
     private var lifecycleState = LifecycleState.New
+    private var appliedContentRects: ContentRects? = null
+    private var appliedRootWidthPx: Int = -1
+    private var appliedRootHeightPx: Int = -1
 
     val state: NavigationState
         get() = controller.state
@@ -77,6 +83,9 @@ class MainShell(
         overlayHost.removeAllViews()
         mountedDestination = null
         appliedSettingsOpen = null
+        appliedContentRects = null
+        appliedRootWidthPx = -1
+        appliedRootHeightPx = -1
     }
 
     fun navigate(destination: Destination) {
@@ -102,6 +111,48 @@ class MainShell(
         val consumed = controller.consumeBack()
         if (consumed) render()
         return consumed
+    }
+
+    /**
+     * 应用最新窗口快照：背景用基础矩形，内容与覆盖层用避让 IME 的交互矩形。
+     *
+     * 只调整自己持有的宿主，不重建页面、不修改导航与字体；没有变化时不写 LayoutParams。
+     */
+    fun updateWindow(snapshot: WindowSnapshot) {
+        if (lifecycleState != LifecycleState.Attached) return
+        val rects = ContentGeometry.compute(snapshot, AppChromeInsets.Zero)
+        val rootWidth = snapshot.metrics.rootWidthPx
+        val rootHeight = snapshot.metrics.rootHeightPx
+        if (rects == appliedContentRects &&
+            rootWidth == appliedRootWidthPx &&
+            rootHeight == appliedRootHeightPx
+        ) {
+            return
+        }
+
+        appliedContentRects = rects
+        appliedRootWidthPx = rootWidth
+        appliedRootHeightPx = rootHeight
+
+        applyContentRect(backgroundHost, rects.base, snapshot.metrics)
+        applyContentRect(contentHost, rects.interactive, snapshot.metrics)
+        applyContentRect(overlayHost, rects.interactive, snapshot.metrics)
+    }
+
+    private fun applyContentRect(host: View, rect: PixelRect, metrics: WindowMetricsSnapshot) {
+        val params = host.layoutParams as? ViewGroup.MarginLayoutParams ?: return
+        val left = (rect.left - metrics.rootLeftPx).coerceAtLeast(0)
+        val top = (rect.top - metrics.rootTopPx).coerceAtLeast(0)
+        val right = (metrics.rootLeftPx + metrics.rootWidthPx - rect.right).coerceAtLeast(0)
+        val bottom = (metrics.rootTopPx + metrics.rootHeightPx - rect.bottom).coerceAtLeast(0)
+        if (params.leftMargin == left && params.topMargin == top &&
+            params.rightMargin == right && params.bottomMargin == bottom
+        ) {
+            return
+        }
+
+        params.setMargins(left, top, right, bottom)
+        host.layoutParams = params
     }
 
     private fun render() {

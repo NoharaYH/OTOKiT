@@ -3,16 +3,14 @@ package com.otokit.noharayh
 import android.content.Context
 import android.content.res.Configuration
 import android.os.Bundle
-import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.enableEdgeToEdge
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import com.otokit.noharayh.databinding.ActivityMainBinding
 import com.otokit.noharayh.ui.constants.typography.AppFonts
 import com.otokit.noharayh.ui.shell.MainShell
 import com.otokit.noharayh.ui.shell.navigation.NavigationStateCodec
+import com.otokit.noharayh.ui.window.WindowEnvironmentObserver
 
 /**
  * 平台层：创建 binding、恢复纯状态、挂载主壳，并转发返回事件。
@@ -24,6 +22,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var binding: ActivityMainBinding
     private var shell: MainShell? = null
     private var backCallback: OnBackPressedCallback? = null
+    private var windowObserver: WindowEnvironmentObserver? = null
 
     /**
      * 固定字体缩放：只覆盖 fontScale，保留 density、语言、uiMode 等原配置。
@@ -42,7 +41,6 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        applyRootInsets(binding.root)
 
         val shell = MainShell(
             backgroundHost = binding.backgroundHost,
@@ -61,6 +59,20 @@ class MainActivity : ComponentActivity() {
 
         shell.setOnCanHandleBackChanged { enabled -> backCallback?.isEnabled = enabled }
         shell.attach()
+
+        windowObserver = WindowEnvironmentObserver(this, binding.root) { snapshot ->
+            shell.updateWindow(snapshot)
+        }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        windowObserver?.start()
+    }
+
+    override fun onStop() {
+        windowObserver?.stop()
+        super.onStop()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -69,27 +81,12 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        windowObserver?.dispose()
+        windowObserver = null
         backCallback?.remove()
         backCallback = null
         shell?.detach()
         shell = null
         super.onDestroy()
-    }
-
-    private fun applyRootInsets(root: View) {
-        ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
-            val safeInsets = insets.getInsets(
-                WindowInsetsCompat.Type.systemBars() or
-                    WindowInsetsCompat.Type.displayCutout(),
-            )
-            view.setPadding(
-                safeInsets.left,
-                safeInsets.top,
-                safeInsets.right,
-                safeInsets.bottom,
-            )
-            insets
-        }
-        ViewCompat.requestApplyInsets(root)
     }
 }
