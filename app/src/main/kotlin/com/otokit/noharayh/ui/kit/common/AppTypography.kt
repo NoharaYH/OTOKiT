@@ -29,8 +29,10 @@ object AppTypography {
     }
 
     fun apply(textView: TextView, role: AppFonts.Role, bold: Boolean = false) {
-        val typeface = resolve(textView.context, role, bold) ?: return
-        textView.typeface = typeface
+        val effectiveBold = role == AppFonts.Role.Body && bold
+        val typeface = resolve(textView.context, role, effectiveBold) ?: return
+        // 字形已按角色准备好；清除控件此前残留的合成粗体和斜体，不再叠加样式。
+        textView.setTypeface(typeface, Typeface.NORMAL)
     }
 
     private fun resolve(context: Context, role: AppFonts.Role, bold: Boolean): Typeface? {
