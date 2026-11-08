@@ -4,11 +4,28 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:text="@string/app_name"
-        android:textAppearance="?android:attr/textAppearanceLarge" />
-</FrameLayout>
+    <!-- 背景宿主：01 阶段为空，不设点击或焦点拦截。 -->
+    <FrameLayout
+        android:id="@+id/background_host"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
 
+    <!-- 功能内容宿主：同一时刻最多一个活动的占位根 View。 -->
+    <FrameLayout
+        android:id="@+id/content_host"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- 外围 UI 宿主：01 阶段为空，不设点击或焦点拦截。 -->
+    <FrameLayout
+        android:id="@+id/chrome_host"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- 覆盖层宿主：设置占位使用，初始隐藏。 -->
+    <FrameLayout
+        android:id="@+id/overlay_host"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+</FrameLayout>
