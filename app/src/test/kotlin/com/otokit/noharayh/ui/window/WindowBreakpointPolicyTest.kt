@@ -53,10 +53,10 @@ class WindowBreakpointPolicyTest {
     /** 不提前取整：839.9dp 不能因 roundToInt 变成 840。 */
     @Test
     fun keepsFractionalPrecision() {
-        val widthDp = WindowBreakpointPolicy.stableWidthDp(839.9f.toInt(), 0, 0, 1f)
+        val widthDp = WindowBreakpointPolicy.stableWidthDp(8399, 0, 0, 10f)
 
-        assertEquals(839f, widthDp!!, 0f)
-        assertEquals(WindowLayoutClass.Medium, WindowBreakpointPolicy.classify(839.9f))
+        assertEquals(839.9f, widthDp!!, 0.001f)
+        assertEquals(WindowLayoutClass.Medium, WindowBreakpointPolicy.classify(widthDp))
     }
 
     /** 无效窗口或 density 不产生可分类宽度。 */
