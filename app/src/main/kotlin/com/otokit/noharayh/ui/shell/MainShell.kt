@@ -29,6 +29,8 @@ class MainShell(
     initialState: NavigationState = NavigationState(),
 ) {
 
+    private enum class LifecycleState { New, Attached, Disposed }
+
     private val controller = NavigationController(initialState)
 
     private var onCanHandleBackChanged: ((Boolean) -> Unit)? = null
@@ -36,34 +38,40 @@ class MainShell(
     private var appliedSettingsOpen: Boolean? = null
     private var contentAccessibility: Int = View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
     private var contentFocusability: Int = ViewGroup.FOCUS_BEFORE_DESCENDANTS
-    private var attached = false
+    private var lifecycleState = LifecycleState.New
 
     val state: NavigationState
         get() = controller.state
 
     val canHandleBack: Boolean
-        get() = controller.canHandleBack
+        get() = lifecycleState == LifecycleState.Attached && controller.canHandleBack
 
     fun setOnCanHandleBackChanged(listener: ((Boolean) -> Unit)?) {
+        if (lifecycleState == LifecycleState.Disposed) return
         onCanHandleBackChanged = listener
     }
 
     /** 挂载覆盖层并首次渲染；每个实例只允许挂载一次，重复调用直接失败。 */
     fun attach() {
-        check(!attached) { "MainShell 只允许挂载一次" }
+        check(lifecycleState == LifecycleState.New) { "MainShell 只允许挂载一次，销毁后不可重新挂载" }
         check(backgroundHost.childCount == 0 && chromeHost.childCount == 0) {
             "背景与外围 UI 由后续步骤挂载，本步必须为空"
         }
-        attached = true
+        lifecycleState = LifecycleState.Attached
         overlayHost.addView(createSettingsPlaceholder(overlayHost.context))
         render()
     }
 
-    /** 解除监听并释放宿主子 View；幂等，结束后不再接收命令。 */
+    /** 恢复宿主临时配置并解除监听；销毁为终态，即使尚未挂载也不能再次使用。 */
     fun detach() {
-        if (!attached) return
-        attached = false
+        if (lifecycleState == LifecycleState.Disposed) return
+        val wasAttached = lifecycleState == LifecycleState.Attached
+        lifecycleState = LifecycleState.Disposed
         onCanHandleBackChanged = null
+        if (!wasAttached) return
+
+        if (appliedSettingsOpen == true) applySettingsVisibility(false)
+        overlayHost.visibility = View.GONE
         contentHost.removeAllViews()
         overlayHost.removeAllViews()
         mountedDestination = null
@@ -71,25 +79,25 @@ class MainShell(
     }
 
     fun navigate(destination: Destination) {
-        if (!attached) return
+        if (lifecycleState != LifecycleState.Attached) return
         controller.navigate(destination)
         render()
     }
 
     fun openSettings() {
-        if (!attached) return
+        if (lifecycleState != LifecycleState.Attached) return
         controller.openSettings()
         render()
     }
 
     fun closeSettings() {
-        if (!attached) return
+        if (lifecycleState != LifecycleState.Attached) return
         controller.closeSettings()
         render()
     }
 
     fun consumeBack(): Boolean {
-        if (!attached) return false
+        if (lifecycleState != LifecycleState.Attached) return false
         val consumed = controller.consumeBack()
         if (consumed) render()
         return consumed
@@ -103,7 +111,7 @@ class MainShell(
         if (appliedSettingsOpen != current.settingsOpen) {
             applySettingsVisibility(current.settingsOpen)
         }
-        onCanHandleBackChanged?.invoke(controller.canHandleBack)
+        onCanHandleBackChanged?.invoke(canHandleBack)
     }
 
     private fun mountContent(destination: Destination) {
