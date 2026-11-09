@@ -24,4 +24,13 @@
 
     <string name="title_open_navigation_menu">打开导航菜单</string>
     <string name="title_back">返回</string>
+
+    <!-- 抽屉胶囊：上英文、下中文，强调色固定不随音游主题变化。 -->
+    <string name="nav_score_sync_sub">MusicScoreSync</string>
+    <string name="nav_score_sync_label">成绩同步</string>
+    <string name="nav_music_data_sub">MusicDataInfo</string>
+    <string name="nav_music_data_label">歌曲详情</string>
+    <string name="nav_coming_soon_sub">ComingSoon</string>
+    <string name="nav_coming_soon_label">敬请期待</string>
+    <string name="nav_settings">设置</string>
 </resources>

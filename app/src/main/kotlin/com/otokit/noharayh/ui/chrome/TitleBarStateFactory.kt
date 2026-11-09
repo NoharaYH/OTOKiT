@@ -14,6 +14,7 @@ object TitleBarStateFactory {
         destination: Destination,
         currentGame: GameLine,
         settingsOpen: Boolean,
+        menuEnabled: Boolean,
         functionalTextColor: Int,
         themeCircleColor: Int,
         maiDecorColor: Int,
@@ -36,7 +37,8 @@ object TitleBarStateFactory {
             maiDecorColor = maiDecorColor,
             chuDecorColor = chuDecorColor,
             primaryAction = TitleBarPrimaryAction.Menu,
-            primaryEnabled = false,
+            // 只在当前窗口形态真的提供抽屉时解禁；07 之前这里是固定 false。
+            primaryEnabled = menuEnabled,
         )
     }
 }

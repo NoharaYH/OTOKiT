@@ -13,6 +13,7 @@ import com.otokit.noharayh.R
 import com.otokit.noharayh.storage.preferences.SharedPreferencesUiPreferences
 import com.otokit.noharayh.ui.kit.common.AppTypography
 import com.otokit.noharayh.ui.kit.common.PageContent
+import com.otokit.noharayh.ui.chrome.SideBarHost
 import com.otokit.noharayh.ui.chrome.TitleBar
 import com.otokit.noharayh.ui.chrome.TitleBarStateFactory
 import com.otokit.noharayh.ui.pages.pageMusicData.MusicDataPlaceholder
@@ -33,6 +34,8 @@ import com.otokit.noharayh.ui.window.PixelRect
 import com.otokit.noharayh.ui.window.WindowSnapshot
 import com.otokit.noharayh.ui.window.breakpoints.WindowLayoutClass
 import com.otokit.noharayh.ui.window.metrics.WindowMetricsSnapshot
+import kotlin.math.min
+import kotlin.math.roundToInt
 
 /**
  * 主壳：唯一知道“往哪一层挂什么”的地方。
@@ -45,6 +48,7 @@ class MainShell(
     private val contentHost: FrameLayout,
     private val chromeHost: FrameLayout,
     private val overlayHost: FrameLayout,
+    private val sidebarHost: SideBarHost,
     initialState: NavigationState = NavigationState(),
     savedSelection: SelectionSource = SelectionSource(null, null, null, null),
     private val selectionPreferences: UiPreferencesAdapter =
@@ -54,6 +58,8 @@ class MainShell(
     private enum class LifecycleState { New, Attached, Disposed }
 
     private val controller = NavigationController(initialState)
+
+    private val density = contentHost.resources.displayMetrics.density
 
     /** 稳定的音游/主题选择；恢复顺序为保存状态、偏好、Registry 默认。 */
     private val selection = GameSelectionController(
@@ -77,6 +83,7 @@ class MainShell(
     private var onCanHandleBackChanged: ((Boolean) -> Unit)? = null
     private var mountedDestination: Destination? = null
     private var appliedSettingsOpen: Boolean? = null
+    private var appliedModal: Boolean = false
     private var contentAccessibility: Int = View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
     private var contentFocusability: Int = ViewGroup.FOCUS_BEFORE_DESCENDANTS
     private var lifecycleState = LifecycleState.New
@@ -88,7 +95,8 @@ class MainShell(
         get() = selection.state
 
     val canHandleBack: Boolean
-        get() = lifecycleState == LifecycleState.Attached && controller.canHandleBack
+        get() = lifecycleState == LifecycleState.Attached &&
+            (controller.canHandleBack || sidebarHost.isVisible)
 
     fun setOnCanHandleBackChanged(listener: ((Boolean) -> Unit)?) {
         if (lifecycleState == LifecycleState.Disposed) return
@@ -110,8 +118,11 @@ class MainShell(
                 maiTheme = themeFor(selection.maiThemeId, GameLine.Mai),
                 chuTheme = themeFor(selection.chuThemeId, GameLine.Chu),
             )
-            host.setInputEnabled(!controller.state.settingsOpen)
+            host.setInputEnabled(!(controller.state.settingsOpen || sidebarHost.isVisible))
         }
+        sidebarHost.onNavigate = { destination -> onDrawerNavigate(destination) }
+        sidebarHost.onSettings = { openSettings() }
+        sidebarHost.onOpenChanged = { open -> onDrawerVisibilityChanged(open) }
         overlayHost.addView(createSettingsPlaceholder(overlayHost.context))
         render()
     }
@@ -124,7 +135,9 @@ class MainShell(
         onCanHandleBackChanged = null
         if (!wasAttached) return
 
-        if (appliedSettingsOpen == true) applySettingsVisibility(false)
+        if (appliedSettingsOpen == true || appliedModal) applyModalState(false)
+        sidebarHost.close()
+        sidebarHost.release()
         titleBar?.dispose()
         titleBar = null
         chromeHost.removeAllViews()
@@ -151,6 +164,7 @@ class MainShell(
 
     fun openSettings() {
         if (lifecycleState != LifecycleState.Attached) return
+        sidebarHost.close()
         controller.openSettings()
         render()
     }
@@ -163,6 +177,10 @@ class MainShell(
 
     fun consumeBack(): Boolean {
         if (lifecycleState != LifecycleState.Attached) return false
+        if (sidebarHost.isVisible) {
+            sidebarHost.close()
+            return true
+        }
         val consumed = controller.consumeBack()
         if (consumed) render()
         return consumed
@@ -205,8 +223,9 @@ class MainShell(
     private fun themeFor(themeId: String, gameLine: GameLine): RegisteredTheme =
         ThemeRegistry.resolveForGame(gameLine, themeId)
 
-    /** 背景随 Activity 生命周期暂停/恢复，不重建 WebView。 */
+    /** 背景随 Activity 生命周期暂停/恢复，不重建 WebView；离开前台时收起抽屉。 */
     fun setBackgroundResumed(resumed: Boolean) {
+        if (!resumed) sidebarHost.close()
         background?.setResumed(resumed)
     }
 
@@ -324,6 +343,21 @@ class MainShell(
         }
         applyContentRect(contentHost, rects.interactive, snapshot.metrics)
         applyContentRect(overlayHost, rects.interactive, snapshot.metrics)
+
+        // 抽屉使用同一交互矩形；Medium/Expanded 关闭并清掉命中区。
+        val compact = snapshot.layoutClass == WindowLayoutClass.Compact
+        if (compact) {
+            val interaction = ContentGeometry.relativeToRoot(
+                rects.interactive, snapshot.metrics.rootLeftPx, snapshot.metrics.rootTopPx,
+            )
+            val drawerWidth = minOf(
+                (308f * density).roundToInt(),
+                (interaction.width * 0.92f).roundToInt(),
+            )
+            sidebarHost.setMetrics(interaction, drawerWidth)
+        } else {
+            sidebarHost.close()
+        }
     }
 
     /** 由已提交的导航与选择状态生成标题展示数据。 */
@@ -337,6 +371,7 @@ class MainShell(
                 destination = nav.destination,
                 currentGame = current.currentGame,
                 settingsOpen = nav.settingsOpen,
+                menuEnabled = titleBar != null,
                 functionalTextColor = theme.definition.colors.basicColor,
                 themeCircleColor = theme.definition.colors.basicColor,
                 maiDecorColor = themeFor(current.maiThemeId, GameLine.Mai).definition.colors.basicColor,
@@ -347,7 +382,27 @@ class MainShell(
 
     private fun handlePrimaryAction() {
         if (lifecycleState != LifecycleState.Attached) return
-        if (controller.state.settingsOpen) closeSettings()
+        if (controller.state.settingsOpen) {
+            closeSettings()
+            return
+        }
+        // 功能态：只有标题存在（Compact）时菜单才可用。
+        if (titleBar != null) sidebarHost.toggle()
+    }
+
+    /** 胶囊点击：先收起抽屉，再以一次导航提交切页。 */
+    private fun onDrawerNavigate(destination: Destination) {
+        if (lifecycleState != LifecycleState.Attached) return
+        sidebarHost.close()
+        controller.navigate(destination)
+        render()
+    }
+
+    /** 抽屉开合会改变返回消费与底层输入；设置与抽屉共同决定模态。 */
+    private fun onDrawerVisibilityChanged(open: Boolean) {
+        if (lifecycleState != LifecycleState.Attached) return
+        applyModalState(controller.state.settingsOpen)
+        onCanHandleBackChanged?.invoke(canHandleBack)
     }
 
     private fun applyContentRect(host: View, rect: PixelRect, metrics: WindowMetricsSnapshot) {
@@ -376,8 +431,10 @@ class MainShell(
         if (mountedDestination != current.destination) {
             mountContent(current.destination)
         }
-        if (appliedSettingsOpen != current.settingsOpen) {
-            applySettingsVisibility(current.settingsOpen)
+        sidebarHost.setSelected(current.destination)
+        val modal = current.settingsOpen || sidebarHost.isVisible
+        if (appliedSettingsOpen != current.settingsOpen || appliedModal != modal) {
+            applyModalState(current.settingsOpen)
         }
         renderTitle()
         onCanHandleBackChanged?.invoke(canHandleBack)
@@ -407,21 +464,27 @@ class MainShell(
             }
         }
 
-    private fun applySettingsVisibility(open: Boolean) {
-        if (open) {
+    /**
+     * 设置与抽屉共同决定模态：遮罩只服务设置覆盖层，输入与焦点按两者合并。
+     */
+    private fun applyModalState(settingsOpen: Boolean) {
+        val modal = settingsOpen || sidebarHost.isVisible
+        if (modal && !appliedModal) {
             contentAccessibility = contentHost.importantForAccessibility
             contentFocusability = contentHost.descendantFocusability
             contentHost.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
             contentHost.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
-            overlayHost.visibility = View.VISIBLE
-            overlayHost.requestFocus()
-        } else {
-            overlayHost.visibility = View.GONE
+        } else if (!modal && appliedModal) {
             contentHost.importantForAccessibility = contentAccessibility
             contentHost.descendantFocusability = contentFocusability
         }
-        appliedSettingsOpen = open
-        background?.setInputEnabled(!open)
+        appliedModal = modal
+
+        appliedSettingsOpen = settingsOpen
+        overlayHost.visibility = if (settingsOpen) View.VISIBLE else View.GONE
+        if (settingsOpen) overlayHost.requestFocus()
+
+        background?.setInputEnabled(!modal)
     }
 
     private fun createSettingsPlaceholder(context: Context): View {

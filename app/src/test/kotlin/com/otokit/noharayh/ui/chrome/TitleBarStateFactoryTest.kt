@@ -19,6 +19,7 @@ class TitleBarStateFactoryTest {
             destination = Destination.ScoreSync,
             currentGame = GameLine.Mai,
             settingsOpen = true,
+            menuEnabled = false,
             functionalTextColor = maiColor,
             themeCircleColor = maiColor,
             maiDecorColor = maiColor,
@@ -39,6 +40,7 @@ class TitleBarStateFactoryTest {
             destination = destination,
             currentGame = gameLine,
             settingsOpen = true,
+            menuEnabled = false,
             functionalTextColor = maiColor,
             themeCircleColor = maiColor,
             maiDecorColor = maiColor,
@@ -51,27 +53,36 @@ class TitleBarStateFactoryTest {
         )
     }
 
-    /** 功能态使用当前音游标题与主题色，菜单保持禁用。 */
+    /** 功能态使用当前音游标题与主题色；菜单许可由窗口形态决定。 */
     @Test
-    fun functionalUsesThemeColorAndDisabledMenu() {
-        val state = TitleBarStateFactory.create(
+    fun functionalUsesThemeColorAndMenuPermission() {
+        val enabled = TitleBarStateFactory.create(
             destination = Destination.MusicData,
             currentGame = GameLine.Chu,
             settingsOpen = false,
+            menuEnabled = true,
+            functionalTextColor = chuColor,
+            themeCircleColor = chuColor,
+            maiDecorColor = maiColor,
+            chuDecorColor = chuColor,
+        )
+        val disabled = TitleBarStateFactory.create(
+            destination = Destination.MusicData,
+            currentGame = GameLine.Chu,
+            settingsOpen = false,
+            menuEnabled = false,
             functionalTextColor = chuColor,
             themeCircleColor = chuColor,
             maiDecorColor = maiColor,
             chuDecorColor = chuColor,
         )
 
-        assertEquals(
-            TitleTexts.forDestination(Destination.MusicData, GameLine.Chu),
-            state.text,
-        )
-        assertEquals(chuColor, state.textColor)
-        assertEquals(TitleBarPrimaryAction.Menu, state.primaryAction)
-        assertFalse(state.primaryEnabled)
-        assertEquals(maiColor, state.maiDecorColor)
-        assertEquals(chuColor, state.chuDecorColor)
+        assertEquals(TitleTexts.forDestination(Destination.MusicData, GameLine.Chu), enabled.text)
+        assertEquals(chuColor, enabled.textColor)
+        assertEquals(TitleBarPrimaryAction.Menu, enabled.primaryAction)
+        assertTrue(enabled.primaryEnabled)
+        assertFalse(disabled.primaryEnabled)
+        assertEquals(maiColor, enabled.maiDecorColor)
+        assertEquals(chuColor, enabled.chuDecorColor)
     }
 }

@@ -59,6 +59,7 @@ class MainActivity : AppCompatActivity() {
             contentHost = binding.contentHost,
             chromeHost = binding.chromeHost,
             overlayHost = binding.overlayHost,
+            sidebarHost = binding.sideBarHost,
             initialState = NavigationStateCodec.read(savedInstanceState),
             savedSelection = GameSelectionStateCodec.read(savedInstanceState),
         )
