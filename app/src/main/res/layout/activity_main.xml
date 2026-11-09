@@ -4,28 +4,45 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- 背景宿主：01 阶段为空，不设点击或焦点拦截。 -->
-    <FrameLayout
-        android:id="@+id/background_host"
+    <!--
+        抽屉共同父容器：持有内容场景、遮罩与面板。
+        必须保持全尺寸、无 padding/margin，03 的窗口坐标以根为原点。
+    -->
+    <com.otokit.noharayh.ui.chrome.SideBarHost
+        android:id="@+id/side_bar_host"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent">
 
-    <!-- 功能内容宿主：同一时刻最多一个活动的占位根 View。 -->
-    <FrameLayout
-        android:id="@+id/content_host"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        <!-- 内容场景：原有四层宿主按原顺序放在这里，坐标不变。 -->
+        <FrameLayout
+            android:id="@+id/side_bar_content_scene"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
 
-    <!-- 外围 UI 宿主：01 阶段为空，不设点击或焦点拦截。 -->
-    <FrameLayout
-        android:id="@+id/chrome_host"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+            <!-- 背景宿主：01 阶段为空，不设点击或焦点拦截。 -->
+            <FrameLayout
+                android:id="@+id/background_host"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
 
-    <!-- 覆盖层宿主：设置占位使用，初始隐藏。 -->
-    <FrameLayout
-        android:id="@+id/overlay_host"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:visibility="gone" />
+            <!-- 功能内容宿主：同一时刻最多一个活动的占位根 View。 -->
+            <FrameLayout
+                android:id="@+id/content_host"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+            <!-- 外围 UI 宿主：01 阶段为空，不设点击或焦点拦截。 -->
+            <FrameLayout
+                android:id="@+id/chrome_host"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" />
+
+            <!-- 覆盖层宿主：设置占位使用，初始隐藏。 -->
+            <FrameLayout
+                android:id="@+id/overlay_host"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:visibility="gone" />
+        </FrameLayout>
+    </com.otokit.noharayh.ui.chrome.SideBarHost>
 </FrameLayout>

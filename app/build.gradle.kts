@@ -43,6 +43,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.ktx)
     implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.customview)
     implementation(libs.androidx.window)
     implementation(libs.androidx.webkit)
     implementation(libs.androidx.viewpager2)
