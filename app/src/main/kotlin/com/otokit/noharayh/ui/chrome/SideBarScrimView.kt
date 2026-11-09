@@ -2,35 +2,19 @@ package com.otokit.noharayh.ui.chrome
 
 import android.content.Context
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.LinearGradient
-import android.graphics.Matrix
 import android.graphics.Paint
-import android.graphics.PorterDuff
-import android.graphics.PorterDuffXfermode
 import android.graphics.Shader
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
-/**
- * 抽屉模态遮罩：固定“左深右透”填充 + 随抽屉扫动的蒙版。
- *
- * 复合结果 = 遮罩填充 × 蒙版；蒙版由“白色平台 + 向右渐隐的斜坡”组成，
- * 平台宽度等于自身宽度，行程为 3 倍宽度，因此：
- * - 关闭时蒙版完全在左侧外，遮罩不可见；
- * - 打开过程中遮罩从左向右逐步浮现；
- * - 完全打开时平台盖满宽度，保留遮罩自己的左深右透填充。
- */
+/** 固定左黑右透明的模态遮罩，整体不透明度随抽屉进度线性浮现。 */
 class SideBarScrimView(context: Context) : View(context) {
 
     private val scrimPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val maskPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
-    }
-    private val matrix = Matrix()
-
     private var progress = 0f
     private var inputBlocked = false
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
@@ -67,32 +51,17 @@ class SideBarScrimView(context: Context) : View(context) {
             0f,
             w.toFloat(),
             0f,
-            0x5C000000,
+            0x80000000.toInt(),
             0x00000000,
-            Shader.TileMode.CLAMP,
-        )
-        maskPaint.shader = LinearGradient(
-            0f,
-            0f,
-            3f * w,
-            0f,
-            intArrayOf(Color.WHITE, Color.WHITE, Color.TRANSPARENT),
-            floatArrayOf(0f, 1f / 3f, 1f),
             Shader.TileMode.CLAMP,
         )
     }
 
     override fun onDraw(canvas: Canvas) {
         if (width <= 0 || height <= 0 || progress <= 0f) return
-
-        val layer = canvas.saveLayer(0f, 0f, width.toFloat(), height.toFloat(), null)
+        // 进度只乘一次；shader 已包含完全展开时左端约50%的黑色强度。
+        scrimPaint.alpha = (255 * progress).roundToInt()
         canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), scrimPaint)
-
-        matrix.setTranslate(-3f * width + progress * 3f * width, 0f)
-        maskPaint.shader?.setLocalMatrix(matrix)
-        canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), maskPaint)
-
-        canvas.restoreToCount(layer)
     }
 
     /**
