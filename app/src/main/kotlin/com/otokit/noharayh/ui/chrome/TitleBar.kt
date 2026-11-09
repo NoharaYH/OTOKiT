@@ -67,11 +67,16 @@ class TitleBar(context: Context) : FrameLayout(context) {
         )
         addView(decor)
 
+        // 旧行容器有 12dp padding；标题自身没有容器，所以在这里补上左边的 pad，
+        // 圆右缘到文字的距离正好也是 pad，与 titleAnchorStart 公式一致。
         menuHost.layoutParams = LayoutParams(
             metrics.buttonSizePx,
             metrics.buttonSizePx,
-            Gravity.START or Gravity.CENTER_VERTICAL,
-        )
+            Gravity.TOP or Gravity.LEFT,
+        ).apply {
+            leftMargin = metrics.padPx
+            topMargin = metrics.padPx
+        }
         menuButton.layoutParams = LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT,
@@ -131,8 +136,8 @@ class TitleBar(context: Context) : FrameLayout(context) {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
             ).apply {
-                marginStart = metrics.titleAnchorStartPx
-                marginEnd = metrics.buttonSizePx
+                leftMargin = metrics.titleAnchorStartPx
+                rightMargin = metrics.buttonSizePx
                 gravity = Gravity.START or Gravity.CENTER_VERTICAL
             },
         )
