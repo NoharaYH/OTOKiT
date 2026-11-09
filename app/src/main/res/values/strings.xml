@@ -7,4 +7,21 @@
     <string name="placeholder_settings">设置（占位，尚未迁移）</string>
     <string name="press_surface_preview_button">按压预览</string>
     <string name="press_surface_preview_clicked">按钮预览</string>
+
+    <!-- 标题栏：上英文、下中文，保留旧 NavText 的大小写与用词。 -->
+    <string name="title_mai_score_sync">MaiScoreSync</string>
+    <string name="title_zh_mai_score_sync">舞萌成绩同步</string>
+    <string name="title_chu_score_sync">ChuScoreSync</string>
+    <string name="title_zh_chu_score_sync">中二成绩同步</string>
+    <string name="title_mai_music_data">MaiMusicData</string>
+    <string name="title_zh_mai_music_data">舞萌歌曲详情</string>
+    <string name="title_chu_music_data">ChuMusicData</string>
+    <string name="title_zh_chu_music_data">中二歌曲详情</string>
+    <string name="title_coming_soon">ComingSoon</string>
+    <string name="title_zh_coming_soon">敬请期待</string>
+    <string name="title_setting">Setting</string>
+    <string name="title_zh_setting">设置</string>
+
+    <string name="title_open_navigation_menu">打开导航菜单</string>
+    <string name="title_back">返回</string>
 </resources>
