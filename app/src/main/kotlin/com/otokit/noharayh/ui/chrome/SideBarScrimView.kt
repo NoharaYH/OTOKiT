@@ -51,7 +51,7 @@ class SideBarScrimView(context: Context) : View(context) {
             0f,
             w.toFloat(),
             0f,
-            0x80000000.toInt(),
+            0xB3000000.toInt(),
             0x00000000,
             Shader.TileMode.CLAMP,
         )
@@ -59,7 +59,7 @@ class SideBarScrimView(context: Context) : View(context) {
 
     override fun onDraw(canvas: Canvas) {
         if (width <= 0 || height <= 0 || progress <= 0f) return
-        // 进度只乘一次；shader 已包含完全展开时左端约50%的黑色强度。
+        // 进度只乘一次；shader 已包含完全展开时左端约70%的黑色强度。
         scrimPaint.alpha = (255 * progress).roundToInt()
         canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), scrimPaint)
     }
