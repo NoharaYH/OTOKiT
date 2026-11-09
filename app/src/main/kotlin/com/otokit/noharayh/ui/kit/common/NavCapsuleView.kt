@@ -250,11 +250,11 @@ class NavCapsuleView(context: Context) : FrameLayout(context) {
     }
 
     /**
-     * 未选中：白药丸 + 加深后的强调色（文字、图标圆、图标同色）；
-     * 选中：药丸用同一加深色，文字与图标圆变白、图标回到加深色，按进度插值过渡。
+     * 未选中：白药丸 + 原始强调色（文字与图标同色，不加深、不透明削浅）；
+     * 选中：药丸用原始强调色，文字与图标圆变白、图标回到强调色，按进度插值过渡。
      */
     private fun applySelectionColors() {
-        val content = ColorUtils.blendARGB(accentColor, Color.BLACK, CONTENT_DARKEN)
+        val content = accentColor
         val fraction = selectedFraction.coerceIn(0f, 1f)
         pillPaint.color = ColorUtils.blendARGB(Color.WHITE, content, fraction)
         iconCircleDrawable.setColor(ColorUtils.blendARGB(content, Color.WHITE, fraction))
@@ -275,9 +275,6 @@ class NavCapsuleView(context: Context) : FrameLayout(context) {
     }
 
     companion object {
-        /** 文字/图标相对强调色加深的比例；未选中不再用透明度削浅。 */
-        private const val CONTENT_DARKEN = 0.15f
-
         /** 选中色互换的过渡时长。 */
         private const val SELECTION_ANIM_MS = 180L
 
