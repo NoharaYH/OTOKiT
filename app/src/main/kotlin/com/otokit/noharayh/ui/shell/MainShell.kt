@@ -17,6 +17,7 @@ import com.otokit.noharayh.ui.pages.pageScoreSync.ScoreSyncPlaceholder
 import com.otokit.noharayh.ui.shell.navigation.Destination
 import com.otokit.noharayh.ui.shell.navigation.NavigationController
 import com.otokit.noharayh.ui.shell.navigation.NavigationState
+import com.otokit.noharayh.ui.shell.background.BackgroundHost
 import com.otokit.noharayh.ui.shell.selection.GameSelectionController
 import com.otokit.noharayh.ui.shell.selection.GameSelectionState
 import com.otokit.noharayh.ui.shell.selection.SelectionSource
@@ -62,6 +63,7 @@ class MainShell(
 
     private var mountedContentView: View? = null
     private var overlayTextView: TextView? = null
+    private var background: BackgroundHost? = null
 
     private var onCanHandleBackChanged: ((Boolean) -> Unit)? = null
     private var mountedDestination: Destination? = null
@@ -89,6 +91,16 @@ class MainShell(
         check(lifecycleState == LifecycleState.New) { "MainShell 只允许挂载一次，销毁后不可重新挂载" }
         check(chromeHost.childCount == 0) { "外围 UI 由后续步骤挂载，本步必须为空" }
         lifecycleState = LifecycleState.Attached
+        val selection = selection.state
+        background = BackgroundHost(backgroundHost).also { host ->
+            host.attach(selection.currentGame)
+            host.setResumed(true)
+            host.renderSelection(
+                currentGame = selection.currentGame,
+                maiTheme = themeFor(selection.maiThemeId, GameLine.Mai),
+                chuTheme = themeFor(selection.chuThemeId, GameLine.Chu),
+            )
+        }
         overlayHost.addView(createSettingsPlaceholder(overlayHost.context))
         render()
     }
@@ -102,6 +114,8 @@ class MainShell(
         if (!wasAttached) return
 
         if (appliedSettingsOpen == true) applySettingsVisibility(false)
+        background?.dispose()
+        background = null
         overlayHost.visibility = View.GONE
         contentHost.removeAllViews()
         overlayHost.removeAllViews()
@@ -150,19 +164,31 @@ class MainShell(
         applySelection()
     }
 
-    /** 选择变化后只更新颜色并落盘，不重建页面、不改导航。 */
+    /** 选择变化后只更新颜色、背景页与落盘，不重建页面、不改导航。 */
     private fun applySelection() {
+        val current = selection.state
         val color = placeholderTextColor()
         (mountedContentView as? TextView)?.setTextColor(color)
         overlayTextView?.setTextColor(color)
-        selectionPreferences.write(selection.state)
+        background?.renderSelection(
+            currentGame = current.currentGame,
+            maiTheme = themeFor(current.maiThemeId, GameLine.Mai),
+            chuTheme = themeFor(current.chuThemeId, GameLine.Chu),
+        )
+        selectionPreferences.write(current)
     }
 
     private fun placeholderTextColor(): Int {
         val current = selection.state
-        val theme = ThemeRegistry.findById(current.selectedThemeId())
-            ?: ThemeRegistry.defaultFor(current.currentGame)
-        return theme.definition.colors.basicColor
+        return themeFor(current.selectedThemeId(), current.currentGame).definition.colors.basicColor
+    }
+
+    private fun themeFor(themeId: String, gameLine: GameLine): RegisteredTheme =
+        ThemeRegistry.findById(themeId) ?: ThemeRegistry.defaultFor(gameLine)
+
+    /** 背景随 Activity 生命周期暂停/恢复，不重建 WebView。 */
+    fun setBackgroundResumed(resumed: Boolean) {
+        background?.setResumed(resumed)
     }
 
     /**

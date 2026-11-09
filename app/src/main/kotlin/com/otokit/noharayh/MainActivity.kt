@@ -72,6 +72,16 @@ class MainActivity : ComponentActivity() {
         windowObserver?.start()
     }
 
+    override fun onResume() {
+        super.onResume()
+        shell?.setBackgroundResumed(true)
+    }
+
+    override fun onPause() {
+        shell?.setBackgroundResumed(false)
+        super.onPause()
+    }
+
     override fun onStop() {
         windowObserver?.stop()
         super.onStop()
