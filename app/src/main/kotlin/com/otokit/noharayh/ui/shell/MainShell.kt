@@ -13,6 +13,8 @@ import com.otokit.noharayh.R
 import com.otokit.noharayh.storage.preferences.SharedPreferencesUiPreferences
 import com.otokit.noharayh.ui.kit.common.AppTypography
 import com.otokit.noharayh.ui.kit.common.PageContent
+import com.otokit.noharayh.ui.chrome.TitleBar
+import com.otokit.noharayh.ui.chrome.TitleBarStateFactory
 import com.otokit.noharayh.ui.pages.pageMusicData.MusicDataPlaceholder
 import com.otokit.noharayh.ui.pages.pageScoreSync.ScoreSyncPlaceholder
 import com.otokit.noharayh.ui.shell.navigation.Destination
@@ -29,6 +31,7 @@ import com.otokit.noharayh.ui.theme.RegisteredTheme
 import com.otokit.noharayh.ui.theme.ThemeRegistry
 import com.otokit.noharayh.ui.window.PixelRect
 import com.otokit.noharayh.ui.window.WindowSnapshot
+import com.otokit.noharayh.ui.window.breakpoints.WindowLayoutClass
 import com.otokit.noharayh.ui.window.metrics.WindowMetricsSnapshot
 
 /**
@@ -65,6 +68,9 @@ class MainShell(
     private var mountedContent: PageContent? = null
     private var overlayTextView: TextView? = null
     private var background: BackgroundHost? = null
+    private var titleBar: TitleBar? = null
+    private var latestWindowSnapshot: WindowSnapshot? = null
+    private var appChromeTopPx = 0
     private var appliedBackgroundRect: PixelRect? = null
     private var appliedBackgroundWindowRect: PixelRect? = null
 
@@ -119,6 +125,10 @@ class MainShell(
         if (!wasAttached) return
 
         if (appliedSettingsOpen == true) applySettingsVisibility(false)
+        titleBar?.dispose()
+        titleBar = null
+        chromeHost.removeAllViews()
+        appChromeTopPx = 0
         background?.dispose()
         background = null
         overlayHost.visibility = View.GONE
@@ -130,6 +140,7 @@ class MainShell(
         appliedBackgroundRect = null
         appliedBackgroundWindowRect = null
         overlayTextView = null
+        latestWindowSnapshot = null
     }
 
     fun navigate(destination: Destination) {
@@ -182,6 +193,7 @@ class MainShell(
             maiTheme = themeFor(current.maiThemeId, GameLine.Mai),
             chuTheme = themeFor(current.chuThemeId, GameLine.Chu),
         )
+        renderTitle()
         selectionPreferences.write(current)
     }
 
@@ -211,18 +223,94 @@ class MainShell(
         val color = placeholderTextColor()
         mountedContent?.updateColor(color)
         overlayTextView?.setTextColor(color)
+        renderTitle()
         selectionPreferences.write(current)
         return current.currentGame
     }
 
     /**
-     * 应用最新窗口快照：背景用基础矩形，内容与覆盖层用避让 IME 的交互矩形。
-     *
-     * 只调整自己持有的宿主，不重建页面、不修改导航与字体；没有变化时不写 LayoutParams。
+     * 应用最新窗口快照：先按断点决定标题有无，再用系统安全区 + 应用占用统一重算内容矩形。
      */
     fun updateWindow(snapshot: WindowSnapshot) {
         if (lifecycleState != LifecycleState.Attached) return
-        val rects = ContentGeometry.compute(snapshot, AppChromeInsets.Zero)
+        latestWindowSnapshot = snapshot
+        updateChromeForWindow(snapshot)
+        recomputeGeometry()
+    }
+
+    private fun updateChromeForWindow(snapshot: WindowSnapshot) {
+        if (snapshot.layoutClass == WindowLayoutClass.Compact) {
+            mountTitleIfNeeded()
+            applyTitleRect(snapshot)
+        } else {
+            removeTitle()
+        }
+    }
+
+    private fun mountTitleIfNeeded() {
+        if (titleBar != null) return
+        val bar = TitleBar(chromeHost.context).apply {
+            onPrimaryAction = { handlePrimaryAction() }
+            onHeightChanged = { height -> onTitleHeightChanged(height) }
+        }
+        chromeHost.addView(
+            bar,
+            FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, bar.contentHeightPx),
+        )
+        titleBar = bar
+        // 行高由固定公式得出，先用于首帧几何；实测变化再由回调纠正。
+        appChromeTopPx = bar.contentHeightPx
+        renderTitle()
+    }
+
+    private fun removeTitle() {
+        titleBar?.let { bar ->
+            bar.dispose()
+            chromeHost.removeView(bar)
+        }
+        titleBar = null
+        if (appChromeTopPx != 0) {
+            appChromeTopPx = 0
+            recomputeGeometry()
+        }
+    }
+
+    /** 标题只在系统安全区内的应用行出现；不含系统顶区。 */
+    private fun applyTitleRect(snapshot: WindowSnapshot) {
+        val bar = titleBar ?: return
+        val safe = snapshot.insets.systemSafeEdges
+        val metrics = snapshot.metrics
+        val windowRect = PixelRect(
+            left = safe.left,
+            top = safe.top,
+            right = (metrics.widthPx - safe.right).coerceAtLeast(safe.left),
+            bottom = (safe.top + bar.contentHeightPx).coerceAtMost(metrics.heightPx),
+        )
+        val local = ContentGeometry.relativeToRoot(windowRect, metrics.rootLeftPx, metrics.rootTopPx)
+        val params = bar.layoutParams as? FrameLayout.LayoutParams ?: return
+        if (params.width == local.width && params.height == local.height &&
+            params.leftMargin == local.left && params.topMargin == local.top
+        ) {
+            return
+        }
+        params.width = local.width
+        params.height = local.height
+        params.gravity = Gravity.TOP or Gravity.LEFT
+        params.setMargins(local.left, local.top, 0, 0)
+        bar.layoutParams = params
+    }
+
+    private fun onTitleHeightChanged(height: Int) {
+        if (height == appChromeTopPx) return
+        appChromeTopPx = height
+        // 布局过程中只记录，下一帧再统一重算，避免测量 → 回报 → 重排循环。
+        chromeHost.post { if (lifecycleState == LifecycleState.Attached) recomputeGeometry() }
+    }
+
+    /** 唯一几何入口：窗口快照或应用占用变化都走这里。 */
+    private fun recomputeGeometry() {
+        val snapshot = latestWindowSnapshot ?: return
+        val rects = ContentGeometry.compute(snapshot, AppChromeInsets(top = appChromeTopPx))
         applyContentRect(backgroundHost, rects.base, snapshot.metrics)
         val backgroundRect = ContentGeometry.relativeToRoot(
             rects.base, snapshot.metrics.rootLeftPx, snapshot.metrics.rootTopPx,
@@ -235,6 +323,30 @@ class MainShell(
         }
         applyContentRect(contentHost, rects.interactive, snapshot.metrics)
         applyContentRect(overlayHost, rects.interactive, snapshot.metrics)
+    }
+
+    /** 由已提交的导航与选择状态生成标题展示数据。 */
+    private fun renderTitle() {
+        val bar = titleBar ?: return
+        val nav = controller.state
+        val current = selection.state
+        val theme = themeFor(current.selectedThemeId(), current.currentGame)
+        bar.render(
+            TitleBarStateFactory.create(
+                destination = nav.destination,
+                currentGame = current.currentGame,
+                settingsOpen = nav.settingsOpen,
+                functionalTextColor = theme.definition.colors.basicColor,
+                themeCircleColor = theme.definition.colors.basicColor,
+                maiDecorColor = themeFor(current.maiThemeId, GameLine.Mai).definition.colors.basicColor,
+                chuDecorColor = themeFor(current.chuThemeId, GameLine.Chu).definition.colors.basicColor,
+            ),
+        )
+    }
+
+    private fun handlePrimaryAction() {
+        if (lifecycleState != LifecycleState.Attached) return
+        if (controller.state.settingsOpen) closeSettings()
     }
 
     private fun applyContentRect(host: View, rect: PixelRect, metrics: WindowMetricsSnapshot) {
@@ -266,6 +378,7 @@ class MainShell(
         if (appliedSettingsOpen != current.settingsOpen) {
             applySettingsVisibility(current.settingsOpen)
         }
+        renderTitle()
         onCanHandleBackChanged?.invoke(canHandleBack)
     }
 
