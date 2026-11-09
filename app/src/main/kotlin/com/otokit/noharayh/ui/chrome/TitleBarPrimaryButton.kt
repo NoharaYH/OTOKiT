@@ -12,7 +12,7 @@ import androidx.dynamicanimation.animation.FloatValueHolder
 import androidx.dynamicanimation.animation.SpringAnimation
 import androidx.dynamicanimation.animation.SpringForce
 import com.otokit.noharayh.ui.animation.chrome.TitleButtonFeedback
-import com.otokit.noharayh.ui.constants.motion.ExpressivePressFeedback
+import com.otokit.noharayh.ui.animation.chrome.TitleButtonPressSpec
 import kotlin.math.min
 
 /** 本体按下缩 3dp，黑色外扩由标题行内的独立视觉层绘制；不绘制发白覆盖。 */
@@ -30,7 +30,7 @@ internal class TitleBarPrimaryButton(context: Context) : AppCompatImageButton(co
         translationZ = 0f
     }
 
-    private val pressInsetPx = ExpressivePressFeedback.PRESS_INSET_DP * resources.displayMetrics.density
+    private val pressInsetPx = TitleButtonPressSpec.INSET_DP * resources.displayMetrics.density
     private val circlePaint = Paint(Paint.ANTI_ALIAS_FLAG)
 
     /** 圆形底色；由标题栏按主题写入。 */
@@ -38,9 +38,9 @@ internal class TitleBarPrimaryButton(context: Context) : AppCompatImageButton(co
         set(value) { field = value; invalidate() }
     private val scaleHolder = FloatValueHolder(0f)
     private val scaleAnim = SpringAnimation(scaleHolder).apply {
-        setSpring(SpringForce(0f).setDampingRatio(ExpressivePressFeedback.PRESS_DAMPING)
-            .setStiffness(ExpressivePressFeedback.PRESS_STIFFNESS))
-        setMinimumVisibleChange(ExpressivePressFeedback.MIN_VISIBLE_CHANGE)
+        setSpring(SpringForce(0f).setDampingRatio(TitleButtonPressSpec.PRESS_DAMPING)
+            .setStiffness(TitleButtonPressSpec.PRESS_STIFFNESS))
+        setMinimumVisibleChange(TitleButtonPressSpec.MIN_VISIBLE_CHANGE)
         addUpdateListener { _, _, _ -> applyPressScale() }
     }
     private var activePointer = MotionEvent.INVALID_POINTER_ID

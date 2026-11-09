@@ -7,7 +7,7 @@ import android.view.animation.AnimationUtils
 import androidx.dynamicanimation.animation.FloatValueHolder
 import androidx.dynamicanimation.animation.SpringAnimation
 import androidx.dynamicanimation.animation.SpringForce
-import com.otokit.noharayh.ui.constants.motion.ExpressivePressFeedback as Spec
+import com.otokit.noharayh.ui.animation.chrome.TitleButtonPressSpec as Spec
 
 /** 只执行标题按钮的局部反馈；不引用 chrome 实现，不决定点击或导航。 */
 internal class TitleButtonFeedback(private val owner: View, private val invalidate: () -> Unit) {
@@ -72,7 +72,7 @@ internal class TitleButtonFeedback(private val owner: View, private val invalida
     fun press() {
         held?.release()
         rings.removeAll { it.released && !it.animation.isRunning && it.expansion.value <= 0.01f }
-        while (rings.size >= Spec.MAX_RIPPLES) rings.removeAt(0).cancel()
+        while (rings.size >= Spec.MAX_RINGS) rings.removeAt(0).cancel()
         val ring = Ring(now())
         rings += ring
         held = ring

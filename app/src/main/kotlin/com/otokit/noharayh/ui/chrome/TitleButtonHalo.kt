@@ -8,7 +8,7 @@ import android.graphics.Paint
 import android.view.View
 import com.otokit.noharayh.ui.animation.chrome.TitleButtonFeedback
 import com.otokit.noharayh.ui.constants.dimensions.ShellDimensions
-import com.otokit.noharayh.ui.constants.motion.ExpressivePressFeedback
+import com.otokit.noharayh.ui.animation.chrome.TitleButtonPressSpec
 import kotlin.math.min
 
 /**
@@ -50,7 +50,7 @@ internal class TitleButtonHalo(
     }
 
     override fun onDraw(canvas: Canvas) {
-        val layer = canvas.saveLayerAlpha(null, ExpressivePressFeedback.BLACK_ALPHA)
+        val layer = canvas.saveLayerAlpha(null, TitleButtonPressSpec.HALO_ALPHA)
         feedback.forEachExpansion { expansion ->
             val radius = min(baseRadius + restOutset * expansion, radiusLimit)
             if (expansion > 0f && radius > baseRadius) {
