@@ -10,6 +10,7 @@ import com.otokit.noharayh.databinding.ActivityMainBinding
 import com.otokit.noharayh.ui.constants.typography.AppFonts
 import com.otokit.noharayh.ui.shell.MainShell
 import com.otokit.noharayh.ui.shell.navigation.NavigationStateCodec
+import com.otokit.noharayh.ui.shell.selection.GameSelectionStateCodec
 import com.otokit.noharayh.ui.window.WindowEnvironmentObserver
 
 /**
@@ -48,6 +49,7 @@ class MainActivity : ComponentActivity() {
             chromeHost = binding.chromeHost,
             overlayHost = binding.overlayHost,
             initialState = NavigationStateCodec.read(savedInstanceState),
+            savedSelection = GameSelectionStateCodec.read(savedInstanceState),
         )
         this.shell = shell
 
@@ -77,7 +79,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        shell?.let { NavigationStateCodec.write(outState, it.state) }
+        shell?.let {
+            NavigationStateCodec.write(outState, it.state)
+            GameSelectionStateCodec.write(outState, it.selectionState)
+        }
     }
 
     override fun onDestroy() {

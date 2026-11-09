@@ -10,13 +10,20 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import com.otokit.noharayh.R
+import com.otokit.noharayh.storage.preferences.SharedPreferencesUiPreferences
 import com.otokit.noharayh.ui.kit.common.AppTypography
 import com.otokit.noharayh.ui.pages.pageMusicData.MusicDataPlaceholder
 import com.otokit.noharayh.ui.pages.pageScoreSync.ScoreSyncPlaceholder
 import com.otokit.noharayh.ui.shell.navigation.Destination
 import com.otokit.noharayh.ui.shell.navigation.NavigationController
 import com.otokit.noharayh.ui.shell.navigation.NavigationState
+import com.otokit.noharayh.ui.shell.selection.GameSelectionController
+import com.otokit.noharayh.ui.shell.selection.GameSelectionState
+import com.otokit.noharayh.ui.shell.selection.SelectionSource
+import com.otokit.noharayh.ui.shell.selection.UiPreferencesAdapter
+import com.otokit.noharayh.ui.shell.selection.restoreGameSelection
 import com.otokit.noharayh.ui.theme.GameLine
+import com.otokit.noharayh.ui.theme.RegisteredTheme
 import com.otokit.noharayh.ui.theme.ThemeRegistry
 import com.otokit.noharayh.ui.window.PixelRect
 import com.otokit.noharayh.ui.window.WindowSnapshot
@@ -34,19 +41,27 @@ class MainShell(
     private val chromeHost: FrameLayout,
     private val overlayHost: FrameLayout,
     initialState: NavigationState = NavigationState(),
+    savedSelection: SelectionSource = SelectionSource(null, null, null, null),
+    private val selectionPreferences: UiPreferencesAdapter =
+        UiPreferencesAdapter(SharedPreferencesUiPreferences(contentHost.context)),
 ) {
 
     private enum class LifecycleState { New, Attached, Disposed }
 
     private val controller = NavigationController(initialState)
 
-    /**
-     * 04 的固定展示输入：默认音游默认主题的 basicColor。
-     *
-     * 这不是“当前主题”状态；05 建立稳定选择后由 shell 替换这份输入。
-     */
-    private val placeholderTextColor: Int =
-        ThemeRegistry.defaultFor(GameLine.Mai).definition.colors.basicColor
+    /** 稳定的音游/主题选择；恢复顺序为保存状态、偏好、Registry 默认。 */
+    private val selection = GameSelectionController(
+        restoreGameSelection(
+            saved = savedSelection,
+            preferences = selectionPreferences.read(),
+            lookup = ThemeRegistry::findById,
+            defaultFor = ThemeRegistry::defaultFor,
+        ),
+    )
+
+    private var mountedContentView: View? = null
+    private var overlayTextView: TextView? = null
 
     private var onCanHandleBackChanged: ((Boolean) -> Unit)? = null
     private var mountedDestination: Destination? = null
@@ -57,6 +72,9 @@ class MainShell(
 
     val state: NavigationState
         get() = controller.state
+
+    val selectionState: GameSelectionState
+        get() = selection.state
 
     val canHandleBack: Boolean
         get() = lifecycleState == LifecycleState.Attached && controller.canHandleBack
@@ -69,9 +87,7 @@ class MainShell(
     /** 挂载覆盖层并首次渲染；每个实例只允许挂载一次，重复调用直接失败。 */
     fun attach() {
         check(lifecycleState == LifecycleState.New) { "MainShell 只允许挂载一次，销毁后不可重新挂载" }
-        check(backgroundHost.childCount == 0 && chromeHost.childCount == 0) {
-            "背景与外围 UI 由后续步骤挂载，本步必须为空"
-        }
+        check(chromeHost.childCount == 0) { "外围 UI 由后续步骤挂载，本步必须为空" }
         lifecycleState = LifecycleState.Attached
         overlayHost.addView(createSettingsPlaceholder(overlayHost.context))
         render()
@@ -91,6 +107,8 @@ class MainShell(
         overlayHost.removeAllViews()
         mountedDestination = null
         appliedSettingsOpen = null
+        mountedContentView = null
+        overlayTextView = null
     }
 
     fun navigate(destination: Destination) {
@@ -116,6 +134,35 @@ class MainShell(
         val consumed = controller.consumeBack()
         if (consumed) render()
         return consumed
+    }
+
+    /** 提交已确认的音游选择；同值无副作用，变化时更新占位颜色并写偏好。 */
+    fun selectGame(gameLine: GameLine) {
+        if (lifecycleState != LifecycleState.Attached) return
+        if (!selection.selectGame(gameLine)) return
+        applySelection()
+    }
+
+    /** 提交某个已登记主题；归属由 [RegisteredTheme] 本身保证。 */
+    fun selectTheme(theme: RegisteredTheme) {
+        if (lifecycleState != LifecycleState.Attached) return
+        if (!selection.selectTheme(theme)) return
+        applySelection()
+    }
+
+    /** 选择变化后只更新颜色并落盘，不重建页面、不改导航。 */
+    private fun applySelection() {
+        val color = placeholderTextColor()
+        (mountedContentView as? TextView)?.setTextColor(color)
+        overlayTextView?.setTextColor(color)
+        selectionPreferences.write(selection.state)
+    }
+
+    private fun placeholderTextColor(): Int {
+        val current = selection.state
+        val theme = ThemeRegistry.findById(current.selectedThemeId())
+            ?: ThemeRegistry.defaultFor(current.currentGame)
+        return theme.definition.colors.basicColor
     }
 
     /**
@@ -165,20 +212,22 @@ class MainShell(
 
     private fun mountContent(destination: Destination) {
         contentHost.removeAllViews()
+        val view = createContent(contentHost.context, destination)
         contentHost.addView(
-            createContent(contentHost.context, destination),
+            view,
             FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT,
             ),
         )
+        mountedContentView = view
         mountedDestination = destination
     }
 
     private fun createContent(context: Context, destination: Destination): View =
         when (destination) {
-            Destination.ScoreSync -> ScoreSyncPlaceholder.create(context, placeholderTextColor)
-            Destination.MusicData -> MusicDataPlaceholder.create(context, placeholderTextColor)
+            Destination.ScoreSync -> ScoreSyncPlaceholder.create(context, placeholderTextColor())
+            Destination.MusicData -> MusicDataPlaceholder.create(context, placeholderTextColor())
             Destination.ComingSoon -> placeholderText(context, R.string.placeholder_coming_soon)
         }
 
@@ -205,8 +254,10 @@ class MainShell(
             isFocusableInTouchMode = true
             setBackgroundColor(resolveColorBackground(context))
         }
+        val text = placeholderText(context, R.string.placeholder_settings)
+        overlayTextView = text
         container.addView(
-            placeholderText(context, R.string.placeholder_settings),
+            text,
             FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -221,7 +272,7 @@ class MainShell(
         setTextAppearance(android.R.style.TextAppearance_Material_Large)
         AppTypography.applyAppTypeface(this)
         // 颜色放在 TextAppearance 与字体之后，避免被前者覆盖。
-        setTextColor(placeholderTextColor)
+        setTextColor(placeholderTextColor())
     }
 
     private fun resolveColorBackground(context: Context): Int {
