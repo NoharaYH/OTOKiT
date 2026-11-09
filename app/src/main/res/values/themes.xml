@@ -1,4 +1,6 @@
 <resources>
-    <style name="Theme.OTOKiT" parent="android:style/Theme.Material.Light.NoActionBar" />
+    <!-- 固定浅色：不跟随系统夜间模式，也不使用 Material 组件库。 -->
+    <style name="Theme.OTOKiT" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="android:forceDarkAllowed">false</item>
+    </style>
 </resources>
-

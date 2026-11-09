@@ -16,11 +16,9 @@
     <dimen name="chrome_en_text_leading_inset">0dp</dimen>
     <dimen name="chrome_dual_line_text_optical_nudge_y">1.25dp</dimen>
 
-    <!-- 标题栏外围。 -->
+    <!-- 标题栏外围；本批取消所有阴影，不再保留旧投影尺寸。 -->
     <dimen name="title_bar_sidenav_margin_start">4dp</dimen>
     <dimen name="title_bar_sidenav_button_size">48dp</dimen>
-    <dimen name="title_bar_sidenav_shadow_offset_y">2dp</dimen>
-    <dimen name="title_bar_sidenav_shadow_blur">12dp</dimen>
     <dimen name="title_bar_chrome_row_min_height">72dp</dimen>
 
     <!-- 宽屏导航 Rail。 -->

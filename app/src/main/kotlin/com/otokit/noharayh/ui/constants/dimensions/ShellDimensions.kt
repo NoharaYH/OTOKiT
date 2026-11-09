@@ -26,8 +26,6 @@ object ShellDimensions {
 
     val titleBarSideNavMarginStart: Int = R.dimen.title_bar_sidenav_margin_start
     val titleBarSideNavButtonSize: Int = R.dimen.title_bar_sidenav_button_size
-    val titleBarSideNavShadowOffsetY: Int = R.dimen.title_bar_sidenav_shadow_offset_y
-    val titleBarSideNavShadowBlur: Int = R.dimen.title_bar_sidenav_shadow_blur
     val titleBarChromeRowMinHeight: Int = R.dimen.title_bar_chrome_row_min_height
 
     val padNavRailWidth: Int = R.dimen.pad_nav_rail_width
