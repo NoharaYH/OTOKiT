@@ -9,10 +9,13 @@ import android.widget.FrameLayout
  *
  * 拦截触摸起点，避免内部 WebView 消费手势；不调用
  * `requestDisallowInterceptTouchEvent(true)`，父 Pager 仍可在横向拖动时正常接管并发送 CANCEL。
+ * 自身可点击只是为了让默认 onTouchEvent 消费事件，不承载实际点击行为。
  */
 internal class TouchBlockingFrameLayout(context: Context) : FrameLayout(context) {
 
-    override fun onInterceptTouchEvent(ev: MotionEvent): Boolean = true
+    init {
+        isClickable = true
+    }
 
-    override fun onTouchEvent(event: MotionEvent): Boolean = true
+    override fun onInterceptTouchEvent(ev: MotionEvent): Boolean = true
 }

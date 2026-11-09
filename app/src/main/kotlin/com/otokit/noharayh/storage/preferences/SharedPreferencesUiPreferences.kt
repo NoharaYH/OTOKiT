@@ -1,6 +1,7 @@
 package com.otokit.noharayh.storage.preferences
 
 import android.content.Context
+import androidx.core.content.edit
 
 /**
  * 基于平台 SharedPreferences 的最小实现。
@@ -29,12 +30,12 @@ class SharedPreferencesUiPreferences(context: Context) : UiPreferences {
         maiThemeId: String,
         chuThemeId: String,
     ) {
-        preferences.edit()
-            .putInt(KEY_VERSION, version)
-            .putString(KEY_CURRENT_GAME, currentGame)
-            .putString(KEY_THEME_MAI, maiThemeId)
-            .putString(KEY_THEME_CHU, chuThemeId)
-            .apply()
+        preferences.edit {
+            putInt(KEY_VERSION, version)
+            putString(KEY_CURRENT_GAME, currentGame)
+            putString(KEY_THEME_MAI, maiThemeId)
+            putString(KEY_THEME_CHU, chuThemeId)
+        }
     }
 
     companion object {
