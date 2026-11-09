@@ -92,14 +92,16 @@ class MainShell(
         check(chromeHost.childCount == 0) { "外围 UI 由后续步骤挂载，本步必须为空" }
         lifecycleState = LifecycleState.Attached
         val selection = selection.state
-        background = BackgroundHost(backgroundHost).also { host ->
+        background = BackgroundHost(backgroundHost) { gameLine ->
+            onBackgroundSelectionConfirmed(gameLine)
+        }.also { host ->
             host.attach(selection.currentGame)
-            host.setResumed(true)
             host.renderSelection(
                 currentGame = selection.currentGame,
                 maiTheme = themeFor(selection.maiThemeId, GameLine.Mai),
                 chuTheme = themeFor(selection.chuThemeId, GameLine.Chu),
             )
+            host.setInputEnabled(!controller.state.settingsOpen)
         }
         overlayHost.addView(createSettingsPlaceholder(overlayHost.context))
         render()
@@ -192,6 +194,23 @@ class MainShell(
     }
 
     /**
+     * 背景确认了用户翻页：只提交选择、更新颜色并落盘。
+     *
+     * 此时 Pager 已在该页，不能再调用 renderSelection 触发定位或截断 Settling。
+     */
+    private fun onBackgroundSelectionConfirmed(gameLine: GameLine): GameLine {
+        if (lifecycleState != LifecycleState.Attached) return selection.state.currentGame
+        if (!selection.selectGame(gameLine)) return selection.state.currentGame
+
+        val current = selection.state
+        val color = placeholderTextColor()
+        (mountedContentView as? TextView)?.setTextColor(color)
+        overlayTextView?.setTextColor(color)
+        selectionPreferences.write(current)
+        return current.currentGame
+    }
+
+    /**
      * 应用最新窗口快照：背景用基础矩形，内容与覆盖层用避让 IME 的交互矩形。
      *
      * 只调整自己持有的宿主，不重建页面、不修改导航与字体；没有变化时不写 LayoutParams。
@@ -271,6 +290,7 @@ class MainShell(
             contentHost.descendantFocusability = contentFocusability
         }
         appliedSettingsOpen = open
+        background?.setInputEnabled(!open)
     }
 
     private fun createSettingsPlaceholder(context: Context): View {

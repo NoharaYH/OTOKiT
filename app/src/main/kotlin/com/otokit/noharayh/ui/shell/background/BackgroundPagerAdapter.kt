@@ -26,10 +26,10 @@ internal class BackgroundPagerAdapter(
     override fun onBindViewHolder(holder: Holder, position: Int) {
         val gameLine = BackgroundPagerMapping.gameForPage(position) ?: return
         val page = pages.getValue(gameLine)
-        val webView = page.webView
-        (webView.parent as? ViewGroup)?.removeView(webView)
+        val pageView = page.view
+        (pageView.parent as? ViewGroup)?.removeView(pageView)
         holder.container.addView(
-            webView,
+            pageView,
             FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT,
