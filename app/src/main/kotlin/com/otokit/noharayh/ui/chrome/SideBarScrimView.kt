@@ -87,8 +87,11 @@ class SideBarScrimView(context: Context) : View(context) {
 
     /**
      * 遮罩整片可点，但拖动不等于点击：超过 slop 就取消点击，仍由遮罩消费，避免点穿。
+     * 完全关闭时不消费触摸，让事件落到内容场景。
      */
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (progress <= 0f) return false
+
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 downX = event.x

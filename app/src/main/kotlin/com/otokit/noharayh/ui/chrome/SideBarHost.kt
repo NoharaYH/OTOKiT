@@ -64,8 +64,10 @@ class SideBarHost @JvmOverloads constructor(
             sideBar,
             LayoutParams(dp(308f), LayoutParams.MATCH_PARENT),
         )
-        scrim.visibility = GONE
-        sideBar.visibility = GONE
+        // 遮罩常驻：关闭态不绘制、不消费触摸，避免拖动中切换可见性触发重新布局。
+        scrim.visibility = VISIBLE
+        // 面板常驻布局但关闭态不可见；只在首次拿到矩形后变为 VISIBLE。
+        sideBar.visibility = INVISIBLE
         scrim.setOnClickListener { close() }
         sideBar.onNavigate = { destination -> onNavigate?.invoke(destination) }
         sideBar.onSettings = { onSettings?.invoke() }
@@ -206,19 +208,13 @@ class SideBarHost @JvmOverloads constructor(
         return x <= edge
     }
 
-    /** 关闭态第一次拖动前面板是 GONE；先按关闭位置摆好再交给 helper 捕获。 */
+    /** 关闭态第一次拖动前面板只在屏幕外；直接对齐到关闭位置，不重新布局。 */
     private fun preparePanelForDrag() {
         if (progress > 0f) return
         val closedLeft = interactionLeftPx - drawerWidthPx
-        sideBar.layout(
-            closedLeft,
-            interactionTopPx,
-            closedLeft + drawerWidthPx,
-            interactionBottomPx,
-        )
-        scrim.visibility = VISIBLE
+        val dx = closedLeft - sideBar.left
+        if (dx != 0) sideBar.offsetLeftAndRight(dx)
         scrim.setProgress(0f)
-        sideBar.visibility = VISIBLE
     }
 
     private fun setProgress(value: Float) {
@@ -227,7 +223,6 @@ class SideBarHost @JvmOverloads constructor(
         progress = bounded
         scrim.setProgress(progress)
         applyLayout()
-        updateVisibility()
         notifyOpenState(progress > 0f)
     }
 
@@ -246,12 +241,8 @@ class SideBarHost @JvmOverloads constructor(
             leftMargin = interactionLeftPx - drawerWidthPx + visibleWidth
             topMargin = interactionTopPx
         }
-    }
-
-    private fun updateVisibility() {
-        val visible = progress > 0f
-        scrim.visibility = if (visible) VISIBLE else GONE
-        sideBar.visibility = if (visible) VISIBLE else GONE
+        // 面板常驻布局，关闭态只是移到屏幕外；首次拿到矩形后再显示，避免启动闪一下。
+        if (sideBar.visibility != VISIBLE) sideBar.visibility = VISIBLE
     }
 
     private fun notifyOpenState(open: Boolean) {
@@ -299,7 +290,6 @@ class SideBarHost @JvmOverloads constructor(
             val value = ((left - closedLeft).toFloat() / drawerWidthPx).coerceIn(0f, 1f)
             progress = value
             scrim.setProgress(value)
-            updateVisibility()
         }
 
         override fun onViewReleased(releasedChild: View, xvel: Float, yvel: Float) {
@@ -333,7 +323,6 @@ class SideBarHost @JvmOverloads constructor(
         progress = if (open) 1f else 0f
         scrim.setProgress(progress)
         applyLayout()
-        updateVisibility()
         notifyOpenState(progress > 0f)
     }
 
