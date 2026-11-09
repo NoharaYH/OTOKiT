@@ -45,6 +45,7 @@ dependencies {
     implementation(libs.androidx.window)
     implementation(libs.androidx.webkit)
     implementation(libs.androidx.viewpager2)
+    implementation(libs.androidx.dynamicanimation)
     testImplementation(libs.junit)
 }
 

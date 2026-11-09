@@ -13,6 +13,7 @@ import com.otokit.noharayh.ui.theme.GameLine
 internal class BackgroundPagerAdapter(
     private val pages: Map<GameLine, BackgroundPage>,
 ) : RecyclerView.Adapter<BackgroundPagerAdapter.Holder>() {
+    private val boundHolders = mutableSetOf<Holder>()
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder {
         val container = FrameLayout(parent.context)
@@ -28,6 +29,9 @@ internal class BackgroundPagerAdapter(
         val page = pages.getValue(gameLine)
         val pageView = page.view
         (pageView.parent as? ViewGroup)?.removeView(pageView)
+        holder.container.removeAllViews()
+        holder.gameLine = gameLine
+        boundHolders.add(holder)
         holder.container.addView(
             pageView,
             FrameLayout.LayoutParams(
@@ -38,10 +42,23 @@ internal class BackgroundPagerAdapter(
     }
 
     override fun onViewRecycled(holder: Holder) {
+        boundHolders.remove(holder)
+        holder.gameLine = null
         holder.container.removeAllViews()
     }
 
+    /** 读取本 Adapter 创建的页根原始布局坐标；不受淡变 translationX 影响。 */
+    fun isAtEndpoint(gameLine: GameLine, width: Int, height: Int): Boolean =
+        width > 0 && height > 0 && boundHolders.any { holder ->
+            holder.gameLine == gameLine && holder.container.run {
+                isAttachedToWindow && isLaidOut && !isLayoutRequested &&
+                    left == 0 && top == 0 && this.width == width && this.height == height
+            }
+        }
+
     override fun getItemCount(): Int = 2
 
-    class Holder(val container: FrameLayout) : RecyclerView.ViewHolder(container)
+    class Holder(val container: FrameLayout) : RecyclerView.ViewHolder(container) {
+        var gameLine: GameLine? = null
+    }
 }

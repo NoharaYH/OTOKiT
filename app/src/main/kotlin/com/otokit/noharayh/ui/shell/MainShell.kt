@@ -12,6 +12,7 @@ import androidx.core.content.ContextCompat
 import com.otokit.noharayh.R
 import com.otokit.noharayh.storage.preferences.SharedPreferencesUiPreferences
 import com.otokit.noharayh.ui.kit.common.AppTypography
+import com.otokit.noharayh.ui.kit.common.PageContent
 import com.otokit.noharayh.ui.pages.pageMusicData.MusicDataPlaceholder
 import com.otokit.noharayh.ui.pages.pageScoreSync.ScoreSyncPlaceholder
 import com.otokit.noharayh.ui.shell.navigation.Destination
@@ -61,9 +62,11 @@ class MainShell(
         ),
     )
 
-    private var mountedContentView: View? = null
+    private var mountedContent: PageContent? = null
     private var overlayTextView: TextView? = null
     private var background: BackgroundHost? = null
+    private var appliedBackgroundRect: PixelRect? = null
+    private var appliedBackgroundWindowRect: PixelRect? = null
 
     private var onCanHandleBackChanged: ((Boolean) -> Unit)? = null
     private var mountedDestination: Destination? = null
@@ -123,7 +126,9 @@ class MainShell(
         overlayHost.removeAllViews()
         mountedDestination = null
         appliedSettingsOpen = null
-        mountedContentView = null
+        mountedContent = null
+        appliedBackgroundRect = null
+        appliedBackgroundWindowRect = null
         overlayTextView = null
     }
 
@@ -159,7 +164,7 @@ class MainShell(
         applySelection()
     }
 
-    /** 提交某个已登记主题；归属由 [RegisteredTheme] 本身保证。 */
+    /** 提交某个已登记主题；控制器校验登记 ID 与音游归属，拒绝未知或错属项。 */
     fun selectTheme(theme: RegisteredTheme) {
         if (lifecycleState != LifecycleState.Attached) return
         if (!selection.selectTheme(theme)) return
@@ -170,7 +175,7 @@ class MainShell(
     private fun applySelection() {
         val current = selection.state
         val color = placeholderTextColor()
-        (mountedContentView as? TextView)?.setTextColor(color)
+        mountedContent?.updateColor(color)
         overlayTextView?.setTextColor(color)
         background?.renderSelection(
             currentGame = current.currentGame,
@@ -186,7 +191,7 @@ class MainShell(
     }
 
     private fun themeFor(themeId: String, gameLine: GameLine): RegisteredTheme =
-        ThemeRegistry.findById(themeId) ?: ThemeRegistry.defaultFor(gameLine)
+        ThemeRegistry.resolveForGame(gameLine, themeId)
 
     /** 背景随 Activity 生命周期暂停/恢复，不重建 WebView。 */
     fun setBackgroundResumed(resumed: Boolean) {
@@ -204,7 +209,7 @@ class MainShell(
 
         val current = selection.state
         val color = placeholderTextColor()
-        (mountedContentView as? TextView)?.setTextColor(color)
+        mountedContent?.updateColor(color)
         overlayTextView?.setTextColor(color)
         selectionPreferences.write(current)
         return current.currentGame
@@ -219,6 +224,15 @@ class MainShell(
         if (lifecycleState != LifecycleState.Attached) return
         val rects = ContentGeometry.compute(snapshot, AppChromeInsets.Zero)
         applyContentRect(backgroundHost, rects.base, snapshot.metrics)
+        val backgroundRect = ContentGeometry.relativeToRoot(
+            rects.base, snapshot.metrics.rootLeftPx, snapshot.metrics.rootTopPx,
+        )
+        // 同时比较窗口与根局部矩形，覆盖根和安全区一同平移、局部坐标不变的情况。
+        if (appliedBackgroundRect != backgroundRect || appliedBackgroundWindowRect != rects.base) {
+            appliedBackgroundRect = backgroundRect
+            appliedBackgroundWindowRect = rects.base
+            background?.onViewportChanged()
+        }
         applyContentRect(contentHost, rects.interactive, snapshot.metrics)
         applyContentRect(overlayHost, rects.interactive, snapshot.metrics)
     }
@@ -257,23 +271,26 @@ class MainShell(
 
     private fun mountContent(destination: Destination) {
         contentHost.removeAllViews()
-        val view = createContent(contentHost.context, destination)
+        val content = createContent(contentHost.context, destination)
         contentHost.addView(
-            view,
+            content.view,
             FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT,
             ),
         )
-        mountedContentView = view
+        mountedContent = content
         mountedDestination = destination
     }
 
-    private fun createContent(context: Context, destination: Destination): View =
+    private fun createContent(context: Context, destination: Destination): PageContent =
         when (destination) {
             Destination.ScoreSync -> ScoreSyncPlaceholder.create(context, placeholderTextColor())
             Destination.MusicData -> MusicDataPlaceholder.create(context, placeholderTextColor())
-            Destination.ComingSoon -> placeholderText(context, R.string.placeholder_coming_soon)
+            Destination.ComingSoon -> {
+                val text = placeholderText(context, R.string.placeholder_coming_soon)
+                PageContent(text, text::setTextColor)
+            }
         }
 
     private fun applySettingsVisibility(open: Boolean) {

@@ -5,4 +5,6 @@
     <string name="placeholder_music_data">歌曲详情（占位，尚未迁移）</string>
     <string name="placeholder_coming_soon">敬请期待（占位，尚未迁移）</string>
     <string name="placeholder_settings">设置（占位，尚未迁移）</string>
+    <string name="press_surface_preview_button">按压预览</string>
+    <string name="press_surface_preview_clicked">按钮预览</string>
 </resources>

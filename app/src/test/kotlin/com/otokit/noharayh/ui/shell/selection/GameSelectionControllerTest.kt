@@ -4,6 +4,7 @@ import com.otokit.noharayh.ui.theme.GameLine
 import com.otokit.noharayh.ui.theme.RegisteredTheme
 import com.otokit.noharayh.ui.theme.ThemeColors
 import com.otokit.noharayh.ui.theme.ThemeDefinition
+import com.otokit.noharayh.ui.theme.ThemeRegistry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -15,14 +16,20 @@ class GameSelectionControllerTest {
     private val maiB = theme("mai-b", GameLine.Mai)
     private val chuA = theme("chu-a", GameLine.Chu)
     private val chuB = theme("chu-b", GameLine.Chu)
+    private val registeredThemes = listOf(maiA, maiB, chuA, chuB)
 
     private fun initialState(): GameSelectionState =
         GameSelectionState(currentGame = GameLine.Mai, maiThemeId = "mai-a", chuThemeId = "chu-a")
 
+    private fun controller(): GameSelectionController = GameSelectionController(
+        initialState = initialState(),
+        lookup = { id -> registeredThemes.firstOrNull { it.id == id } },
+    )
+
     /** 同值选择音游不产生新的稳定变化。 */
     @Test
     fun selectGameDeduplicates() {
-        val controller = GameSelectionController(initialState())
+        val controller = controller()
 
         assertFalse(controller.selectGame(GameLine.Mai))
         assertEquals(initialState(), controller.state)
@@ -35,7 +42,7 @@ class GameSelectionControllerTest {
     /** 选择当前音游的另一主题：只更新该 ID。 */
     @Test
     fun selectThemeUpdatesMatchingGameLine() {
-        val controller = GameSelectionController(initialState())
+        val controller = controller()
 
         assertTrue(controller.selectTheme(maiB))
 
@@ -47,7 +54,7 @@ class GameSelectionControllerTest {
     /** 改变非当前音游的主题不改变 currentGame。 */
     @Test
     fun selectThemeForOtherGameKeepsCurrentGame() {
-        val controller = GameSelectionController(initialState())
+        val controller = controller()
 
         assertTrue(controller.selectTheme(chuB))
 
@@ -59,17 +66,53 @@ class GameSelectionControllerTest {
     /** 同主题重复选择是无操作。 */
     @Test
     fun selectThemeDeduplicates() {
-        val controller = GameSelectionController(initialState())
+        val controller = controller()
 
         assertFalse(controller.selectTheme(maiA))
         assertFalse(controller.selectTheme(chuA))
         assertEquals(initialState(), controller.state)
     }
 
+    /** 未登记 ID 不能进入稳定状态，也不能报告需要保存的变化。 */
+    @Test
+    fun rejectsUnknownThemeWithoutChangingState() {
+        val controller = controller()
+
+        assertFalse(controller.selectTheme(theme("unknown", GameLine.Mai)))
+
+        assertEquals(initialState(), controller.state)
+    }
+
+    /** 已知 ID 也不能通过修改对象中的归属写入另一音游。 */
+    @Test
+    fun rejectsThemeWithMismatchedOwnershipWithoutChangingState() {
+        val controller = controller()
+
+        assertFalse(controller.selectTheme(maiB.copy(gameLine = GameLine.Chu)))
+        assertFalse(controller.selectTheme(chuB.copy(gameLine = GameLine.Mai)))
+
+        assertEquals(initialState(), controller.state)
+    }
+
+    /** 默认查询连接生产 Registry，不会把测试夹具或外部构造对象自动视为登记项。 */
+    @Test
+    fun defaultLookupRejectsUnregisteredTheme() {
+        val initial = GameSelectionState(
+            currentGame = GameLine.Mai,
+            maiThemeId = ThemeRegistry.defaultFor(GameLine.Mai).id,
+            chuThemeId = ThemeRegistry.defaultFor(GameLine.Chu).id,
+        )
+        val controller = GameSelectionController(initial)
+
+        assertFalse(controller.selectTheme(maiB))
+
+        assertEquals(initial, controller.state)
+    }
+
     /** selectedThemeId 按当前音游取值。 */
     @Test
     fun selectedThemeIdFollowsCurrentGame() {
-        val controller = GameSelectionController(initialState())
+        val controller = controller()
         assertEquals("mai-a", controller.state.selectedThemeId())
 
         controller.selectGame(GameLine.Chu)

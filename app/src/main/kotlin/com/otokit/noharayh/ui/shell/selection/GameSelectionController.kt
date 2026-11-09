@@ -2,6 +2,7 @@ package com.otokit.noharayh.ui.shell.selection
 
 import com.otokit.noharayh.ui.theme.GameLine
 import com.otokit.noharayh.ui.theme.RegisteredTheme
+import com.otokit.noharayh.ui.theme.ThemeRegistry
 
 /**
  * shell 私有的唯一选择写入口。
@@ -9,7 +10,10 @@ import com.otokit.noharayh.ui.theme.RegisteredTheme
  * 只提交合法状态、同值去重；不读写磁盘、不持有 View 或 WebView。
  * 状态变化返回 true，调用方据此决定是否重新渲染与保存。
  */
-class GameSelectionController(initialState: GameSelectionState) {
+class GameSelectionController(
+    initialState: GameSelectionState,
+    private val lookup: (String?) -> RegisteredTheme? = ThemeRegistry::findById,
+) {
 
     var state: GameSelectionState = initialState
         private set
@@ -22,20 +26,23 @@ class GameSelectionController(initialState: GameSelectionState) {
     }
 
     /**
-     * 选择某音游的主题；[theme] 必须来自 Registry 的登记项，归属由类型本身保证。
+     * 选择某音游的主题；以登记查询校验 ID 与归属，不把可构造的 [theme] 当作验证凭证。
      *
      * 改变非当前音游的主题不改变 currentGame。
      */
     fun selectTheme(theme: RegisteredTheme): Boolean {
-        val changed = when (theme.gameLine) {
-            GameLine.Mai -> state.maiThemeId != theme.id
-            GameLine.Chu -> state.chuThemeId != theme.id
+        val registered = lookup(theme.id) ?: return false
+        if (registered.id != theme.id || registered.gameLine != theme.gameLine) return false
+
+        val changed = when (registered.gameLine) {
+            GameLine.Mai -> state.maiThemeId != registered.id
+            GameLine.Chu -> state.chuThemeId != registered.id
         }
         if (!changed) return false
 
-        state = when (theme.gameLine) {
-            GameLine.Mai -> state.copy(maiThemeId = theme.id)
-            GameLine.Chu -> state.copy(chuThemeId = theme.id)
+        state = when (registered.gameLine) {
+            GameLine.Mai -> state.copy(maiThemeId = registered.id)
+            GameLine.Chu -> state.copy(chuThemeId = registered.id)
         }
         return true
     }
