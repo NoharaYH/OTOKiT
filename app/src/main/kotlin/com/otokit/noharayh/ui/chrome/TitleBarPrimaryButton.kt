@@ -7,13 +7,11 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.view.KeyEvent
 import android.view.MotionEvent
-import android.view.View
 import androidx.appcompat.widget.AppCompatImageButton
 import androidx.dynamicanimation.animation.FloatValueHolder
 import androidx.dynamicanimation.animation.SpringAnimation
 import androidx.dynamicanimation.animation.SpringForce
 import com.otokit.noharayh.ui.animation.chrome.TitleButtonFeedback
-import com.otokit.noharayh.ui.constants.dimensions.ShellDimensions
 import com.otokit.noharayh.ui.constants.motion.ExpressivePressFeedback
 import kotlin.math.min
 
@@ -153,46 +151,5 @@ internal class TitleBarPrimaryButton(context: Context) : AppCompatImageButton(co
     override fun onDetachedFromWindow() {
         cancelFeedback()
         super.onDetachedFromWindow()
-    }
-}
-
-/** 非交互视觉层，固定中心；所有绘制均限制在标题行内并留出安全间隔。 */
-@SuppressLint("ViewConstructor") // 只由标题栏在代码中构造，不存在 XML 入口。
-internal class TitleButtonHalo(context: Context, private val feedback: TitleButtonFeedback) : View(context) {
-    private val black = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        // 不透明黑；整体透明度由 saveLayerAlpha 统一施加，避免环重叠处二次加深。
-        color = Color.BLACK
-    }
-    private val restOutset = resources.getDimension(ShellDimensions.titleButtonHaloRestOutset)
-    private val peakOutset = resources.getDimension(ShellDimensions.titleButtonHaloPeakOutset)
-    private val gap = resources.getDimension(ShellDimensions.titleButtonHaloEdgeGap)
-    private var centerX = 0f
-    private var centerY = 0f
-    private var baseRadius = 0f
-    private var radiusLimit = 0f
-
-    init {
-        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
-        feedback.peakScale = peakOutset / restOutset
-    }
-
-    fun setButtonBounds(left: Int, top: Int, right: Int, bottom: Int) {
-        centerX = (left + right) / 2f
-        centerY = (top + bottom) / 2f
-        baseRadius = min(right - left, bottom - top) / 2f
-        radiusLimit = (minOf(centerX, centerY, width - centerX, height - centerY) - gap).coerceAtLeast(0f)
-        invalidate()
-    }
-
-    override fun onDraw(canvas: Canvas) {
-        // 多个环重叠时只合成一次 alpha：先画不透明黑色并集，再整层以 22% 落一次。
-        val layer = canvas.saveLayerAlpha(null, ExpressivePressFeedback.BLACK_ALPHA)
-        feedback.forEachExpansion { expansion ->
-            val radius = min(baseRadius + restOutset * expansion, radiusLimit)
-            if (expansion > 0f && radius > baseRadius) {
-                canvas.drawCircle(centerX, centerY, radius, black)
-            }
-        }
-        canvas.restoreToCount(layer)
     }
 }

@@ -17,6 +17,7 @@ import android.widget.FrameLayout
 import androidx.dynamicanimation.animation.FloatValueHolder
 import androidx.dynamicanimation.animation.SpringAnimation
 import androidx.dynamicanimation.animation.SpringForce
+import com.otokit.noharayh.ui.constants.motion.ExpressivePressFeedback
 import kotlin.math.exp
 import kotlin.math.max
 import kotlin.math.min
@@ -44,11 +45,11 @@ class PressSurface @JvmOverloads constructor(
             invalidate()
         }
     var baseRadius = 16f * dp
-    var pressInset = 3f * dp
+    var pressInset = ExpressivePressFeedback.PRESS_INSET_DP * dp
     var pressedRadiusScale = 2f
-    var whiteMaxAlpha = 0.16f
+    var whiteMaxAlpha = ExpressivePressFeedback.WHITE_ALPHA
     var followTauMs = 30f
-    var maxRipples = 8
+    var maxRipples = ExpressivePressFeedback.MAX_RIPPLES
 
     /**
      * 黑圆最大直径。
@@ -62,7 +63,7 @@ class PressSurface @JvmOverloads constructor(
     var rippleRestDiameter = 106f * dp
 
     /** 扩张到最大直径后回落到静止直径的时间；点按要快，不能等。 */
-    var rippleExpandMs = 120L
+    var rippleExpandMs = ExpressivePressFeedback.EXPAND_DURATION_MS
 
     private val rippleMaxScale: Float
         get() = rippleMaxDiameter / rippleRestDiameter.coerceAtLeast(1f)
@@ -73,7 +74,7 @@ class PressSurface @JvmOverloads constructor(
         xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP)
     }
     private val ripplePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.argb(56, 0, 0, 0)
+        color = Color.argb(ExpressivePressFeedback.BLACK_ALPHA, 0, 0, 0)
         xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP)
     }
     private val shapeRect = RectF()
@@ -86,8 +87,9 @@ class PressSurface @JvmOverloads constructor(
      */
     private val pressHolder = FloatValueHolder(0f)
     private val press = SpringAnimation(pressHolder).apply {
-        setSpring(SpringForce(0f).setDampingRatio(0.85f).setStiffness(1000f))
-        setMinimumVisibleChange(0.002f)
+        setSpring(SpringForce(0f).setDampingRatio(ExpressivePressFeedback.PRESS_DAMPING)
+            .setStiffness(ExpressivePressFeedback.PRESS_STIFFNESS))
+        setMinimumVisibleChange(ExpressivePressFeedback.MIN_VISIBLE_CHANGE)
         addUpdateListener { _, _, _ -> invalidate() }
     }
 
@@ -110,24 +112,24 @@ class PressSurface @JvmOverloads constructor(
         val spring = SpringAnimation(expansion).apply {
             setSpring(
                 SpringForce(rippleMaxScale).apply {
-                    dampingRatio = 0.8f
-                    stiffness = 1600f
+                    dampingRatio = ExpressivePressFeedback.EXPAND_DAMPING
+                    stiffness = ExpressivePressFeedback.EXPAND_STIFFNESS
                 },
             )
-            setMinimumVisibleChange(0.002f)
+            setMinimumVisibleChange(ExpressivePressFeedback.MIN_VISIBLE_CHANGE)
             addUpdateListener { _, _, _ -> invalidate() }
         }
 
         private val retractToRest = Runnable {
             if (released) return@Runnable
             // 回落稍慢、阻尼更高，避免在静止尺寸上反复弹动。
-            spring.setSpring(SpringForce(1f).apply { dampingRatio = 0.9f; stiffness = 300f })
+            spring.setSpring(SpringForce(1f).apply { dampingRatio = ExpressivePressFeedback.REST_DAMPING; stiffness = ExpressivePressFeedback.REST_STIFFNESS })
             spring.animateToFinalPosition(1f)
         }
 
         private val shrink = Runnable {
             if (!released) return@Runnable
-            spring.setSpring(SpringForce(0f).apply { dampingRatio = 1f; stiffness = 700f })
+            spring.setSpring(SpringForce(0f).apply { dampingRatio = ExpressivePressFeedback.RELEASE_DAMPING; stiffness = ExpressivePressFeedback.RELEASE_STIFFNESS })
             spring.animateToFinalPosition(0f)
         }
 
@@ -177,7 +179,7 @@ class PressSurface @JvmOverloads constructor(
 
     private companion object {
         /** 按下与抬起触觉之间的最小间隔，避免抬起被 HAL 以 ignored_for_ongoing 丢弃。 */
-        const val MIN_HAPTIC_GAP_MS = 120L
+        const val MIN_HAPTIC_GAP_MS = ExpressivePressFeedback.MIN_HAPTIC_GAP_MS
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
