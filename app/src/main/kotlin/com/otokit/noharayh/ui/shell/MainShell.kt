@@ -16,6 +16,8 @@ import com.otokit.noharayh.ui.pages.pageScoreSync.ScoreSyncPlaceholder
 import com.otokit.noharayh.ui.shell.navigation.Destination
 import com.otokit.noharayh.ui.shell.navigation.NavigationController
 import com.otokit.noharayh.ui.shell.navigation.NavigationState
+import com.otokit.noharayh.ui.theme.GameLine
+import com.otokit.noharayh.ui.theme.ThemeRegistry
 import com.otokit.noharayh.ui.window.PixelRect
 import com.otokit.noharayh.ui.window.WindowSnapshot
 import com.otokit.noharayh.ui.window.metrics.WindowMetricsSnapshot
@@ -37,6 +39,14 @@ class MainShell(
     private enum class LifecycleState { New, Attached, Disposed }
 
     private val controller = NavigationController(initialState)
+
+    /**
+     * 04 的固定展示输入：默认音游默认主题的 basicColor。
+     *
+     * 这不是“当前主题”状态；05 建立稳定选择后由 shell 替换这份输入。
+     */
+    private val placeholderTextColor: Int =
+        ThemeRegistry.defaultFor(GameLine.Mai).definition.colors.basicColor
 
     private var onCanHandleBackChanged: ((Boolean) -> Unit)? = null
     private var mountedDestination: Destination? = null
@@ -167,8 +177,8 @@ class MainShell(
 
     private fun createContent(context: Context, destination: Destination): View =
         when (destination) {
-            Destination.ScoreSync -> ScoreSyncPlaceholder.create(context)
-            Destination.MusicData -> MusicDataPlaceholder.create(context)
+            Destination.ScoreSync -> ScoreSyncPlaceholder.create(context, placeholderTextColor)
+            Destination.MusicData -> MusicDataPlaceholder.create(context, placeholderTextColor)
             Destination.ComingSoon -> placeholderText(context, R.string.placeholder_coming_soon)
         }
 
@@ -210,6 +220,8 @@ class MainShell(
         gravity = Gravity.CENTER
         setTextAppearance(android.R.style.TextAppearance_Material_Large)
         AppTypography.applyAppTypeface(this)
+        // 颜色放在 TextAppearance 与字体之后，避免被前者覆盖。
+        setTextColor(placeholderTextColor)
     }
 
     private fun resolveColorBackground(context: Context): Int {

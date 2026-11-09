@@ -14,10 +14,15 @@ import com.otokit.noharayh.ui.kit.common.AppTypography
  */
 object ScoreSyncPlaceholder {
 
-    fun create(context: Context): View = TextView(context).apply {
+    /**
+     * @param textColor 由 shell 提供的展示色，本批固定为默认主题的 basicColor；
+     * 这里不查询主题，也不持有 Registry。
+     */
+    fun create(context: Context, textColor: Int): View = TextView(context).apply {
         setText(R.string.placeholder_score_sync)
         gravity = Gravity.CENTER
         setTextAppearance(android.R.style.TextAppearance_Material_Large)
         AppTypography.applyAppTypeface(this)
+        setTextColor(textColor)
     }
 }
