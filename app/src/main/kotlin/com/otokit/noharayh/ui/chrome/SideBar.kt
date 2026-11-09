@@ -21,6 +21,7 @@ class SideBar(context: Context) : FrameLayout(context) {
     private val list = LinearLayout(context)
     private val capsules = LinkedHashMap<Destination, NavCapsuleView>()
     private val settingsCapsule = NavCapsuleView(context)
+    private val halo = NavCapsuleHaloView(context)
 
     var onNavigate: ((Destination) -> Unit)? = null
     var onSettings: (() -> Unit)? = null
@@ -35,6 +36,7 @@ class SideBar(context: Context) : FrameLayout(context) {
             list,
             ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT),
         )
+        addView(halo, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         addView(
             scroll,
             LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
@@ -53,6 +55,10 @@ class SideBar(context: Context) : FrameLayout(context) {
                     accentColor = item.accentColor,
                     selected = false,
                 )
+                setPressInsetPx(NavCapsulePressSpec.INSET_DP * resources.displayMetrics.density)
+                onPressChanged = { pressed, clicked ->
+                    if (pressed) halo.press(this) else halo.release(this, clicked)
+                }
                 setOnClickListener { onNavigate?.invoke(item.destination) }
                 contentDescription = context.getString(item.label)
             }
@@ -64,6 +70,10 @@ class SideBar(context: Context) : FrameLayout(context) {
             val diameter = size(ShellDimensions.navCapsuleHeight)
             layoutParams = LinearLayout.LayoutParams(diameter, diameter).apply {
                 topMargin = size(ShellDimensions.navCapsuleSettingsGap)
+            }
+            setPressInsetPx(NavCapsulePressSpec.INSET_DP * resources.displayMetrics.density)
+            onPressChanged = { pressed, clicked ->
+                if (pressed) halo.press(this) else halo.release(this, clicked)
             }
             bindCircle(R.drawable.ic_settings_24, NavDisplay.SETTINGS_ICON_COLOR)
             contentDescription = context.getString(R.string.nav_settings)
@@ -90,6 +100,7 @@ class SideBar(context: Context) : FrameLayout(context) {
         capsules.values.firstOrNull { it.isSelected }?.requestFocus() == true || requestFocus()
 
     fun dispose() {
+        halo.reset()
         onNavigate = null
         onSettings = null
         capsules.values.forEach { it.setOnClickListener(null) }

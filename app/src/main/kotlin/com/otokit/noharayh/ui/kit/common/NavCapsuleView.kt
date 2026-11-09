@@ -3,12 +3,15 @@ package com.otokit.noharayh.ui.kit.common
 import android.content.Context
 import android.content.res.ColorStateList
 import android.content.res.Resources
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.RectF
 import android.graphics.drawable.GradientDrawable
-import android.graphics.drawable.RippleDrawable
 import android.text.TextUtils
 import android.util.TypedValue
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
@@ -17,6 +20,7 @@ import android.widget.TextView
 import androidx.appcompat.widget.AppCompatImageView
 import com.otokit.noharayh.ui.constants.dimensions.ShellDimensions
 import com.otokit.noharayh.ui.constants.dimensions.ShellProportions
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 /**
@@ -26,7 +30,7 @@ import kotlin.math.roundToInt
  * - Circle 模式：白色圆形 + 单色图标，用于设置入口。
  *
  * 只接文案、图标、颜色、选中态与点击回调；不导入 Destination、shell 或导航控制器。
- * 点击涟漪被同形状 RippleDrawable 约束在轮廓内；无阴影、无 elevation。
+ * 胶囊自绘白色药丸；按下时四边内收，外环与触觉由 chrome 侧控制器负责。无阴影、无 elevation。
  */
 class NavCapsuleView(context: Context) : FrameLayout(context) {
 
@@ -39,10 +43,19 @@ class NavCapsuleView(context: Context) : FrameLayout(context) {
     private var accentColor: Int = Color.GRAY
     private var navSelected: Boolean = false
     private var circleMode: Boolean = false
+    private val pillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
+    private val pillRect = RectF()
+    private var pressInsetPx = 0f
+    private var pressProgress = 0f
+
+    /** 按压开始/结束；外环与触觉由 chrome 侧的反馈控制器负责。 */
+    var onPressChanged: ((pressed: Boolean, clicked: Boolean) -> Unit)? = null
 
     init {
         isClickable = true
         isFocusable = true
+        background = null
+        setWillNotDraw(false)
 
         val circleSize = size(ShellDimensions.navCapsuleIconCircle)
         iconCircle.layoutParams = LayoutParams(circleSize, circleSize, Gravity.START or Gravity.CENTER_VERTICAL)
@@ -119,7 +132,6 @@ class NavCapsuleView(context: Context) : FrameLayout(context) {
         this.label.text = label
         iconView.setImageResource(iconRes)
         iconView.imageTintList = ColorStateList.valueOf(Color.WHITE)
-        applyPillBackground()
         applyIconCircle(accentColor)
         applyLabelColors()
     }
@@ -130,7 +142,6 @@ class NavCapsuleView(context: Context) : FrameLayout(context) {
         column.visibility = View.GONE
         iconView.setImageResource(iconRes)
         iconView.imageTintList = ColorStateList.valueOf(iconColor)
-        applyPillBackground()
         applyIconCircle(Color.WHITE)
     }
 
@@ -151,17 +162,73 @@ class NavCapsuleView(context: Context) : FrameLayout(context) {
         }
     }
 
-    private fun applyPillBackground() {
-        val shape = GradientDrawable().apply {
-            if (circleMode) {
-                this.shape = GradientDrawable.OVAL
-            } else {
-                cornerRadius = resources.getDimension(ShellDimensions.navCapsuleCornerRadius)
-            }
-            setColor(Color.WHITE)
+    /** 由 chrome 传入内收像素（当前 3dp）。 */
+    fun setPressInsetPx(px: Float) {
+        pressInsetPx = px
+    }
+
+    /** 按压进度 0..1，驱动药丸四边内收。 */
+    fun setPressProgress(progress: Float) {
+        val bounded = progress.coerceIn(0f, 1f)
+        if (bounded == pressProgress) return
+        pressProgress = bounded
+        invalidate()
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        val inset = pressInsetPx * pressProgress
+        val radius: Float
+        if (circleMode) {
+            val diameter = min(width, height).toFloat()
+            pillRect.set(
+                (width - diameter) / 2f + inset,
+                (height - diameter) / 2f + inset,
+                (width + diameter) / 2f - inset,
+                (height + diameter) / 2f - inset,
+            )
+            radius = (diameter / 2f - inset).coerceAtLeast(0f)
+        } else {
+            pillRect.set(inset, inset, width - inset, height - inset)
+            radius = ((height - 2f * inset) / 2f).coerceAtLeast(0f)
         }
-        val mask = shape.constantState?.newDrawable()?.mutate()
-        background = RippleDrawable(ColorStateList.valueOf(0x1F000000), shape, mask)
+        if (radius > 0f) canvas.drawRoundRect(pillRect, radius, radius, pillPaint)
+        super.onDraw(canvas)
+    }
+
+    override fun performClick(): Boolean = super.performClick()
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (!isEnabled) return false
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                isPressed = true
+                onPressChanged?.invoke(true, false)
+                return true
+            }
+
+            MotionEvent.ACTION_MOVE -> {
+                if (isPressed && (event.x !in 0f..width.toFloat() || event.y !in 0f..height.toFloat())) {
+                    isPressed = false
+                    onPressChanged?.invoke(false, false)
+                }
+                return true
+            }
+
+            MotionEvent.ACTION_UP -> {
+                val clicked = isPressed && event.x in 0f..width.toFloat() && event.y in 0f..height.toFloat()
+                isPressed = false
+                onPressChanged?.invoke(false, clicked)
+                if (clicked) performClick()
+                return true
+            }
+
+            MotionEvent.ACTION_CANCEL -> {
+                isPressed = false
+                onPressChanged?.invoke(false, false)
+                return true
+            }
+        }
+        return true
     }
 
     private fun applyIconCircle(color: Int) {
