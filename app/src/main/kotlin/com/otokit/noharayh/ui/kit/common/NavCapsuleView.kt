@@ -1,5 +1,6 @@
 package com.otokit.noharayh.ui.kit.common
 
+import android.animation.ValueAnimator
 import android.content.Context
 import android.content.res.ColorStateList
 import android.content.res.Resources
@@ -18,6 +19,8 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.widget.AppCompatImageView
+import androidx.core.graphics.ColorUtils
+import androidx.interpolator.view.animation.FastOutSlowInInterpolator
 import com.otokit.noharayh.ui.constants.dimensions.ShellDimensions
 import com.otokit.noharayh.ui.constants.dimensions.ShellProportions
 import kotlin.math.min
@@ -43,6 +46,9 @@ class NavCapsuleView(context: Context) : FrameLayout(context) {
     private var accentColor: Int = Color.GRAY
     private var navSelected: Boolean = false
     private var circleMode: Boolean = false
+    private var selectedFraction: Float = 0f
+    private var selectionAnimator: ValueAnimator? = null
+    private val iconCircleDrawable = GradientDrawable().apply { shape = GradientDrawable.OVAL }
     private val pillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
     private val pillRect = RectF()
     private var pressInsetPx = 0f
@@ -61,6 +67,7 @@ class NavCapsuleView(context: Context) : FrameLayout(context) {
         iconCircle.layoutParams = LayoutParams(circleSize, circleSize, Gravity.START or Gravity.CENTER_VERTICAL)
         val iconSize = size(ShellDimensions.navCapsuleIconInner)
         iconView.layoutParams = LayoutParams(iconSize, iconSize, Gravity.CENTER)
+        iconCircle.background = iconCircleDrawable
         iconCircle.addView(iconView)
         addView(iconCircle)
 
@@ -131,25 +138,36 @@ class NavCapsuleView(context: Context) : FrameLayout(context) {
         this.subLabel.text = subLabel
         this.label.text = label
         iconView.setImageResource(iconRes)
-        iconView.imageTintList = ColorStateList.valueOf(Color.WHITE)
-        applyIconCircle(accentColor)
-        applyLabelColors()
+        selectedFraction = if (selected) 1f else 0f
+        applySelectionColors()
     }
 
     /** Circle 模式：白色圆形 + 单色图标，用于设置入口。 */
     fun bindCircle(iconRes: Int, iconColor: Int) {
         circleMode = true
         column.visibility = View.GONE
+        selectedFraction = 0f
+        pillPaint.color = Color.WHITE
+        iconCircleDrawable.setColor(Color.WHITE)
         iconView.setImageResource(iconRes)
         iconView.imageTintList = ColorStateList.valueOf(iconColor)
-        applyIconCircle(Color.WHITE)
     }
 
     override fun setSelected(selected: Boolean) {
         super.setSelected(selected)
-        if (navSelected == selected) return
+        if (circleMode || navSelected == selected) return
         navSelected = selected
-        applyLabelColors()
+        val target = if (selected) 1f else 0f
+        selectionAnimator?.cancel()
+        selectionAnimator = ValueAnimator.ofFloat(selectedFraction, target).apply {
+            duration = SELECTION_ANIM_MS
+            interpolator = FastOutSlowInInterpolator()
+            addUpdateListener {
+                selectedFraction = it.animatedValue as Float
+                applySelectionColors()
+            }
+            start()
+        }
     }
 
     /** 面板变窄时限制胶囊宽度，保证非负可布局。 */
@@ -231,23 +249,38 @@ class NavCapsuleView(context: Context) : FrameLayout(context) {
         return true
     }
 
-    private fun applyIconCircle(color: Int) {
-        iconCircle.background = GradientDrawable().apply {
-            shape = GradientDrawable.OVAL
-            setColor(color)
-        }
-    }
-
-    private fun applyLabelColors() {
-        val alpha = if (navSelected) 255 else (255 * 0.65f).roundToInt()
-        val color = Color.argb(alpha, Color.red(accentColor), Color.green(accentColor), Color.blue(accentColor))
-        subLabel.setTextColor(color)
-        label.setTextColor(color)
+    /**
+     * 未选中：白药丸 + 加深后的强调色（文字、图标圆、图标同色）；
+     * 选中：药丸用同一加深色，文字与图标圆变白、图标回到加深色，按进度插值过渡。
+     */
+    private fun applySelectionColors() {
+        val content = ColorUtils.blendARGB(accentColor, Color.BLACK, CONTENT_DARKEN)
+        val fraction = selectedFraction.coerceIn(0f, 1f)
+        pillPaint.color = ColorUtils.blendARGB(Color.WHITE, content, fraction)
+        iconCircleDrawable.setColor(ColorUtils.blendARGB(content, Color.WHITE, fraction))
+        iconView.imageTintList = ColorStateList.valueOf(
+            ColorUtils.blendARGB(Color.WHITE, content, fraction),
+        )
+        val textColor = ColorUtils.blendARGB(content, Color.WHITE, fraction)
+        subLabel.setTextColor(textColor)
+        label.setTextColor(textColor)
+        invalidate()
     }
 
     private fun size(id: Int): Int = resources.getDimensionPixelSize(id)
 
+    override fun onDetachedFromWindow() {
+        selectionAnimator?.cancel()
+        super.onDetachedFromWindow()
+    }
+
     companion object {
+        /** 文字/图标相对强调色加深的比例；未选中不再用透明度削浅。 */
+        private const val CONTENT_DARKEN = 0.15f
+
+        /** 选中色互换的过渡时长。 */
+        private const val SELECTION_ANIM_MS = 180L
+
         /** 固定胶囊宽度：`(308dp - 2×18dp) × 0.69`。 */
         fun standardWidthPx(resources: Resources): Int =
             ((resources.getDimension(ShellDimensions.shellSideNavWidth) -
