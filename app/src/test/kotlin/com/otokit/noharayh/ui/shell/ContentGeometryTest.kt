@@ -53,7 +53,7 @@ class ContentGeometryTest {
         assertEquals(48, ContentGeometry.compute(snapshot).base.top)
     }
 
-    /** 底栏 24px、IME 300px 时基础底边 976px、交互底边 700px，不能算成 676px。 */
+    /** 背景底边越过导航栏到 1000px；IME 300px 只把交互底边压到 700px。 */
     @Test
     fun shrinksInteractiveRectByImeOnly() {
         val snapshot = snapshot(
@@ -67,23 +67,27 @@ class ContentGeometryTest {
 
         val rects = ContentGeometry.compute(snapshot)
 
-        assertEquals(976, rects.base.bottom)
+        assertEquals(1000, rects.base.bottom)
         assertEquals(700, rects.interactive.bottom)
         assertEquals(rects.base.top, rects.interactive.top)
         assertEquals(rects.base.left, rects.interactive.left)
         assertEquals(rects.base.right, rects.interactive.right)
     }
 
-    /** IME 隐藏时交互矩形与基础矩形一致。 */
+    /** 背景画到导航栏下沿，交互矩形仍避让导航栏 24px。 */
     @Test
-    fun keepsInteractiveRectWhenImeHidden() {
+    fun keepsInteractiveAboveNavigationBar() {
         val snapshot = snapshot(
             insets = WindowInsetsSnapshot(navigationBars = EdgeInsets(bottom = 24)),
         )
 
         val rects = ContentGeometry.compute(snapshot)
 
-        assertEquals(rects.base, rects.interactive)
+        assertEquals(2400, rects.base.bottom)
+        assertEquals(2376, rects.interactive.bottom)
+        assertEquals(rects.base.top, rects.interactive.top)
+        assertEquals(rects.base.left, rects.interactive.left)
+        assertEquals(rects.base.right, rects.interactive.right)
     }
 
     /** 浮动键盘可见但边缘占用为零时，不凭空收缩。 */
@@ -178,8 +182,8 @@ class ContentGeometryTest {
         val interactive = rootRect(resizedRects.interactive, resized)
 
         assertEquals(beforeBase, background)
-        assertEquals(PixelRect(0, 24, 1000, 976), background)
-        assertEquals(952, background.height)
+        assertEquals(PixelRect(0, 24, 1000, 1000), background)
+        assertEquals(976, background.height)
         assertEquals(PixelRect(0, 24, 1000, 700), interactive)
         assertEquals(676, interactive.height)
     }

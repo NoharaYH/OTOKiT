@@ -46,6 +46,20 @@ data class WindowInsetsSnapshot(
             bottom = maxOf(statusBars.bottom, navigationBars.bottom, displayCutout.bottom, captionBar.bottom),
         )
 
+    /**
+     * 背景可延伸到的安全区：与 [systemSafeEdges] 相同，但忽略导航栏底边。
+     *
+     * 手势导航的系统条是透明的，背景若在导航栏上边就停住，会留下一条白色空带；
+     * 内容与覆盖层仍按 [systemSafeEdges] 避让，不进入手势区域。
+     */
+    val backgroundSafeEdges: EdgeInsets
+        get() = EdgeInsets(
+            left = systemSafeEdges.left,
+            top = systemSafeEdges.top,
+            right = systemSafeEdges.right,
+            bottom = maxOf(statusBars.bottom, displayCutout.bottom, captionBar.bottom),
+        )
+
     /** IME 只有可见且有实际边缘占用时才参与交互区域收缩。 */
     val imeHasEdgeOccupancy: Boolean
         get() = imeVisible && ime.bottom > 0

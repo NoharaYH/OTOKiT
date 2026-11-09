@@ -45,18 +45,21 @@ object ContentGeometry {
         val width = snapshot.metrics.widthPx
         val height = snapshot.metrics.heightPx
         val safe = snapshot.insets.systemSafeEdges
+        val backgroundSafe = snapshot.insets.backgroundSafeEdges
 
         val left = (safe.left + chrome.left).coerceIn(0, width)
         val top = (safe.top + chrome.top).coerceIn(0, height)
         val right = (width - safe.right - chrome.right).coerceIn(left, width)
-        val bottom = (height - safe.bottom - chrome.bottom).coerceIn(top, height)
-        val base = PixelRect(left, top, right, bottom)
+        // 背景延伸到导航栏下沿：手势条透明时不再留白色空带。
+        val backgroundBottom = (height - backgroundSafe.bottom - chrome.bottom).coerceIn(top, height)
+        val contentBottom = (height - safe.bottom - chrome.bottom).coerceIn(top, backgroundBottom)
+        val base = PixelRect(left, top, right, backgroundBottom)
 
         val interactiveBottom = if (snapshot.insets.imeHasEdgeOccupancy) {
-            val imeTop = (height - snapshot.insets.ime.bottom).coerceIn(base.top, base.bottom)
-            minOf(base.bottom, imeTop)
+            val imeTop = (height - snapshot.insets.ime.bottom).coerceIn(base.top, contentBottom)
+            minOf(contentBottom, imeTop)
         } else {
-            base.bottom
+            contentBottom
         }
 
         return ContentRects(
