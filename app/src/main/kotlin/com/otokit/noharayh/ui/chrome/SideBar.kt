@@ -6,10 +6,10 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import com.otokit.noharayh.R
+import com.otokit.noharayh.ui.constants.dimensions.ShellDimensions
 import com.otokit.noharayh.ui.kit.common.NavCapsuleView
 import com.otokit.noharayh.ui.shell.navigation.Destination
 import kotlin.math.min
-import kotlin.math.roundToInt
 
 /**
  * 抽屉面板内容：三项功能胶囊 + 设置圆形入口。
@@ -18,7 +18,6 @@ import kotlin.math.roundToInt
  */
 class SideBar(context: Context) : FrameLayout(context) {
 
-    private val density = resources.displayMetrics.density
     private val list = LinearLayout(context)
     private val capsules = LinkedHashMap<Destination, NavCapsuleView>()
     private val settingsCapsule = NavCapsuleView(context)
@@ -27,9 +26,11 @@ class SideBar(context: Context) : FrameLayout(context) {
     var onSettings: (() -> Unit)? = null
 
     init {
+        isFocusableInTouchMode = true
         val scroll = ScrollView(context).apply { isFillViewport = true }
         list.orientation = LinearLayout.VERTICAL
-        list.setPadding(dp(18), dp(24), dp(18), dp(18))
+        val spacing = size(ShellDimensions.shellComponentSpacing)
+        list.setPadding(spacing, size(ShellDimensions.navCapsuleListTop), spacing, spacing)
         scroll.addView(
             list,
             ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT),
@@ -39,11 +40,11 @@ class SideBar(context: Context) : FrameLayout(context) {
             LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT),
         )
 
-        val standardWidth = NavCapsuleView.standardWidthPx(density)
+        val standardWidth = NavCapsuleView.standardWidthPx(resources)
         NavDisplay.items.forEachIndexed { index, item ->
             val capsule = NavCapsuleView(context).apply {
-                layoutParams = LinearLayout.LayoutParams(standardWidth, dp(55.2f)).apply {
-                    topMargin = if (index == 0) 0 else dp(16)
+                layoutParams = LinearLayout.LayoutParams(standardWidth, size(ShellDimensions.navCapsuleHeight)).apply {
+                    topMargin = if (index == 0) 0 else size(ShellDimensions.navCapsuleListSpacing)
                 }
                 bind(
                     label = context.getString(item.label),
@@ -60,7 +61,10 @@ class SideBar(context: Context) : FrameLayout(context) {
         }
 
         settingsCapsule.apply {
-            layoutParams = LinearLayout.LayoutParams(dp(55.2f), dp(55.2f)).apply { topMargin = dp(24) }
+            val diameter = size(ShellDimensions.navCapsuleHeight)
+            layoutParams = LinearLayout.LayoutParams(diameter, diameter).apply {
+                topMargin = size(ShellDimensions.navCapsuleSettingsGap)
+            }
             bindCircle(R.drawable.ic_settings_24, NavDisplay.SETTINGS_ICON_COLOR)
             contentDescription = context.getString(R.string.nav_settings)
             setOnClickListener { onSettings?.invoke() }
@@ -74,12 +78,16 @@ class SideBar(context: Context) : FrameLayout(context) {
 
     /** 面板变窄时同步收窄胶囊，避免负宽度或文字被挤出。 */
     fun setPanelWidth(panelWidthPx: Int) {
-        val available = panelWidthPx - dp(36)
+        val available = panelWidthPx - 2 * size(ShellDimensions.shellComponentSpacing)
         if (available <= 0) return
-        val standard = NavCapsuleView.standardWidthPx(density)
+        val standard = NavCapsuleView.standardWidthPx(resources)
         val width = min(standard, available)
         capsules.values.forEach { it.setMaxWidthPx(width) }
     }
+
+    /** 键盘模式优先选中项；触摸模式由面板接住焦点，避免底层继续持有。 */
+    fun requestNavigationFocus(): Boolean =
+        capsules.values.firstOrNull { it.isSelected }?.requestFocus() == true || requestFocus()
 
     fun dispose() {
         onNavigate = null
@@ -89,6 +97,5 @@ class SideBar(context: Context) : FrameLayout(context) {
         settingsCapsule.setOnClickListener(null)
     }
 
-    private fun dp(value: Float): Int = (value * density).roundToInt()
-    private fun dp(value: Int): Int = (value * density).roundToInt()
+    private fun size(id: Int): Int = resources.getDimensionPixelSize(id)
 }

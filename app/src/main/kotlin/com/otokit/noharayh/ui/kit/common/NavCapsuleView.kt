@@ -2,6 +2,7 @@ package com.otokit.noharayh.ui.kit.common
 
 import android.content.Context
 import android.content.res.ColorStateList
+import android.content.res.Resources
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
@@ -14,6 +15,8 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.widget.AppCompatImageView
+import com.otokit.noharayh.ui.constants.dimensions.ShellDimensions
+import com.otokit.noharayh.ui.constants.dimensions.ShellProportions
 import kotlin.math.roundToInt
 
 /**
@@ -27,7 +30,6 @@ import kotlin.math.roundToInt
  */
 class NavCapsuleView(context: Context) : FrameLayout(context) {
 
-    private val density = resources.displayMetrics.density
     private val iconCircle = FrameLayout(context)
     private val iconView = AppCompatImageView(context)
     private val column = LinearLayout(context)
@@ -42,8 +44,10 @@ class NavCapsuleView(context: Context) : FrameLayout(context) {
         isClickable = true
         isFocusable = true
 
-        iconCircle.layoutParams = LayoutParams(dp(38.4f), dp(38.4f), Gravity.START or Gravity.CENTER_VERTICAL)
-        iconView.layoutParams = LayoutParams(dp(21.6f), dp(21.6f), Gravity.CENTER)
+        val circleSize = size(ShellDimensions.navCapsuleIconCircle)
+        iconCircle.layoutParams = LayoutParams(circleSize, circleSize, Gravity.START or Gravity.CENTER_VERTICAL)
+        val iconSize = size(ShellDimensions.navCapsuleIconInner)
+        iconView.layoutParams = LayoutParams(iconSize, iconSize, Gravity.CENTER)
         iconCircle.addView(iconView)
         addView(iconCircle)
 
@@ -53,14 +57,16 @@ class NavCapsuleView(context: Context) : FrameLayout(context) {
             includeFontPadding = false
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+            setTextSize(TypedValue.COMPLEX_UNIT_PX,
+                resources.getDimension(ShellDimensions.navCapsuleSubLabelTextSize))
             AppTypography.applyTitleBarRogSans(this)
         }
         label.apply {
             includeFontPadding = false
             maxLines = 1
             ellipsize = TextUtils.TruncateAt.END
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f)
+            setTextSize(TypedValue.COMPLEX_UNIT_PX,
+                resources.getDimension(ShellDimensions.navCapsuleLabelZhTextSize))
             AppTypography.applyAppTypeface(this, bold = true)
         }
         column.addView(
@@ -75,7 +81,7 @@ class NavCapsuleView(context: Context) : FrameLayout(context) {
             LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
-            ).apply { topMargin = dp(2.5f) },
+            ).apply { topMargin = size(ShellDimensions.chromeDualLineGap) },
         )
         addView(
             column,
@@ -85,11 +91,15 @@ class NavCapsuleView(context: Context) : FrameLayout(context) {
                 Gravity.START or Gravity.CENTER_VERTICAL,
             ).apply {
                 // 父级是 FrameLayout：需自行跳过图标（38.4dp）与图标到文字的间距（9.6dp）。
-                leftMargin = dp(48f)
+                leftMargin = (resources.getDimension(ShellDimensions.navCapsuleIconCircle) +
+                    resources.getDimension(ShellDimensions.navCapsuleTextGap)).roundToInt()
             },
         )
 
-        setPadding(dp(8.4f), dp(8.4f), dp(12f), dp(8.4f))
+        setPadding(
+            size(ShellDimensions.navCapsulePaddingStart), size(ShellDimensions.navCapsulePaddingVertical),
+            size(ShellDimensions.navCapsulePaddingEnd), size(ShellDimensions.navCapsulePaddingVertical),
+        )
     }
 
     /** Pill 模式数据绑定；文案与图标由调用方解析，组件不感知路由。 */
@@ -146,7 +156,7 @@ class NavCapsuleView(context: Context) : FrameLayout(context) {
             if (circleMode) {
                 this.shape = GradientDrawable.OVAL
             } else {
-                cornerRadius = dp(999f).toFloat()
+                cornerRadius = resources.getDimension(ShellDimensions.navCapsuleCornerRadius)
             }
             setColor(Color.WHITE)
         }
@@ -168,11 +178,13 @@ class NavCapsuleView(context: Context) : FrameLayout(context) {
         label.setTextColor(color)
     }
 
-    private fun dp(value: Float): Int = (value * density).roundToInt()
+    private fun size(id: Int): Int = resources.getDimensionPixelSize(id)
 
     companion object {
         /** 固定胶囊宽度：`(308dp - 2×18dp) × 0.69`。 */
-        fun standardWidthPx(density: Float): Int =
-            (((308f - 2 * 18f) * 0.69f) * density).roundToInt()
+        fun standardWidthPx(resources: Resources): Int =
+            ((resources.getDimension(ShellDimensions.shellSideNavWidth) -
+                2 * resources.getDimension(ShellDimensions.shellComponentSpacing)) *
+                ShellProportions.NAV_CAPSULE_WIDTH).roundToInt()
     }
 }

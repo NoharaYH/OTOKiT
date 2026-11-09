@@ -1,5 +1,7 @@
 package com.otokit.noharayh.ui.chrome
 
+import com.otokit.noharayh.ui.constants.dimensions.ShellProportions
+
 /**
  * 标题栏的固定像素尺寸。
  *
@@ -17,24 +19,21 @@ data class TitleBarMetrics(
     val opticalNudgePx: Float,
 )
 
+/** 尚未取整的资源像素值；计算器不读取 Resources。 */
+data class TitleBarDimensionInput(
+    val spacingPx: Float,
+    val padPx: Float,
+    val iconPx: Float,
+    val lineGapPx: Float,
+    val opticalNudgePx: Float,
+)
+
 object TitleBarMetricsCalculator {
-
-    private const val SPACING_DP = 18f
-    private const val BUTTON_SCALE = 2.55f
-    private const val PAD_DP = 12f
-    private const val ICON_DP = 24f
-    private const val LINE_GAP_DP = 2.5f
-    private const val OPTICAL_NUDGE_DP = 1.25f
-
-    /** 英文与中文字号相对菜单边长的比例。 */
-    private const val ENGLISH_SIZE_RATIO = 0.30f
-    private const val CHINESE_SIZE_RATIO = 0.506f
-
-    fun calculate(density: Float): TitleBarMetrics {
-        val spacingPx = (SPACING_DP * density).toInt()
-        val buttonSizePx = (spacingPx * BUTTON_SCALE).toInt()
-        val padPx = (PAD_DP * density).toInt()
-        val iconPx = (ICON_DP * density).toInt()
+    fun calculate(input: TitleBarDimensionInput): TitleBarMetrics {
+        val spacingPx = input.spacingPx.toInt()
+        val buttonSizePx = (spacingPx * ShellProportions.TITLE_BUTTON_SCALE).toInt()
+        val padPx = input.padPx.toInt()
+        val iconPx = input.iconPx.toInt()
 
         return TitleBarMetrics(
             // 尾部 1 是来源的 1px，不是 1dp。
@@ -43,10 +42,10 @@ object TitleBarMetricsCalculator {
             padPx = padPx,
             titleAnchorStartPx = padPx + buttonSizePx + padPx,
             iconPaddingPx = ((buttonSizePx - iconPx) / 2).coerceAtLeast(0),
-            englishTextSizePx = buttonSizePx * ENGLISH_SIZE_RATIO,
-            chineseTextSizePx = buttonSizePx * CHINESE_SIZE_RATIO,
-            lineGapPx = (LINE_GAP_DP * density).toInt(),
-            opticalNudgePx = OPTICAL_NUDGE_DP * density,
+            englishTextSizePx = buttonSizePx * ShellProportions.TITLE_ENGLISH_SIZE,
+            chineseTextSizePx = buttonSizePx * ShellProportions.TITLE_CHINESE_SIZE,
+            lineGapPx = input.lineGapPx.toInt(),
+            opticalNudgePx = input.opticalNudgePx,
         )
     }
 }

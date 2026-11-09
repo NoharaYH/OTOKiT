@@ -8,18 +8,22 @@
     <dimen name="nav_capsule_padding_v">8.4dp</dimen>
     <dimen name="nav_capsule_padding_end">12dp</dimen>
     <dimen name="nav_capsule_text_gap">9.6dp</dimen>
-    <dimen name="nav_capsule_list_spacing">10dp</dimen>
+    <dimen name="nav_capsule_list_spacing">16dp</dimen>
     <dimen name="nav_capsule_sub_label_text_size">11sp</dimen>
     <dimen name="nav_capsule_label_zh_text_size">20sp</dimen>
+
+    <dimen name="nav_capsule_list_top">24dp</dimen>
+    <dimen name="nav_capsule_settings_gap">24dp</dimen>
+    <dimen name="nav_capsule_corner_radius">999dp</dimen>
+    <dimen name="chrome_dual_line_gap">2.5dp</dimen>
 
     <!-- 英文行与中英双行的视觉对齐量。 -->
     <dimen name="chrome_en_text_leading_inset">0dp</dimen>
     <dimen name="chrome_dual_line_text_optical_nudge_y">1.25dp</dimen>
 
     <!-- 标题栏外围；本批取消所有阴影，不再保留旧投影尺寸。 -->
-    <dimen name="title_bar_sidenav_margin_start">4dp</dimen>
-    <dimen name="title_bar_sidenav_button_size">48dp</dimen>
-    <dimen name="title_bar_chrome_row_min_height">72dp</dimen>
+    <dimen name="title_bar_padding">12dp</dimen>
+    <dimen name="title_bar_icon_size">24dp</dimen>
 
     <!-- 宽屏导航 Rail。 -->
     <dimen name="pad_nav_rail_width">88dp</dimen>

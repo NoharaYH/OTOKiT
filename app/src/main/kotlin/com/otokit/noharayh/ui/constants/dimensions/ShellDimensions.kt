@@ -24,9 +24,12 @@ object ShellDimensions {
     val chromeEnglishTextLeadingInset: Int = R.dimen.chrome_en_text_leading_inset
     val chromeDualLineTextOpticalNudgeY: Int = R.dimen.chrome_dual_line_text_optical_nudge_y
 
-    val titleBarSideNavMarginStart: Int = R.dimen.title_bar_sidenav_margin_start
-    val titleBarSideNavButtonSize: Int = R.dimen.title_bar_sidenav_button_size
-    val titleBarChromeRowMinHeight: Int = R.dimen.title_bar_chrome_row_min_height
+    val titleBarPadding: Int = R.dimen.title_bar_padding
+    val titleBarIconSize: Int = R.dimen.title_bar_icon_size
+    val chromeDualLineGap: Int = R.dimen.chrome_dual_line_gap
+    val navCapsuleListTop: Int = R.dimen.nav_capsule_list_top
+    val navCapsuleSettingsGap: Int = R.dimen.nav_capsule_settings_gap
+    val navCapsuleCornerRadius: Int = R.dimen.nav_capsule_corner_radius
 
     val padNavRailWidth: Int = R.dimen.pad_nav_rail_width
     val padNavRailIconCircle: Int = R.dimen.pad_nav_rail_icon_circle
@@ -35,4 +38,13 @@ object ShellDimensions {
 
     val shellComponentSpacing: Int = R.dimen.shell_component_spacing
     val shellSideNavWidth: Int = R.dimen.shell_side_nav_width
+}
+
+/** 设计比例没有单位，不在资源和组件之间复制固定尺寸。 */
+object ShellProportions {
+    const val TITLE_BUTTON_SCALE = 2.55f
+    const val TITLE_ENGLISH_SIZE = 0.30f
+    const val TITLE_CHINESE_SIZE = 0.506f
+    const val NAV_CAPSULE_WIDTH = 0.69f
+    const val DRAWER_MAX_WINDOW_WIDTH = 0.92f
 }

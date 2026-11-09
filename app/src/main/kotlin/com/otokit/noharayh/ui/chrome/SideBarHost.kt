@@ -4,11 +4,13 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
 import android.util.AttributeSet
+import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.widget.FrameLayout
 import androidx.customview.widget.ViewDragHelper
+import com.otokit.noharayh.ui.constants.dimensions.ShellDimensions
 import com.otokit.noharayh.ui.shell.navigation.Destination
 import com.otokit.noharayh.ui.window.PixelRect
 import kotlin.math.abs
@@ -20,7 +22,6 @@ class SideBarHost @JvmOverloads constructor(
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0,
 ) : FrameLayout(context, attrs, defStyleAttr) {
-    private val density = resources.displayMetrics.density
     private val scrim = SideBarScrimView(context)
     private val sideBar = SideBar(context)
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
@@ -54,7 +55,9 @@ class SideBarHost @JvmOverloads constructor(
 
     init {
         addView(scrim, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
-        addView(sideBar, LayoutParams(dp(308f), LayoutParams.MATCH_PARENT))
+        addView(sideBar, LayoutParams(
+            resources.getDimensionPixelSize(ShellDimensions.shellSideNavWidth), LayoutParams.MATCH_PARENT,
+        ))
         sideBar.visibility = INVISIBLE
         sideBar.importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
         sideBar.descendantFocusability = FOCUS_BLOCK_DESCENDANTS
@@ -94,6 +97,10 @@ class SideBarHost @JvmOverloads constructor(
             finishStream()
         }
     }
+
+    /** 仅操作自己的面板；跨模块焦点恢复由 shell 协调。 */
+    fun requestPanelFocus(): Boolean =
+        blocksUnderlyingInput && interactionAllowed && sideBar.requestNavigationFocus()
 
     fun setSelected(destination: Destination) {
         if (!disposed) sideBar.setSelected(destination)
@@ -290,13 +297,16 @@ class SideBarHost @JvmOverloads constructor(
         edgeCandidate = false
     }
 
+    @SuppressLint("RtlHardcoded") // 与 shell 提供的物理窗口坐标保持一致。
     private fun applyLayout() {
         val height = interaction.height.coerceAtLeast(0)
-        scrim.layoutParams = LayoutParams(interaction.width.coerceAtLeast(0), height).apply {
+        scrim.layoutParams = LayoutParams(
+            interaction.width.coerceAtLeast(0), height, Gravity.TOP or Gravity.LEFT,
+        ).apply {
             leftMargin = interaction.left
             topMargin = interaction.top
         }
-        sideBar.layoutParams = LayoutParams(drawerWidthPx, height).apply {
+        sideBar.layoutParams = LayoutParams(drawerWidthPx, height, Gravity.TOP or Gravity.LEFT).apply {
             leftMargin = closedLeft
             topMargin = interaction.top
         }
@@ -318,12 +328,13 @@ class SideBarHost @JvmOverloads constructor(
         sideBar.importantForAccessibility = if (blocked) IMPORTANT_FOR_ACCESSIBILITY_AUTO
             else IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
         sideBar.descendantFocusability = if (blocked) FOCUS_AFTER_DESCENDANTS else FOCUS_BLOCK_DESCENDANTS
+        sideBar.isFocusableInTouchMode = blocked
+        sideBar.isFocusable = blocked
+        if (!blocked && sideBar.hasFocus()) sideBar.clearFocus()
         if (lastNotifiedBlocked == blocked) return
         lastNotifiedBlocked = blocked
         onInputBlockedChanged?.invoke(blocked)
     }
-
-    private fun dp(value: Float): Int = (value * density).roundToInt()
 
     private inner class DragCallback : ViewDragHelper.Callback() {
         override fun tryCaptureView(child: View, pointerId: Int): Boolean =

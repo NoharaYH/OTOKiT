@@ -11,6 +11,8 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat
 import com.otokit.noharayh.R
 import com.otokit.noharayh.storage.preferences.SharedPreferencesUiPreferences
+import com.otokit.noharayh.ui.constants.dimensions.ShellDimensions
+import com.otokit.noharayh.ui.constants.dimensions.ShellProportions
 import com.otokit.noharayh.ui.kit.common.AppTypography
 import com.otokit.noharayh.ui.kit.common.PageContent
 import com.otokit.noharayh.ui.chrome.SideBarHost
@@ -34,7 +36,7 @@ import com.otokit.noharayh.ui.window.PixelRect
 import com.otokit.noharayh.ui.window.WindowSnapshot
 import com.otokit.noharayh.ui.window.breakpoints.WindowLayoutClass
 import com.otokit.noharayh.ui.window.metrics.WindowMetricsSnapshot
-import kotlin.math.min
+import java.lang.ref.WeakReference
 import kotlin.math.roundToInt
 
 /**
@@ -59,8 +61,6 @@ class MainShell(
 
     private val controller = NavigationController(initialState)
 
-    private val density = contentHost.resources.displayMetrics.density
-
     /** 稳定的音游/主题选择；恢复顺序为保存状态、偏好、Registry 默认。 */
     private val selection = GameSelectionController(
         restoreGameSelection(
@@ -83,9 +83,11 @@ class MainShell(
     private var onCanHandleBackChanged: ((Boolean) -> Unit)? = null
     private var mountedDestination: Destination? = null
     private var appliedSettingsOpen: Boolean? = null
+    private var preModalFocus: WeakReference<View>? = null
     private var appliedModal: Boolean = false
     private var contentAccessibility: Int = View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
     private var contentFocusability: Int = ViewGroup.FOCUS_BEFORE_DESCENDANTS
+    private var resumed = false
     private var lifecycleState = LifecycleState.New
 
     val state: NavigationState
@@ -135,9 +137,11 @@ class MainShell(
         onCanHandleBackChanged = null
         if (!wasAttached) return
 
-        if (appliedSettingsOpen == true || appliedModal) applyModalState(false)
-        sidebarHost.close(immediate = true)
+        // 先终止抽屉（含残余触摸屏障），再无条件恢复自己借用的宿主属性。
+        // 已销毁的主壳不依赖抽屉回调再次触发恢复，也不重新给旧内容分配焦点。
         sidebarHost.release()
+        restoreContentIsolation(restoreFocus = false)
+        appliedSettingsOpen = false
         titleBar?.dispose()
         titleBar = null
         chromeHost.removeAllViews()
@@ -225,6 +229,7 @@ class MainShell(
 
     /** 背景随 Activity 生命周期暂停/恢复，不重建 WebView；离开前台时收起抽屉。 */
     fun setBackgroundResumed(resumed: Boolean) {
+        this.resumed = resumed
         sidebarHost.setResumed(resumed)
         background?.setResumed(resumed)
     }
@@ -354,8 +359,8 @@ class MainShell(
                 rects.interactive, snapshot.metrics.rootLeftPx, snapshot.metrics.rootTopPx,
             )
             val drawerWidth = minOf(
-                (308f * density).roundToInt(),
-                (interaction.width * 0.92f).roundToInt(),
+                contentHost.resources.getDimensionPixelSize(ShellDimensions.shellSideNavWidth),
+                (interaction.width * ShellProportions.DRAWER_MAX_WINDOW_WIDTH).roundToInt(),
             )
             sidebarHost.setMetrics(interaction, drawerWidth)
         } else {
@@ -473,22 +478,40 @@ class MainShell(
      */
     private fun applyModalState(settingsOpen: Boolean) {
         val modal = settingsOpen || sidebarHost.blocksUnderlyingInput
-        if (modal && !appliedModal) {
+        val enteringModal = modal && !appliedModal
+        val enteringSettings = settingsOpen && appliedSettingsOpen != true
+        if (enteringModal) {
+            preModalFocus = contentHost.rootView.findFocus()?.let(::WeakReference)
             contentAccessibility = contentHost.importantForAccessibility
             contentFocusability = contentHost.descendantFocusability
             contentHost.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
             contentHost.descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
-        } else if (!modal && appliedModal) {
+            contentHost.findFocus()?.clearFocus()
+        }
+        if (!modal && appliedModal) restoreContentIsolation(restoreFocus = true)
+        appliedModal = modal
+        appliedSettingsOpen = settingsOpen
+        overlayHost.visibility = if (settingsOpen) View.VISIBLE else View.GONE
+        when {
+            enteringSettings -> overlayHost.requestFocus()
+            enteringModal && !settingsOpen -> sidebarHost.requestPanelFocus()
+        }
+        background?.setInputEnabled(!modal)
+    }
+
+    /** 只恢复主壳自己修改的属性；旧页面销毁或后台/销毁时不强行恢复焦点。 */
+    private fun restoreContentIsolation(restoreFocus: Boolean) {
+        if (appliedModal) {
             contentHost.importantForAccessibility = contentAccessibility
             contentHost.descendantFocusability = contentFocusability
         }
-        appliedModal = modal
-
-        appliedSettingsOpen = settingsOpen
-        overlayHost.visibility = if (settingsOpen) View.VISIBLE else View.GONE
-        if (settingsOpen) overlayHost.requestFocus()
-
-        background?.setInputEnabled(!modal)
+        appliedModal = false
+        val previous = preModalFocus?.get()
+        preModalFocus = null
+        if (!restoreFocus || !resumed || lifecycleState != LifecycleState.Attached) return
+        val restored = previous != null && previous.isAttachedToWindow && previous.isShown &&
+            previous.rootView === contentHost.rootView && previous.requestFocus()
+        if (!restored && !contentHost.requestFocus()) titleBar?.requestPrimaryFocus()
     }
 
     private fun createSettingsPlaceholder(context: Context): View {

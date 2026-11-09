@@ -16,6 +16,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import androidx.appcompat.widget.AppCompatTextView
 import com.otokit.noharayh.R
+import com.otokit.noharayh.ui.constants.dimensions.ShellDimensions
 import com.otokit.noharayh.ui.kit.common.AppTypography
 
 /**
@@ -26,7 +27,15 @@ import com.otokit.noharayh.ui.kit.common.AppTypography
  */
 class TitleBar(context: Context) : FrameLayout(context) {
 
-    private val metrics = TitleBarMetricsCalculator.calculate(resources.displayMetrics.density)
+    private val metrics = TitleBarMetricsCalculator.calculate(
+        TitleBarDimensionInput(
+            spacingPx = resources.getDimension(ShellDimensions.shellComponentSpacing),
+            padPx = resources.getDimension(ShellDimensions.titleBarPadding),
+            iconPx = resources.getDimension(ShellDimensions.titleBarIconSize),
+            lineGapPx = resources.getDimension(ShellDimensions.chromeDualLineGap),
+            opticalNudgePx = resources.getDimension(ShellDimensions.chromeDualLineTextOpticalNudgeY),
+        ),
+    )
 
     private val decor = TitleBarDecorTrianglesView(context)
     private val menuHost = FrameLayout(context)
@@ -167,6 +176,9 @@ class TitleBar(context: Context) : FrameLayout(context) {
         menuButton.isEnabled = state.primaryEnabled
         menuButton.alpha = if (state.primaryEnabled) 1f else DISABLED_ALPHA
     }
+
+    /** 供宿主在旧焦点已失效时回到主操作入口，不暴露内部按钮。 */
+    fun requestPrimaryFocus(): Boolean = menuButton.requestFocus()
 
     /** 终态：解除回调与布局监听，之后不再上报高度或派发点击。 */
     fun dispose() {

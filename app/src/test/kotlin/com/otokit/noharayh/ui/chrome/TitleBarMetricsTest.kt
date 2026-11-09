@@ -9,7 +9,7 @@ class TitleBarMetricsTest {
     /** density = 1 时的取整顺序与来源公式一致。 */
     @Test
     fun calculatesAtDensityOne() {
-        val metrics = TitleBarMetricsCalculator.calculate(1f)
+        val metrics = calculate(1f)
 
         assertEquals(12, metrics.padPx)
         assertEquals(45, metrics.buttonSizePx)
@@ -23,7 +23,7 @@ class TitleBarMetricsTest {
     /** 本机密度下的实际值：间距 53、按钮 135、行高 206。 */
     @Test
     fun calculatesAtDeviceDensity() {
-        val metrics = TitleBarMetricsCalculator.calculate(2.975f)
+        val metrics = calculate(2.975f)
 
         assertEquals(35, metrics.padPx)
         assertEquals(135, metrics.buttonSizePx)
@@ -37,7 +37,7 @@ class TitleBarMetricsTest {
     /** 小密度下图标内边距不为负，行高保持正数。 */
     @Test
     fun keepsValuesNonNegative() {
-        val metrics = TitleBarMetricsCalculator.calculate(0.1f)
+        val metrics = calculate(0.1f)
 
         assertTrue(metrics.rowHeightPx > 0)
         assertTrue(metrics.iconPaddingPx >= 0)
@@ -47,9 +47,14 @@ class TitleBarMetricsTest {
     /** 行高随密度单调增加，不出现固定 72dp 的写死值。 */
     @Test
     fun rowHeightGrowsWithDensity() {
-        val compact = TitleBarMetricsCalculator.calculate(1f)
-        val device = TitleBarMetricsCalculator.calculate(3.5f)
+        val compact = calculate(1f)
+        val device = calculate(3.5f)
 
         assertTrue(device.rowHeightPx > compact.rowHeightPx)
     }
+
+    private fun calculate(density: Float): TitleBarMetrics = TitleBarMetricsCalculator.calculate(
+        TitleBarDimensionInput(18f * density, 12f * density, 24f * density,
+            2.5f * density, 1.25f * density),
+    )
 }
