@@ -1,6 +1,7 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <!-- 固定浅色：不跟随系统夜间模式，也不使用 Material 组件库。 -->
     <style name="Theme.OTOKiT" parent="Theme.AppCompat.Light.NoActionBar">
-        <item name="android:forceDarkAllowed">false</item>
+        <!-- API 29 才有；低版本忽略，避免 lint 的 NewApi 误报整份主题。 -->
+        <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
     </style>
 </resources>

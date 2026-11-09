@@ -276,6 +276,7 @@ class MainShell(
     }
 
     /** 标题只在系统安全区内的应用行出现；不含系统顶区。 */
+    @SuppressLint("RtlHardcoded") // 窗口矩形使用物理左上坐标，不随 RTL 镜像。
     private fun applyTitleRect(snapshot: WindowSnapshot) {
         val bar = titleBar ?: return
         val safe = snapshot.insets.systemSafeEdges
