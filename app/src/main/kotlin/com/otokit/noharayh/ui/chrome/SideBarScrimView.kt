@@ -32,6 +32,7 @@ class SideBarScrimView(context: Context) : View(context) {
     private val matrix = Matrix()
 
     private var progress = 0f
+    private var inputBlocked = false
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
     private var downX = 0f
     private var downY = 0f
@@ -49,6 +50,15 @@ class SideBarScrimView(context: Context) : View(context) {
         invalidate()
     }
 
+    /** 视觉透明并不代表已经解除模态，例如打开首帧或正在取消旧触摸流。 */
+    fun setInputBlocked(blocked: Boolean) {
+        inputBlocked = blocked
+        if (!blocked) {
+            clickCandidate = false
+            isPressed = false
+        }
+    }
+
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         if (w <= 0) return
@@ -57,7 +67,7 @@ class SideBarScrimView(context: Context) : View(context) {
             0f,
             w.toFloat(),
             0f,
-            0x3D000000,
+            0x5C000000,
             0x00000000,
             Shader.TileMode.CLAMP,
         )
@@ -73,7 +83,7 @@ class SideBarScrimView(context: Context) : View(context) {
     }
 
     override fun onDraw(canvas: Canvas) {
-        if (width <= 0 || height <= 0) return
+        if (width <= 0 || height <= 0 || progress <= 0f) return
 
         val layer = canvas.saveLayer(0f, 0f, width.toFloat(), height.toFloat(), null)
         canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), scrimPaint)
@@ -87,10 +97,10 @@ class SideBarScrimView(context: Context) : View(context) {
 
     /**
      * 遮罩整片可点，但拖动不等于点击：超过 slop 就取消点击，仍由遮罩消费，避免点穿。
-     * 完全关闭时不消费触摸，让事件落到内容场景。
+     * 开合结束且旧触摸流已清理、解除模态后才让事件落到内容场景。
      */
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (progress <= 0f) return false
+        if (!inputBlocked) return false
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {

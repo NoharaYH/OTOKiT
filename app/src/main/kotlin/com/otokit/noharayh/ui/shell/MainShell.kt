@@ -96,7 +96,7 @@ class MainShell(
 
     val canHandleBack: Boolean
         get() = lifecycleState == LifecycleState.Attached &&
-            (controller.canHandleBack || sidebarHost.isVisible)
+            (controller.canHandleBack || sidebarHost.blocksUnderlyingInput)
 
     fun setOnCanHandleBackChanged(listener: ((Boolean) -> Unit)?) {
         if (lifecycleState == LifecycleState.Disposed) return
@@ -118,11 +118,11 @@ class MainShell(
                 maiTheme = themeFor(selection.maiThemeId, GameLine.Mai),
                 chuTheme = themeFor(selection.chuThemeId, GameLine.Chu),
             )
-            host.setInputEnabled(!(controller.state.settingsOpen || sidebarHost.isVisible))
+            host.setInputEnabled(!(controller.state.settingsOpen || sidebarHost.blocksUnderlyingInput))
         }
         sidebarHost.onNavigate = { destination -> onDrawerNavigate(destination) }
         sidebarHost.onSettings = { openSettings() }
-        sidebarHost.onOpenChanged = { open -> onDrawerVisibilityChanged(open) }
+        sidebarHost.onInputBlockedChanged = { onDrawerInputChanged() }
         overlayHost.addView(createSettingsPlaceholder(overlayHost.context))
         render()
     }
@@ -136,7 +136,7 @@ class MainShell(
         if (!wasAttached) return
 
         if (appliedSettingsOpen == true || appliedModal) applyModalState(false)
-        sidebarHost.close()
+        sidebarHost.close(immediate = true)
         sidebarHost.release()
         titleBar?.dispose()
         titleBar = null
@@ -164,7 +164,7 @@ class MainShell(
 
     fun openSettings() {
         if (lifecycleState != LifecycleState.Attached) return
-        sidebarHost.close()
+        sidebarHost.close(immediate = true)
         controller.openSettings()
         render()
     }
@@ -177,7 +177,7 @@ class MainShell(
 
     fun consumeBack(): Boolean {
         if (lifecycleState != LifecycleState.Attached) return false
-        if (sidebarHost.isVisible) {
+        if (sidebarHost.blocksUnderlyingInput) {
             sidebarHost.close()
             return true
         }
@@ -225,7 +225,7 @@ class MainShell(
 
     /** 背景随 Activity 生命周期暂停/恢复，不重建 WebView；离开前台时收起抽屉。 */
     fun setBackgroundResumed(resumed: Boolean) {
-        if (!resumed) sidebarHost.close()
+        sidebarHost.setResumed(resumed)
         background?.setResumed(resumed)
     }
 
@@ -359,7 +359,7 @@ class MainShell(
             )
             sidebarHost.setMetrics(interaction, drawerWidth)
         } else {
-            sidebarHost.close()
+            sidebarHost.close(immediate = true)
         }
     }
 
@@ -402,7 +402,7 @@ class MainShell(
     }
 
     /** 抽屉开合会改变返回消费与底层输入；设置与抽屉共同决定模态。 */
-    private fun onDrawerVisibilityChanged(open: Boolean) {
+    private fun onDrawerInputChanged() {
         if (lifecycleState != LifecycleState.Attached) return
         applyModalState(controller.state.settingsOpen)
         onCanHandleBackChanged?.invoke(canHandleBack)
@@ -436,7 +436,7 @@ class MainShell(
         }
         sidebarHost.setSelected(current.destination)
         sidebarHost.setDragEnabled(titleBar != null && !current.settingsOpen)
-        val modal = current.settingsOpen || sidebarHost.isVisible
+        val modal = current.settingsOpen || sidebarHost.blocksUnderlyingInput
         if (appliedSettingsOpen != current.settingsOpen || appliedModal != modal) {
             applyModalState(current.settingsOpen)
         }
@@ -469,10 +469,10 @@ class MainShell(
         }
 
     /**
-     * 设置与抽屉共同决定模态：遮罩只服务设置覆盖层，输入与焦点按两者合并。
+     * 设置与抽屉共同决定模态：此处覆盖层只服务设置，输入与焦点按两者合并。
      */
     private fun applyModalState(settingsOpen: Boolean) {
-        val modal = settingsOpen || sidebarHost.isVisible
+        val modal = settingsOpen || sidebarHost.blocksUnderlyingInput
         if (modal && !appliedModal) {
             contentAccessibility = contentHost.importantForAccessibility
             contentFocusability = contentHost.descendantFocusability
