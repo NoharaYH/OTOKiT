@@ -25,6 +25,11 @@
     <dimen name="title_bar_padding">12dp</dimen>
     <dimen name="title_bar_icon_size">24dp</dimen>
 
+    <!-- 标题按钮本体不缩放；外扩在标题安全边距内。 -->
+    <dimen name="title_button_halo_peak_outset">9dp</dimen>
+    <dimen name="title_button_halo_rest_outset">6dp</dimen>
+    <dimen name="title_button_halo_edge_gap">2dp</dimen>
+
     <!-- 宽屏导航 Rail。 -->
     <dimen name="pad_nav_rail_width">88dp</dimen>
     <dimen name="pad_nav_rail_icon_circle">44dp</dimen>

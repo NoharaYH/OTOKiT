@@ -26,6 +26,9 @@ object ShellDimensions {
 
     val titleBarPadding: Int = R.dimen.title_bar_padding
     val titleBarIconSize: Int = R.dimen.title_bar_icon_size
+    val titleButtonHaloPeakOutset: Int = R.dimen.title_button_halo_peak_outset
+    val titleButtonHaloRestOutset: Int = R.dimen.title_button_halo_rest_outset
+    val titleButtonHaloEdgeGap: Int = R.dimen.title_button_halo_edge_gap
     val chromeDualLineGap: Int = R.dimen.chrome_dual_line_gap
     val navCapsuleListTop: Int = R.dimen.nav_capsule_list_top
     val navCapsuleSettingsGap: Int = R.dimen.nav_capsule_settings_gap

@@ -4,14 +4,12 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
 import android.text.TextUtils
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.LinearLayout
 import androidx.appcompat.widget.AppCompatTextView
@@ -39,13 +37,14 @@ class TitleBar(context: Context) : FrameLayout(context) {
 
     private val decor = TitleBarDecorTrianglesView(context)
     private val menuHost = FrameLayout(context)
-    private val menuButton = ImageButton(context)
-    private val circle = GradientDrawable().apply { shape = GradientDrawable.OVAL }
+    private val menuButton = TitleBarPrimaryButton(context)
+    private val halo = TitleButtonHalo(context, menuButton.feedback)
     private val column = LinearLayout(context)
     private val english = AppCompatTextView(context)
     private val chinese = AppCompatTextView(context)
 
     private var lastReportedHeight = -1
+    private var lastPrimaryAction: TitleBarPrimaryAction? = null
 
     private val layoutListener = OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
         val height = height
@@ -65,7 +64,7 @@ class TitleBar(context: Context) : FrameLayout(context) {
         get() = metrics.rowHeightPx
 
     init {
-        clipChildren = false
+        clipChildren = true
         layoutParams = ViewGroup.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
             metrics.rowHeightPx,
@@ -76,6 +75,8 @@ class TitleBar(context: Context) : FrameLayout(context) {
             ViewGroup.LayoutParams.MATCH_PARENT,
         )
         addView(decor)
+        addView(halo, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        menuButton.onFeedbackFrame = { halo.invalidate() }
 
         // 旧行容器有 12dp padding；标题自身没有容器，所以在这里补上左边的 pad，
         // 圆右缘到文字的距离正好也是 pad，与 titleAnchorStart 公式一致。
@@ -93,7 +94,6 @@ class TitleBar(context: Context) : FrameLayout(context) {
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT,
         )
-        menuButton.background = circle
         menuButton.scaleType = ImageView.ScaleType.CENTER_INSIDE
         menuButton.setPadding(
             metrics.iconPaddingPx,
@@ -157,13 +157,23 @@ class TitleBar(context: Context) : FrameLayout(context) {
         addOnLayoutChangeListener(layoutListener)
     }
 
+    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+        super.onLayout(changed, left, top, right, bottom)
+        halo.setButtonBounds(menuHost.left, menuHost.top, menuHost.right, menuHost.bottom)
+    }
+
     /** 同值幂等：更新文案、颜色、图标与许可，不重建子节点。 */
     fun render(state: TitleBarState) {
+        if (!state.primaryEnabled || (menuButton.isPressed &&
+                lastPrimaryAction != null && lastPrimaryAction != state.primaryAction)) {
+            menuButton.cancelFeedback()
+        }
+        lastPrimaryAction = state.primaryAction
         english.setText(state.text.english)
         chinese.setText(state.text.chinese)
         english.setTextColor(state.textColor)
         chinese.setTextColor(state.textColor)
-        circle.setColor(state.circleColor)
+        menuButton.circleColor = state.circleColor
         decor.setColors(state.maiDecorColor, state.chuDecorColor)
 
         val isBack = state.primaryAction == TitleBarPrimaryAction.Back
@@ -177,11 +187,15 @@ class TitleBar(context: Context) : FrameLayout(context) {
         menuButton.alpha = if (state.primaryEnabled) 1f else DISABLED_ALPHA
     }
 
+    fun cancelPressFeedback() = menuButton.cancelFeedback()
+
     /** 供宿主在旧焦点已失效时回到主操作入口，不暴露内部按钮。 */
     fun requestPrimaryFocus(): Boolean = menuButton.requestFocus()
 
     /** 终态：解除回调与布局监听，之后不再上报高度或派发点击。 */
     fun dispose() {
+        menuButton.cancelFeedback()
+        menuButton.onFeedbackFrame = null
         onPrimaryAction = null
         onHeightChanged = null
         removeOnLayoutChangeListener(layoutListener)

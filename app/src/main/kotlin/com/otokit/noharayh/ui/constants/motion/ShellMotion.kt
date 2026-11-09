@@ -61,3 +61,24 @@ object SettingsTitleTransition {
     const val SCALE_SHRINK: Float = 0.7f
     const val SCALE_EXPAND_FROM: Float = 1.08f
 }
+
+/** 预览按钮与标题主按钮共用的按压曲线/触觉时序；不持有运行对象。 */
+object ExpressivePressFeedback {
+    const val WHITE_ALPHA = 0.16f
+    const val BLACK_ALPHA = 56
+
+    /** 与预览按钮一致的每边内收量：按下时半径缩小 3dp。 */
+    const val PRESS_INSET_DP = 3f
+    const val MAX_RIPPLES = 8
+    const val EXPAND_DURATION_MS = 120L
+    const val MIN_HAPTIC_GAP_MS = 120L
+    const val MIN_VISIBLE_CHANGE = 0.002f
+    const val PRESS_DAMPING = 0.85f
+    const val PRESS_STIFFNESS = 1000f
+    const val EXPAND_DAMPING = 0.8f
+    const val EXPAND_STIFFNESS = 1600f
+    const val REST_DAMPING = 0.9f
+    const val REST_STIFFNESS = 300f
+    const val RELEASE_DAMPING = 1f
+    const val RELEASE_STIFFNESS = 700f
+}
