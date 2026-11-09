@@ -105,14 +105,29 @@ class ThemeRegistryTest {
         assertEquals("mai-circle-plus", ThemeRegistry.defaultFor(GameLine.Mai).id)
     }
 
-    /** 取出列表后修改不会影响后续查询。 */
+    /** 返回列表可以拒绝修改，也可以是可修改副本；两者都不能改变注册表。 */
     @Test
     fun returnedListCannotMutateRegistry() {
         val list = ThemeRegistry.themesFor(GameLine.Mai)
-        @Suppress("UNCHECKED_CAST")
-        (list as MutableList<RegisteredTheme>).add(theme("fake", GameLine.Mai))
+        val before = list.toList()
+        val defaultBefore = ThemeRegistry.defaultFor(GameLine.Mai)
 
-        assertEquals(1, ThemeRegistry.themesFor(GameLine.Mai).size)
+        if (list is MutableList<RegisteredTheme>) {
+            val fake = theme("fake", GameLine.Mai)
+            try {
+                list.add(fake)
+            } catch (_: UnsupportedOperationException) {
+                // JVM 的只读或固定大小列表可能通过类型检查，但拒绝添加。
+            }
+            try {
+                list[0] = fake
+            } catch (_: UnsupportedOperationException) {
+                // 替换须单独尝试：固定大小列表可能允许替换，只读列表可以拒绝。
+            }
+        }
+
+        assertEquals(before, ThemeRegistry.themesFor(GameLine.Mai))
+        assertSame(defaultBefore, ThemeRegistry.defaultFor(GameLine.Mai))
         assertNull(ThemeRegistry.findById("fake"))
     }
 
