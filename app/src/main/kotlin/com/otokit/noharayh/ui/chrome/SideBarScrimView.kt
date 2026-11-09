@@ -9,7 +9,10 @@ import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import android.graphics.Shader
+import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
+import kotlin.math.abs
 
 /**
  * 抽屉模态遮罩：固定“左深右透”填充 + 随抽屉扫动的蒙版。
@@ -29,6 +32,10 @@ class SideBarScrimView(context: Context) : View(context) {
     private val matrix = Matrix()
 
     private var progress = 0f
+    private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
+    private var downX = 0f
+    private var downY = 0f
+    private var clickCandidate = false
 
     init {
         isClickable = true
@@ -76,5 +83,49 @@ class SideBarScrimView(context: Context) : View(context) {
         canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), maskPaint)
 
         canvas.restoreToCount(layer)
+    }
+
+    /**
+     * 遮罩整片可点，但拖动不等于点击：超过 slop 就取消点击，仍由遮罩消费，避免点穿。
+     */
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> {
+                downX = event.x
+                downY = event.y
+                clickCandidate = true
+                isPressed = true
+                return true
+            }
+
+            MotionEvent.ACTION_MOVE -> {
+                if (clickCandidate &&
+                    (abs(event.x - downX) > touchSlop || abs(event.y - downY) > touchSlop)
+                ) {
+                    clickCandidate = false
+                    isPressed = false
+                }
+                return true
+            }
+
+            MotionEvent.ACTION_UP -> {
+                if (clickCandidate) performClick()
+                clickCandidate = false
+                isPressed = false
+                return true
+            }
+
+            MotionEvent.ACTION_CANCEL -> {
+                clickCandidate = false
+                isPressed = false
+                return true
+            }
+        }
+        return true
+    }
+
+    override fun performClick(): Boolean {
+        super.performClick()
+        return true
     }
 }

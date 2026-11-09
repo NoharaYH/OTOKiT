@@ -264,6 +264,9 @@ class MainShell(
         } else {
             removeTitle()
         }
+        sidebarHost.setDragEnabled(
+            snapshot.layoutClass == WindowLayoutClass.Compact && !controller.state.settingsOpen,
+        )
     }
 
     private fun mountTitleIfNeeded() {
@@ -432,6 +435,7 @@ class MainShell(
             mountContent(current.destination)
         }
         sidebarHost.setSelected(current.destination)
+        sidebarHost.setDragEnabled(titleBar != null && !current.settingsOpen)
         val modal = current.settingsOpen || sidebarHost.isVisible
         if (appliedSettingsOpen != current.settingsOpen || appliedModal != modal) {
             applyModalState(current.settingsOpen)

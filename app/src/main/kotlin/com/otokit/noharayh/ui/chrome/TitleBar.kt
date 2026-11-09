@@ -1,5 +1,6 @@
 package com.otokit.noharayh.ui.chrome
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Color
@@ -69,10 +70,12 @@ class TitleBar(context: Context) : FrameLayout(context) {
 
         // 旧行容器有 12dp padding；标题自身没有容器，所以在这里补上左边的 pad，
         // 圆右缘到文字的距离正好也是 pad，与 titleAnchorStart 公式一致。
+        @SuppressLint("RtlHardcoded") // 标题按物理左缘定位，与窗口矩形同一坐标口径。
+        val menuGravity = Gravity.TOP or Gravity.LEFT
         menuHost.layoutParams = LayoutParams(
             metrics.buttonSizePx,
             metrics.buttonSizePx,
-            Gravity.TOP or Gravity.LEFT,
+            menuGravity,
         ).apply {
             leftMargin = metrics.padPx
             topMargin = metrics.padPx
