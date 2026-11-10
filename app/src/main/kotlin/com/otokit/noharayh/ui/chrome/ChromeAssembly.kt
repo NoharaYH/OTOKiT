@@ -55,7 +55,8 @@ class ChromeAssembly(
         if (attached || disposed) return
         attached = true
         sidebarHost.onNavigate = { destination ->
-            sidebarHost.close(immediate = true)
+            // 普通导航沿当前进度动画收起，保留胶囊释放反馈；强制复位仅用于窗口/生命周期失效。
+            sidebarHost.close()
             onNavigate(destination)
         }
         sidebarHost.onSettings = {
