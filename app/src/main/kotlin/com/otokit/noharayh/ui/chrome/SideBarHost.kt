@@ -299,19 +299,27 @@ class SideBarHost @JvmOverloads constructor(
 
     @SuppressLint("RtlHardcoded") // 与 shell 提供的物理窗口坐标保持一致。
     private fun applyLayout() {
-        val height = interaction.height.coerceAtLeast(0)
+        val panelHeight = interaction.height.coerceAtLeast(0)
+        if (interaction.isEmpty) return
+        // 遮罩延伸到窗口底部：手势导航区域透明，不能在这里截断黑渐变。
+        val scrimHeight = (height - interaction.top).coerceAtLeast(panelHeight)
         scrim.layoutParams = LayoutParams(
-            interaction.width.coerceAtLeast(0), height, Gravity.TOP or Gravity.LEFT,
+            interaction.width.coerceAtLeast(0), scrimHeight, Gravity.TOP or Gravity.LEFT,
         ).apply {
             leftMargin = interaction.left
             topMargin = interaction.top
         }
-        sideBar.layoutParams = LayoutParams(drawerWidthPx, height, Gravity.TOP or Gravity.LEFT).apply {
+        sideBar.layoutParams = LayoutParams(drawerWidthPx, panelHeight, Gravity.TOP or Gravity.LEFT).apply {
             leftMargin = closedLeft
             topMargin = interaction.top
         }
         sideBar.visibility = if (interaction.isEmpty || drawerWidthPx == 0) INVISIBLE else VISIBLE
         positionPanel()
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        if (!disposed) applyLayout()
     }
 
     private fun positionPanel() {
