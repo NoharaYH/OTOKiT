@@ -35,7 +35,6 @@ import com.otokit.noharayh.ui.constants.motion.SettingsTitleTransition
 import com.otokit.noharayh.ui.constants.motion.SettingsTransition
 import com.otokit.noharayh.ui.kit.common.AppTypography
 import com.otokit.noharayh.ui.theme.GameLine
-import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.roundToInt
 
@@ -61,6 +60,7 @@ class TitleBar(context: Context) : FrameLayout(context) {
     private val menuHost = FrameLayout(context)
     private val menuButton = TitleBarPrimaryButton(context)
     private val iconLayer = ImageView(context)
+    private val outgoingIconLayer = ImageView(context)
     private val halo = TitleButtonHalo(context, menuButton.feedback)
 
     private val titleHost = FrameLayout(context)
@@ -93,6 +93,7 @@ class TitleBar(context: Context) : FrameLayout(context) {
     private var navAnimator: ValueAnimator? = null
     private var settingsAnimator: ValueAnimator? = null
     private var iconAnimator: ValueAnimator? = null
+    private var iconGeneration = 0
     private var decorAnimator: ValueAnimator? = null
     private var ghost: ImageView? = null
     private var backPreviewActive = false
@@ -168,6 +169,25 @@ class TitleBar(context: Context) : FrameLayout(context) {
         iconLayer.isClickable = false
         iconLayer.isFocusable = false
         iconLayer.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+
+        outgoingIconLayer.layoutParams = LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT,
+        )
+        outgoingIconLayer.scaleType = ImageView.ScaleType.CENTER_INSIDE
+        outgoingIconLayer.setPadding(
+            metrics.iconPaddingPx,
+            metrics.iconPaddingPx,
+            metrics.iconPaddingPx,
+            metrics.iconPaddingPx,
+        )
+        outgoingIconLayer.imageTintList = ColorStateList.valueOf(Color.WHITE)
+        outgoingIconLayer.isClickable = false
+        outgoingIconLayer.isFocusable = false
+        outgoingIconLayer.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        outgoingIconLayer.visibility = View.INVISIBLE
+        outgoingIconLayer.alpha = 0f
+        menuHost.addView(outgoingIconLayer)
         menuHost.addView(iconLayer)
         addView(menuHost)
 
@@ -426,39 +446,58 @@ class TitleBar(context: Context) : FrameLayout(context) {
         if (displayedIconAction == null) {
             displayedIconAction = action
             iconLayer.setImageResource(iconFor(action))
+            iconLayer.alpha = 1f
+            outgoingIconLayer.visibility = View.INVISIBLE
+            outgoingIconLayer.alpha = 0f
             return
         }
         if (displayedIconAction == action) return
         val previous = displayedIconAction ?: action
         displayedIconAction = action
         if (!animationsEnabled()) {
+            iconGeneration++
+            iconAnimator?.cancel()
+            iconAnimator = null
             iconLayer.setImageResource(iconFor(action))
             iconLayer.alpha = 1f
+            outgoingIconLayer.visibility = View.INVISIBLE
+            outgoingIconLayer.alpha = 0f
             return
         }
+
+        iconGeneration++
+        val generation = iconGeneration
         iconAnimator?.cancel()
+        iconAnimator = null
+        // 双层交叉淡变：旧图标保持可见并淡出，新图标直接叠在上面淡入，不出现空白帧。
+        outgoingIconLayer.setImageResource(iconFor(previous))
+        outgoingIconLayer.visibility = View.VISIBLE
+        outgoingIconLayer.alpha = 1f
+        iconLayer.setImageResource(iconFor(action))
+        iconLayer.visibility = View.VISIBLE
+        iconLayer.alpha = 0f
+
         iconAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = ChromeIconTransition.DURATION_MS
             interpolator = DecelerateInterpolator()
             addUpdateListener { animation ->
                 val p = animation.animatedValue as Float
-                iconLayer.alpha = 1f - abs(p * 2f - 1f)
-                if (p >= 0.5f && displayedIconAction == action) {
-                    iconLayer.setImageResource(iconFor(action))
-                }
+                outgoingIconLayer.alpha = 1f - p
+                iconLayer.alpha = p
             }
             addListener(object : android.animation.AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: android.animation.Animator) {
-                    if (displayedIconAction != previous) {
-                        iconLayer.setImageResource(iconFor(action))
-                    }
+                    if (generation != iconGeneration) return
+                    outgoingIconLayer.alpha = 0f
+                    outgoingIconLayer.visibility = View.INVISIBLE
+                    iconLayer.setImageResource(iconFor(action))
                     iconLayer.alpha = 1f
+                    if (iconAnimator === animation) iconAnimator = null
                 }
             })
             start()
         }
     }
-
     private fun iconFor(action: TitleBarPrimaryAction): Int =
         if (action == TitleBarPrimaryAction.Back) R.drawable.ic_arrow_back_24 else R.drawable.ic_menu_24
 
