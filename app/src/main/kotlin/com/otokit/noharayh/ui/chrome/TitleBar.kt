@@ -214,27 +214,50 @@ class TitleBar(context: Context) : FrameLayout(context) {
         )
         titleMotionHost.addView(
             functionalHost,
-            LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT),
+            LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
+                gravity = Gravity.CENTER_VERTICAL
+            },
         )
         titleMotionHost.addView(
             settingsColumn,
-            LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT),
+            LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
+                gravity = Gravity.CENTER_VERTICAL
+            },
         )
         titleHost.addView(
             titleMotionHost,
-            LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT),
+            LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT).apply {
+                leftMargin = metrics.titleAnchorStartPx
+                gravity = Gravity.TOP or Gravity.LEFT
+            },
         )
+        // 标题只被整个标题栏裁剪；中间容器不能按文字盒子裁剪，否则文字上下/左右过渡会在
+        // 文字边缘被切断，也进不到汉堡键下面。
+        titleHost.clipChildren = false
+        titleHost.clipToPadding = false
+        titleMotionHost.clipChildren = false
+        functionalHost.clipChildren = false
+        maiStack.clipChildren = false
+        chuStack.clipChildren = false
+        maiColumn.clipChildren = false
+        chuColumn.clipChildren = false
+        settingsColumn.clipChildren = false
+        // 标题宿主扩展到整个标题栏高度、从 0 开始；文案自身仍从 titleAnchorStart 开始。
+        // 这样上下/左右过渡只被标题栏裁剪，可以进入汉堡键下面。
         addView(
             titleHost,
             LayoutParams(
                 LayoutParams.MATCH_PARENT,
-                LayoutParams.WRAP_CONTENT,
-                Gravity.START or Gravity.CENTER_VERTICAL,
+                LayoutParams.MATCH_PARENT,
+                Gravity.TOP or Gravity.LEFT,
             ).apply {
-                leftMargin = metrics.titleAnchorStartPx
                 rightMargin = metrics.buttonSizePx
             },
         )
+
+        // 文字滑到左侧时压在圆底下面，而不是盖住汉堡键；halo 仍在按钮下、文字上。
+        bringChildToFront(halo)
+        bringChildToFront(menuHost)
 
         addOnLayoutChangeListener(layoutListener)
     }
