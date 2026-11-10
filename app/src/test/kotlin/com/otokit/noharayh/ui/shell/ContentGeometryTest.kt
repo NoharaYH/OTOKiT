@@ -1,5 +1,6 @@
 package com.otokit.noharayh.ui.shell
 
+import com.otokit.noharayh.ui.chrome.ChromeInsets
 import com.otokit.noharayh.ui.window.PixelRect
 import com.otokit.noharayh.ui.window.WindowSnapshot
 import com.otokit.noharayh.ui.window.breakpoints.WindowBreakpointPolicy
@@ -19,7 +20,7 @@ class ContentGeometryTest {
             insets = WindowInsetsSnapshot(statusBars = EdgeInsets(top = 24)),
         )
 
-        val rects = ContentGeometry.compute(snapshot, AppChromeInsets(top = 72))
+        val rects = ContentGeometry.compute(snapshot, ChromeInsets(top = 72))
 
         assertEquals(24 + 72, rects.base.top)
         assertEquals(24 + 72, rects.interactive.top)
@@ -117,7 +118,7 @@ class ContentGeometryTest {
             ),
         )
 
-        val rects = ContentGeometry.compute(snapshot, AppChromeInsets(left = 88))
+        val rects = ContentGeometry.compute(snapshot, ChromeInsets(left = 88))
 
         assertEquals(88, rects.base.left)
         assertEquals(1000 - 30, rects.base.right)

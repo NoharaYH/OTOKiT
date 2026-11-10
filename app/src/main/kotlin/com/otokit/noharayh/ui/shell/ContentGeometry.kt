@@ -1,23 +1,9 @@
 package com.otokit.noharayh.ui.shell
 
+import com.otokit.noharayh.ui.chrome.ChromeInsets
 import com.otokit.noharayh.ui.window.PixelRect
 import com.otokit.noharayh.ui.window.WindowSnapshot
-
-/**
- * chrome 上报的应用额外占用，不含系统安全区。
- *
- * 首批交付没有 chrome，实际传入 [Zero]；非零值只用于验证 06/08 已约定的几何契约。
- */
-data class AppChromeInsets(
-    val left: Int = 0,
-    val top: Int = 0,
-    val right: Int = 0,
-    val bottom: Int = 0,
-) {
-    companion object {
-        val Zero: AppChromeInsets = AppChromeInsets()
-    }
-}
+import com.otokit.noharayh.ui.window.relativeToRoot
 
 /** 基础内容矩形（背景使用）与避让 IME 后的交互矩形（内容/覆盖层使用）。 */
 data class ContentRects(
@@ -34,14 +20,10 @@ data class ContentRects(
 object ContentGeometry {
 
     /** 窗口矩形转为根局部坐标；保留原尺寸和负坐标，父容器只负责裁剪。 */
-    internal fun relativeToRoot(rect: PixelRect, rootLeftPx: Int, rootTopPx: Int): PixelRect = PixelRect(
-        left = rect.left - rootLeftPx,
-        top = rect.top - rootTopPx,
-        right = rect.right - rootLeftPx,
-        bottom = rect.bottom - rootTopPx,
-    )
+    internal fun relativeToRoot(rect: PixelRect, rootLeftPx: Int, rootTopPx: Int): PixelRect =
+        rect.relativeToRoot(rootLeftPx, rootTopPx)
 
-    fun compute(snapshot: WindowSnapshot, chrome: AppChromeInsets = AppChromeInsets.Zero): ContentRects {
+    fun compute(snapshot: WindowSnapshot, chrome: ChromeInsets = ChromeInsets.Zero): ContentRects {
         val width = snapshot.metrics.widthPx
         val height = snapshot.metrics.heightPx
         val safe = snapshot.insets.systemSafeEdges

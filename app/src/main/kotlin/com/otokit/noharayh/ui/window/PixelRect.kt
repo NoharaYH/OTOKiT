@@ -15,3 +15,11 @@ data class PixelRect(
         val Zero: PixelRect = PixelRect(0, 0, 0, 0)
     }
 }
+
+/** 窗口坐标转根局部坐标；保留尺寸与负坐标，由父容器负责裁剪。 */
+fun PixelRect.relativeToRoot(rootLeftPx: Int, rootTopPx: Int): PixelRect = PixelRect(
+    left = left - rootLeftPx,
+    top = top - rootTopPx,
+    right = right - rootLeftPx,
+    bottom = bottom - rootTopPx,
+)
