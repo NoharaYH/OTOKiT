@@ -26,6 +26,7 @@ import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.animation.chrome.TitleTransitionFrames
 import com.otokit.noharayh.ui.animation.common.GameFrame
 import com.otokit.noharayh.ui.animation.common.GamePhase
+import com.otokit.noharayh.ui.animation.common.MotionInterpolators
 import com.otokit.noharayh.ui.animation.common.TransitionFrames
 import com.otokit.noharayh.ui.constants.dimensions.ShellDimensions
 import com.otokit.noharayh.ui.constants.motion.ChromeIconTransition
@@ -802,8 +803,8 @@ class TitleBar(context: Context) : FrameLayout(context) {
         val from = if (open) 0f else 1f
         val to = if (open) 1f else 0f
         settingsAnimator = ValueAnimator.ofFloat(from, to).apply {
-            duration = SettingsTransition.DURATION_MS
-            interpolator = DecelerateInterpolator()
+            duration = if (open) SettingsTransition.ENTER_DURATION_MS else SettingsTransition.EXIT_DURATION_MS
+            interpolator = MotionInterpolators.of(SettingsTitleTransition.CURVE)
             addUpdateListener { animation ->
                 applySettingsProgress(animation.animatedValue as Float, animate = true)
             }
@@ -827,8 +828,8 @@ class TitleBar(context: Context) : FrameLayout(context) {
             return
         }
         settingsAnimator = ValueAnimator.ofFloat(backPreviewProgress, target).apply {
-            duration = SettingsTransition.DURATION_MS
-            interpolator = DecelerateInterpolator()
+            duration = if (target >= 1f) SettingsTransition.ENTER_DURATION_MS else SettingsTransition.EXIT_DURATION_MS
+            interpolator = MotionInterpolators.of(SettingsTitleTransition.CURVE)
             addUpdateListener { animation ->
                 applySettingsProgress(animation.animatedValue as Float, animate = true)
             }
@@ -879,7 +880,7 @@ class TitleBar(context: Context) : FrameLayout(context) {
         )
         navAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = NavTitleTransition.DURATION_MS
-            interpolator = DecelerateInterpolator()
+            interpolator = MotionInterpolators.of(NavTitleTransition.CURVE)
             addUpdateListener { animation ->
                 val p = animation.animatedValue as Float
                 val entry = TransitionFrames.enter(

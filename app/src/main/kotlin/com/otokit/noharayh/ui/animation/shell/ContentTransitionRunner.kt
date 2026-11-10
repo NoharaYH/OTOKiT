@@ -3,7 +3,7 @@ package com.otokit.noharayh.ui.animation.shell
 import android.animation.ValueAnimator
 import android.view.View
 import android.view.ViewGroup
-import android.view.animation.DecelerateInterpolator
+import com.otokit.noharayh.ui.animation.common.MotionInterpolators
 import android.widget.FrameLayout
 import com.otokit.noharayh.ui.animation.common.TransitionFrame
 import com.otokit.noharayh.ui.animation.common.TransitionFrames
@@ -101,7 +101,7 @@ class ContentTransitionRunner(private val host: FrameLayout) {
 
         animator = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = NavContentTransition.DURATION_MS
-            interpolator = DecelerateInterpolator()
+            interpolator = MotionInterpolators.of(NavContentTransition.CURVE)
             addUpdateListener { animation ->
                 val p = animation.animatedValue as Float
                 apply(to, lerp(startTo, endTo, p))

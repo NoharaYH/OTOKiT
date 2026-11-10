@@ -5,7 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.view.View
-import android.view.animation.DecelerateInterpolator
+import com.otokit.noharayh.ui.animation.common.MotionInterpolators
 import android.widget.FrameLayout
 import android.widget.ImageView
 import com.otokit.noharayh.ui.animation.common.TransitionFrames
@@ -103,8 +103,8 @@ class SettingsTransitionRunner(
         featureProvider()?.visibility = View.VISIBLE
         progress = fromProgress.coerceIn(0f, 1f)
         animator = ValueAnimator.ofFloat(progress, 0f).apply {
-            duration = (SettingsTransition.DURATION_MS * progress).toLong().coerceAtLeast(1L)
-            interpolator = DecelerateInterpolator()
+            duration = (SettingsTransition.EXIT_DURATION_MS * progress).toLong().coerceAtLeast(1L)
+            interpolator = MotionInterpolators.of(SettingsTransition.CURVE)
             addUpdateListener { animation ->
                 applyOpenState(animation.animatedValue as Float, ghostVisible = true)
             }
@@ -148,8 +148,8 @@ class SettingsTransitionRunner(
         }
         val start = previewProgress
         animator = ValueAnimator.ofFloat(start, 0f).apply {
-            duration = (SettingsTransition.DURATION_MS * start).toLong().coerceAtLeast(1L)
-            interpolator = DecelerateInterpolator()
+            duration = (SettingsTransition.ENTER_DURATION_MS * start).toLong().coerceAtLeast(1L)
+            interpolator = MotionInterpolators.of(SettingsTransition.CURVE)
             addUpdateListener { animation ->
                 previewProgress = animation.animatedValue as Float
                 applyPreviewState(previewProgress)
@@ -225,9 +225,9 @@ class SettingsTransitionRunner(
             return
         }
         animator = ValueAnimator.ofFloat(start, target).apply {
-            duration = (SettingsTransition.DURATION_MS * kotlin.math.abs(target - start))
+            duration = (SettingsTransition.ENTER_DURATION_MS * kotlin.math.abs(target - start))
                 .toLong().coerceAtLeast(1L)
-            interpolator = DecelerateInterpolator()
+            interpolator = MotionInterpolators.of(SettingsTransition.CURVE)
             addUpdateListener { animation ->
                 applyOpenState(animation.animatedValue as Float, ghostVisible = false)
             }
