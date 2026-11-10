@@ -75,6 +75,7 @@ class MainShell(
         onCloseSettings = { closeSettings() },
         onInsetsChanged = { insets -> onChromeInsetsChanged(insets) },
         onInputBlockedChanged = { onDrawerInputChanged() },
+        onStatusBarHiddenChanged = { hidden -> statusBarHiddenListener?.invoke(hidden) },
     )
 
     private var mountedContent: PageContent? = null
@@ -86,6 +87,7 @@ class MainShell(
     private var appliedBackgroundWindowRect: PixelRect? = null
 
     private var onCanHandleBackChanged: ((Boolean) -> Unit)? = null
+    private var statusBarHiddenListener: ((Boolean) -> Unit)? = null
     private var mountedDestination: Destination? = null
     private var appliedSettingsOpen: Boolean? = null
     private var preModalFocus: WeakReference<View>? = null
@@ -108,6 +110,12 @@ class MainShell(
     fun setOnCanHandleBackChanged(listener: ((Boolean) -> Unit)?) {
         if (lifecycleState == LifecycleState.Disposed) return
         onCanHandleBackChanged = listener
+    }
+
+    /** 平台层只执行显示意图，不参与形态判断。 */
+    fun setOnStatusBarHiddenChanged(listener: ((Boolean) -> Unit)?) {
+        if (lifecycleState == LifecycleState.Disposed) return
+        statusBarHiddenListener = listener
     }
 
     /** 挂载覆盖层与外围 UI，并首次渲染；每个实例只允许挂载一次。 */

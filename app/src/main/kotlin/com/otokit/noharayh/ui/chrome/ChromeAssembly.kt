@@ -27,15 +27,23 @@ class ChromeAssembly(
     private val onCloseSettings: () -> Unit,
     private val onInsetsChanged: (ChromeInsets) -> Unit,
     private val onInputBlockedChanged: () -> Unit,
+    private val onStatusBarHiddenChanged: (Boolean) -> Unit,
 ) {
 
     private var titleBar: TitleBar? = null
+    private var rail: NavigationBar? = null
     private var display: ChromeDisplayInput? = null
+    private var snapshot: WindowSnapshot? = null
     private var attached = false
     private var disposed = false
     private var compact = false
     private var appChromeTopPx = 0
     private var lastInsets = ChromeInsets.Zero
+    private var lastStatusBarHidden = false
+    private var statusBarIntentInitialized = false
+
+    private val railWidthPx: Int
+        get() = chromeHost.resources.getDimensionPixelSize(ShellDimensions.padNavRailWidth)
 
     val insets: ChromeInsets
         get() = lastInsets
@@ -60,24 +68,31 @@ class ChromeAssembly(
     }
 
     /** 窗口分类只消费外部结果；形态变化时清理旧 chrome 的临时交互。 */
-    fun updateWindow(snapshot: WindowSnapshot) {
+    fun updateWindow(window: WindowSnapshot) {
         if (!attached || disposed) return
-        val compactNow = snapshot.layoutClass == WindowLayoutClass.Compact
-        if (compactNow != compact) {
-            compact = compactNow
-            if (!compact) {
-                removeTitle()
-                sidebarHost.setDragEnabled(false)
-                sidebarHost.close(immediate = true)
-            }
-        }
-        if (compact) {
+        snapshot = window
+        val compactNow = !ChromeLayoutPolicy.usesRail(window.layoutClass)
+        compact = compactNow
+        if (compactNow) {
+            removeRail()
             mountTitleIfNeeded()
-            applyTitleRect(snapshot)
+            applyTitleRect(window)
+            requestStatusBarHidden(false)
+            sidebarHost.setDragEnabled(display?.settingsOpen != true)
+        } else {
+            removeTitle()
+            mountRailIfNeeded()
+            sidebarHost.setDragEnabled(false)
+            sidebarHost.close(immediate = true)
+            requestStatusBarHidden(true)
         }
-        // 首次窗口到达时 compact 才确定，需要同步抽屉手势许可。
-        sidebarHost.setDragEnabled(compact && display?.settingsOpen != true)
-        publishInsets(if (compact) ChromeInsets(top = appChromeTopPx) else ChromeInsets.Zero)
+        publishInsets(
+            ChromeLayoutPolicy.insetsFor(
+                layoutClass = window.layoutClass,
+                titleHeightPx = appChromeTopPx,
+                railWidthPx = railWidthPx,
+            ),
+        )
     }
 
     /** 只渲染展示输入；导航与设置的稳定状态仍由 shell 唯一修改。 */
@@ -88,25 +103,50 @@ class ChromeAssembly(
         if (input.settingsOpen) sidebarHost.close(immediate = true)
         sidebarHost.setDragEnabled(compact && !input.settingsOpen)
         renderTitle()
+        rail?.render(input)
     }
 
-    /** shell 完成唯一内容几何后，把根局部交互矩形交给抽屉布局。 */
+    /** shell 完成唯一内容几何后，把根局部交互矩形交给当前 chrome 布局。 */
+    @SuppressLint("RtlHardcoded") // Rail 固定在物理左侧，不随 RTL 镜像。
     fun layout(interaction: PixelRect) {
         if (!attached || disposed) return
-        if (!compact || interaction.isEmpty) {
-            sidebarHost.close(immediate = true)
+        if (compact) {
+            if (interaction.isEmpty) {
+                sidebarHost.close(immediate = true)
+                return
+            }
+            val width = minOf(
+                chromeHost.resources.getDimensionPixelSize(ShellDimensions.shellSideNavWidth),
+                (interaction.width * ShellProportions.DRAWER_MAX_WINDOW_WIDTH).roundToInt(),
+            )
+            sidebarHost.setMetrics(interaction, width)
             return
         }
-        val width = minOf(
-            chromeHost.resources.getDimensionPixelSize(ShellDimensions.shellSideNavWidth),
-            (interaction.width * ShellProportions.DRAWER_MAX_WINDOW_WIDTH).roundToInt(),
-        )
-        sidebarHost.setMetrics(interaction, width)
+
+        val bar = rail ?: return
+        if (interaction.isEmpty) {
+            bar.visibility = android.view.View.INVISIBLE
+            return
+        }
+        bar.visibility = android.view.View.VISIBLE
+        val window = snapshot ?: return
+        val localLeft = window.insets.systemSafeEdges.left - window.metrics.rootLeftPx
+        val params = bar.layoutParams as? FrameLayout.LayoutParams ?: return
+        if (params.width == railWidthPx && params.height == interaction.height &&
+            params.leftMargin == localLeft && params.topMargin == interaction.top
+        ) {
+            return
+        }
+        params.width = railWidthPx
+        params.height = interaction.height
+        params.gravity = Gravity.TOP or Gravity.LEFT
+        params.setMargins(localLeft, interaction.top, 0, 0)
+        bar.layoutParams = params
     }
 
     /** 普通返回只消费抽屉；设置由 shell 的导航状态处理。 */
     fun consumeBack(): Boolean {
-        if (!attached || disposed) return false
+        if (!attached || disposed || !compact) return false
         if (!sidebarHost.blocksUnderlyingInput) return false
         sidebarHost.close()
         return true
@@ -136,10 +176,13 @@ class ChromeAssembly(
         sidebarHost.release()
         titleBar?.dispose()
         titleBar = null
+        rail?.dispose()
+        rail = null
         chromeHost.removeAllViews()
         appChromeTopPx = 0
         compact = false
         display = null
+        snapshot = null
     }
 
     private fun mountTitleIfNeeded() {
@@ -159,7 +202,7 @@ class ChromeAssembly(
         // 行高由固定公式得出，先用于首帧几何；实测变化再由回调纠正。
         appChromeTopPx = bar.contentHeightPx
         renderTitle()
-        publishInsets(ChromeInsets(top = appChromeTopPx))
+        publishInsets(ChromeLayoutPolicy.insetsFor(WindowLayoutClass.Compact, appChromeTopPx, railWidthPx))
     }
 
     private fun removeTitle() {
@@ -171,12 +214,34 @@ class ChromeAssembly(
         appChromeTopPx = 0
     }
 
+    private fun mountRailIfNeeded() {
+        if (rail != null) return
+        val bar = NavigationBar(chromeHost.context).apply {
+            onNavigate = { destination -> onNavigate(destination) }
+            onSettings = { onOpenSettings() }
+        }
+        chromeHost.addView(
+            bar,
+            FrameLayout.LayoutParams(railWidthPx, ViewGroup.LayoutParams.MATCH_PARENT),
+        )
+        rail = bar
+        display?.let(bar::render)
+    }
+
+    private fun removeRail() {
+        rail?.let { bar ->
+            bar.dispose()
+            chromeHost.removeView(bar)
+        }
+        rail = null
+    }
+
     /** 标题只在系统安全区内的应用行出现；不含系统顶区。 */
     @SuppressLint("RtlHardcoded") // 窗口矩形使用物理左上坐标，不随 RTL 镜像。
-    private fun applyTitleRect(snapshot: WindowSnapshot) {
+    private fun applyTitleRect(window: WindowSnapshot) {
         val bar = titleBar ?: return
-        val safe = snapshot.insets.systemSafeEdges
-        val metrics = snapshot.metrics
+        val safe = window.insets.systemSafeEdges
+        val metrics = window.metrics
         val windowRect = PixelRect(
             left = safe.left,
             top = safe.top,
@@ -202,7 +267,9 @@ class ChromeAssembly(
         appChromeTopPx = height
         // 布局过程中只记录，下一帧再上报，避免测量 → 回报 → 重排循环。
         chromeHost.post {
-            if (attached && !disposed) publishInsets(ChromeInsets(top = appChromeTopPx))
+            if (attached && !disposed && compact) {
+                publishInsets(ChromeLayoutPolicy.insetsFor(WindowLayoutClass.Compact, appChromeTopPx, railWidthPx))
+            }
         }
     }
 
@@ -235,5 +302,13 @@ class ChromeAssembly(
         if (value == lastInsets) return
         lastInsets = value
         onInsetsChanged(value)
+    }
+
+    private fun requestStatusBarHidden(hidden: Boolean) {
+        // 首次必须显式下发：重建后的新窗口可能继承旧的隐藏状态。
+        if (statusBarIntentInitialized && hidden == lastStatusBarHidden) return
+        statusBarIntentInitialized = true
+        lastStatusBarHidden = hidden
+        onStatusBarHiddenChanged(hidden)
     }
 }

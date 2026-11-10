@@ -7,6 +7,8 @@ import android.os.Bundle
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import com.otokit.noharayh.databinding.ActivityMainBinding
@@ -72,6 +74,7 @@ class MainActivity : AppCompatActivity() {
         }.also { onBackPressedDispatcher.addCallback(this, it) }
 
         shell.setOnCanHandleBackChanged { enabled -> backCallback?.isEnabled = enabled }
+        shell.setOnStatusBarHiddenChanged { hidden -> applyStatusBarHidden(hidden) }
         shell.attach()
 
         windowObserver = WindowEnvironmentObserver(this, binding.root) { snapshot ->
@@ -114,6 +117,17 @@ class MainActivity : AppCompatActivity() {
             NavigationStateCodec.write(outState, it.state)
             GameSelectionStateCodec.write(outState, it.selectionState)
         }
+    }
+
+    /** 平台层执行系统栏意图；样式仍保持浅底深色图标。 */
+    private fun applyStatusBarHidden(hidden: Boolean) {
+        val controller = WindowInsetsControllerCompat(window, binding.root)
+        if (hidden) {
+            controller.hide(WindowInsetsCompat.Type.statusBars())
+        } else {
+            controller.show(WindowInsetsCompat.Type.statusBars())
+        }
+        controller.isAppearanceLightStatusBars = true
     }
 
     override fun onDestroy() {
