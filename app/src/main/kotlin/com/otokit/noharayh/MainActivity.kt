@@ -38,7 +38,9 @@ class MainActivity : AppCompatActivity() {
      * 不调用全局 Resources.updateConfiguration，也不在 onCreate 后重新缩放布局。
      */
     override fun attachBaseContext(newBase: Context) {
-        val configuration = Configuration(newBase.resources.configuration).apply {
+        // 仅声明字体覆盖。复制完整配置会把窗口宽高、方向和 density 也固定在
+        // attach 时的快照，多窗口连续缩放时这些字段将不再继承基础 Context 的更新。
+        val configuration = Configuration().apply {
             fontScale = AppFonts.FIXED_FONT_SCALE
         }
         super.attachBaseContext(newBase.createConfigurationContext(configuration))

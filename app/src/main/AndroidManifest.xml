@@ -10,7 +10,12 @@
         android:theme="@style/Theme.OTOKiT">
         <activity
             android:name=".MainActivity"
-            android:exported="true">
+            android:exported="true"
+            android:resizeableActivity="true">
+            <!-- 明确声明窗口尺寸变化支持，不依赖 targetSdk 推导的默认可调整模式。 -->
+            <meta-data
+                android:name="android.supports_size_changes"
+                android:value="true" />
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
