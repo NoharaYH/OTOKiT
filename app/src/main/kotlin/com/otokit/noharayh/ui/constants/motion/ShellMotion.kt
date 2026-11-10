@@ -41,7 +41,7 @@ object NavContentTransition {
 
 /** 手机功能页标题列的纵向位移，量纲与内容区解耦。 */
 object NavTitleTransition {
-    val KIND: TransitionKind = TransitionKind.Slide
+    val KIND: TransitionKind = TransitionKind.ScaleFadeSlide
     const val DURATION_MS: Long = 260L
     const val TRANSLATION_ROW_HEIGHT_FRACTION: Float = 0.38f
     const val TRANSLATION_MAX_DP: Float = 22f

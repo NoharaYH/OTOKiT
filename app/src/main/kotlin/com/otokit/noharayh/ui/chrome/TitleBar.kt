@@ -261,6 +261,7 @@ class TitleBar(context: Context) : FrameLayout(context) {
 
         if (displayedSettingsOpen == null) displayedSettingsOpen = state.settingsOpen
         if (settingsStateChanged && !initial) {
+            cancelNavTransition()
             val open = state.settingsOpen
             displayedSettingsOpen = open
             settingsColumn.setTexts(state.settingTitle)

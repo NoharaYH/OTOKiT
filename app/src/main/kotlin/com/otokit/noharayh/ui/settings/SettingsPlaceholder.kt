@@ -1,20 +1,22 @@
 package com.otokit.noharayh.ui.settings
 
 import android.content.Context
-import android.util.TypedValue
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.RectF
 import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.TextView
-import androidx.core.content.ContextCompat
 import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.kit.common.AppTypography
 import com.otokit.noharayh.ui.kit.common.PageContent
 
 /**
- * 设置占位的展示入口：浅底容器 + 居中占位文字。
+ * 设置占位的展示入口：透明底 + 居中白色占位框。
  *
- * 只负责自己的排版与底色解析；不接设置业务、不持有 shell 或导航状态。
+ * 不再用整屏白色底板盖住背景；输入隔离仍由 shell 的 overlay 负责。
  */
 object SettingsPlaceholder {
 
@@ -23,11 +25,19 @@ object SettingsPlaceholder {
             isClickable = true
             isFocusable = true
             isFocusableInTouchMode = true
-            setBackgroundColor(resolveColorBackground(context))
+            setBackgroundColor(Color.TRANSPARENT)
         }
+        val frame = SettingsFrame(context)
         val text = placeholderText(context, R.string.placeholder_settings, textColor)
-        container.addView(
+        frame.addView(
             text,
+            FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            ),
+        )
+        container.addView(
+            frame,
             FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -46,11 +56,34 @@ object SettingsPlaceholder {
             setTextColor(textColor)
         }
 
-    private fun resolveColorBackground(context: Context): Int {
-        val value = TypedValue()
-        if (!context.theme.resolveAttribute(android.R.attr.colorBackground, value, true)) {
-            return 0
+    /** 与六占位一致的白色半透明大圆角框；只画框，不铺满整屏。 */
+    private class SettingsFrame(context: Context) : FrameLayout(context) {
+
+        private val density = resources.displayMetrics.density
+        private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.argb(PANEL_ALPHA, 255, 255, 255)
         }
-        return if (value.resourceId != 0) ContextCompat.getColor(context, value.resourceId) else value.data
+        private val rect = RectF()
+
+        init {
+            setWillNotDraw(false)
+            clipChildren = true
+        }
+
+        override fun onDraw(canvas: Canvas) {
+            super.onDraw(canvas)
+            val width = width * PANEL_WIDTH_FRACTION
+            val height = height * PANEL_HEIGHT_FRACTION
+            val left = (this.width - width) / 2f
+            val top = (this.height - height) / 2f
+            rect.set(left, top, left + width, top + height)
+            canvas.drawRoundRect(rect, 24f * density, 24f * density, paint)
+        }
+
+        private companion object {
+            const val PANEL_ALPHA = 204
+            const val PANEL_WIDTH_FRACTION = 0.90f
+            const val PANEL_HEIGHT_FRACTION = 0.70f
+        }
     }
 }
