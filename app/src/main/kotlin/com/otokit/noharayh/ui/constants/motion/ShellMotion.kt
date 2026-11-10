@@ -82,6 +82,11 @@ object SettingsTitleTransition {
     const val SCALE_EXPAND_FROM: Float = 1.16f
 }
 
+/** 主题色变化（装饰三角、菜单圆底）的统一过渡。 */
+object ChromeThemeTransition {
+    const val DURATION_MS: Long = 260L
+    val CURVE: MotionCurve = MotionCurve.FastOutSlowIn
+}
 /** 菜单/返回图标的交叉淡变。 */
 object ChromeIconTransition {
     val KIND: TransitionKind = TransitionKind.Fade

@@ -29,6 +29,7 @@ import com.otokit.noharayh.ui.animation.common.GamePhase
 import com.otokit.noharayh.ui.animation.common.TransitionFrames
 import com.otokit.noharayh.ui.constants.dimensions.ShellDimensions
 import com.otokit.noharayh.ui.constants.motion.ChromeIconTransition
+import com.otokit.noharayh.ui.constants.motion.ChromeThemeTransition
 import com.otokit.noharayh.ui.constants.motion.NavTitleTransition
 import com.otokit.noharayh.ui.constants.motion.PagerPairTransition
 import com.otokit.noharayh.ui.constants.motion.SettingsTitleTransition
@@ -95,6 +96,9 @@ class TitleBar(context: Context) : FrameLayout(context) {
     private var iconAnimator: ValueAnimator? = null
     private var iconGeneration = 0
     private var decorAnimator: ValueAnimator? = null
+    private var circleColorAnimator: ValueAnimator? = null
+    private var displayedCircleColor: Int? = null
+    private var circleColorGeneration = 0
     private var ghost: ImageView? = null
     private var backPreviewActive = false
     private var backPreviewProgress = 0f
@@ -255,6 +259,7 @@ class TitleBar(context: Context) : FrameLayout(context) {
             },
         )
 
+
         // 文字滑到左侧时压在圆底下面，而不是盖住汉堡键；halo 仍在按钮下、文字上。
         bringChildToFront(halo)
         bringChildToFront(menuHost)
@@ -320,7 +325,7 @@ class TitleBar(context: Context) : FrameLayout(context) {
         applyFunctionalFrame(state)
         applyTextColors(state)
         setColumnColor(settingsColumn, state.settingTextColor)
-        menuButton.circleColor = state.circleColor
+        updateCircleColor(circleColorFor(state), animate = state.settingsOpen || state.gameFrame?.phase == GamePhase.Idle)
         menuButton.contentDescription = context.getString(
             if (state.primaryAction == TitleBarPrimaryAction.Back) R.string.title_back
             else R.string.title_open_navigation_menu,
@@ -340,8 +345,10 @@ class TitleBar(context: Context) : FrameLayout(context) {
         val state = lastState ?: return
         if (state.gameFrame == frame) return
         lastState = state.copy(gameFrame = frame)
-        applyFunctionalFrame(lastState ?: return)
-        applyTextColors(lastState ?: return)
+        val updated = lastState ?: return
+        applyFunctionalFrame(updated)
+        applyTextColors(updated)
+        updateCircleColor(circleColorFor(updated), animate = false)
     }
 
     /** 预测返回：0=完全设置态，1=完全功能态；调用方只给进度，不提交任何状态。 */
@@ -388,6 +395,8 @@ class TitleBar(context: Context) : FrameLayout(context) {
         iconAnimator = null
         decorAnimator?.cancel()
         decorAnimator = null
+        circleColorAnimator?.cancel()
+        circleColorAnimator = null
         clearGhost()
         menuButton.cancelFeedback()
         menuButton.onFeedbackFrame = null
@@ -524,6 +533,59 @@ class TitleBar(context: Context) : FrameLayout(context) {
     private fun iconFor(action: TitleBarPrimaryAction): Int =
         if (action == TitleBarPrimaryAction.Back) R.drawable.ic_arrow_back_24 else R.drawable.ic_menu_24
 
+    private fun circleColorFor(state: TitleBarState): Int {
+        if (state.settingsOpen) return state.circleColor
+        val progress = state.gameFrame?.normalizedProgress
+            ?: if (state.currentGame == GameLine.Mai) 0f else 1f
+        return when {
+            progress <= 0f -> state.maiTextColor
+            progress >= 1f -> state.chuTextColor
+            else -> ColorUtils.blendARGB(state.maiTextColor, state.chuTextColor, progress)
+        }
+    }
+
+    private fun updateCircleColor(target: Int, animate: Boolean) {
+        val current = displayedCircleColor
+        displayedCircleColor = target
+        if (current == null || current == target) {
+            circleColorGeneration++
+            circleColorAnimator?.cancel()
+            circleColorAnimator = null
+            menuButton.circleColor = target
+            return
+        }
+        if (!animate || !animationsEnabled()) {
+            circleColorGeneration++
+            circleColorAnimator?.cancel()
+            circleColorAnimator = null
+            menuButton.circleColor = target
+            return
+        }
+        circleColorGeneration++
+        val generation = circleColorGeneration
+        circleColorAnimator?.cancel()
+        val evaluator = ArgbEvaluator()
+        circleColorAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = ChromeThemeTransition.DURATION_MS
+            interpolator = DecelerateInterpolator()
+            addUpdateListener { animation ->
+                if (generation != circleColorGeneration) return@addUpdateListener
+                menuButton.circleColor = evaluator.evaluate(
+                    animation.animatedValue as Float,
+                    current,
+                    target,
+                ) as Int
+            }
+            addListener(object : android.animation.AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: android.animation.Animator) {
+                    if (generation != circleColorGeneration) return
+                    menuButton.circleColor = target
+                    if (circleColorAnimator === animation) circleColorAnimator = null
+                }
+            })
+            start()
+        }
+    }
     private fun updateDecor(state: TitleBarState) {
         val previousMai = displayedMaiDecorColor
         val previousChu = displayedChuDecorColor
@@ -537,7 +599,7 @@ class TitleBar(context: Context) : FrameLayout(context) {
         decorAnimator?.cancel()
         val evaluator = ArgbEvaluator()
         decorAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = 260L
+            duration = ChromeThemeTransition.DURATION_MS
             addUpdateListener { animation ->
                 val p = animation.animatedValue as Float
                 decor.setColors(
