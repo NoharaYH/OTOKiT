@@ -43,8 +43,8 @@ object NavContentTransition {
 object NavTitleTransition {
     val KIND: TransitionKind = TransitionKind.ScaleFadeSlide
     const val DURATION_MS: Long = 260L
-    const val TRANSLATION_ROW_HEIGHT_FRACTION: Float = 0.38f
-    const val TRANSLATION_MAX_DP: Float = 22f
+    const val TRANSLATION_ROW_HEIGHT_FRACTION: Float = 0.76f
+    const val TRANSLATION_MAX_DP: Float = 44f
     val CURVE: MotionCurve = MotionCurve.FastOutSlowIn
 }
 
@@ -67,10 +67,10 @@ object SettingsTransition {
     const val DURATION_MS: Long = 300L
 
     /** 功能页缩小到的比例。 */
-    const val CONTENT_SCALE: Float = 0.80f
+    const val CONTENT_SCALE: Float = 0.70f
 
     /** 覆盖层入场起始放大比例。 */
-    const val OVERLAY_SCALE_FROM: Float = 1.10f
+    const val OVERLAY_SCALE_FROM: Float = 1.15f
 
     val CURVE: MotionCurve = MotionCurve.FastOutSlowIn
 }
@@ -78,8 +78,8 @@ object SettingsTransition {
 /** 设置标题在功能态与设置态之间的缩放量纲。 */
 object SettingsTitleTransition {
     val KIND: TransitionKind = TransitionKind.ScaleFadeSlide
-    const val SCALE_SHRINK: Float = 0.7f
-    const val SCALE_EXPAND_FROM: Float = 1.08f
+    const val SCALE_SHRINK: Float = 0.4f
+    const val SCALE_EXPAND_FROM: Float = 1.16f
 }
 
 /** 菜单/返回图标的交叉淡变。 */

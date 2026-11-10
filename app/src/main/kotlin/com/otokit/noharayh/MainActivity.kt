@@ -32,6 +32,7 @@ class MainActivity : AppCompatActivity() {
     private var backCallback: OnBackPressedCallback? = null
     private var windowObserver: WindowEnvironmentObserver? = null
     private var orientationController: WindowOrientationController? = null
+    private var resetTransientOnResume = false
 
     /**
      * 固定字体缩放：只覆盖 fontScale，保留 density、语言、uiMode 等原配置。
@@ -65,11 +66,11 @@ class MainActivity : AppCompatActivity() {
             chromeHost = binding.chromeHost,
             overlayHost = binding.overlayHost,
             sidebarHost = binding.sideBarHost,
-            initialState = NavigationStateCodec.read(savedInstanceState),
+            // 冷启动/重建只恢复功能页；设置是模态瞬态，不能跨进程持久化。
+            initialState = NavigationStateCodec.read(savedInstanceState).copy(settingsOpen = false),
             savedSelection = GameSelectionStateCodec.read(savedInstanceState),
         )
         this.shell = shell
-
         backCallback = object : OnBackPressedCallback(false) {
             override fun handleOnBackStarted(backEvent: BackEventCompat) {                shell.beginBackPreview()            }
 
@@ -86,6 +87,7 @@ class MainActivity : AppCompatActivity() {
         shell.setOnCanHandleBackChanged { enabled -> backCallback?.isEnabled = enabled }
         shell.setOnStatusBarHiddenChanged { hidden -> applyStatusBarHidden(hidden) }
         shell.attach()
+        resetTransientOnResume = true
 
         windowObserver = WindowEnvironmentObserver(this, binding.root) { snapshot ->
             shell.updateWindow(snapshot)
@@ -102,6 +104,10 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        if (resetTransientOnResume) {
+            resetTransientOnResume = false
+            shell?.resetTransientSettingsAfterRestore()
+        }
         shell?.setBackgroundResumed(true)
     }
 
@@ -121,10 +127,14 @@ class MainActivity : AppCompatActivity() {
         orientationController?.applyForCurrentWindow()
     }
 
+    override fun onRestoreInstanceState(savedInstanceState: Bundle) {
+        super.onRestoreInstanceState(savedInstanceState)        // 子 View 可能恢复设置覆盖层；稳定状态只允许功能页。
+        shell?.resetTransientSettingsAfterRestore()
+    }
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         shell?.let {
-            NavigationStateCodec.write(outState, it.state)
+            NavigationStateCodec.write(outState, it.state.copy(settingsOpen = false))
             GameSelectionStateCodec.write(outState, it.selectionState)
         }
     }

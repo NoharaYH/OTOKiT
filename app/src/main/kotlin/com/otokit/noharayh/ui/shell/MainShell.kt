@@ -220,6 +220,19 @@ class MainShell(
         chromeInsets = ChromeInsets.Zero
     }
 
+    /**
+     * 恢复 View 层级后强制回到功能页：设置是瞬态，不能由 saved state 或子 View 恢复可见性。
+     */
+    fun resetTransientSettingsAfterRestore() {
+        if (lifecycleState != LifecycleState.Attached) return
+        controller.closeSettings()
+        settingsRunner?.cancel()
+        settingsClosing = false
+        appliedSettingsOpen = false
+        settingsContent?.view?.visibility = View.GONE
+        overlayHost.visibility = View.GONE
+        render()
+    }
     fun navigate(destination: Destination) {
         if (lifecycleState != LifecycleState.Attached) return
         invalidateBackPreview()
