@@ -580,7 +580,7 @@ class TitleBar(context: Context) : FrameLayout(context) {
         refreshFunctionalPivot()
         refreshSettingsPivot()
         if (p >= 1f) {
-            functionalHost.visibility = View.GONE
+            functionalHost.visibility = View.INVISIBLE
             functionalHost.alpha = 0f
             functionalHost.scaleX = SettingsTitleTransition.SCALE_SHRINK
             functionalHost.scaleY = SettingsTitleTransition.SCALE_SHRINK
@@ -595,7 +595,7 @@ class TitleBar(context: Context) : FrameLayout(context) {
             functionalHost.alpha = 1f
             functionalHost.scaleX = 1f
             functionalHost.scaleY = 1f
-            settingsColumn.visibility = View.GONE
+            settingsColumn.visibility = View.INVISIBLE
             settingsColumn.alpha = 0f
             settingsColumn.scaleX = SettingsTitleTransition.SCALE_EXPAND_FROM
             settingsColumn.scaleY = SettingsTitleTransition.SCALE_EXPAND_FROM
