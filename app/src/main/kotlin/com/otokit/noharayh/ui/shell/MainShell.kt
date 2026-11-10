@@ -324,12 +324,20 @@ class MainShell(
     /** 应用最新窗口快照：chrome 先决定形态与占用，再由唯一几何入口落布局。 */
     fun updateWindow(snapshot: WindowSnapshot) {
         if (lifecycleState != LifecycleState.Attached) return
-        invalidateBackPreview()
-        // 窗口几何变化时终止旧切页，当前 active 落稳；退出根立即回收。
-        if (outgoingContent != null) {
-            contentRunner?.cancel()
-            outgoingContent?.dispose()
-            outgoingContent = null
+        val previous = latestWindowSnapshot
+        // 只有实际窗口尺寸/形态变化才失效返回预览与切页；IME、系统栏等 insets 变化不能中断跟手。
+        val geometryChanged = previous != null && (
+            previous.layoutClass != snapshot.layoutClass ||
+                previous.metrics.widthPx != snapshot.metrics.widthPx ||
+                previous.metrics.heightPx != snapshot.metrics.heightPx
+            )
+        if (geometryChanged) {
+            invalidateBackPreview()
+            if (outgoingContent != null) {
+                contentRunner?.cancel()
+                outgoingContent?.dispose()
+                outgoingContent = null
+            }
         }
         latestWindowSnapshot = snapshot
         chrome.updateWindow(snapshot)
