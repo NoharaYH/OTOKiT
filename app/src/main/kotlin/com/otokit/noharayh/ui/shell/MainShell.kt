@@ -11,6 +11,10 @@ import com.otokit.noharayh.storage.preferences.SharedPreferencesUiPreferences
 import com.otokit.noharayh.ui.chrome.ChromeAssembly
 import com.otokit.noharayh.ui.chrome.ChromeDisplayInput
 import com.otokit.noharayh.ui.chrome.ChromeInsets
+import com.otokit.noharayh.ui.animation.common.GameFrame
+import com.otokit.noharayh.ui.animation.shell.ContentTransitionRunner
+import com.otokit.noharayh.ui.animation.shell.SettingsTransitionRunner
+import com.otokit.noharayh.ui.animation.common.GamePhase
 import com.otokit.noharayh.ui.chrome.SideBarHost
 import com.otokit.noharayh.ui.kit.common.PageContent
 import com.otokit.noharayh.ui.pages.ComingSoonPlaceholder
@@ -18,6 +22,8 @@ import com.otokit.noharayh.ui.pages.pageMusicData.MusicDataPlaceholder
 import com.otokit.noharayh.ui.pages.pageScoreSync.ScoreSyncPlaceholder
 import com.otokit.noharayh.ui.settings.SettingsPlaceholder
 import com.otokit.noharayh.ui.shell.background.BackgroundHost
+import com.otokit.noharayh.ui.shell.background.BackgroundPhase
+import com.otokit.noharayh.ui.shell.background.BackgroundSnapshot
 import com.otokit.noharayh.ui.shell.navigation.Destination
 import com.otokit.noharayh.ui.shell.navigation.NavigationController
 import com.otokit.noharayh.ui.shell.navigation.NavigationState
@@ -55,6 +61,8 @@ class MainShell(
 
     private enum class LifecycleState { New, Attached, Disposed }
 
+    private enum class BackPreviewTarget { None, Settings, Drawer }
+
     private val controller = NavigationController(initialState)
 
     /** 稳定的音游/主题选择；恢复顺序为保存状态、偏好、Registry 默认。 */
@@ -79,9 +87,21 @@ class MainShell(
     )
 
     private var mountedContent: PageContent? = null
+    private var outgoingContent: PageContent? = null
+    private var contentRunner: ContentTransitionRunner? = null
+    private var settingsRunner: SettingsTransitionRunner? = null
+    private var settingsClosing = false
+    private var backPreviewTarget: BackPreviewTarget = BackPreviewTarget.None
+    private var backPreviewProgress = 0f
     private var settingsContent: PageContent? = null
     private var background: BackgroundHost? = null
+    private var backgroundSubscription: AutoCloseable? = null
     private var latestWindowSnapshot: WindowSnapshot? = null
+    private var latestBackgroundSnapshot: BackgroundSnapshot? = null
+    private var latestGameFrame: GameFrame? = null
+    private var lastChromeDestination: Destination? = null
+    private var contentWidthPx = 0
+    private var contentHeightPx = 0
     private var chromeInsets = ChromeInsets.Zero
     private var appliedBackgroundRect: PixelRect? = null
     private var appliedBackgroundWindowRect: PixelRect? = null
@@ -134,6 +154,10 @@ class MainShell(
                 chuTheme = themeFor(current.chuThemeId, GameLine.Chu),
             )
             host.setInputEnabled(!(controller.state.settingsOpen || chrome.blocksUnderlyingInput))
+            backgroundSubscription = host.subscribe { snapshot ->
+                latestBackgroundSnapshot = snapshot
+                applyGameFrame()
+            }
         }
         val settings = SettingsPlaceholder.create(overlayHost.context, placeholderTextColor())
         settingsContent = settings
@@ -143,6 +167,12 @@ class MainShell(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT,
             ),
+        )
+        contentRunner = ContentTransitionRunner(contentHost)
+        settingsRunner = SettingsTransitionRunner(
+            overlayHost = overlayHost,
+            featureProvider = { mountedContent?.view },
+            settingsProvider = { settingsContent?.view },
         )
         chrome.attach()
         render()
@@ -159,6 +189,22 @@ class MainShell(
         chrome.dispose()
         restoreContentIsolation(restoreFocus = false)
         appliedSettingsOpen = false
+        contentRunner?.dispose()
+        contentRunner = null
+        settingsRunner?.dispose()
+        settingsRunner = null
+        settingsClosing = false
+        backPreviewTarget = BackPreviewTarget.None
+        outgoingContent?.dispose()
+        outgoingContent = null
+        mountedContent?.dispose()
+        settingsContent?.dispose()
+        backgroundSubscription?.close()
+        backgroundSubscription = null
+        latestBackgroundSnapshot = null
+        latestGameFrame = null
+        contentWidthPx = 0
+        contentHeightPx = 0
         settingsContent = null
         background?.dispose()
         background = null
@@ -176,12 +222,17 @@ class MainShell(
 
     fun navigate(destination: Destination) {
         if (lifecycleState != LifecycleState.Attached) return
+        invalidateBackPreview()
         controller.navigate(destination)
         render()
     }
 
     fun openSettings() {
         if (lifecycleState != LifecycleState.Attached) return
+        invalidateBackPreview()
+        contentRunner?.cancel()
+        outgoingContent?.dispose()
+        outgoingContent = null
         chrome.closeDrawer(immediate = true)
         controller.openSettings()
         render()
@@ -189,12 +240,17 @@ class MainShell(
 
     fun closeSettings() {
         if (lifecycleState != LifecycleState.Attached) return
+        invalidateBackPreview()
         controller.closeSettings()
         render()
     }
 
     fun consumeBack(): Boolean {
         if (lifecycleState != LifecycleState.Attached) return false
+        if (backPreviewTarget != BackPreviewTarget.None) {
+            finishBackPreview()
+            return true
+        }
         if (chrome.consumeBack()) return true
         val consumed = controller.consumeBack()
         if (consumed) render()
@@ -204,6 +260,7 @@ class MainShell(
     /** 提交已确认的音游选择；同值无副作用，变化时更新占位颜色并写偏好。 */
     fun selectGame(gameLine: GameLine) {
         if (lifecycleState != LifecycleState.Attached) return
+        invalidateBackPreview()
         if (!selection.selectGame(gameLine)) return
         applySelection()
     }
@@ -240,6 +297,7 @@ class MainShell(
 
     /** 背景随 Activity 生命周期暂停/恢复，不重建 WebView；离开前台时收起抽屉。 */
     fun setBackgroundResumed(resumed: Boolean) {
+        if (!resumed) invalidateBackPreview()
         this.resumed = resumed
         chrome.setResumed(resumed)
         background?.setResumed(resumed)
@@ -266,6 +324,13 @@ class MainShell(
     /** 应用最新窗口快照：chrome 先决定形态与占用，再由唯一几何入口落布局。 */
     fun updateWindow(snapshot: WindowSnapshot) {
         if (lifecycleState != LifecycleState.Attached) return
+        invalidateBackPreview()
+        // 窗口几何变化时终止旧切页，当前 active 落稳；退出根立即回收。
+        if (outgoingContent != null) {
+            contentRunner?.cancel()
+            outgoingContent?.dispose()
+            outgoingContent = null
+        }
         latestWindowSnapshot = snapshot
         chrome.updateWindow(snapshot)
         recomputeGeometry()
@@ -288,6 +353,9 @@ class MainShell(
         }
         applyContentRect(contentHost, rects.interactive, snapshot.metrics)
         applyContentRect(overlayHost, rects.interactive, snapshot.metrics)
+        contentWidthPx = rects.interactive.width
+        contentHeightPx = rects.interactive.height
+        applyGameFrame()
 
         val interaction = rects.interactive.relativeToRoot(
             snapshot.metrics.rootLeftPx,
@@ -327,9 +395,11 @@ class MainShell(
     private fun render() {
         val current = controller.state
         if (mountedDestination != current.destination) {
-            mountContent(current.destination)
+            showContent(current.destination)
         }
+        applyGameFrame()
         chrome.render(chromeDisplay())
+        lastChromeDestination = current.destination
         val modal = current.settingsOpen || chrome.blocksUnderlyingInput
         if (appliedSettingsOpen != current.settingsOpen || appliedModal != modal) {
             applyModalState(current.settingsOpen)
@@ -341,36 +411,103 @@ class MainShell(
         val nav = controller.state
         val current = selection.state
         val theme = themeFor(current.selectedThemeId(), current.currentGame)
+        val direction = when {
+            lastChromeDestination == null || lastChromeDestination == nav.destination -> 0
+            else -> {
+                val order = com.otokit.noharayh.ui.chrome.NavDisplay.items.map { it.destination }
+                val oldIndex = order.indexOf(lastChromeDestination)
+                val newIndex = order.indexOf(nav.destination)
+                if (oldIndex < 0 || newIndex < 0) 0 else if (newIndex > oldIndex) 1 else -1
+            }
+        }
         return ChromeDisplayInput(
             destination = nav.destination,
             currentGame = current.currentGame,
             settingsOpen = nav.settingsOpen,
             themeColor = theme.definition.colors.basicColor,
+            maiTextColor = themeFor(current.maiThemeId, GameLine.Mai).definition.colors.basicColor,
+            chuTextColor = themeFor(current.chuThemeId, GameLine.Chu).definition.colors.basicColor,
             maiDecorColor = themeFor(current.maiThemeId, GameLine.Mai).definition.colors.basicColor,
             chuDecorColor = themeFor(current.chuThemeId, GameLine.Chu).definition.colors.basicColor,
+            gameFrame = latestGameFrame,
+            navDirection = direction,
         )
     }
 
-    private fun mountContent(destination: Destination) {
-        contentHost.removeAllViews()
+    private fun showContent(destination: Destination) {
+        val previous = mountedContent
+        val runner = contentRunner
         val content = createContent(contentHost.context, destination)
-        contentHost.addView(
-            content.view,
-            FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT,
-            ),
-        )
+        if (previous == null || runner == null) {
+            contentHost.addView(
+                content.view,
+                FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                ),
+            )
+            runner?.set(content.view)
+            mountedContent = content
+            mountedDestination = destination
+            applyGameFrame()
+            content.setInteractive(true)
+            return
+        }
+        val direction = navDirection(previousDestination = mountedDestination, destination = destination)
+        outgoingContent?.dispose()
+        outgoingContent = previous
         mountedContent = content
         mountedDestination = destination
+        previous.setInteractive(false)
+        content.setInteractive(true)
+        applyGameFrame()
+        runner.run(previous.view, content.view, direction) {
+            outgoingContent?.dispose()
+            outgoingContent = null
+        }
+    }
+
+    private fun navDirection(previousDestination: Destination?, destination: Destination): Int {
+        val order = com.otokit.noharayh.ui.chrome.NavDisplay.items.map { it.destination }
+        val oldIndex = order.indexOf(previousDestination)
+        val newIndex = order.indexOf(destination)
+        return when {
+            oldIndex < 0 || newIndex < 0 -> 1
+            newIndex > oldIndex -> 1
+            newIndex < oldIndex -> -1
+            else -> 1
+        }
     }
 
     private fun createContent(context: Context, destination: Destination): PageContent =
         when (destination) {
-            Destination.ScoreSync -> ScoreSyncPlaceholder.create(context, placeholderTextColor())
-            Destination.MusicData -> MusicDataPlaceholder.create(context, placeholderTextColor())
-            Destination.ComingSoon -> ComingSoonPlaceholder.create(context, placeholderTextColor())
+            Destination.ScoreSync -> ScoreSyncPlaceholder.create(context)
+            Destination.MusicData -> MusicDataPlaceholder.create(context)
+            Destination.ComingSoon -> ComingSoonPlaceholder.create(context)
         }
+
+    /** 背景是唯一进度源；shell 把它转成纯帧，页面和 chrome 只消费帧。 */
+    private fun applyGameFrame() {
+        val snapshot = latestBackgroundSnapshot
+        val game = snapshot?.selectedGame ?: selection.state.currentGame
+        val phase = when (snapshot?.phase) {
+            BackgroundPhase.Dragging -> GamePhase.Dragging
+            BackgroundPhase.Settling -> GamePhase.Settling
+            BackgroundPhase.Idle, null -> GamePhase.Idle
+        }
+        val progress = snapshot?.progress ?: if (game == GameLine.Mai) 0f else 1f
+        val frame = GameFrame(
+            selectedGame = game,
+            progress = progress,
+            phase = phase,
+            windowWidthPx = latestWindowSnapshot?.metrics?.widthPx ?: 0,
+            contentWidthPx = contentWidthPx,
+            contentHeightPx = contentHeightPx,
+        )
+        latestGameFrame = frame
+        mountedContent?.updateGameFrame(frame)
+        chrome.renderGameFrame(frame)
+    }
 
     /**
      * 设置与抽屉共同决定模态：覆盖层只服务设置，输入与焦点按两者合并。
@@ -378,7 +515,8 @@ class MainShell(
     private fun applyModalState(settingsOpen: Boolean) {
         val modal = settingsOpen || chrome.blocksUnderlyingInput
         val enteringModal = modal && !appliedModal
-        val enteringSettings = settingsOpen && appliedSettingsOpen != true
+        val previousSettings = appliedSettingsOpen
+        val enteringSettings = settingsOpen && previousSettings != true
         if (enteringModal) {
             preModalFocus = contentHost.rootView.findFocus()?.let(::WeakReference)
             contentAccessibility = contentHost.importantForAccessibility
@@ -390,12 +528,112 @@ class MainShell(
         if (!modal && appliedModal) restoreContentIsolation(restoreFocus = true)
         appliedModal = modal
         appliedSettingsOpen = settingsOpen
-        overlayHost.visibility = if (settingsOpen) View.VISIBLE else View.GONE
+
+        if (settingsOpen) {
+            if (enteringSettings) {
+                settingsClosing = false
+                settingsRunner?.cancel()
+                settingsContent?.view?.visibility = View.VISIBLE
+                overlayHost.visibility = View.VISIBLE
+                settingsRunner?.animateOpen()
+            } else if (!settingsClosing) {
+                overlayHost.visibility = View.VISIBLE
+            }
+        } else if (previousSettings == true && !settingsClosing) {
+            settingsClosing = true
+            overlayHost.visibility = View.VISIBLE
+            settingsRunner?.animateClose(1f) {
+                settingsClosing = false
+                overlayHost.visibility = View.GONE
+                settingsContent?.view?.visibility = View.GONE
+            }
+        } else if (!settingsClosing) {
+            overlayHost.visibility = View.GONE
+        }
+
         when {
             enteringSettings -> overlayHost.requestFocus()
             enteringModal && !settingsOpen -> chrome.requestPanelFocus()
         }
         background?.setInputEnabled(!modal)
+    }
+
+    /** 平台预测返回：开始只锁定目标，不提交任何业务状态。 */
+    fun beginBackPreview(): Boolean {
+        if (lifecycleState != LifecycleState.Attached) return false
+        if (backPreviewTarget != BackPreviewTarget.None) return true
+        if (chrome.blocksUnderlyingInput) {
+            backPreviewTarget = BackPreviewTarget.Drawer
+            chrome.beginDrawerBackPreview()
+            return true
+        }
+        if (controller.state.settingsOpen) {
+            contentRunner?.cancel()
+            backPreviewTarget = BackPreviewTarget.Settings
+            backPreviewProgress = 0f
+            chrome.beginBackPreview()
+            settingsRunner?.preview(0f)
+            return true
+        }
+        return false
+    }
+
+    fun updateBackPreview(progress: Float) {
+        if (lifecycleState != LifecycleState.Attached) return
+        val clamped = progress.coerceIn(0f, 1f)
+        when (backPreviewTarget) {
+            BackPreviewTarget.Settings -> {
+                backPreviewProgress = clamped
+                chrome.updateBackPreview(clamped)
+                settingsRunner?.preview(clamped)
+            }
+
+            BackPreviewTarget.Drawer -> chrome.updateDrawerBackPreview(clamped)
+            BackPreviewTarget.None -> Unit
+        }
+    }
+
+    fun cancelBackPreview() {
+        if (lifecycleState != LifecycleState.Attached) return
+        when (backPreviewTarget) {
+            BackPreviewTarget.Settings -> {
+                chrome.cancelBackPreview()
+                settingsRunner?.cancelPreview()
+            }
+
+            BackPreviewTarget.Drawer -> chrome.cancelDrawerBackPreview()
+            BackPreviewTarget.None -> Unit
+        }
+        backPreviewTarget = BackPreviewTarget.None
+        backPreviewProgress = 0f
+    }
+
+    /** 完成一次预测返回：只提交一次，已到端点不重放整段动画。 */
+    fun finishBackPreview() {
+        if (lifecycleState != LifecycleState.Attached) return
+        val target = backPreviewTarget
+        backPreviewTarget = BackPreviewTarget.None
+        val progress = backPreviewProgress
+        backPreviewProgress = 0f
+        when (target) {
+            BackPreviewTarget.Settings -> {
+                if (!controller.state.settingsOpen) return
+                chrome.endBackPreview()
+                controller.closeSettings()
+                render()
+                // render 的 applyModalState 已按普通关闭捕获设置 ghost；已到端点则直接落稳。
+                if (progress >= 0.99f) {
+                    settingsRunner?.cancel()
+                    settingsRunner?.endPreview(settingsOpen = false)
+                    settingsClosing = false
+                    overlayHost.visibility = View.GONE
+                    settingsContent?.view?.visibility = View.GONE
+                }
+            }
+
+            BackPreviewTarget.Drawer -> chrome.finishDrawerBackPreview()
+            BackPreviewTarget.None -> Unit
+        }
     }
 
     /** 只恢复主壳自己修改的属性；旧页面销毁或后台/销毁时不强行恢复焦点。 */
@@ -411,6 +649,22 @@ class MainShell(
         val restored = previous != null && previous.isAttachedToWindow && previous.isShown &&
             previous.rootView === contentHost.rootView && previous.requestFocus()
         if (!restored && !contentHost.requestFocus()) chrome.requestFocus()
+    }
+
+    /** 预览期间任何命令或窗口变化都让会话失效；旧完成回调不得再提交返回。 */
+    private fun invalidateBackPreview() {
+        if (backPreviewTarget == BackPreviewTarget.None) return
+        when (backPreviewTarget) {
+            BackPreviewTarget.Settings -> {
+                chrome.cancelBackPreview()
+                settingsRunner?.cancelPreview()
+            }
+
+            BackPreviewTarget.Drawer -> chrome.cancelDrawerBackPreview()
+            BackPreviewTarget.None -> Unit
+        }
+        backPreviewTarget = BackPreviewTarget.None
+        backPreviewProgress = 0f
     }
 
     private fun onDrawerNavigate(destination: Destination) {

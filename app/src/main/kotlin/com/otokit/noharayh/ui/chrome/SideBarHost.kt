@@ -41,6 +41,8 @@ class SideBarHost @JvmOverloads constructor(
     private var downY = 0f
     private var pointerId = MotionEvent.INVALID_POINTER_ID
     private var edgeCandidate = false
+    private var backPreviewActive = false
+    private var backPreviewStartProgress = 0f
 
     var onNavigate: ((Destination) -> Unit)? = null
     var onSettings: (() -> Unit)? = null
@@ -128,8 +130,42 @@ class SideBarHost @JvmOverloads constructor(
         if (motion.targetOpen ?: (motion.progress > 0f)) close() else open()
     }
 
+    /** 预测返回开始：锁定关闭目标，冻结进一步手势，只预览进度。 */
+    fun beginBackPreview(): Boolean {
+        if (disposed || !motion.blocksInput) return false
+        stopHelper()
+        clearDown()
+        finishStream()
+        backPreviewActive = true
+        backPreviewStartProgress = motion.progress.coerceIn(0f, 1f)
+        motion.request(false)
+        positionPanel()
+        updateBlocking()
+        return true
+    }
+
+    fun updateBackPreview(progress: Float) {
+        if (!backPreviewActive || disposed) return
+        motion.moveTo(backPreviewStartProgress * (1f - progress.coerceIn(0f, 1f)))
+        positionPanel()
+        updateBlocking()
+    }
+
+    fun cancelBackPreview() {
+        if (!backPreviewActive || disposed) return
+        backPreviewActive = false
+        animateTo(true)
+    }
+
+    fun finishBackPreview() {
+        if (!backPreviewActive || disposed) return
+        backPreviewActive = false
+        animateTo(false)
+    }
+
     fun release() {
         if (disposed) return
+        backPreviewActive = false
         close(immediate = true)
         finishStream()
         disposed = true

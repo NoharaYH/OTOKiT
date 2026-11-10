@@ -96,6 +96,14 @@ class ChromeAssembly(
         )
     }
 
+    /** 背景帧只更新标题跟手，不重建导航/设置的其他展示。 */
+    fun renderGameFrame(frame: com.otokit.noharayh.ui.animation.common.GameFrame) {
+        if (!attached || disposed) return
+        val current = display ?: return
+        display = current.copy(gameFrame = frame)
+        titleBar?.renderGameFrame(frame)
+    }
+
     /** 只渲染展示输入；导航与设置的稳定状态仍由 shell 唯一修改。 */
     fun render(input: ChromeDisplayInput) {
         if (!attached || disposed) return
@@ -156,6 +164,31 @@ class ChromeAssembly(
     fun closeDrawer(immediate: Boolean = true) {
         if (attached && !disposed) sidebarHost.close(immediate)
     }
+
+    /** 设置标题的预测返回只驱动标题层，不提交设置状态。 */
+    fun beginBackPreview() {
+        if (compact) titleBar?.beginBackPreview()
+    }
+
+    fun updateBackPreview(progress: Float) {
+        if (compact) titleBar?.updateBackProgress(progress)
+    }
+
+    fun cancelBackPreview() {
+        titleBar?.cancelBackPreview()
+    }
+
+    fun endBackPreview() {
+        titleBar?.endBackPreview()
+    }
+
+    fun beginDrawerBackPreview(): Boolean = sidebarHost.beginBackPreview()
+
+    fun updateDrawerBackPreview(progress: Float) = sidebarHost.updateBackPreview(progress)
+
+    fun cancelDrawerBackPreview() = sidebarHost.cancelBackPreview()
+
+    fun finishDrawerBackPreview() = sidebarHost.finishBackPreview()
 
     fun requestFocus(): Boolean = titleBar?.requestPrimaryFocus() == true
 
@@ -283,7 +316,10 @@ class ChromeAssembly(
                 currentGame = input.currentGame,
                 settingsOpen = input.settingsOpen,
                 menuEnabled = compact,
-                functionalTextColor = input.themeColor,
+                gameFrame = input.gameFrame,
+                navDirection = input.navDirection,
+                maiTextColor = input.maiTextColor,
+                chuTextColor = input.chuTextColor,
                 themeCircleColor = input.themeColor,
                 maiDecorColor = input.maiDecorColor,
                 chuDecorColor = input.chuDecorColor,

@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Color
 import android.os.Bundle
+import androidx.activity.BackEventCompat
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
@@ -70,8 +71,15 @@ class MainActivity : AppCompatActivity() {
         this.shell = shell
 
         backCallback = object : OnBackPressedCallback(false) {
-            override fun handleOnBackPressed() {
-                shell.consumeBack()
+            override fun handleOnBackStarted(backEvent: BackEventCompat) {                shell.beginBackPreview()            }
+
+            override fun handleOnBackProgressed(backEvent: BackEventCompat) {                shell.updateBackPreview(backEvent.progress)
+            }
+
+            override fun handleOnBackCancelled() {                shell.cancelBackPreview()
+            }
+
+            override fun handleOnBackPressed() {                shell.consumeBack()
             }
         }.also { onBackPressedDispatcher.addCallback(this, it) }
 

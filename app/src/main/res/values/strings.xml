@@ -33,4 +33,13 @@
     <string name="nav_coming_soon_sub">ComingSoon</string>
     <string name="nav_coming_soon_label">敬请期待</string>
     <string name="nav_settings">设置</string>
+
+    <!-- 09 六占位：只保留无障碍描述，不显示可见文字。 -->
+    <string name="placeholder_mai_score_sync">成绩同步 Mai 占位</string>
+    <string name="placeholder_chu_score_sync">成绩同步 Chu 占位</string>
+    <string name="placeholder_mai_music_data">歌曲详情 Mai 占位</string>
+    <string name="placeholder_chu_music_data">歌曲详情 Chu 占位</string>
+    <string name="placeholder_mai_coming_soon">敬请期待 Mai 占位</string>
+    <string name="placeholder_chu_coming_soon">敬请期待 Chu 占位</string>
+    <string name="placeholder_button_description">%1$s 测试按钮</string>
 </resources>
