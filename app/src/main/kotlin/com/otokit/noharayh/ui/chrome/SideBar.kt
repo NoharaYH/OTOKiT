@@ -99,6 +99,13 @@ class SideBar(context: Context) : FrameLayout(context) {
     fun requestNavigationFocus(): Boolean =
         capsules.values.firstOrNull { it.isSelected }?.requestFocus() == true || requestFocus()
 
+    /** 强制关闭抽屉、退后台或换形态时取消胶囊按压与外环，不派发点击。 */
+    fun cancelPressFeedback() {
+        halo.reset()
+        capsules.values.forEach { it.resetPressState() }
+        settingsCapsule.resetPressState()
+    }
+
     fun dispose() {
         halo.reset()
         onNavigate = null

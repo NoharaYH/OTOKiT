@@ -47,6 +47,7 @@ class NavCapsuleView(context: Context) : FrameLayout(context) {
     private var navSelected: Boolean = false
     private var circleMode: Boolean = false
     private var selectedFraction: Float = 0f
+    private var activePointer = MotionEvent.INVALID_POINTER_ID
     private var selectionAnimator: ValueAnimator? = null
     private val iconCircleDrawable = GradientDrawable().apply { shape = GradientDrawable.OVAL }
     private val pillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
@@ -215,17 +216,40 @@ class NavCapsuleView(context: Context) : FrameLayout(context) {
 
     override fun performClick(): Boolean = super.performClick()
 
+    /** 强制关闭/后台/换形态时清掉本地按下态，不派发点击。 */
+    fun resetPressState() {
+        activePointer = MotionEvent.INVALID_POINTER_ID
+        isPressed = false
+        setPressProgress(0f)
+    }
+
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (!isEnabled) return false
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                activePointer = event.getPointerId(0)
                 isPressed = true
                 onPressChanged?.invoke(true, false)
                 return true
             }
 
+            MotionEvent.ACTION_POINTER_DOWN -> return true
+
             MotionEvent.ACTION_MOVE -> {
-                if (isPressed && (event.x !in 0f..width.toFloat() || event.y !in 0f..height.toFloat())) {
+                val index = event.findPointerIndex(activePointer)
+                if (isPressed && (index < 0 ||
+                        event.getX(index) !in 0f..width.toFloat() ||
+                        event.getY(index) !in 0f..height.toFloat())
+                ) {
+                    isPressed = false
+                    onPressChanged?.invoke(false, false)
+                }
+                return true
+            }
+
+            MotionEvent.ACTION_POINTER_UP -> {
+                if (event.getPointerId(event.actionIndex) == activePointer) {
+                    activePointer = MotionEvent.INVALID_POINTER_ID
                     isPressed = false
                     onPressChanged?.invoke(false, false)
                 }
@@ -233,7 +257,8 @@ class NavCapsuleView(context: Context) : FrameLayout(context) {
             }
 
             MotionEvent.ACTION_UP -> {
-                val clicked = isPressed && event.x in 0f..width.toFloat() && event.y in 0f..height.toFloat()
+                val clicked = (event.getPointerId(0) == activePointer) && isPressed
+                activePointer = MotionEvent.INVALID_POINTER_ID
                 isPressed = false
                 onPressChanged?.invoke(false, clicked)
                 if (clicked) performClick()
@@ -241,6 +266,7 @@ class NavCapsuleView(context: Context) : FrameLayout(context) {
             }
 
             MotionEvent.ACTION_CANCEL -> {
+                activePointer = MotionEvent.INVALID_POINTER_ID
                 isPressed = false
                 onPressChanged?.invoke(false, false)
                 return true

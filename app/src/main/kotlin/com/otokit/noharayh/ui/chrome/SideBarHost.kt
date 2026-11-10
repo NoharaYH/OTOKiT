@@ -116,6 +116,7 @@ class SideBarHost @JvmOverloads constructor(
             stopHelper()
             motion.forceClose()
             clearDown()
+            sideBar.cancelPressFeedback()
             positionPanel()
             updateBlocking()
         } else if (motion.blocksInput) {
