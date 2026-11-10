@@ -624,12 +624,18 @@ class TitleBar(context: Context) : FrameLayout(context) {
 
     private fun refreshFunctionalPivot() {
         functionalHost.pivotX = 0f
-        functionalHost.pivotY = inkCenterY(functionalHost, maiColumn, chuColumn)
+        functionalHost.pivotY = pivotYFor(
+            functionalHost,
+            maiEnglish,
+            maiChinese,
+            chuEnglish,
+            chuChinese,
+        )
     }
 
     private fun refreshSettingsPivot() {
         settingsColumn.pivotX = 0f
-        settingsColumn.pivotY = inkCenterY(settingsColumn, settingsColumn)
+        settingsColumn.pivotY = pivotYFor(settingsColumn, settingsEnglish, settingsChinese)
     }
 
     private fun setColumnColor(column: LinearLayout, color: Int) {
@@ -638,29 +644,28 @@ class TitleBar(context: Context) : FrameLayout(context) {
         }
     }
 
-    private fun inkCenterY(host: ViewGroup, vararg columns: LinearLayout): Float {
-        val rect = Rect()
-        var empty = true
-        for (column in columns) {
-            if (column.visibility != View.VISIBLE) continue
-            val child = column.getChildAt(0) ?: continue
-            val r = Rect()
-            host.offsetDescendantRectToMyCoords(child, r)
-            if (empty) {
-                rect.set(r)
-                empty = false
+    /** 两行及以上文字的真实布局并集中心；不按单行或容器中心取锚点。 */
+    private fun pivotYFor(host: ViewGroup, vararg lines: View): Float {
+        val union = Rect()
+        var hasLine = false
+        for (line in lines) {
+            if (line.width <= 0 || line.height <= 0) continue
+            val rect = Rect()
+            host.offsetDescendantRectToMyCoords(line, rect)
+            if (rect.width() <= 0 || rect.height() <= 0) continue
+            if (!hasLine) {
+                union.set(rect)
+                hasLine = true
             } else {
-                rect.union(r)
-            }
-            val second = column.getChildAt(1)
-            if (second != null) {
-                host.offsetDescendantRectToMyCoords(second, r)
-                rect.union(r)
+                union.union(rect)
             }
         }
-        return if (empty) host.height / 2f else TitleTransitionFrames.lmPivotY(rect.top.toFloat(), rect.bottom.toFloat())
+        return if (hasLine) {
+            TitleTransitionFrames.lmPivotY(union.top.toFloat(), union.bottom.toFloat())
+        } else {
+            host.height / 2f
+        }
     }
-
     private fun refreshPivots(state: TitleBarState?) {
         if (state == null) return
         refreshFunctionalPivot()
