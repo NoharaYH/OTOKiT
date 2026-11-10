@@ -51,8 +51,29 @@ class SettingsTransitionRunner(
 
     fun animateOpen() {
         token++
+        val generation = token
         cancelAnimator()
         clearGhost()
+        // GONE 的 overlay 还没测量，直接播会因 height=0 被当成“立即完成”而硬切。
+        if (overlayHost.height <= 0) {
+            val observer = overlayHost.viewTreeObserver
+            val listener = object : android.view.ViewTreeObserver.OnGlobalLayoutListener {
+                override fun onGlobalLayout() {
+                    if (!observer.isAlive) return
+                    observer.removeOnGlobalLayoutListener(this)
+                    if (generation != token) return
+                    if (overlayHost.height > 0) {
+                        animateOpen()
+                    } else {
+                        applySettled(1f)
+                        featureProvider()?.visibility = View.GONE
+                    }
+                }
+            }
+            observer.addOnGlobalLayoutListener(listener)
+            overlayHost.requestLayout()
+            return
+        }
         animateTo(1f) {
             featureProvider()?.visibility = View.GONE
         }
@@ -154,6 +175,26 @@ class SettingsTransitionRunner(
         }
     }
 
+    /** 冷启动/恢复后强制回到已关闭态；必须清零 progress，避免下次打开从 1 开始瞬间完成。 */
+    fun resetClosed() {
+        token++
+        cancelAnimator()
+        clearGhost()
+        previewing = false
+        progress = 0f
+        featureProvider()?.let {
+            it.visibility = View.VISIBLE
+            it.alpha = 1f
+            it.scaleX = 1f
+            it.scaleY = 1f
+        }
+        settingsProvider()?.let {
+            it.visibility = View.GONE
+            it.alpha = 0f
+            it.scaleX = SettingsTransition.OVERLAY_SCALE_FROM
+            it.scaleY = SettingsTransition.OVERLAY_SCALE_FROM
+        }
+    }
     fun cancel() {
         token++
         cancelAnimator()

@@ -160,6 +160,7 @@ class MainShell(
             }
         }
         val settings = SettingsPlaceholder.create(overlayHost.context, placeholderTextColor())
+        settings.view.visibility = View.GONE
         settingsContent = settings
         overlayHost.addView(
             settings.view,
@@ -226,7 +227,7 @@ class MainShell(
     fun resetTransientSettingsAfterRestore() {
         if (lifecycleState != LifecycleState.Attached) return
         controller.closeSettings()
-        settingsRunner?.cancel()
+        settingsRunner?.resetClosed()
         settingsClosing = false
         appliedSettingsOpen = false
         settingsContent?.view?.visibility = View.GONE
@@ -570,6 +571,7 @@ class MainShell(
             }
         } else if (!settingsClosing) {
             overlayHost.visibility = View.GONE
+            settingsContent?.view?.visibility = View.GONE
         }
 
         when {
