@@ -71,6 +71,12 @@ class MainActivity : AppCompatActivity() {
             // 冷启动/重建只恢复功能页；设置是模态瞬态，不能跨进程持久化。
             initialState = NavigationStateCodec.read(savedInstanceState).copy(settingsOpen = false),
             savedSelection = GameSelectionStateCodec.read(savedInstanceState),
+            onOpenExternalLink = { url ->
+                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                try { startActivity(intent) } catch (_: android.content.ActivityNotFoundException) {
+                    android.widget.Toast.makeText(this, "没有可打开链接的应用", android.widget.Toast.LENGTH_SHORT).show()
+                }
+            },
         )
         this.shell = shell
         backCallback = object : OnBackPressedCallback(false) {

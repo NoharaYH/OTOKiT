@@ -2,6 +2,7 @@ package com.otokit.noharayh.ui.chrome
 
 import com.otokit.noharayh.ui.animation.common.GameFrame
 import com.otokit.noharayh.ui.shell.navigation.Destination
+import com.otokit.noharayh.ui.shell.navigation.SettingsSection
 import com.otokit.noharayh.ui.theme.GameLine
 
 /**
@@ -23,17 +24,18 @@ object TitleBarStateFactory {
         themeCircleColor: Int,
         maiDecorColor: Int,
         chuDecorColor: Int,
+        settingsSection: SettingsSection? = null,
     ): TitleBarState = TitleBarState(
         maiTitle = TitleTexts.forDestination(destination, GameLine.Mai),
         chuTitle = TitleTexts.forDestination(destination, GameLine.Chu),
-        settingTitle = TitleTexts.Setting,
+        settingTitle = TitleTexts.forSettings(settingsSection),
         currentGame = currentGame,
         gameFrame = gameFrame,
         navDirection = navDirection,
         settingsOpen = settingsOpen,
         maiTextColor = maiTextColor,
         chuTextColor = chuTextColor,
-        settingTextColor = SETTINGS_TITLE_COLOR,
+        settingTextColor = TitleTexts.colorForSettings(settingsSection),
         circleColor = themeCircleColor,
         maiDecorColor = maiDecorColor,
         chuDecorColor = chuDecorColor,

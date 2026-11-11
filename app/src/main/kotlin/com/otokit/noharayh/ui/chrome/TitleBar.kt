@@ -17,14 +17,16 @@ import android.widget.LinearLayout
 import androidx.appcompat.widget.AppCompatTextView
 import androidx.core.graphics.ColorUtils
 import com.otokit.noharayh.R
+import com.otokit.noharayh.ui.animation.chrome.SettingsPageTitleTransitionRunner
 import com.otokit.noharayh.ui.animation.chrome.TitleAppearanceTransitionRunner
 import com.otokit.noharayh.ui.animation.chrome.TitleTextTransitionRunner
-import com.otokit.noharayh.ui.animation.common.TransitionProgress
 import com.otokit.noharayh.ui.animation.common.GameFrame
 import com.otokit.noharayh.ui.animation.common.GamePhase
+import com.otokit.noharayh.ui.animation.common.TransitionProgress
 import com.otokit.noharayh.ui.constants.dimensions.ShellDimensions
 import com.otokit.noharayh.ui.constants.motion.NavTitleTransition
 import com.otokit.noharayh.ui.kit.common.AppTypography
+import com.otokit.noharayh.ui.shell.navigation.SettingsSection
 import com.otokit.noharayh.ui.theme.GameLine
 import kotlin.math.min
 
@@ -62,6 +64,7 @@ class TitleBar(context: Context) : FrameLayout(context) {
     private val maiColumn = newColumn()
     private val chuColumn = newColumn()
     private val settingsColumn = newColumn()
+    private val settingsMotionHost = FrameLayout(context)
 
     private val maiEnglish = newLine()
     private val maiChinese = newLine()
@@ -79,7 +82,7 @@ class TitleBar(context: Context) : FrameLayout(context) {
     private var displayedGame: GameLine? = null
 
     private val textMotion = TitleTextTransitionRunner(
-        titleHost, titleMotionHost, functionalHost, settingsColumn, maiStack, chuStack,
+        titleHost, titleMotionHost, functionalHost, settingsMotionHost, maiStack, chuStack,
         refreshPivots = { refreshFunctionalPivot(); refreshSettingsPivot() },
         refreshStackPivot = ::refreshPivot,
         navigationBounds = { titleBoundsFor(titleMotionHost, currentFunctionalColumn()) },
@@ -88,6 +91,12 @@ class TitleBar(context: Context) : FrameLayout(context) {
         iconLayer, outgoingIconLayer,
         applyCircleColor = { menuButton.circleColor = it },
         applyDecorColors = decor::setColors,
+    )
+
+    private val settingsPageMotion = SettingsPageTitleTransitionRunner(
+        settingsMotionHost, settingsColumn,
+        bounds = { titleBoundsFor(settingsColumn, settingsColumn) },
+        refreshPivot = ::refreshSettingsPivot,
     )
 
     private val layoutListener = OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
@@ -185,7 +194,7 @@ class TitleBar(context: Context) : FrameLayout(context) {
         columnSetup(maiColumn, maiEnglish, maiChinese)
         columnSetup(chuColumn, chuEnglish, chuChinese)
         columnSetup(settingsColumn, settingsEnglish, settingsChinese)
-        settingsColumn.visibility = View.GONE
+        settingsMotionHost.visibility = View.GONE
 
         maiStack.addView(
             maiColumn,
@@ -209,8 +218,11 @@ class TitleBar(context: Context) : FrameLayout(context) {
                 gravity = Gravity.CENTER_VERTICAL
             },
         )
+        settingsMotionHost.clipChildren = false
+        settingsMotionHost.clipToPadding = false
+        settingsMotionHost.addView(settingsColumn, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
         titleMotionHost.addView(
-            settingsColumn,
+            settingsMotionHost,
             LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT).apply {
                 gravity = Gravity.CENTER_VERTICAL
             },
@@ -307,7 +319,7 @@ class TitleBar(context: Context) : FrameLayout(context) {
 
         textMotion.applyGameFrame(state.gameFrame, state.currentGame == GameLine.Mai)
         applyTextColors(state)
-        setColumnColor(settingsColumn, state.settingTextColor)
+        if (!settingsPageMotion.active) setColumnColor(settingsColumn, state.settingTextColor)
         appearanceMotion.updateCircleColor(circleColorFor(state), animate = state.settingsOpen || state.gameFrame?.phase == GamePhase.Idle)
         menuButton.contentDescription = context.getString(
             if (state.primaryAction == TitleBarPrimaryAction.Back) R.string.title_back
@@ -334,6 +346,20 @@ class TitleBar(context: Context) : FrameLayout(context) {
         if (lastState != null) textMotion.beginBackPreview()
     }
 
+    fun prepareSettingsPageTransition(
+        from: SettingsSection?,
+        to: SettingsSection?,
+    ) {
+        fun show(section: SettingsSection?) {
+            settingsColumn.setTexts(TitleTexts.forSettings(section))
+            setColumnColor(settingsColumn, TitleTexts.colorForSettings(section))
+        }
+        show(from)
+        settingsPageMotion.prepare(to != null, restoreSource = { show(from) }, showTarget = { show(to) })
+    }
+
+    fun renderSettingsPageProgress(frame: TransitionProgress) = settingsPageMotion.render(frame)
+
     fun renderNavigationProgress(frame: TransitionProgress) = textMotion.renderNavigationProgress(frame)
 
     fun renderSettingsProgress(frame: TransitionProgress) = textMotion.renderSettingsProgress(frame)
@@ -346,6 +372,11 @@ class TitleBar(context: Context) : FrameLayout(context) {
 
     /** 中断只落稳已提交展示，不播放取消回弹、不修改导航。 */
     fun settleTransitions() {
+        settingsPageMotion.settle()
+        lastState?.let {
+            settingsColumn.setTexts(it.settingTitle)
+            setColumnColor(settingsColumn, it.settingTextColor)
+        }
         textMotion.endBackPreview()
         textMotion.cancelNavigation()
         textMotion.settleSettings(lastState?.settingsOpen == true)
@@ -358,6 +389,7 @@ class TitleBar(context: Context) : FrameLayout(context) {
 
     /** 终态：解除回调、动画、ghost 与布局监听。 */
     fun dispose() {
+        settingsPageMotion.settle()
         textMotion.dispose()
         appearanceMotion.dispose()
         menuButton.cancelFeedback()
@@ -462,7 +494,7 @@ class TitleBar(context: Context) : FrameLayout(context) {
 
     private fun applyTextColors(state: TitleBarState) {
         if (state.settingsOpen) {
-            setColumnColor(settingsColumn, state.settingTextColor)
+            if (!settingsPageMotion.active) setColumnColor(settingsColumn, state.settingTextColor)
             return
         }
         val frame = state.gameFrame
@@ -496,6 +528,10 @@ class TitleBar(context: Context) : FrameLayout(context) {
         titleBoundsFor(settingsColumn, settingsColumn)?.let { bounds ->
             settingsColumn.pivotX = bounds.left
             settingsColumn.pivotY = bounds.centerY()
+        }
+        titleBoundsFor(settingsMotionHost, settingsColumn)?.let { bounds ->
+            settingsMotionHost.pivotX = bounds.left
+            settingsMotionHost.pivotY = bounds.centerY()
         }
     }
 

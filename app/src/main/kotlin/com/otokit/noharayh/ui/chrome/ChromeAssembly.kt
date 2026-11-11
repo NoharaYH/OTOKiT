@@ -8,6 +8,7 @@ import com.otokit.noharayh.ui.animation.common.TransitionProgress
 import com.otokit.noharayh.ui.constants.dimensions.ShellDimensions
 import com.otokit.noharayh.ui.constants.dimensions.ShellProportions
 import com.otokit.noharayh.ui.shell.navigation.Destination
+import com.otokit.noharayh.ui.shell.navigation.SettingsSection
 import com.otokit.noharayh.ui.window.PixelRect
 import com.otokit.noharayh.ui.window.WindowSnapshot
 import com.otokit.noharayh.ui.window.breakpoints.WindowLayoutClass
@@ -176,6 +177,15 @@ class ChromeAssembly(
         if (compact) titleBar?.beginBackPreview()
     }
 
+    fun prepareSettingsPageTransition(
+        from: SettingsSection?,
+        to: SettingsSection?,
+    ) { if (attached && !disposed) titleBar?.prepareSettingsPageTransition(from, to) }
+
+    fun renderSettingsPageProgress(frame: TransitionProgress) {
+        if (attached && !disposed) titleBar?.renderSettingsPageProgress(frame)
+    }
+
     fun renderNavigationProgress(frame: TransitionProgress) {
         if (attached && !disposed) titleBar?.renderNavigationProgress(frame)
     }
@@ -330,6 +340,7 @@ class ChromeAssembly(
         bar.render(
             TitleBarStateFactory.create(
                 destination = input.destination,
+                settingsSection = input.settingsSection,
                 currentGame = input.currentGame,
                 settingsOpen = input.settingsOpen,
                 menuEnabled = compact,

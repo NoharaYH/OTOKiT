@@ -7,7 +7,8 @@ package com.otokit.noharayh.ui.shell.navigation
  */
 class NavigationController(initialState: NavigationState = NavigationState()) {
 
-    var state: NavigationState = initialState
+    var state: NavigationState = if (initialState.settingsOpen) initialState
+        else initialState.copy(settingsSection = null)
         private set
 
     /** 由状态派生，不额外保存副本。 */
@@ -27,13 +28,21 @@ class NavigationController(initialState: NavigationState = NavigationState()) {
 
     /** 保留当前目的地，关闭设置；重复关闭无副作用。 */
     fun closeSettings() {
-        if (state.settingsOpen) state = state.copy(settingsOpen = false)
+        if (state.settingsOpen) state = state.copy(settingsOpen = false, settingsSection = null)
     }
 
-    /** 设置打开时关闭并返回已消费；设置关闭时不修改状态并返回未消费。 */
+    fun openSettingsSection(section: SettingsSection) {
+        if (state.settingsOpen) state = state.copy(settingsSection = section)
+    }
+
+    fun backToSettingsRoot() {
+        if (state.settingsOpen) state = state.copy(settingsSection = null)
+    }
+
+    /** 设置子页先退首页，首页再关闭；关闭时不修改状态并返回未消费。 */
     fun consumeBack(): Boolean {
         if (!state.settingsOpen) return false
-        state = state.copy(settingsOpen = false)
+        if (state.settingsSection != null) backToSettingsRoot() else closeSettings()
         return true
     }
 }

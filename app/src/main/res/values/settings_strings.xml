@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_tile_sync">成绩同步设置</string>
+    <string name="settings_tile_app">应用设置</string>
+    <string name="settings_tile_personalize">个性化设置</string>
+    <string name="settings_tile_about">应用信息</string>
+    <string name="settings_child_placeholder">%1$s（占位）</string>
+    <string name="title_settings_sync">ScoreSyncSettings</string>
+    <string name="title_settings_app">AppSettings</string>
+    <string name="title_settings_personalization">PersonalizationSettings</string>
+    <string name="title_settings_about">ApplicationInfo</string>
+    <string name="about_card_version">应用版本</string>
+    <string name="about_card_update">检查应用更新</string>
+    <string name="about_card_repo">GitHub 仓库地址</string>
+    <string name="about_card_feedback">建议和反馈</string>
+    <string name="about_current_version">当前版本</string>
+    <string name="about_check_update">点击检查新版本</string>
+    <string name="about_feedback_title">提交 Issue 或功能请求</string>
+    <string name="about_feedback_subtitle">前往 GitHub Issues 门户</string>
+</resources>

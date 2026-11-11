@@ -30,5 +30,5 @@ data class TitleBarState(
     val primaryEnabled: Boolean,
 )
 
-/** 设置标题的固定文字色，来自旧 `PhoneSize.SETTINGS_TITLE_COLOR`。 */
-const val SETTINGS_TITLE_COLOR: Int = 0xFF1A1A1A.toInt()
+/** 设置首页的中性灰色；子页使用对应分类色。 */
+const val SETTINGS_TITLE_COLOR: Int = 0xFF9E9E9E.toInt()

@@ -20,7 +20,9 @@ import com.otokit.noharayh.ui.kit.common.PageContent
 import com.otokit.noharayh.ui.pages.ComingSoonPlaceholder
 import com.otokit.noharayh.ui.pages.pageMusicData.MusicDataPlaceholder
 import com.otokit.noharayh.ui.pages.pageScoreSync.ScoreSyncPlaceholder
-import com.otokit.noharayh.ui.settings.SettingsPlaceholder
+import com.otokit.noharayh.ui.settings.SettingsAssembly
+import com.otokit.noharayh.ui.shell.navigation.SettingsSection
+import com.otokit.noharayh.ui.window.breakpoints.WindowLayoutClass
 import com.otokit.noharayh.ui.shell.background.BackgroundHost
 import com.otokit.noharayh.ui.shell.background.BackgroundPhase
 import com.otokit.noharayh.ui.shell.background.BackgroundSnapshot
@@ -58,6 +60,7 @@ class MainShell(
     private val sidebarHost: SideBarHost,
     initialState: NavigationState = NavigationState(),
     savedSelection: SelectionSource = SelectionSource(null, null, null, null),
+    private val onOpenExternalLink: (String) -> Unit = {},
     private val selectionPreferences: UiPreferencesAdapter =
         UiPreferencesAdapter(SharedPreferencesUiPreferences(contentHost.context)),
 ) {
@@ -81,7 +84,7 @@ class MainShell(
         sidebarHost = sidebarHost,
         onNavigate = { destination -> onDrawerNavigate(destination) },
         onOpenSettings = { openSettings() },
-        onCloseSettings = { closeSettings() },
+        onCloseSettings = { consumeBack() },
         onInsetsChanged = { insets -> onChromeInsetsChanged(insets) },
         onInputBlockedChanged = { onDrawerInputChanged() },
         onStatusBarHiddenChanged = { hidden -> statusBarHiddenListener?.invoke(hidden) },
@@ -94,6 +97,7 @@ class MainShell(
     private var settingsClosing = false
     private val backPreview = BackPreviewSession()
     private var settingsContent: PageContent? = null
+    private var settingsPage: SettingsAssembly? = null
     private var background: BackgroundHost? = null
     private var backgroundSubscription: AutoCloseable? = null
     private var latestWindowSnapshot: WindowSnapshot? = null
@@ -159,7 +163,15 @@ class MainShell(
                 applyGameFrame()
             }
         }
-        val settings = SettingsPlaceholder.create(overlayHost.context, placeholderTextColor())
+        val page = SettingsAssembly(
+            overlayHost.context,
+            onOpenSection = ::openSettingsSection,
+            onOpenLink = onOpenExternalLink,
+            onTransitionStart = chrome::prepareSettingsPageTransition,
+            onTransitionFrame = chrome::renderSettingsPageProgress,
+        )
+        settingsPage = page
+        val settings = PageContent(page, disposeAction = page::dispose)
         settings.view.visibility = View.GONE
         settingsContent = settings
         overlayHost.addView(
@@ -210,6 +222,7 @@ class MainShell(
         contentWidthPx = 0
         contentHeightPx = 0
         settingsContent = null
+        settingsPage = null
         background?.dispose()
         background = null
         overlayHost.visibility = View.GONE
@@ -231,6 +244,7 @@ class MainShell(
         if (lifecycleState != LifecycleState.Attached) return
         invalidateBackPreview()
         controller.closeSettings()
+        settingsPage?.settle(null)
         settingsClosing = false
         appliedSettingsOpen = false
         settingsContent?.view?.visibility = View.GONE
@@ -243,6 +257,7 @@ class MainShell(
     fun navigate(destination: Destination) {
         if (lifecycleState != LifecycleState.Attached) return
         invalidateBackPreview()
+        settingsPage?.settle(controller.state.settingsSection)
         controller.navigate(destination)
         render()
     }
@@ -250,6 +265,7 @@ class MainShell(
     fun openSettings() {
         if (lifecycleState != LifecycleState.Attached) return
         invalidateBackPreview()
+        if (!controller.state.settingsOpen) settingsPage?.settle(null)
         contentRunner?.cancel()
         outgoingContent?.dispose()
         outgoingContent = null
@@ -258,9 +274,20 @@ class MainShell(
         render()
     }
 
+    fun openSettingsSection(section: SettingsSection) {
+        if (lifecycleState != LifecycleState.Attached || !controller.state.settingsOpen) return
+        invalidateBackPreview()
+        // 子页接管前先结束整体入场，避免两个执行器竞争同一标题层。
+        settingsRunner?.endPreview(true)
+        chrome.settleTransitions()
+        controller.openSettingsSection(section)
+        render()
+    }
+
     fun closeSettings() {
         if (lifecycleState != LifecycleState.Attached) return
         invalidateBackPreview()
+        settingsPage?.settle(controller.state.settingsSection)
         controller.closeSettings()
         render()
     }
@@ -272,6 +299,7 @@ class MainShell(
             return true
         }
         if (chrome.consumeBack()) return true
+        if (controller.state.settingsOpen && controller.state.settingsSection == null) settingsPage?.settle(null)
         val consumed = controller.consumeBack()
         if (consumed) render()
         return consumed
@@ -359,6 +387,10 @@ class MainShell(
         }
         latestWindowSnapshot = snapshot
         chrome.updateWindow(snapshot)
+        settingsPage?.updateWindow(
+            snapshot.layoutClass != WindowLayoutClass.Compact,
+            snapshot.metrics.widthPx / snapshot.metrics.density,
+        )
         recomputeGeometry()
     }
 
@@ -422,6 +454,7 @@ class MainShell(
         val current = controller.state
         // 先准备文字与旧字截图，再启动内容持有的唯一计时驱动。
         chrome.render(chromeDisplay())
+        if (current.settingsOpen) settingsPage?.render(current.settingsSection)
         if (mountedDestination != current.destination) {
             showContent(current.destination)
         }
@@ -449,6 +482,7 @@ class MainShell(
             destination = nav.destination,
             currentGame = current.currentGame,
             settingsOpen = nav.settingsOpen,
+            settingsSection = nav.settingsSection,
             themeColor = theme.definition.colors.basicColor,
             maiTextColor = themeFor(current.maiThemeId, GameLine.Mai).definition.colors.basicColor,
             chuTextColor = themeFor(current.chuThemeId, GameLine.Chu).definition.colors.basicColor,
@@ -583,6 +617,14 @@ class MainShell(
             backPreview.begin(Target.Drawer)
             return true
         }
+        if (controller.state.settingsOpen && controller.state.settingsSection != null) {
+            settingsRunner?.endPreview(true)
+            chrome.settleTransitions()
+            if (settingsPage?.beginBackPreview() == true) {
+                backPreview.begin(Target.SettingsChild)
+                return true
+            }
+        }
         if (controller.state.settingsOpen) {
             contentRunner?.cancel()
             backPreview.begin(Target.Settings)
@@ -603,6 +645,7 @@ class MainShell(
                 settingsRunner?.preview(backPreview.progress)
             }
 
+            Target.SettingsChild -> settingsPage?.preview(backPreview.progress)
             Target.Drawer -> chrome.updateDrawerBackPreview(backPreview.progress)
             Target.None -> Unit
         }
@@ -616,6 +659,7 @@ class MainShell(
                 settingsRunner?.cancelPreview()
             }
 
+            Target.SettingsChild -> settingsPage?.cancelPreview()
             Target.Drawer -> chrome.cancelDrawerBackPreview()
             Target.None, null -> Unit
         }
@@ -646,6 +690,11 @@ class MainShell(
                 }
             }
 
+            Target.SettingsChild -> {
+                if (!controller.state.settingsOpen || controller.state.settingsSection == null) return
+                controller.backToSettingsRoot()
+                render()
+            }
             Target.Drawer -> chrome.finishDrawerBackPreview()
             Target.None -> Unit
         }
@@ -675,6 +724,7 @@ class MainShell(
                 settingsRunner?.cancelPreview()
             }
 
+            Target.SettingsChild -> settingsPage?.cancelPreview()
             Target.Drawer -> chrome.cancelDrawerBackPreview()
             Target.None -> return
         }
@@ -690,6 +740,7 @@ class MainShell(
         contentRunner?.cancel()
         outgoingContent?.dispose()
         outgoingContent = null
+        settingsPage?.settle(controller.state.settingsSection)
         settingsRunner?.endPreview(controller.state.settingsOpen)
         settingsClosing = false
         overlayHost.visibility = if (controller.state.settingsOpen) View.VISIBLE else View.GONE

@@ -30,7 +30,7 @@ import kotlin.math.roundToInt
  * 黑圆始终裁切在按钮圆角内，所以按钮本身要足够大（当前示例 260×160dp）才能完整容纳 120dp 的黑圆。
  * 内容由 FrameLayout 在遮罩上方绘制，不随遮罩变色。
  */
-class PressSurface @JvmOverloads constructor(
+open class PressSurface @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0,
