@@ -19,9 +19,18 @@ class BackgroundHost(
     private val context = container.context
     private val loader = AssetBackgroundLoader(context)
     private val pages = mutableMapOf(
-        GameLine.Mai to BackgroundPage(context, GameLine.Mai, loader),
-        GameLine.Chu to BackgroundPage(context, GameLine.Chu, loader),
+        GameLine.Mai to BackgroundPage(context, GameLine.Mai, loader) {
+            onPageVisualReady(GameLine.Mai)
+        },
+        GameLine.Chu to BackgroundPage(context, GameLine.Chu, loader) {
+            onPageVisualReady(GameLine.Chu)
+        },
     ).also { pages -> pages.values.forEach(BackgroundPage::pause) }
+
+    private var initialVisualReady: (() -> Unit)? = null
+    private var maiTheme: RegisteredTheme? = null
+    private var chuTheme: RegisteredTheme? = null
+    private val visuallyReady = mutableSetOf<GameLine>()
 
     private var pager: ViewPager2? = null
     private var adapter: BackgroundPagerAdapter? = null
@@ -143,11 +152,28 @@ class BackgroundHost(
 
     fun renderSelection(currentGame: GameLine, maiTheme: RegisteredTheme, chuTheme: RegisteredTheme) {
         if (!attached || disposed) return
-        pages.getValue(GameLine.Mai).show(maiTheme)
-        pages.getValue(GameLine.Chu).show(chuTheme)
-        if (currentGame == committedGame) return
-        committedGame = currentGame
-        beginAlignment(requireNextLayout = true)
+        this.maiTheme = maiTheme
+        this.chuTheme = chuTheme
+
+        // 首帧只加载当前音游；另一页等当前页真正上屏后再加载，避免两个 WebView
+        // 在冷启动时同时抢 Chromium 渲染。
+        val selected = pages.getValue(currentGame)
+        if (selected.show(if (currentGame == GameLine.Mai) maiTheme else chuTheme)) {
+            visuallyReady.remove(currentGame)
+        }
+        if (currentGame != committedGame) {
+            committedGame = currentGame
+            beginAlignment(requireNextLayout = true)
+        }
+        if (visuallyReady.contains(currentGame)) loadOther(currentGame)
+    }
+
+    private fun loadOther(game: GameLine) {
+        val other = if (game == GameLine.Mai) GameLine.Chu else GameLine.Mai
+        val page = pages[other] ?: return
+        if (page.isLoaded) return
+        val theme = (if (other == GameLine.Mai) maiTheme else chuTheme) ?: return
+        page.show(theme)
     }
 
     /** shell 已更新背景宿主的几何；同步关门，确认本次真实布局后再开放。 */
@@ -156,6 +182,25 @@ class BackgroundHost(
     }
 
     fun subscribe(listener: (BackgroundSnapshot) -> Unit): AutoCloseable = publisher.subscribe(listener)
+
+    /** 当前已提交音游的首帧回调；只交付一次，迟到页不覆盖新的遮罩。 */
+    fun setOnFirstVisualReady(listener: (() -> Unit)?) {
+        initialVisualReady = listener
+        if (listener != null && visuallyReady.contains(committedGame)) {
+            initialVisualReady = null
+            listener()
+        }
+    }
+
+    private fun onPageVisualReady(game: GameLine) {
+        if (disposed) return
+        visuallyReady.add(game)
+        if (game != committedGame) return
+        val listener = initialVisualReady
+        initialVisualReady = null
+        listener?.invoke()
+        loadOther(game)
+    }
 
     fun setInputEnabled(enabled: Boolean) {
         if (!attached || disposed || gate.inputEnabled == enabled) return
@@ -294,6 +339,8 @@ class BackgroundHost(
         disposed = true
         attached = false
         gate = gate.beginAlignment().copy(resumed = false, inputEnabled = false)
+        initialVisualReady = null
+        visuallyReady.clear()
         publisher.dispose()
         removeAlignmentCorrection()
         removeConfirmationListener()

@@ -3,6 +3,7 @@ package com.otokit.noharayh.ui.shell
 import android.annotation.SuppressLint
 import android.content.Context
 import android.view.Gravity
+import android.view.ViewTreeObserver
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
@@ -13,6 +14,7 @@ import com.otokit.noharayh.ui.chrome.ChromeAssembly
 import com.otokit.noharayh.ui.chrome.ChromeDisplayInput
 import com.otokit.noharayh.ui.chrome.ChromeInsets
 import com.otokit.noharayh.ui.animation.common.GameFrame
+import com.otokit.noharayh.ui.animation.shell.BackgroundVeilRunner
 import com.otokit.noharayh.ui.animation.shell.ContentTransitionRunner
 import com.otokit.noharayh.ui.animation.shell.SettingsTransitionRunner
 import com.otokit.noharayh.ui.animation.common.GamePhase
@@ -27,6 +29,8 @@ import com.otokit.noharayh.ui.window.breakpoints.WindowLayoutClass
 import com.otokit.noharayh.ui.shell.background.BackgroundHost
 import com.otokit.noharayh.ui.shell.background.BackgroundPhase
 import com.otokit.noharayh.ui.shell.background.BackgroundSnapshot
+import com.otokit.noharayh.ui.shell.background.BackgroundVeilView
+import com.otokit.noharayh.ui.constants.motion.BackgroundVeilTransition
 import com.otokit.noharayh.ui.shell.navigation.Destination
 import com.otokit.noharayh.ui.shell.navigation.BackPreviewSession
 import com.otokit.noharayh.ui.shell.navigation.BackPreviewSession.Target
@@ -102,6 +106,8 @@ class MainShell(
     private var settingsContent: PageContent? = null
     private var settingsPage: SettingsAssembly? = null
     private var background: BackgroundHost? = null
+    private var backgroundVeil: BackgroundVeilRunner? = null
+    private var backgroundVeilView: BackgroundVeilView? = null
     private var backgroundSubscription: AutoCloseable? = null
     private var latestWindowSnapshot: WindowSnapshot? = null
     private var latestBackgroundSnapshot: BackgroundSnapshot? = null
@@ -166,6 +172,34 @@ class MainShell(
                 applyGameFrame()
             }
         }
+        val veilView = BackgroundVeilView(backgroundHost.context)
+        backgroundHost.addView(
+            veilView,
+            FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            ),
+        )
+        backgroundHost.bringChildToFront(veilView)
+        val veilRunner = BackgroundVeilRunner(veilView)
+        backgroundVeilView = veilView
+        backgroundVeil = veilRunner
+        background?.setOnFirstVisualReady(veilRunner::ready)
+        veilRunner.show()
+        val observer = backgroundHost.viewTreeObserver
+        observer.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
+            override fun onPreDraw(): Boolean {
+                // 视图可能在首帧前被 detach，旧 observer 已 not alive；直接 remove 会抛
+                // IllegalStateException，必须容错，不能因此闪退。
+                try {
+                    if (observer.isAlive) observer.removeOnPreDrawListener(this)
+                } catch (_: IllegalStateException) {
+                    // observer 已随 View 销毁，无需移除。
+                }
+                backgroundVeil?.start(BackgroundVeilTransition.TIMEOUT_MS)
+                return true
+            }
+        })
         val page = SettingsAssembly(
             overlayHost.context,
             onOpenSection = ::openSettingsSection,
@@ -228,6 +262,11 @@ class MainShell(
         contentHeightPx = 0
         settingsContent = null
         settingsPage = null
+        background?.setOnFirstVisualReady(null)
+        backgroundVeil?.dispose()
+        backgroundVeil = null
+        backgroundVeilView?.let { backgroundHost.removeView(it) }
+        backgroundVeilView = null
         background?.dispose()
         background = null
         overlayHost.visibility = View.GONE

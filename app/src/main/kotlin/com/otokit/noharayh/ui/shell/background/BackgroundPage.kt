@@ -21,6 +21,7 @@ internal class BackgroundPage(
     context: Context,
     val gameLine: GameLine,
     private val loader: AssetBackgroundLoader,
+    private val onFirstVisualReady: () -> Unit,
 ) {
 
     val view: View = TouchBlockingFrameLayout(context).apply {
@@ -47,10 +48,38 @@ internal class BackgroundPage(
                 view: WebView,
                 request: WebResourceRequest,
             ): WebResourceResponse? = loader.intercept(request)
+
+            override fun onPageFinished(view: WebView, url: String?) {
+                super.onPageFinished(view, url)
+                val requestId = ++visualRequest
+                // onPageFinished 仍可能早于最后一张 WebP 上屏；再等视觉状态提交。
+                view.postVisualStateCallback(
+                    requestId,
+                    object : WebView.VisualStateCallback() {
+                        override fun onComplete(id: Long) {
+                            if (id == visualRequest && loadedPath != null && !readySent) {
+                                readySent = true
+                                onFirstVisualReady()
+                            }
+                        }
+                    },
+                )
+            }
+
+            override fun onPageCommitVisible(view: WebView, url: String?) {
+                super.onPageCommitVisible(view, url)
+                // 主内容已经提交；真正的遮罩消失仍以 visual callback 为准。
+                // 保留观察点：真正遮罩消失仍等 visual callback。
+            }
         }
     }
 
     private var loadedPath: String? = null
+    private var visualRequest = 0L
+    private var readySent = false
+
+    val isLoaded: Boolean
+        get() = loadedPath != null
 
     init {
         (view as ViewGroup).addView(
@@ -62,12 +91,15 @@ internal class BackgroundPage(
         )
     }
 
-    /** 入口变化时才加载；只改颜色不重新加载。 */
-    fun show(theme: RegisteredTheme) {
+    /** 入口变化时才加载；只改颜色不重新加载。返回是否更换了入口。 */
+    fun show(theme: RegisteredTheme): Boolean {
         val path = theme.definition.htmlAssetPath
-        if (path == loadedPath) return
+        if (path == loadedPath) return false
         loadedPath = path
+        visualRequest++
+        readySent = false
         loader.load(webView, path)
+        return true
     }
 
     fun resume() {
@@ -79,6 +111,8 @@ internal class BackgroundPage(
     }
 
     fun destroy() {
+        visualRequest++
+        loadedPath = null
         webView.stopLoading()
         webView.webViewClient = WebViewClient()
         (webView.parent as? ViewGroup)?.removeView(webView)
