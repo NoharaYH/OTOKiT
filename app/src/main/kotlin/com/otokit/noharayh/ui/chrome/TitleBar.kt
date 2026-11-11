@@ -19,6 +19,7 @@ import androidx.core.graphics.ColorUtils
 import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.animation.chrome.TitleAppearanceTransitionRunner
 import com.otokit.noharayh.ui.animation.chrome.TitleTextTransitionRunner
+import com.otokit.noharayh.ui.animation.common.TransitionProgress
 import com.otokit.noharayh.ui.animation.common.GameFrame
 import com.otokit.noharayh.ui.animation.common.GamePhase
 import com.otokit.noharayh.ui.constants.dimensions.ShellDimensions
@@ -299,8 +300,8 @@ class TitleBar(context: Context) : FrameLayout(context) {
                 // 预测返回的 finish/cancel 由外部进度决定，状态切换只更新真实层内容。
                 textMotion.endBackPreview()
             }
-            if (!textMotion.animateSettings(open)) textMotion.settleSettings(open)
-        } else if (!textMotion.backPreviewActive && !textMotion.settingsAnimating) {
+            textMotion.prepareSettingsTransition()
+        } else if (!textMotion.backPreviewActive && !textMotion.settingsTransitionActive) {
             textMotion.settleSettings(state.settingsOpen)
         }
 
@@ -333,13 +334,11 @@ class TitleBar(context: Context) : FrameLayout(context) {
         if (lastState != null) textMotion.beginBackPreview()
     }
 
-    fun updateBackProgress(progress: Float) {
-        if (!textMotion.backPreviewActive) return
-        textMotion.updateBackProgress(progress)
-        applyTextColors(lastState ?: return)
-    }
+    fun renderNavigationProgress(frame: TransitionProgress) = textMotion.renderNavigationProgress(frame)
 
-    fun cancelBackPreview() = textMotion.cancelBackPreview(lastState?.settingsOpen == true)
+    fun renderSettingsProgress(frame: TransitionProgress) = textMotion.renderSettingsProgress(frame)
+
+    fun cancelBackPreview() = textMotion.endBackPreview()
 
     fun endBackPreview() = textMotion.endBackPreview()
 
@@ -544,7 +543,7 @@ class TitleBar(context: Context) : FrameLayout(context) {
             metrics.rowHeightPx * NavTitleTransition.TRANSLATION_ROW_HEIGHT_FRACTION,
             NavTitleTransition.TRANSLATION_MAX_DP * resources.displayMetrics.density,
         ) * direction
-        textMotion.runNavigation(dy) {
+        textMotion.prepareNavigation(dy) {
             setFunctionalTitles(state)
             displayedMaiTitle = state.maiTitle
             displayedChuTitle = state.chuTitle

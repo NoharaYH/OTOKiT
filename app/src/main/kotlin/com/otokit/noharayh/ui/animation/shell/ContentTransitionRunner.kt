@@ -3,11 +3,13 @@ package com.otokit.noharayh.ui.animation.shell
 import android.animation.ValueAnimator
 import android.view.View
 import android.view.ViewGroup
-import com.otokit.noharayh.ui.animation.common.MotionInterpolators
 import android.widget.FrameLayout
+import com.otokit.noharayh.ui.animation.common.MotionInterpolators
 import com.otokit.noharayh.ui.animation.common.TransitionFrame
 import com.otokit.noharayh.ui.animation.common.TransitionFrames
+import com.otokit.noharayh.ui.animation.common.TransitionProgress
 import com.otokit.noharayh.ui.constants.motion.NavContentTransition
+import com.otokit.noharayh.ui.constants.motion.NavigationTransition
 
 /**
  * 功能根切页执行器。
@@ -15,7 +17,10 @@ import com.otokit.noharayh.ui.constants.motion.NavContentTransition
  * contentHost 至多保留 active/exiting 两个功能根；每根内部的双音游由页面自己管理。
  * 只操作外层 scale/alpha/translationY，不触碰页面内部、导航状态或背景。
  */
-class ContentTransitionRunner(private val host: FrameLayout) {
+class ContentTransitionRunner(
+    private val host: FrameLayout,
+    private val onProgress: (TransitionProgress) -> Unit,
+) {
 
     private var active: View? = null
     private var exiting: View? = null
@@ -39,6 +44,7 @@ class ContentTransitionRunner(private val host: FrameLayout) {
         ensureChild(view)
         reset(view)
         active = view
+        onProgress(TransitionProgress(1f, running = false))
     }
 
     /**
@@ -70,13 +76,13 @@ class ContentTransitionRunner(private val host: FrameLayout) {
         }
 
         val startTo = TransitionFrames.enter(
-            kind = NavContentTransition.KIND,
+            kind = NavigationTransition.KIND,
             progress = 0f,
             scaleFrom = NavContentTransition.SCALE,
             translationYFrom = translateDy(direction),
         )
         val endTo = TransitionFrames.enter(
-            kind = NavContentTransition.KIND,
+            kind = NavigationTransition.KIND,
             progress = 1f,
             scaleFrom = NavContentTransition.SCALE,
             translationYFrom = translateDy(direction),
@@ -88,7 +94,7 @@ class ContentTransitionRunner(private val host: FrameLayout) {
             translationY = from.translationY,
         )
         val endFrom = TransitionFrames.exit(
-            kind = NavContentTransition.KIND,
+            kind = NavigationTransition.KIND,
             progress = 1f,
             scaleTo = NavContentTransition.SCALE,
             translationYTo = -translateDy(direction),
@@ -100,12 +106,13 @@ class ContentTransitionRunner(private val host: FrameLayout) {
         exiting = from
 
         animator = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = NavContentTransition.DURATION_MS
-            interpolator = MotionInterpolators.of(NavContentTransition.CURVE)
+            duration = NavigationTransition.DURATION_MS
+            interpolator = MotionInterpolators.of(NavigationTransition.CURVE)
             addUpdateListener { animation ->
                 val p = animation.animatedValue as Float
                 apply(to, lerp(startTo, endTo, p))
                 apply(from, lerp(startFrom, endFrom, p))
+                onProgress(TransitionProgress(p, running = true))
             }
             addListener(object : android.animation.AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: android.animation.Animator) {
@@ -116,6 +123,7 @@ class ContentTransitionRunner(private val host: FrameLayout) {
                         exiting = null
                     }
                     reset(to)
+                    onProgress(TransitionProgress(1f, running = false))
                     onFinished()
                 }
             })
@@ -130,6 +138,7 @@ class ContentTransitionRunner(private val host: FrameLayout) {
         exiting?.let { removeAndReset(it) }
         exiting = null
         active?.let { reset(it) }
+        onProgress(TransitionProgress(1f, running = false))
     }
 
     fun dispose() {
@@ -137,6 +146,7 @@ class ContentTransitionRunner(private val host: FrameLayout) {
         cancelAnimator()
         exiting?.let { removeAndReset(it) }
         exiting = null
+        active?.let { reset(it) }
         active = null
     }
 
@@ -185,7 +195,8 @@ class ContentTransitionRunner(private val host: FrameLayout) {
         )
 
     private fun cancelAnimator() {
-        animator?.cancel()
+        val previous = animator
         animator = null
+        previous?.cancel()
     }
 }

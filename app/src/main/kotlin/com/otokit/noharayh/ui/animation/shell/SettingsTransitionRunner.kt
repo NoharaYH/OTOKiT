@@ -5,11 +5,12 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.drawable.BitmapDrawable
 import android.view.View
-import com.otokit.noharayh.ui.animation.common.MotionInterpolators
 import android.widget.FrameLayout
 import android.widget.ImageView
-import com.otokit.noharayh.ui.animation.common.TransitionFrames
+import com.otokit.noharayh.ui.animation.common.MotionInterpolators
 import com.otokit.noharayh.ui.animation.common.TransitionFrame
+import com.otokit.noharayh.ui.animation.common.TransitionProgress
+import com.otokit.noharayh.ui.animation.common.TransitionTiming
 import com.otokit.noharayh.ui.constants.motion.SettingsTransition
 
 /**
@@ -22,14 +23,13 @@ class SettingsTransitionRunner(
     private val overlayHost: FrameLayout,
     private val featureProvider: () -> View?,
     private val settingsProvider: () -> View?,
+    private val onProgress: (TransitionProgress) -> Unit,
 ) {
 
     private var animator: ValueAnimator? = null
     private var ghost: ImageView? = null
     private var token = 0
     private var progress = 0f
-    private var previewProgress = 0f
-    private var previewing = false
     private var pendingLayout: Pair<android.view.ViewTreeObserver, android.view.ViewTreeObserver.OnGlobalLayoutListener>? = null
 
     /** 当前呈现进度：0=功能态，1=设置态；关闭接续预览的最后一帧。 */
@@ -79,7 +79,6 @@ class SettingsTransitionRunner(
         val runToken = token
         cancelAnimator()
         clearGhost()
-        previewing = false
         progress = fromProgress.coerceIn(0f, 1f)
         if (progress <= 0f) {
             applySettled(0f)
@@ -87,6 +86,7 @@ class SettingsTransitionRunner(
             return
         }
         val settings = settingsProvider() ?: run {
+            applySettled(0f)
             onClosed()
             return
         }
@@ -101,7 +101,7 @@ class SettingsTransitionRunner(
         featureProvider()?.visibility = View.VISIBLE
         applyOpenState(progress, ghostVisible = true)
         animator = ValueAnimator.ofFloat(progress, 0f).apply {
-            duration = (SettingsTransition.EXIT_DURATION_MS * progress).toLong().coerceAtLeast(1L)
+            duration = TransitionTiming.remainingDuration(SettingsTransition.EXIT_DURATION_MS, progress, 0f)
             interpolator = MotionInterpolators.of(SettingsTransition.CURVE)
             addUpdateListener { animation ->
                 applyOpenState(animation.animatedValue as Float, ghostVisible = true)
@@ -111,14 +111,7 @@ class SettingsTransitionRunner(
                     if (token != runToken) return
                     animator = null
                     clearGhost()
-                    featureProvider()?.let {
-                        it.visibility = View.VISIBLE
-                        it.alpha = 1f
-                        it.scaleX = 1f
-                        it.scaleY = 1f
-                    }
-                    settings.visibility = View.GONE
-                    progress = 0f
+                    applySettled(0f)
                     onClosed()
                 }
             })
@@ -128,46 +121,21 @@ class SettingsTransitionRunner(
 
     /** 预测返回进度：0 = 完全设置态，1 = 完全功能态，不提交状态。 */
     fun preview(value: Float) {
-        previewing = true
+        token++
         cancelAnimator()
         clearGhost()
-        featureProvider()?.visibility = View.VISIBLE
-        settingsProvider()?.visibility = View.VISIBLE
-        previewProgress = value.coerceIn(0f, 1f)
-        applyPreviewState(previewProgress)
+        applyOpenState(1f - value.coerceIn(0f, 1f), ghostVisible = false)
     }
 
+    /** 取消从当前已呈现帧回到设置态，标题共用同一条回弹进度。 */
     fun cancelPreview() {
         token++
-        val runToken = token
-        previewing = false
         cancelAnimator()
-        if (!ValueAnimator.areAnimatorsEnabled()) {
-            applySettled(1f)
-            return
-        }
-        val start = previewProgress
-        animator = ValueAnimator.ofFloat(start, 0f).apply {
-            duration = (SettingsTransition.ENTER_DURATION_MS * start).toLong().coerceAtLeast(1L)
-            interpolator = MotionInterpolators.of(SettingsTransition.CURVE)
-            addUpdateListener { animation ->
-                previewProgress = animation.animatedValue as Float
-                applyPreviewState(previewProgress)
-            }
-            addListener(object : android.animation.AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: android.animation.Animator) {
-                    if (token != runToken || animator !== animation) return
-                    animator = null
-                    applySettled(1f)
-                }
-            })
-            start()
-        }
+        animateTo(1f)
     }
 
     fun endPreview(settingsOpen: Boolean) {
         token++
-        previewing = false
         cancelAnimator()
         clearGhost()
         if (settingsOpen) {
@@ -182,14 +150,12 @@ class SettingsTransitionRunner(
         token++
         cancelAnimator()
         clearGhost()
-        previewing = false
         applySettled(0f)
     }
     fun cancel() {
         token++
         cancelAnimator()
         clearGhost()
-        previewing = false
     }
 
     fun dispose() {
@@ -198,6 +164,8 @@ class SettingsTransitionRunner(
             it.alpha = 1f
             it.scaleX = 1f
             it.scaleY = 1f
+            it.translationX = 0f
+            it.translationY = 0f
         }
     }
 
@@ -215,8 +183,7 @@ class SettingsTransitionRunner(
             return
         }
         animator = ValueAnimator.ofFloat(start, target).apply {
-            duration = (SettingsTransition.ENTER_DURATION_MS * kotlin.math.abs(target - start))
-                .toLong().coerceAtLeast(1L)
+            duration = TransitionTiming.remainingDuration(SettingsTransition.ENTER_DURATION_MS, start, target)
             interpolator = MotionInterpolators.of(SettingsTransition.CURVE)
             addUpdateListener { animation ->
                 applyOpenState(animation.animatedValue as Float, ghostVisible = false)
@@ -233,35 +200,23 @@ class SettingsTransitionRunner(
         }
     }
 
-    private fun applyPreviewState(value: Float) {
-        // 系统进度只换算方向，不额外套时间曲线；与普通进出共用属性帧。
-        applyOpenState(1f - value, ghostVisible = false)
-    }
-
     private fun applySettled(value: Float) {
-        applyOpenState(value, ghostVisible = false)
+        applyOpenState(value, ghostVisible = false, running = false)
         featureProvider()?.visibility = if (value >= 1f) View.GONE else View.VISIBLE
         settingsProvider()?.visibility = if (value >= 1f) View.VISIBLE else View.GONE
     }
 
-    private fun applyOpenState(value: Float, ghostVisible: Boolean) {
+    private fun applyOpenState(value: Float, ghostVisible: Boolean, running: Boolean = true) {
         progress = value
         featureProvider()?.let { view ->
-            applyFrame(view, TransitionFrames.exit(
-                kind = SettingsTransition.KIND,
-                progress = value,
-                scaleTo = SettingsTransition.CONTENT_SCALE,
-            ))
+            applyFrame(view, SettingsTransitionFrames.feature(value, presentationHeight(view).toFloat()))
         }
-        // 真实设置与退场截图共享同一帧，切换承载者不改变类型、缩放或透明度。
+        // 真实设置与退场截图使用同一空间规则。
         val presentedSettings = if (ghostVisible) ghost else settingsProvider()
         presentedSettings?.let { view ->
-            applyFrame(view, TransitionFrames.enter(
-                kind = SettingsTransition.KIND,
-                progress = value,
-                scaleFrom = SettingsTransition.OVERLAY_SCALE_FROM,
-            ))
+            applyFrame(view, SettingsTransitionFrames.overlay(value, presentationHeight(view).toFloat()))
         }
+        onProgress(TransitionProgress(value, running))
     }
 
     private fun applyFrame(view: View, frame: TransitionFrame) {
@@ -271,9 +226,13 @@ class SettingsTransitionRunner(
         view.scaleY = frame.scale
         view.translationX = frame.translationX
         view.translationY = frame.translationY
-        view.pivotX = view.width / 2f
-        view.pivotY = view.height / 2f
+        view.pivotX = (view.width.takeIf { it > 0 } ?: view.layoutParams.width.coerceAtLeast(0)) / 2f
+        view.pivotY = presentationHeight(view) / 2f
     }
+
+    // 新截图尚未 layout 时，显式像素尺寸就是其局部几何，不能临时绕 (0, 0) 缩放。
+    private fun presentationHeight(view: View): Int =
+        view.height.takeIf { it > 0 } ?: view.layoutParams.height.coerceAtLeast(0)
 
     private fun capture(view: View): ImageView? {
         val width = view.width

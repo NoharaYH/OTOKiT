@@ -6,21 +6,19 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.RectF
 import android.graphics.drawable.BitmapDrawable
-import android.view.View
 import android.view.Gravity
+import android.view.View
 import android.widget.FrameLayout
 import android.widget.ImageView
 import com.otokit.noharayh.ui.animation.common.GameFrame
 import com.otokit.noharayh.ui.animation.common.GamePhase
-import com.otokit.noharayh.ui.animation.common.MotionInterpolators
 import com.otokit.noharayh.ui.animation.common.TransitionFrames
-import com.otokit.noharayh.ui.constants.motion.NavTitleTransition
+import com.otokit.noharayh.ui.animation.common.TransitionFrame
+import com.otokit.noharayh.ui.animation.common.TransitionProgress
 import com.otokit.noharayh.ui.constants.motion.PagerPairTransition
-import com.otokit.noharayh.ui.constants.motion.SettingsTitleTransition
-import com.otokit.noharayh.ui.constants.motion.SettingsTransition
 import com.otokit.noharayh.ui.theme.GameLine
 
-/** 标题文字转场的唯一执行者，拥有 Animator 与 ghost；不读取或提交导航状态。 */
+/** 标题文字的属性呈现与 ghost 所有者；只消费外部进度，不计时、不提交导航状态。 */
 internal class TitleTextTransitionRunner(
     private val titleHost: FrameLayout,
     private val titleMotionHost: View,
@@ -32,40 +30,32 @@ internal class TitleTextTransitionRunner(
     private val refreshStackPivot: (FrameLayout) -> Unit,
     private val navigationBounds: () -> RectF?,
 ) {
+    private val settingsOpticalY = settingsColumn.translationY
     private var disposed = false
-    private var navAnimator: ValueAnimator? = null
-    private var settingsAnimator: ValueAnimator? = null
+    private var navigationActive = false
+    var settingsTransitionActive = false
+        private set
     private var ghost: ImageView? = null
-    private var settingsProgress = 0f
+    private var ghostStart = TransitionFrame(1f, 1f, 0f, 0f)
     var backPreviewActive = false
         private set
-    val settingsAnimating: Boolean get() = settingsAnimator != null
 
-    /** 预测返回：0=完全设置态，1=完全功能态；调用方只给进度，不提交任何状态。 */
     fun beginBackPreview() {
         if (disposed) return
         cancelNavigation()
-        cancelSettingsTransition()
         backPreviewActive = true
-        // 预览进度 0=设置态；内部设置进度 1=设置态。
-        applySettingsProgress(1f)
-    }
-
-    fun updateBackProgress(progress: Float) {
-        if (disposed || !backPreviewActive) return
-        applySettingsProgress(1f - progress.coerceIn(0f, 1f))
-    }
-
-    /** 取消预览：回到当前稳定设置态；不调用 closeSettings。 */
-    fun cancelBackPreview(settingsOpen: Boolean) {
-        if (disposed || !backPreviewActive) return
-        backPreviewActive = false
-        animateSettingsTo(if (settingsOpen) 1f else 0f)
+        settingsTransitionActive = true
     }
 
     fun endBackPreview() {
         backPreviewActive = false
-        // 保留预览最后一帧，已提交状态的退出动画从这里继续。
+    }
+
+    fun prepareSettingsTransition() {
+        if (disposed) return
+        cancelNavigation()
+        backPreviewActive = false
+        settingsTransitionActive = true
     }
 
     fun applyGameFrame(frame: GameFrame?, currentGame: GameLine) {
@@ -119,155 +109,74 @@ internal class TitleTextTransitionRunner(
         stack.translationY = frame.translationY
     }
 
-    fun settleSettings(settingsOpen: Boolean) {
-        if (disposed) return
-        cancelSettingsTransition()
-        if (settingsOpen) {
-            applySettingsProgress(1f)
-        } else {
-            applySettingsProgress(0f)
-        }
-    }
+    fun settleSettings(settingsOpen: Boolean) =
+        renderSettingsProgress(TransitionProgress(if (settingsOpen) 1f else 0f, running = false))
 
-    private fun applySettingsProgress(progress: Float) {
-        val p = progress.coerceIn(0f, 1f)
-        settingsProgress = p
+    fun renderSettingsProgress(frame: TransitionProgress) {
+        if (disposed) return
+        settingsTransitionActive = frame.running
+        if (!frame.running) backPreviewActive = false
+        val p = frame.value.coerceIn(0f, 1f)
         refreshPivots()
-        val exit = TransitionFrames.exit(
-            kind = SettingsTitleTransition.KIND,
-            progress = p,
-            scaleTo = SettingsTitleTransition.SCALE_SHRINK,
-        )
+        val exit = TitleTransitionFrames.settingsFeature(p, functionalHost.height.toFloat())
         functionalHost.visibility = if (p >= 1f) View.INVISIBLE else View.VISIBLE
         functionalHost.alpha = exit.alpha
         functionalHost.scaleX = exit.scale
         functionalHost.scaleY = exit.scale
+        functionalHost.translationY = exit.translationY
 
-        val enter = TransitionFrames.enter(
-            kind = SettingsTitleTransition.KIND,
-            progress = p,
-            scaleFrom = SettingsTitleTransition.SCALE_EXPAND_FROM,
-        )
+        val enter = TitleTransitionFrames.settingsOverlay(p, settingsColumn.height.toFloat())
         settingsColumn.visibility = if (p <= 0f) View.INVISIBLE else View.VISIBLE
         settingsColumn.alpha = enter.alpha
         settingsColumn.scaleX = enter.scale
         settingsColumn.scaleY = enter.scale
+        // column 的固定光学偏移属于静止基线，不能被动画位移覆盖。
+        settingsColumn.translationY = settingsOpticalY + enter.translationY
     }
 
-    fun animateSettings(open: Boolean): Boolean {
-        if (disposed || !animationsEnabled() || titleHost.width <= 0) return false
-        cancelSettingsTransition()
-        val from = settingsProgress
-        val to = if (open) 1f else 0f
-        settingsAnimator = ValueAnimator.ofFloat(from, to).apply {
-            val fullDuration = if (open) SettingsTransition.ENTER_DURATION_MS else SettingsTransition.EXIT_DURATION_MS
-            duration = (fullDuration * kotlin.math.abs(to - from)).toLong().coerceAtLeast(1L)
-            interpolator = MotionInterpolators.of(SettingsTitleTransition.CURVE)
-            addUpdateListener { animation ->
-                applySettingsProgress(animation.animatedValue as Float)
-            }
-            addListener(object : android.animation.AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: android.animation.Animator) {
-                    if (settingsAnimator === animation) {
-                        settingsAnimator = null
-                        settleSettings(open)
-                    }
-                }
-            })
-            start()
-        }
-        return true
-    }
-
-    private fun animateSettingsTo(target: Float) {
-        cancelSettingsTransition()
-        if (!animationsEnabled()) {
-            applySettingsProgress(target)
-            return
-        }
-        settingsAnimator = ValueAnimator.ofFloat(settingsProgress, target).apply {
-            duration = if (target >= 1f) SettingsTransition.ENTER_DURATION_MS else SettingsTransition.EXIT_DURATION_MS
-            interpolator = MotionInterpolators.of(SettingsTitleTransition.CURVE)
-            addUpdateListener { animation ->
-                applySettingsProgress(animation.animatedValue as Float)
-            }
-            addListener(object : android.animation.AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: android.animation.Animator) {
-                    if (settingsAnimator === animation) {
-                        settingsAnimator = null
-                        applySettingsProgress(target)
-                    }
-                }
-            })
-            start()
-        }
-    }
-
-    private fun cancelSettingsTransition() {
-        val previous = settingsAnimator
-        settingsAnimator = null
-        previous?.cancel()
-    }
-
-    fun runNavigation(translationY: Float, updateTitles: () -> Unit) {
+    /** 只准备新旧标题；计时由内容切页执行器唯一负责。 */
+    fun prepareNavigation(translationY: Float, updateTitles: () -> Unit) {
         if (disposed) return
+        val presented = TransitionFrame(
+            titleMotionHost.alpha, titleMotionHost.scaleX,
+            titleMotionHost.translationX, titleMotionHost.translationY,
+        )
         cancelNavigation()
-        val ghostView = captureGhost()
-        val dy = translationY
+        ghostStart = presented
+        ghost = captureGhost()
         updateTitles()
+        navigationDistanceY = translationY
+        navigationActive = ghost != null && ValueAnimator.areAnimatorsEnabled()
+        if (navigationActive) renderNavigationProgress(TransitionProgress(0f, running = true))
+        else cancelNavigation()
+    }
 
-        if (!animationsEnabled() || ghostView == null) {
-            titleMotionHost.translationY = 0f
-            titleMotionHost.alpha = 1f
-            clearGhost()
-            return
+    private var navigationDistanceY = 0f
+
+    fun renderNavigationProgress(frame: TransitionProgress) {
+        if (disposed || !navigationActive) return
+        val entry = TitleTransitionFrames.navEntry(frame.value, navigationDistanceY)
+        val exit = TitleTransitionFrames.navGhostExit(frame.value, -navigationDistanceY, ghostStart)
+        titleMotionHost.alpha = entry.alpha
+        titleMotionHost.translationY = entry.translationY
+        titleMotionHost.scaleX = entry.scale
+        titleMotionHost.scaleY = entry.scale
+        ghost?.let {
+            it.alpha = exit.alpha
+            it.translationY = exit.translationY
+            it.translationX = exit.translationX
+            it.scaleX = exit.scale
+            it.scaleY = exit.scale
         }
-        titleMotionHost.alpha = 0f
-        titleMotionHost.translationY = dy
-        navAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = NavTitleTransition.DURATION_MS
-            interpolator = MotionInterpolators.of(NavTitleTransition.CURVE)
-            addUpdateListener { animation ->
-                val p = animation.animatedValue as Float
-                val entry = TransitionFrames.enter(
-                    kind = NavTitleTransition.KIND,
-                    progress = p,
-                    translationYFrom = dy,
-                )
-                val exit = TransitionFrames.exit(
-                    kind = NavTitleTransition.KIND,
-                    progress = p,
-                    translationYTo = -dy,
-                )
-                titleMotionHost.alpha = entry.alpha
-                titleMotionHost.translationY = entry.translationY
-                titleMotionHost.scaleX = entry.scale
-                titleMotionHost.scaleY = entry.scale
-                ghostView.alpha = exit.alpha
-                ghostView.translationY = exit.translationY
-                ghostView.scaleX = exit.scale
-                ghostView.scaleY = exit.scale
-            }
-            addListener(object : android.animation.AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: android.animation.Animator) {
-                    if (navAnimator === animation) {
-                        navAnimator = null
-                        titleMotionHost.alpha = 1f
-                        titleMotionHost.translationY = 0f
-                        clearGhost()
-                    }
-                }
-            })
-            start()
-        }
+        if (!frame.running) cancelNavigation()
     }
 
     fun cancelNavigation() {
-        val previous = navAnimator
-        navAnimator = null
-        previous?.cancel()
+        navigationActive = false
         titleMotionHost.alpha = 1f
         titleMotionHost.translationY = 0f
+        titleMotionHost.scaleX = 1f
+        titleMotionHost.scaleY = 1f
         clearGhost()
     }
 
@@ -327,8 +236,7 @@ internal class TitleTextTransitionRunner(
         disposed = true
         backPreviewActive = false
         cancelNavigation()
-        cancelSettingsTransition()
+        settingsTransitionActive = false
     }
 
-    private fun animationsEnabled(): Boolean = ValueAnimator.areAnimatorsEnabled()
 }

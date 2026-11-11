@@ -168,11 +168,14 @@ class MainShell(
                 ViewGroup.LayoutParams.MATCH_PARENT,
             ),
         )
-        contentRunner = ContentTransitionRunner(contentHost)
+        contentRunner = ContentTransitionRunner(contentHost) { frame ->
+            chrome.renderNavigationProgress(frame)
+        }
         settingsRunner = SettingsTransitionRunner(
             overlayHost = overlayHost,
             featureProvider = { mountedContent?.view },
             settingsProvider = { settingsContent?.view },
+            onProgress = { frame -> chrome.renderSettingsProgress(frame) },
         )
         chrome.attach()
         render()
@@ -186,21 +189,21 @@ class MainShell(
         onCanHandleBackChanged = null
         if (!wasAttached) return
 
-        chrome.dispose()
+        backPreview.reset()
+        backgroundSubscription?.close()
+        backgroundSubscription = null
         restoreContentIsolation(restoreFocus = false)
         appliedSettingsOpen = false
         contentRunner?.dispose()
         contentRunner = null
         settingsRunner?.dispose()
         settingsRunner = null
+        chrome.dispose()
         settingsClosing = false
-        backPreview.reset()
         outgoingContent?.dispose()
         outgoingContent = null
         mountedContent?.dispose()
         settingsContent?.dispose()
-        backgroundSubscription?.close()
-        backgroundSubscription = null
         latestBackgroundSnapshot = null
         latestGameFrame = null
         contentWidthPx = 0
@@ -227,12 +230,14 @@ class MainShell(
         if (lifecycleState != LifecycleState.Attached) return
         invalidateBackPreview()
         controller.closeSettings()
-        settingsRunner?.resetClosed()
         settingsClosing = false
         appliedSettingsOpen = false
         settingsContent?.view?.visibility = View.GONE
         overlayHost.visibility = View.GONE
         render()
+        // 展示层先接收恢复后的状态，再由唯一进度源下发稳定端点。
+        settingsRunner?.resetClosed()
+        chrome.settleTransitions()
     }
     fun navigate(destination: Destination) {
         if (lifecycleState != LifecycleState.Attached) return
@@ -414,11 +419,12 @@ class MainShell(
 
     private fun render() {
         val current = controller.state
+        // 先准备文字与旧字截图，再启动内容持有的唯一计时驱动。
+        chrome.render(chromeDisplay())
         if (mountedDestination != current.destination) {
             showContent(current.destination)
         }
         applyGameFrame()
-        chrome.render(chromeDisplay())
         lastChromeDestination = current.destination
         val modal = current.settingsOpen || chrome.blocksUnderlyingInput
         if (appliedSettingsOpen != current.settingsOpen || appliedModal != modal) {
@@ -604,7 +610,6 @@ class MainShell(
         backPreview.update(progress)
         when (backPreview.target) {
             Target.Settings -> {
-                chrome.updateBackPreview(backPreview.progress)
                 settingsRunner?.preview(backPreview.progress)
             }
 

@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import com.otokit.noharayh.ui.animation.common.TransitionProgress
 import com.otokit.noharayh.ui.constants.dimensions.ShellDimensions
 import com.otokit.noharayh.ui.constants.dimensions.ShellProportions
 import com.otokit.noharayh.ui.shell.navigation.Destination
@@ -170,8 +171,12 @@ class ChromeAssembly(
         if (compact) titleBar?.beginBackPreview()
     }
 
-    fun updateBackPreview(progress: Float) {
-        if (compact) titleBar?.updateBackProgress(progress)
+    fun renderNavigationProgress(frame: TransitionProgress) {
+        if (attached && !disposed) titleBar?.renderNavigationProgress(frame)
+    }
+
+    fun renderSettingsProgress(frame: TransitionProgress) {
+        if (attached && !disposed) titleBar?.renderSettingsProgress(frame)
     }
 
     fun cancelBackPreview() {
