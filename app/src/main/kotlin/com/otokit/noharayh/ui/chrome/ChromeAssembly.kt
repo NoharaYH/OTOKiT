@@ -199,6 +199,13 @@ class ChromeAssembly(
         sidebarHost.setResumed(resumed)
     }
 
+    /** 生命周期或窗口几何中断：各自清理局部动画与反馈。 */
+    fun settleTransitions() {
+        if (!attached || disposed) return
+        sidebarHost.close(immediate = true)
+        titleBar?.settleTransitions()
+    }
+
     /** 终态：释放自有反馈、面板与挂载；共同父容器不在中途重建。 */
     fun dispose() {
         if (disposed) return

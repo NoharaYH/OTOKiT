@@ -311,10 +311,12 @@ class MainShell(
 
     /** 背景随 Activity 生命周期暂停/恢复，不重建 WebView；离开前台时收起抽屉。 */
     fun setBackgroundResumed(resumed: Boolean) {
-        if (!resumed) invalidateBackPreview()
+        if (lifecycleState != LifecycleState.Attached) return
         this.resumed = resumed
+        if (!resumed) invalidateBackPreview()
         chrome.setResumed(resumed)
         background?.setResumed(resumed)
+        if (!resumed) settleTransitions()
     }
 
     /**
@@ -347,11 +349,7 @@ class MainShell(
             )
         if (geometryChanged) {
             invalidateBackPreview()
-            if (outgoingContent != null) {
-                contentRunner?.cancel()
-                outgoingContent?.dispose()
-                outgoingContent = null
-            }
+            settleTransitions()
         }
         latestWindowSnapshot = snapshot
         chrome.updateWindow(snapshot)
@@ -690,6 +688,17 @@ class MainShell(
 
     private fun onDrawerNavigate(destination: Destination) {
         navigate(destination)
+    }
+
+    /** 丢弃失效几何上的动画，只呈现控制器已提交的状态。 */
+    private fun settleTransitions() {
+        contentRunner?.cancel()
+        outgoingContent?.dispose()
+        outgoingContent = null
+        settingsRunner?.endPreview(controller.state.settingsOpen)
+        settingsClosing = false
+        overlayHost.visibility = if (controller.state.settingsOpen) View.VISIBLE else View.GONE
+        chrome.settleTransitions()
     }
 
     /** 抽屉开合会改变返回消费与底层输入；设置与抽屉共同决定模态。 */

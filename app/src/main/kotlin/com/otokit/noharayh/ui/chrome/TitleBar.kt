@@ -345,6 +345,15 @@ class TitleBar(context: Context) : FrameLayout(context) {
 
     fun cancelPressFeedback() = menuButton.cancelFeedback()
 
+    /** 中断只落稳已提交展示，不播放取消回弹、不修改导航。 */
+    fun settleTransitions() {
+        textMotion.endBackPreview()
+        textMotion.cancelNavigation()
+        textMotion.settleSettings(lastState?.settingsOpen == true)
+        appearanceMotion.settle()
+        menuButton.cancelFeedback()
+    }
+
     /** 供宿主在旧焦点已失效时回到主操作入口，不暴露内部按钮。 */
     fun requestPrimaryFocus(): Boolean = menuButton.requestFocus()
 

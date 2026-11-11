@@ -173,6 +173,17 @@ internal class TitleAppearanceTransitionRunner(
         }
     }
 
+    /** 宿主失去前台或几何失效时，直接呈现最后一次收到的目标。 */
+    fun settle() {
+        if (disposed) return
+        iconAnimator?.end()
+        circleColorAnimator?.end()
+        decorAnimator?.end()
+        iconAnimator = null
+        circleColorAnimator = null
+        decorAnimator = null
+    }
+
     fun dispose() {
         if (disposed) return
         disposed = true

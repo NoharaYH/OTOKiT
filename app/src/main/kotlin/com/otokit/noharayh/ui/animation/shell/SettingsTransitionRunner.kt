@@ -30,6 +30,7 @@ class SettingsTransitionRunner(
     private var progress = 0f
     private var previewProgress = 0f
     private var previewing = false
+    private var pendingLayout: Pair<android.view.ViewTreeObserver, android.view.ViewTreeObserver.OnGlobalLayoutListener>? = null
 
     /** 当前呈现进度：0=功能态，1=设置态；关闭接续预览的最后一帧。 */
     val openProgress: Float get() = progress
@@ -51,8 +52,8 @@ class SettingsTransitionRunner(
             val observer = overlayHost.viewTreeObserver
             val listener = object : android.view.ViewTreeObserver.OnGlobalLayoutListener {
                 override fun onGlobalLayout() {
-                    if (!observer.isAlive) return
-                    observer.removeOnGlobalLayoutListener(this)
+                    if (pendingLayout?.second !== this) return
+                    clearPendingLayout()
                     if (generation != token) return
                     if (overlayHost.height > 0) {
                         animateOpen()
@@ -62,6 +63,7 @@ class SettingsTransitionRunner(
                     }
                 }
             }
+            pendingLayout = observer to listener
             observer.addOnGlobalLayoutListener(listener)
             overlayHost.requestLayout()
             return
@@ -136,6 +138,8 @@ class SettingsTransitionRunner(
     }
 
     fun cancelPreview() {
+        token++
+        val runToken = token
         previewing = false
         cancelAnimator()
         if (!ValueAnimator.areAnimatorsEnabled()) {
@@ -152,6 +156,7 @@ class SettingsTransitionRunner(
             }
             addListener(object : android.animation.AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: android.animation.Animator) {
+                    if (token != runToken || animator !== animation) return
                     animator = null
                     applySettled(1f)
                 }
@@ -161,6 +166,7 @@ class SettingsTransitionRunner(
     }
 
     fun endPreview(settingsOpen: Boolean) {
+        token++
         previewing = false
         cancelAnimator()
         clearGhost()
@@ -311,7 +317,18 @@ class SettingsTransitionRunner(
     }
 
     private fun cancelAnimator() {
-        animator?.cancel()
+        clearPendingLayout()
+        val previous = animator
         animator = null
+        previous?.cancel()
+    }
+
+    private fun clearPendingLayout() {
+        val (observer, listener) = pendingLayout ?: return
+        pendingLayout = null
+        if (observer.isAlive) observer.removeOnGlobalLayoutListener(listener)
+        // ViewTreeObserver 可能在 attach 时合并进新实例，移除宿主当前持有的监听。
+        val current = overlayHost.viewTreeObserver
+        if (current !== observer && current.isAlive) current.removeOnGlobalLayoutListener(listener)
     }
 }
