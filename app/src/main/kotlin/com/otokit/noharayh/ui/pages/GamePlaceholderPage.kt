@@ -71,7 +71,7 @@ object GamePlaceholderPage {
             chuPanel.setWindowWidth(frame.windowWidthPx)
             val progress = frame.normalizedProgress
             if (frame.phase == GamePhase.Idle) {
-                val selectedMai = frame.selectedGame == com.otokit.noharayh.ui.theme.GameLine.Mai
+                val selectedMai = frame.selectedMai
                 showEndpoint(maiPanel, selectedMai)
                 showEndpoint(chuPanel, !selectedMai)
                 maiPanel.setInteractive(interactiveAllowed && selectedMai)

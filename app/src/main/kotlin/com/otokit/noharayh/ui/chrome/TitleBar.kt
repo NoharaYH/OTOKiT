@@ -305,7 +305,7 @@ class TitleBar(context: Context) : FrameLayout(context) {
             textMotion.settleSettings(state.settingsOpen)
         }
 
-        textMotion.applyGameFrame(state.gameFrame, state.currentGame)
+        textMotion.applyGameFrame(state.gameFrame, state.currentGame == GameLine.Mai)
         applyTextColors(state)
         setColumnColor(settingsColumn, state.settingTextColor)
         appearanceMotion.updateCircleColor(circleColorFor(state), animate = state.settingsOpen || state.gameFrame?.phase == GamePhase.Idle)
@@ -324,7 +324,7 @@ class TitleBar(context: Context) : FrameLayout(context) {
         if (state.gameFrame == frame) return
         lastState = state.copy(gameFrame = frame)
         val updated = lastState ?: return
-        textMotion.applyGameFrame(updated.gameFrame, updated.currentGame)
+        textMotion.applyGameFrame(updated.gameFrame, updated.currentGame == GameLine.Mai)
         applyTextColors(updated)
         appearanceMotion.updateCircleColor(circleColorFor(updated), animate = false)
     }

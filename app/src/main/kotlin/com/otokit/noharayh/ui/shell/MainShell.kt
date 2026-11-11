@@ -513,7 +513,7 @@ class MainShell(
         }
         val progress = snapshot?.progress ?: if (game == GameLine.Mai) 0f else 1f
         val frame = GameFrame(
-            selectedGame = game,
+            selectedMai = game == GameLine.Mai,
             progress = progress,
             phase = phase,
             windowWidthPx = latestWindowSnapshot?.metrics?.widthPx ?: 0,

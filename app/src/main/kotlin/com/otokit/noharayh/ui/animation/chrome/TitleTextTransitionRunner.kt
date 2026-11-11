@@ -16,7 +16,6 @@ import com.otokit.noharayh.ui.animation.common.TransitionFrames
 import com.otokit.noharayh.ui.animation.common.TransitionFrame
 import com.otokit.noharayh.ui.animation.common.TransitionProgress
 import com.otokit.noharayh.ui.constants.motion.PagerPairTransition
-import com.otokit.noharayh.ui.theme.GameLine
 
 /** 标题文字的属性呈现与 ghost 所有者；只消费外部进度，不计时、不提交导航状态。 */
 internal class TitleTextTransitionRunner(
@@ -58,12 +57,12 @@ internal class TitleTextTransitionRunner(
         settingsTransitionActive = true
     }
 
-    fun applyGameFrame(frame: GameFrame?, currentGame: GameLine) {
+    fun applyGameFrame(frame: GameFrame?, currentIsMai: Boolean) {
         if (disposed) return
         val progress = frame?.normalizedProgress
-            ?: if (currentGame == GameLine.Mai) 0f else 1f
+            ?: if (currentIsMai) 0f else 1f
         val phase = frame?.phase ?: GamePhase.Idle
-        val selectedMai = currentGame == GameLine.Mai || progress < 0.5f
+        val selectedMai = currentIsMai || progress < 0.5f
 
         if (phase == GamePhase.Idle) {
             showStack(maiStack, if (selectedMai) View.VISIBLE else View.GONE)
