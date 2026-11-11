@@ -34,6 +34,7 @@ class GamePlaceholderPanel(
     private var windowWidthPx = 0
 
     val button: PressSurface = PressSurface(context).apply {
+        outerHaloEnabled = true
         contentDescription = buttonDescription
         importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
         setOnClickListener { onButtonClick() }
@@ -41,6 +42,10 @@ class GamePlaceholderPanel(
 
     init {
         setWillNotDraw(false)
+        // 预览按钮的外环绘制在按钮自身边界之外；父容器默认 clipChildren=true 会把它
+        // 截回按钮原来的方形区域，看起来像外圈被限位。
+        clipChildren = false
+        clipToPadding = false
         contentDescription = description
         isClickable = false
         isFocusable = false

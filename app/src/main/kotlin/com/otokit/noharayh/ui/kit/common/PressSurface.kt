@@ -17,6 +17,7 @@ import android.widget.FrameLayout
 import androidx.dynamicanimation.animation.FloatValueHolder
 import androidx.dynamicanimation.animation.SpringAnimation
 import androidx.dynamicanimation.animation.SpringForce
+import com.otokit.noharayh.ui.animation.common.PressHalo
 import com.otokit.noharayh.ui.kit.common.PressSurfaceSpec
 import kotlin.math.exp
 import kotlin.math.max
@@ -52,6 +53,22 @@ open class PressSurface @JvmOverloads constructor(
 
     /** 离开窗口的动作可等待释放反馈；不含外链或页面等业务语义。 */
     var deferClickUntilReleaseFeedback = false
+
+    /** 是否绘制通用黑色外溢层；内容区按钮与设置卡片共用，标题/胶囊另有定位方式。父容器需允许子 View 外溢绘制。 */
+    var outerHaloEnabled: Boolean = false
+        set(value) {
+            if (field == value) return
+            field = value
+            if (value) {
+                if (halo == null) halo = PressHalo(this)
+            } else {
+                halo?.reset()
+                halo = null
+            }
+            invalidate()
+        }
+
+    private var halo: PressHalo? = null
 
     /**
      * 黑圆最大直径。
@@ -187,7 +204,9 @@ open class PressSurface @JvmOverloads constructor(
     private fun lerp(a: Float, b: Float, t: Float) = a + (b - a) * t
 
     /** 可选装饰只接收按压事实，不接管点击、触觉或内部涟漪。 */
-    protected open fun onPressStateChanged(pressed: Boolean) = Unit
+    protected open fun onPressStateChanged(pressed: Boolean) {
+        if (pressed) halo?.press() else halo?.release()
+    }
 
     /** 底层装饰位于填充和内容下面；默认不绘制。 */
     protected open fun drawUnderlay(canvas: Canvas, cornerRadius: Float, inset: Float) = Unit
@@ -349,6 +368,9 @@ open class PressSurface @JvmOverloads constructor(
         val radius = lerp(baseRadius.coerceAtMost(cap), cap, boundedProgress)
             .coerceAtMost(cap)
 
+        // 外环半径要补上按压内收量，才能和按钮保持同心；否则外圈两端会变成圆角矩形，
+        // 看起来像被一个更大的方框限位。
+        halo?.draw(canvas, width, height, radius + inset)
         drawUnderlay(canvas, radius, inset)
 
         val follow = 1f - exp(-delta / followTauMs)
@@ -375,6 +397,7 @@ open class PressSurface @JvmOverloads constructor(
 
     override fun onDetachedFromWindow() {
         cancelDeferredClick()
+        halo?.reset()
         press.cancel()
         pressHolder.value = 0f
         ripples.forEach { it.cancel() }

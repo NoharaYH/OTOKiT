@@ -11,16 +11,18 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.graphics.ColorUtils
 import com.otokit.noharayh.ui.kit.common.AppTypography
+import com.otokit.noharayh.ui.kit.common.PressSurface
 
 /** 旧设置的 64dp 布局，内容区统一按压容器；反色只呈现外部进度。 */
 @android.annotation.SuppressLint("ViewConstructor") // 纯代码组装，需要明确文案与配色。
 class SettingsOptionView(context: Context, title: CharSequence, icon: Int, private val accent: Int) :
-    SettingsPressSurface(context) {
+    PressSurface(context) {
     private val badge = GradientDrawable().apply { shape = GradientDrawable.OVAL }
     private val image = ImageView(context)
     private val label = TextView(context)
 
     init {
+        outerHaloEnabled = true
         contentDescription = title
         val row = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL

@@ -14,6 +14,7 @@ import android.widget.TextView
 import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.constants.dimensions.SettingsCardDimensions
 import com.otokit.noharayh.ui.kit.common.AppTypography
+import com.otokit.noharayh.ui.kit.common.PressSurface
 
 /** 设置的纯展示积木，只接文案、尺寸、配色和点击回调。 */
 internal object SettingsPageViews {
@@ -54,7 +55,8 @@ internal object SettingsPageViews {
         addView(text(context, value, 14f, 0xFF323232.toInt(), true).apply { gravity = Gravity.CENTER_VERTICAL }, LinearLayout.LayoutParams(-2, -1))
     }
 
-    fun action(context: Context, label: String, external: Boolean = false, onClick: () -> Unit) = SettingsPressSurface(context).apply {
+    fun action(context: Context, label: String, external: Boolean = false, onClick: () -> Unit) = PressSurface(context).apply {
+        outerHaloEnabled = true
         deferClickUntilReleaseFeedback = external
         fillColor = 0xFFF5F5F5.toInt()
         baseRadius = dp(context, SettingsCardDimensions.CONTENT_CORNER_DP).toFloat()

@@ -1,4 +1,4 @@
-package com.otokit.noharayh.ui.animation.settings
+package com.otokit.noharayh.ui.animation.common
 
 import android.graphics.Canvas
 import android.graphics.Color
@@ -9,12 +9,19 @@ import android.view.animation.AnimationUtils
 import androidx.dynamicanimation.animation.FloatValueHolder
 import androidx.dynamicanimation.animation.SpringAnimation
 import androidx.dynamicanimation.animation.SpringForce
-import com.otokit.noharayh.ui.constants.motion.SettingsPressHaloSpec as Spec
+import com.otokit.noharayh.ui.constants.motion.PressHaloSpec as Spec
 
-/** 独立装饰执行器，只绘制硬边外溢底层，不派发事件或增加第二次触觉。 */
-internal class SettingsPressHalo(private val host: View) {
+/**
+ * 内容区按钮通用的黑色外溢层。
+ *
+ * 只负责绘制和按压弹簧，不持有业务、导航或触觉；宿主仍由 PressSurface 统一处理触摸。
+ * 标题圆钮与抽屉胶囊有各自的多环/目标定位逻辑，不强行套用这里的单层规则。
+ */
+internal class PressHalo(private val host: View) {
     private val density = host.resources.displayMetrics.density
-    private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(Spec.ALPHA, 0, 0, 0) }
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(Spec.ALPHA, 0, 0, 0)
+    }
     private val rect = RectF()
     private val expansion = FloatValueHolder(0f)
     private val spring = SpringAnimation(expansion).apply {
