@@ -16,6 +16,9 @@ import com.otokit.noharayh.ui.constants.motion.PressHaloSpec as Spec
  *
  * 只负责绘制和按压弹簧，不持有业务、导航或触觉；宿主仍由 PressSurface 统一处理触摸。
  * 标题圆钮与抽屉胶囊有各自的多环/目标定位逻辑，不强行套用这里的单层规则。
+ *
+ * **宿主约束：** 本类会画到 host 边界之外，host 的直接父容器必须允许子 View 外溢
+ * （`clipChildren=false`、`clipToPadding=false`）。本类不修改父级裁剪，调用方负责。
  */
 internal class PressHalo(private val host: View) {
     private val density = host.resources.displayMetrics.density

@@ -30,6 +30,19 @@ import kotlin.math.roundToInt
  * 按下时弹簧驱动等距内收、圆角与白色覆盖；黑圆先弹性扩张，再回落到静止直径并跟手。
  * 黑圆始终裁切在按钮圆角内，所以按钮本身要足够大（当前示例 260×160dp）才能完整容纳 120dp 的黑圆。
  * 内容由 FrameLayout 在遮罩上方绘制，不随遮罩变色。
+ *
+ * ## 外溢外环的宿主约束
+ * 启用 [outerHaloEnabled] 时，[PressHalo] 会绘制到本 View 的边界之外。
+ * Android 父容器默认 `clipChildren=true`，会把子 View 的绘制裁回自身边界，
+ * 表现为“外环只能扩到按钮原来的方形区域”。
+ *
+ * 因此**直接父容器必须同时设置**：
+ * ```kotlin
+ * clipChildren = false
+ * clipToPadding = false
+ * ```
+ * 本组件不会反向修改父容器，避免跨层副作用；调用方在自己的容器上显式声明。
+ * 现有示例：`GamePlaceholderPanel`、`SettingsHome`、`AppSettingsPage` 的选项容器。
  */
 open class PressSurface @JvmOverloads constructor(
     context: Context,
@@ -54,7 +67,12 @@ open class PressSurface @JvmOverloads constructor(
     /** 离开窗口的动作可等待释放反馈；不含外链或页面等业务语义。 */
     var deferClickUntilReleaseFeedback = false
 
-    /** 是否绘制通用黑色外溢层；内容区按钮与设置卡片共用，标题/胶囊另有定位方式。父容器需允许子 View 外溢绘制。 */
+    /**
+     * 是否绘制通用黑色外溢层；内容区按钮与设置卡片共用，标题/胶囊另有定位方式。
+     *
+     * 启用前请确认直接父容器已设置 `clipChildren=false`、`clipToPadding=false`；
+     * 否则外环会被裁回按钮自身边界。组件不替调用方修改父级裁剪。
+     */
     var outerHaloEnabled: Boolean = false
         set(value) {
             if (field == value) return
