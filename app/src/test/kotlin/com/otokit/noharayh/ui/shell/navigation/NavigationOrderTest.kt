@@ -20,6 +20,6 @@ class NavigationOrderTest {
         assertEquals(1, NavigationOrder.direction(Destination.MusicData, Destination.ComingSoon))
         assertEquals(-1, NavigationOrder.direction(Destination.ComingSoon, Destination.ScoreSync))
         assertEquals(1, NavigationOrder.direction(null, Destination.MusicData))
-        assertEquals(1, NavigationOrder.direction(Destination.MusicData, Destination.MusicData))
+        assertEquals(0, NavigationOrder.direction(Destination.MusicData, Destination.MusicData))
     }
 }

@@ -13,13 +13,14 @@ object NavigationOrder {
     fun indexOf(destination: Destination): Int = destinations.indexOf(destination)
 
     fun direction(from: Destination?, to: Destination): Int {
+        if (from == to) return 0
         val oldIndex = from?.let(::indexOf) ?: return 1
         val newIndex = indexOf(to)
         return when {
             oldIndex < 0 || newIndex < 0 -> 1
             newIndex > oldIndex -> 1
             newIndex < oldIndex -> -1
-            else -> 1
+            else -> 0
         }
     }
 }
