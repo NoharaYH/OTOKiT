@@ -25,6 +25,8 @@ import com.otokit.noharayh.ui.shell.background.BackgroundHost
 import com.otokit.noharayh.ui.shell.background.BackgroundPhase
 import com.otokit.noharayh.ui.shell.background.BackgroundSnapshot
 import com.otokit.noharayh.ui.shell.navigation.Destination
+import com.otokit.noharayh.ui.shell.navigation.BackPreviewSession
+import com.otokit.noharayh.ui.shell.navigation.BackPreviewSession.Target
 import com.otokit.noharayh.ui.shell.navigation.NavigationController
 import com.otokit.noharayh.ui.shell.navigation.NavigationState
 import com.otokit.noharayh.ui.shell.selection.GameSelectionController
@@ -61,8 +63,6 @@ class MainShell(
 
     private enum class LifecycleState { New, Attached, Disposed }
 
-    private enum class BackPreviewTarget { None, Settings, Drawer }
-
     private val controller = NavigationController(initialState)
 
     /** 稳定的音游/主题选择；恢复顺序为保存状态、偏好、Registry 默认。 */
@@ -91,8 +91,7 @@ class MainShell(
     private var contentRunner: ContentTransitionRunner? = null
     private var settingsRunner: SettingsTransitionRunner? = null
     private var settingsClosing = false
-    private var backPreviewTarget: BackPreviewTarget = BackPreviewTarget.None
-    private var backPreviewProgress = 0f
+    private val backPreview = BackPreviewSession()
     private var settingsContent: PageContent? = null
     private var background: BackgroundHost? = null
     private var backgroundSubscription: AutoCloseable? = null
@@ -125,7 +124,7 @@ class MainShell(
 
     val canHandleBack: Boolean
         get() = lifecycleState == LifecycleState.Attached &&
-            (controller.canHandleBack || chrome.blocksUnderlyingInput)
+            (backPreview.awaitingTerminal || controller.canHandleBack || chrome.blocksUnderlyingInput)
 
     fun setOnCanHandleBackChanged(listener: ((Boolean) -> Unit)?) {
         if (lifecycleState == LifecycleState.Disposed) return
@@ -195,7 +194,7 @@ class MainShell(
         settingsRunner?.dispose()
         settingsRunner = null
         settingsClosing = false
-        backPreviewTarget = BackPreviewTarget.None
+        backPreview.reset()
         outgoingContent?.dispose()
         outgoingContent = null
         mountedContent?.dispose()
@@ -226,6 +225,7 @@ class MainShell(
      */
     fun resetTransientSettingsAfterRestore() {
         if (lifecycleState != LifecycleState.Attached) return
+        invalidateBackPreview()
         controller.closeSettings()
         settingsRunner?.resetClosed()
         settingsClosing = false
@@ -261,7 +261,7 @@ class MainShell(
 
     fun consumeBack(): Boolean {
         if (lifecycleState != LifecycleState.Attached) return false
-        if (backPreviewTarget != BackPreviewTarget.None) {
+        if (backPreview.awaitingTerminal) {
             finishBackPreview()
             return true
         }
@@ -584,68 +584,67 @@ class MainShell(
     /** 平台预测返回：开始只锁定目标，不提交任何业务状态。 */
     fun beginBackPreview(): Boolean {
         if (lifecycleState != LifecycleState.Attached) return false
-        if (backPreviewTarget != BackPreviewTarget.None) return true
-        if (chrome.blocksUnderlyingInput) {
-            backPreviewTarget = BackPreviewTarget.Drawer
-            chrome.beginDrawerBackPreview()
+        if (backPreview.target != Target.None) return true
+        if (chrome.blocksUnderlyingInput && chrome.beginDrawerBackPreview()) {
+            backPreview.begin(Target.Drawer)
             return true
         }
         if (controller.state.settingsOpen) {
             contentRunner?.cancel()
-            backPreviewTarget = BackPreviewTarget.Settings
-            backPreviewProgress = 0f
+            backPreview.begin(Target.Settings)
             chrome.beginBackPreview()
             settingsRunner?.preview(0f)
             return true
         }
+        backPreview.begin(Target.None)
+        onCanHandleBackChanged?.invoke(canHandleBack)
         return false
     }
 
     fun updateBackPreview(progress: Float) {
         if (lifecycleState != LifecycleState.Attached) return
-        val clamped = progress.coerceIn(0f, 1f)
-        when (backPreviewTarget) {
-            BackPreviewTarget.Settings -> {
-                backPreviewProgress = clamped
-                chrome.updateBackPreview(clamped)
-                settingsRunner?.preview(clamped)
+        backPreview.update(progress)
+        when (backPreview.target) {
+            Target.Settings -> {
+                chrome.updateBackPreview(backPreview.progress)
+                settingsRunner?.preview(backPreview.progress)
             }
 
-            BackPreviewTarget.Drawer -> chrome.updateDrawerBackPreview(clamped)
-            BackPreviewTarget.None -> Unit
+            Target.Drawer -> chrome.updateDrawerBackPreview(backPreview.progress)
+            Target.None -> Unit
         }
     }
 
     fun cancelBackPreview() {
         if (lifecycleState != LifecycleState.Attached) return
-        when (backPreviewTarget) {
-            BackPreviewTarget.Settings -> {
+        when (backPreview.take()?.target) {
+            Target.Settings -> {
                 chrome.cancelBackPreview()
                 settingsRunner?.cancelPreview()
             }
 
-            BackPreviewTarget.Drawer -> chrome.cancelDrawerBackPreview()
-            BackPreviewTarget.None -> Unit
+            Target.Drawer -> chrome.cancelDrawerBackPreview()
+            Target.None, null -> Unit
         }
-        backPreviewTarget = BackPreviewTarget.None
-        backPreviewProgress = 0f
+        onCanHandleBackChanged?.invoke(canHandleBack)
     }
 
     /** 完成一次预测返回：只提交一次，已到端点不重放整段动画。 */
     fun finishBackPreview() {
         if (lifecycleState != LifecycleState.Attached) return
-        val target = backPreviewTarget
-        backPreviewTarget = BackPreviewTarget.None
-        val progress = backPreviewProgress
-        backPreviewProgress = 0f
-        when (target) {
-            BackPreviewTarget.Settings -> {
+        val preview = backPreview.take() ?: run {
+            // 失效手势的完成事件在这里结束，不能再作为普通返回消费新状态。
+            onCanHandleBackChanged?.invoke(canHandleBack)
+            return
+        }
+        when (preview.target) {
+            Target.Settings -> {
                 if (!controller.state.settingsOpen) return
                 chrome.endBackPreview()
                 controller.closeSettings()
                 render()
                 // render 从预览最后一帧接续关闭；已到端点则直接落稳。
-                if (progress >= 0.99f) {
+                if (preview.progress >= 0.99f) {
                     settingsRunner?.cancel()
                     settingsRunner?.endPreview(settingsOpen = false)
                     settingsClosing = false
@@ -654,9 +653,10 @@ class MainShell(
                 }
             }
 
-            BackPreviewTarget.Drawer -> chrome.finishDrawerBackPreview()
-            BackPreviewTarget.None -> Unit
+            Target.Drawer -> chrome.finishDrawerBackPreview()
+            Target.None -> Unit
         }
+        onCanHandleBackChanged?.invoke(canHandleBack)
     }
 
     /** 只恢复主壳自己修改的属性；旧页面销毁或后台/销毁时不强行恢复焦点。 */
@@ -676,24 +676,20 @@ class MainShell(
 
     /** 预览期间任何命令或窗口变化都让会话失效；旧完成回调不得再提交返回。 */
     private fun invalidateBackPreview() {
-        if (backPreviewTarget == BackPreviewTarget.None) return
-        when (backPreviewTarget) {
-            BackPreviewTarget.Settings -> {
+        when (backPreview.invalidate()) {
+            Target.Settings -> {
                 chrome.cancelBackPreview()
                 settingsRunner?.cancelPreview()
             }
 
-            BackPreviewTarget.Drawer -> chrome.cancelDrawerBackPreview()
-            BackPreviewTarget.None -> Unit
+            Target.Drawer -> chrome.cancelDrawerBackPreview()
+            Target.None -> return
         }
-        backPreviewTarget = BackPreviewTarget.None
-        backPreviewProgress = 0f
+        onCanHandleBackChanged?.invoke(canHandleBack)
     }
 
     private fun onDrawerNavigate(destination: Destination) {
-        if (lifecycleState != LifecycleState.Attached) return
-        controller.navigate(destination)
-        render()
+        navigate(destination)
     }
 
     /** 抽屉开合会改变返回消费与底层输入；设置与抽屉共同决定模态。 */
