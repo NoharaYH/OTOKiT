@@ -67,6 +67,7 @@ class MainShell(
     savedSelection: SelectionSource = SelectionSource(null, null, null, null),
     private val displayScale: DisplayScaleOption = DisplayScaleOption.DEFAULT,
     private val onDisplayScaleSelected: (DisplayScaleOption) -> Unit = {},
+    private val initialSettingsSettled: Boolean = false,
     private val onOpenExternalLink: (String) -> Unit = {},
     private val selectionPreferences: UiPreferencesAdapter =
         UiPreferencesAdapter(SharedPreferencesUiPreferences(contentHost.context)),
@@ -102,6 +103,7 @@ class MainShell(
     private var contentRunner: ContentTransitionRunner? = null
     private var settingsRunner: SettingsTransitionRunner? = null
     private var settingsClosing = false
+    private var settleInitialSettings = initialSettingsSettled
     private val backPreview = BackPreviewSession()
     private var settingsContent: PageContent? = null
     private var settingsPage: SettingsAssembly? = null
@@ -229,6 +231,10 @@ class MainShell(
             settingsProvider = { settingsContent?.view },
             onProgress = { frame -> chrome.renderSettingsProgress(frame) },
         )
+        if (settleInitialSettings && controller.state.settingsOpen) {
+            // 显示比例重建：直接落到设置子页，不重播功能页→设置、父页→子页两套动画。
+            settingsPage?.settle(controller.state.settingsSection)
+        }
         chrome.attach()
         render()
     }
@@ -506,8 +512,9 @@ class MainShell(
         lastChromeDestination = current.destination
         val modal = current.settingsOpen || chrome.blocksUnderlyingInput
         if (appliedSettingsOpen != current.settingsOpen || appliedModal != modal) {
-            applyModalState(current.settingsOpen)
+            applyModalState(current.settingsOpen, settleSettings = settleInitialSettings)
         }
+        settleInitialSettings = false
         onCanHandleBackChanged?.invoke(canHandleBack)
     }
 
@@ -606,7 +613,7 @@ class MainShell(
     /**
      * 设置与抽屉共同决定模态：覆盖层只服务设置，输入与焦点按两者合并。
      */
-    private fun applyModalState(settingsOpen: Boolean) {
+    private fun applyModalState(settingsOpen: Boolean, settleSettings: Boolean = false) {
         val modal = settingsOpen || chrome.blocksUnderlyingInput
         val enteringModal = modal && !appliedModal
         val previousSettings = appliedSettingsOpen
@@ -629,7 +636,7 @@ class MainShell(
                 settingsRunner?.cancel()
                 settingsContent?.view?.visibility = View.VISIBLE
                 overlayHost.visibility = View.VISIBLE
-                settingsRunner?.animateOpen()
+                if (settleSettings) settingsRunner?.openImmediate() else settingsRunner?.animateOpen()
             } else if (!settingsClosing) {
                 overlayHost.visibility = View.VISIBLE
             }

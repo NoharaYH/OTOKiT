@@ -107,6 +107,7 @@ class MainActivity : AppCompatActivity() {
             savedSelection = GameSelectionStateCodec.read(savedInstanceState),
             displayScale = displayScaleStore.read(),
             onDisplayScaleSelected = ::onDisplayScaleSelected,
+            initialSettingsSettled = restoreSettingsAfterRecreate,
             onOpenExternalLink = { url ->
                 val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
                 try { startActivity(intent) } catch (_: android.content.ActivityNotFoundException) {
