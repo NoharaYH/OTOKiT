@@ -17,7 +17,7 @@ class SettingsAssembly(
     context: Context,
     private val onOpenSection: (SettingsSection) -> Unit,
     private val onOpenLink: (String) -> Unit,
-    private val onTransitionStart: (SettingsSection?, SettingsSection?) -> Unit,
+    private val onTransitionStart: (SettingsSection?, SettingsSection?, Float) -> Unit,
     private val onTransitionFrame: (TransitionProgress) -> Unit,
 ) : FrameLayout(context) {
     private val rootPage = SettingsHome(context, onOpenSection)
@@ -120,7 +120,7 @@ class SettingsAssembly(
         childHost.visibility = VISIBLE
         transitioning = true
         runner.reset()
-        onTransitionStart(from, to)
+        onTransitionStart(from, to, width.toFloat())
         renderFrame(TransitionProgress(0f, true))
         updateAccessibility()
     }

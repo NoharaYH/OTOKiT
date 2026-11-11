@@ -23,14 +23,26 @@ class SettingsPageFramesTest {
         assertEquals(0f, end.translationX, 0f)
         assertEquals(1f, half.scale, 0f)
     }
+    @Test fun phoneTitleUsesExactPageDistanceAndDirection() {
+        val entering = SettingsPageFrames.title(0f, true, true, false, 400f)
+        val entered = SettingsPageFrames.title(1f, true, true, false, 400f)
+        val exiting = SettingsPageFrames.title(1f, false, true, false, 400f)
+
+        assertEquals(400f, entering.translationX, 0f)
+        assertEquals(0f, entered.translationX, 0f)
+        assertEquals(-400f, exiting.translationX, 0f)
+        assertEquals(1f, entering.alpha, 0f)
+        assertEquals(1f, exiting.alpha, 0f)
+        assertEquals(1f, entering.scale, 0f)
+    }
     @Test fun splitPageAndTitleShareVisibleEndpoints() {
         for (forward in listOf(true, false)) {
             val page = SettingsPageFrames.page(0f, true, forward, true, 400f)
-            val title = SettingsPageFrames.title(0f, true, forward, 48f)
+            val title = SettingsPageFrames.title(0f, true, forward, true, 400f)
             assertEquals(0f, page.alpha, 0f)
             assertEquals(0f, title.alpha, 0f)
             assertEquals(1f, SettingsPageFrames.page(1f, true, forward, true, 400f).alpha, 0f)
-            assertEquals(1f, SettingsPageFrames.title(1f, true, forward, 48f).scale, 0f)
+            assertEquals(1f, SettingsPageFrames.title(1f, true, forward, true, 400f).scale, 0f)
         }
     }
 }

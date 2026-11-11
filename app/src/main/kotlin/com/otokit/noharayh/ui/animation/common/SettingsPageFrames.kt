@@ -16,12 +16,26 @@ object SettingsPageFrames {
             if (split) 0f else width * if (forward) -1f else 1f,
         )
 
-    fun title(progress: Float, entering: Boolean, forward: Boolean, height: Float) =
-        if (entering) TransitionFrames.enter(
-            Spec.TITLE_KIND, progress, Spec.TITLE_SCALE,
-            translationYFrom = height * Spec.TITLE_DISTANCE_HEIGHT * if (forward) 1f else -1f,
-        ) else TransitionFrames.exit(
-            Spec.TITLE_KIND, progress, Spec.TITLE_SCALE,
-            translationYTo = height * Spec.TITLE_DISTANCE_HEIGHT * if (forward) -1f else 1f,
-        )
+    /**
+     * 设置父/子页标题与页面共用同一方向、距离和端点。
+     *
+     * 手机是整行横移；分栏沿用页面的同一套缩放/淡变。
+     */
+    fun title(
+        progress: Float,
+        entering: Boolean,
+        forward: Boolean,
+        split: Boolean,
+        width: Float,
+    ) = if (entering) TransitionFrames.enter(
+        if (split) Spec.SPLIT_KIND else Spec.PHONE_KIND,
+        progress,
+        Spec.PAGE_SCALE,
+        if (split) 0f else width * if (forward) 1f else -1f,
+    ) else TransitionFrames.exit(
+        if (split) Spec.SPLIT_KIND else Spec.PHONE_KIND,
+        progress,
+        Spec.PAGE_SCALE,
+        if (split) 0f else width * if (forward) -1f else 1f,
+    )
 }

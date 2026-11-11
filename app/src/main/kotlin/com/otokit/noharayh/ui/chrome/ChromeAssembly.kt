@@ -180,7 +180,12 @@ class ChromeAssembly(
     fun prepareSettingsPageTransition(
         from: SettingsSection?,
         to: SettingsSection?,
-    ) { if (attached && !disposed) titleBar?.prepareSettingsPageTransition(from, to) }
+        distancePx: Float,
+    ) {
+        if (attached && !disposed) {
+            titleBar?.prepareSettingsPageTransition(from, to, split = !compact, distancePx = distancePx)
+        }
+    }
 
     fun renderSettingsPageProgress(frame: TransitionProgress) {
         if (attached && !disposed) titleBar?.renderSettingsPageProgress(frame)

@@ -259,7 +259,9 @@ class TitleBar(context: Context) : FrameLayout(context) {
         )
 
 
-        // 文字滑到左侧时压在圆底下面，而不是盖住汉堡键；halo 仍在按钮下、文字上。
+        // 右侧装饰三角压在标题文字上，文字滑入时从装饰下面出现；
+        // 再抬升 halo 与菜单，保证按压层和按钮仍在文字之上。
+        bringChildToFront(decor)
         bringChildToFront(halo)
         bringChildToFront(menuHost)
 
@@ -349,13 +351,21 @@ class TitleBar(context: Context) : FrameLayout(context) {
     fun prepareSettingsPageTransition(
         from: SettingsSection?,
         to: SettingsSection?,
+        split: Boolean,
+        distancePx: Float,
     ) {
         fun show(section: SettingsSection?) {
             settingsColumn.setTexts(TitleTexts.forSettings(section))
             setColumnColor(settingsColumn, TitleTexts.colorForSettings(section))
         }
         show(from)
-        settingsPageMotion.prepare(to != null, restoreSource = { show(from) }, showTarget = { show(to) })
+        settingsPageMotion.prepare(
+            forward = to != null,
+            split = split,
+            distanceWidth = distancePx,
+            restoreSource = { show(from) },
+            showTarget = { show(to) },
+        )
     }
 
     fun renderSettingsPageProgress(frame: TransitionProgress) = settingsPageMotion.render(frame)

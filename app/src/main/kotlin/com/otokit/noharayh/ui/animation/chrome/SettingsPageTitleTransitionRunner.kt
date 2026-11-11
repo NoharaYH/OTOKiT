@@ -6,8 +6,8 @@ import android.graphics.RectF
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.ImageView
-import com.otokit.noharayh.ui.animation.common.TransitionProgress
 import com.otokit.noharayh.ui.animation.common.SettingsPageFrames
+import com.otokit.noharayh.ui.animation.common.TransitionProgress
 
 /** 父子页标题只呈现设置时钟的进度，拥有一份裁剪到文字范围的退场截图。 */
 internal class SettingsPageTitleTransitionRunner(
@@ -20,13 +20,23 @@ internal class SettingsPageTitleTransitionRunner(
     private var bitmap: Bitmap? = null
     private val baselineY = column.translationY
     private var forward = true
+    private var split = false
+    private var distanceWidth = 0f
     private var restore: (() -> Unit)? = null
     var active = false
         private set
 
-    fun prepare(forward: Boolean, restoreSource: () -> Unit, showTarget: () -> Unit) {
+    fun prepare(
+        forward: Boolean,
+        split: Boolean,
+        distanceWidth: Float,
+        restoreSource: () -> Unit,
+        showTarget: () -> Unit,
+    ) {
         settle()
         this.forward = forward
+        this.split = split
+        this.distanceWidth = distanceWidth
         restore = restoreSource
         val rect = bounds()
         if (rect != null && rect.width() > 0 && rect.height() > 0) {
@@ -71,17 +81,19 @@ internal class SettingsPageTitleTransitionRunner(
     fun render(frame: TransitionProgress) {
         if (!active) return
         refreshPivot()
-        val height = column.height.toFloat()
-        val entry = SettingsPageFrames.title(frame.value, true, forward, height)
+        val width = distanceWidth.takeIf { it > 0f } ?: host.width.toFloat()
+        val entry = SettingsPageFrames.title(frame.value, true, forward, split, width)
         column.alpha = entry.alpha
         column.scaleX = entry.scale
         column.scaleY = entry.scale
+        column.translationX = entry.translationX
         column.translationY = baselineY + entry.translationY
         ghost?.let {
-            val exit = SettingsPageFrames.title(frame.value, false, forward, height)
+            val exit = SettingsPageFrames.title(frame.value, false, forward, split, width)
             it.alpha = exit.alpha
             it.scaleX = exit.scale
             it.scaleY = exit.scale
+            it.translationX = exit.translationX
             it.translationY = baselineY + exit.translationY
         }
         if (!frame.running) {
@@ -100,6 +112,7 @@ internal class SettingsPageTitleTransitionRunner(
         column.alpha = 1f
         column.scaleX = 1f
         column.scaleY = 1f
+        column.translationX = 0f
         column.translationY = baselineY
     }
 }
