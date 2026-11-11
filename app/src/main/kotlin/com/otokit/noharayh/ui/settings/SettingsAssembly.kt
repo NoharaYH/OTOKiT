@@ -39,8 +39,13 @@ class SettingsAssembly(
         isClickable = true
         isFocusable = true
         isFocusableInTouchMode = true
-        addView(rootPage)
+        // Split 时卡片外环会越出左右列；分隔线必须垫在内容下面，不能反遮按压效果。
+        clipChildren = false
+        clipToPadding = false
+        childHost.clipChildren = false
+        childHost.clipToPadding = false
         addView(divider)
+        addView(rootPage)
         addView(childHost)
         updatePadding()
         settle(null)
