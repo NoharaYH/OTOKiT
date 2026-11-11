@@ -253,7 +253,7 @@ class MainShell(
         contentRunner?.cancel()
         outgoingContent?.dispose()
         outgoingContent = null
-        chrome.closeDrawer(immediate = true)
+        chrome.closeDrawer(immediate = false)
         controller.openSettings()
         render()
     }

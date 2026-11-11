@@ -85,10 +85,10 @@ class SideBarHost @JvmOverloads constructor(
         applyLayout()
     }
 
-    fun setDragEnabled(enabled: Boolean) {
+    fun setDragEnabled(enabled: Boolean, closeImmediately: Boolean = true) {
         if (disposed || dragEnabled == enabled) return
         dragEnabled = enabled
-        if (!enabled) close(immediate = true)
+        if (!enabled && closeImmediately) close(immediate = true)
     }
 
     fun setResumed(value: Boolean) {

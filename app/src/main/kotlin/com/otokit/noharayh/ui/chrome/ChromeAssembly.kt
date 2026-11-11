@@ -61,7 +61,8 @@ class ChromeAssembly(
             onNavigate(destination)
         }
         sidebarHost.onSettings = {
-            sidebarHost.close(immediate = true)
+            // 与普通导航一致：先沿当前进度收起，保留胶囊释放反馈与触觉。
+            sidebarHost.close()
             onOpenSettings()
         }
         sidebarHost.onInputBlockedChanged = {
@@ -110,8 +111,12 @@ class ChromeAssembly(
         if (!attached || disposed) return
         display = input
         sidebarHost.setSelected(input.destination)
-        if (input.settingsOpen) sidebarHost.close(immediate = true)
-        sidebarHost.setDragEnabled(compact && !input.settingsOpen)
+        // 设置打开只锁抽屉输入，不打断正在进行的收起动画与释放触觉。
+        if (input.settingsOpen) sidebarHost.close()
+        sidebarHost.setDragEnabled(
+            enabled = compact && !input.settingsOpen,
+            closeImmediately = !input.settingsOpen,
+        )
         renderTitle()
         rail?.render(input)
     }
