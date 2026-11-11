@@ -1,10 +1,13 @@
 package com.otokit.noharayh.ui.animation.chrome
 
 import android.animation.ValueAnimator
+import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.RectF
 import android.graphics.drawable.BitmapDrawable
 import android.view.View
+import android.view.Gravity
 import android.widget.FrameLayout
 import android.widget.ImageView
 import com.otokit.noharayh.ui.animation.common.GameFrame
@@ -27,6 +30,7 @@ internal class TitleTextTransitionRunner(
     private val chuStack: FrameLayout,
     private val refreshPivots: () -> Unit,
     private val refreshStackPivot: (FrameLayout) -> Unit,
+    private val navigationBounds: () -> RectF?,
 ) {
     private var disposed = false
     private var navAnimator: ValueAnimator? = null
@@ -241,6 +245,8 @@ internal class TitleTextTransitionRunner(
                 titleMotionHost.scaleY = entry.scale
                 ghostView.alpha = exit.alpha
                 ghostView.translationY = exit.translationY
+                ghostView.scaleX = exit.scale
+                ghostView.scaleY = exit.scale
             }
             addListener(object : android.animation.AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: android.animation.Animator) {
@@ -265,10 +271,14 @@ internal class TitleTextTransitionRunner(
         clearGhost()
     }
 
+    @SuppressLint("RtlHardcoded") // LM 使用物理左侧坐标，与标题文字宿主一致。
     private fun captureGhost(): ImageView? {
         clearGhost()
-        val width = titleHost.width
-        val height = titleHost.height
+        val bounds = navigationBounds() ?: return null
+        val left = kotlin.math.floor(bounds.left).toInt()
+        val top = kotlin.math.floor(bounds.top).toInt()
+        val width = kotlin.math.ceil(bounds.right).toInt() - left
+        val height = kotlin.math.ceil(bounds.bottom).toInt() - top
         if (width <= 0 || height <= 0) return null
         val bitmap = try {
             Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
@@ -276,7 +286,9 @@ internal class TitleTextTransitionRunner(
             return null
         }
         try {
-            titleHost.draw(Canvas(bitmap))
+            val canvas = Canvas(bitmap)
+            canvas.translate(-left.toFloat(), -top.toFloat())
+            titleMotionHost.draw(canvas)
         } catch (_: Throwable) {
             bitmap.recycle()
             return null
@@ -287,12 +299,16 @@ internal class TitleTextTransitionRunner(
             isClickable = false
             isFocusable = false
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-            pivotX = 0f
-            pivotY = height / 2f
+            pivotX = bounds.left - left
+            pivotY = bounds.centerY() - top
         }
         titleHost.addView(
             image,
-            FrameLayout.LayoutParams(width, height),
+            FrameLayout.LayoutParams(width, height).apply {
+                gravity = Gravity.TOP or Gravity.LEFT
+                leftMargin = titleMotionHost.left + left
+                topMargin = titleMotionHost.top + top
+            },
         )
         ghost = image
         return image

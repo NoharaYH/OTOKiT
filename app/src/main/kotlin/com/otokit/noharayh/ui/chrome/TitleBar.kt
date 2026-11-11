@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.Rect
+import android.graphics.RectF
 import android.text.TextUtils
 import android.util.TypedValue
 import android.view.Gravity
@@ -18,7 +19,6 @@ import androidx.core.graphics.ColorUtils
 import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.animation.chrome.TitleAppearanceTransitionRunner
 import com.otokit.noharayh.ui.animation.chrome.TitleTextTransitionRunner
-import com.otokit.noharayh.ui.animation.chrome.TitleTransitionFrames
 import com.otokit.noharayh.ui.animation.common.GameFrame
 import com.otokit.noharayh.ui.animation.common.GamePhase
 import com.otokit.noharayh.ui.constants.dimensions.ShellDimensions
@@ -26,7 +26,6 @@ import com.otokit.noharayh.ui.constants.motion.NavTitleTransition
 import com.otokit.noharayh.ui.kit.common.AppTypography
 import com.otokit.noharayh.ui.theme.GameLine
 import kotlin.math.min
-import kotlin.math.roundToInt
 
 /**
  * 标题栏：圆形菜单按钮 + 中英双行标题 + 右侧装饰三角。
@@ -82,6 +81,7 @@ class TitleBar(context: Context) : FrameLayout(context) {
         titleHost, titleMotionHost, functionalHost, settingsColumn, maiStack, chuStack,
         refreshPivots = { refreshFunctionalPivot(); refreshSettingsPivot() },
         refreshStackPivot = ::refreshPivot,
+        navigationBounds = { titleBoundsFor(titleMotionHost, currentFunctionalColumn()) },
     )
     private val appearanceMotion = TitleAppearanceTransitionRunner(
         iconLayer, outgoingIconLayer,
@@ -456,8 +456,9 @@ class TitleBar(context: Context) : FrameLayout(context) {
     }
 
     private fun refreshPivot(stack: FrameLayout) {
+        val column = if (stack === maiStack) maiColumn else chuColumn
         stack.pivotX = 0f
-        stack.pivotY = stack.height / 2f
+        stack.pivotY = titleBoundsFor(stack, column)?.centerY() ?: return
     }
 
     private fun applyTextColors(state: TitleBarState) {
@@ -477,20 +478,26 @@ class TitleBar(context: Context) : FrameLayout(context) {
         chuChinese.setTextColor(color)
     }
 
+    private fun currentFunctionalColumn(): LinearLayout =
+        if (lastState?.currentGame == GameLine.Chu) chuColumn else maiColumn
+
     private fun refreshFunctionalPivot() {
-        functionalHost.pivotX = 0f
-        functionalHost.pivotY = pivotYFor(
-            functionalHost,
-            maiEnglish,
-            maiChinese,
-            chuEnglish,
-            chuChinese,
-        )
+        val column = currentFunctionalColumn()
+        titleBoundsFor(functionalHost, column)?.let { bounds ->
+            functionalHost.pivotX = bounds.left
+            functionalHost.pivotY = bounds.centerY()
+        }
+        titleBoundsFor(titleMotionHost, column)?.let { bounds ->
+            titleMotionHost.pivotX = bounds.left
+            titleMotionHost.pivotY = bounds.centerY()
+        }
     }
 
     private fun refreshSettingsPivot() {
-        settingsColumn.pivotX = 0f
-        settingsColumn.pivotY = pivotYFor(settingsColumn, settingsEnglish, settingsChinese)
+        titleBoundsFor(settingsColumn, settingsColumn)?.let { bounds ->
+            settingsColumn.pivotX = bounds.left
+            settingsColumn.pivotY = bounds.centerY()
+        }
     }
 
     private fun setColumnColor(column: LinearLayout, color: Int) {
@@ -499,32 +506,36 @@ class TitleBar(context: Context) : FrameLayout(context) {
         }
     }
 
-    /** 两行及以上文字的真实布局并集中心；不按单行或容器中心取锚点。 */
-    private fun pivotYFor(host: ViewGroup, vararg lines: View): Float {
-        val union = Rect()
-        var hasLine = false
-        for (line in lines) {
-            if (line.width <= 0 || line.height <= 0) continue
-            val rect = Rect()
-            host.offsetDescendantRectToMyCoords(line, rect)
-            if (rect.width() <= 0 || rect.height() <= 0) continue
-            if (!hasLine) {
-                union.set(rect)
-                hasLine = true
-            } else {
-                union.union(rect)
-            }
+    /** 两行的未变换布局边界；只计入 column 固定的光学偏移，不读取动画矩阵。 */
+    private fun titleBoundsFor(host: ViewGroup, column: LinearLayout): RectF? {
+        var top = Float.POSITIVE_INFINITY
+        var bottom = Float.NEGATIVE_INFINITY
+        var right = 0f
+        for (index in 0 until column.childCount) {
+            val line = column.getChildAt(index) as? AppCompatTextView ?: continue
+            val layout = line.layout ?: continue
+            if (line.width <= 0 || line.height <= 0 || layout.lineCount == 0) continue
+            top = minOf(top, line.top.toFloat())
+            bottom = maxOf(bottom, line.bottom.toFloat())
+            // TextView 是 MATCH_PARENT，截图只需要实际文本布局占用的宽度。
+            right = maxOf(right, line.left + line.totalPaddingLeft + layout.getLineRight(0))
         }
-        return if (hasLine) {
-            TitleTransitionFrames.lmPivotY(union.top.toFloat(), union.bottom.toFloat())
-        } else {
-            host.height / 2f
-        }
+        if (!top.isFinite() || right <= 0f || bottom <= top) return null
+        // 此处只换算原点；这个 API 仅使用布局位置和 scroll，不包含 scale/translation。
+        val origin = Rect()
+        host.offsetDescendantRectToMyCoords(column, origin)
+        val opticalY = if (host === column) 0f else metrics.opticalNudgePx
+        return RectF(
+            origin.left.toFloat(), origin.top + top + opticalY,
+            origin.left + right, origin.top + bottom + opticalY,
+        )
     }
     private fun refreshPivots(state: TitleBarState?) {
         if (state == null) return
         refreshFunctionalPivot()
         refreshSettingsPivot()
+        refreshPivot(maiStack)
+        refreshPivot(chuStack)
     }
 
 
