@@ -28,6 +28,7 @@ import com.otokit.noharayh.ui.shell.navigation.Destination
 import com.otokit.noharayh.ui.shell.navigation.BackPreviewSession
 import com.otokit.noharayh.ui.shell.navigation.BackPreviewSession.Target
 import com.otokit.noharayh.ui.shell.navigation.NavigationController
+import com.otokit.noharayh.ui.shell.navigation.NavigationOrder
 import com.otokit.noharayh.ui.shell.navigation.NavigationState
 import com.otokit.noharayh.ui.shell.selection.GameSelectionController
 import com.otokit.noharayh.ui.shell.selection.GameSelectionState
@@ -437,14 +438,12 @@ class MainShell(
         val nav = controller.state
         val current = selection.state
         val theme = themeFor(current.selectedThemeId(), current.currentGame)
-        val direction = when {
-            lastChromeDestination == null || lastChromeDestination == nav.destination -> 0
-            else -> {
-                val order = com.otokit.noharayh.ui.chrome.NavDisplay.items.map { it.destination }
-                val oldIndex = order.indexOf(lastChromeDestination)
-                val newIndex = order.indexOf(nav.destination)
-                if (oldIndex < 0 || newIndex < 0) 0 else if (newIndex > oldIndex) 1 else -1
-            }
+        val direction = if (
+            lastChromeDestination == null || lastChromeDestination == nav.destination
+        ) {
+            0
+        } else {
+            NavigationOrder.direction(lastChromeDestination, nav.destination)
         }
         return ChromeDisplayInput(
             destination = nav.destination,
@@ -493,17 +492,8 @@ class MainShell(
         }
     }
 
-    private fun navDirection(previousDestination: Destination?, destination: Destination): Int {
-        val order = com.otokit.noharayh.ui.chrome.NavDisplay.items.map { it.destination }
-        val oldIndex = order.indexOf(previousDestination)
-        val newIndex = order.indexOf(destination)
-        return when {
-            oldIndex < 0 || newIndex < 0 -> 1
-            newIndex > oldIndex -> 1
-            newIndex < oldIndex -> -1
-            else -> 1
-        }
-    }
+    private fun navDirection(previousDestination: Destination?, destination: Destination): Int =
+        NavigationOrder.direction(previousDestination, destination)
 
     private fun createContent(context: Context, destination: Destination): PageContent =
         when (destination) {
