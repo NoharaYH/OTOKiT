@@ -75,6 +75,41 @@ internal object SettingsPageViews {
         setOnClickListener { onClick() }
     }
 
+    /** 单选行：与 action 行同一按压容器，右侧为圆形选择指示。 */
+    fun choice(context: Context, label: String, selected: Boolean, onClick: () -> Unit) = PressSurface(context).apply {
+        outerHaloEnabled = true
+        fillColor = 0xFFF5F5F5.toInt()
+        baseRadius = dp(context, SettingsCardDimensions.CONTENT_CORNER_DP).toFloat()
+        contentDescription = label
+        val row = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(context, 16), 0, dp(context, 16), 0)
+            addView(rowText(context, label).apply {
+                setTextColor(if (selected) 0xFF2196F3.toInt() else 0xFF616161.toInt())
+            }, LinearLayout.LayoutParams(0, -1, 1f))
+            addView(radioIndicator(context, selected), LinearLayout.LayoutParams(dp(context, 20), dp(context, 20)))
+        }
+        addView(row, FrameLayout.LayoutParams(-1, dp(context, SettingsCardDimensions.CONTENT_ROW_HEIGHT_DP)))
+        setOnClickListener { onClick() }
+    }
+
+    private fun radioIndicator(context: Context, selected: Boolean) = FrameLayout(context).apply {
+        background = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(Color.TRANSPARENT)
+            setStroke(dp(context, 2), if (selected) 0xFF2196F3.toInt() else 0xFFBDBDBD.toInt())
+        }
+        if (selected) {
+            addView(View(context).apply {
+                background = GradientDrawable().apply {
+                    shape = GradientDrawable.OVAL
+                    setColor(0xFF2196F3.toInt())
+                }
+            }, FrameLayout.LayoutParams(dp(context, 10), dp(context, 10), Gravity.CENTER))
+        }
+    }
+
     private fun rowText(context: Context, value: String) = text(context, value, 14f, 0xFF616161.toInt()).apply {
         gravity = Gravity.CENTER_VERTICAL
         maxLines = 1

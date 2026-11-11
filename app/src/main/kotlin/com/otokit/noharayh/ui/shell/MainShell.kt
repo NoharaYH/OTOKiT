@@ -8,6 +8,7 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.core.content.ContextCompat
 import com.otokit.noharayh.storage.preferences.SharedPreferencesUiPreferences
+import com.otokit.noharayh.ui.constants.display.DisplayScaleOption
 import com.otokit.noharayh.ui.chrome.ChromeAssembly
 import com.otokit.noharayh.ui.chrome.ChromeDisplayInput
 import com.otokit.noharayh.ui.chrome.ChromeInsets
@@ -60,6 +61,8 @@ class MainShell(
     private val sidebarHost: SideBarHost,
     initialState: NavigationState = NavigationState(),
     savedSelection: SelectionSource = SelectionSource(null, null, null, null),
+    private val displayScale: DisplayScaleOption = DisplayScaleOption.DEFAULT,
+    private val onDisplayScaleSelected: (DisplayScaleOption) -> Unit = {},
     private val onOpenExternalLink: (String) -> Unit = {},
     private val selectionPreferences: UiPreferencesAdapter =
         UiPreferencesAdapter(SharedPreferencesUiPreferences(contentHost.context)),
@@ -167,6 +170,8 @@ class MainShell(
             overlayHost.context,
             onOpenSection = ::openSettingsSection,
             onOpenLink = onOpenExternalLink,
+            displayScale = displayScale,
+            onDisplayScaleSelected = onDisplayScaleSelected,
             onTransitionStart = chrome::prepareSettingsPageTransition,
             onTransitionFrame = chrome::renderSettingsPageProgress,
         )

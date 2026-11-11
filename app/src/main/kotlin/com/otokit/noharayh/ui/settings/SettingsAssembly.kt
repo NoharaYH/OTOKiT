@@ -9,6 +9,7 @@ import android.widget.FrameLayout
 import com.otokit.noharayh.ui.animation.common.TransitionProgress
 import com.otokit.noharayh.ui.animation.common.SettingsPageFrames
 import com.otokit.noharayh.ui.animation.settings.SettingsPageTransitionRunner
+import com.otokit.noharayh.ui.constants.display.DisplayScaleOption
 import com.otokit.noharayh.ui.shell.navigation.SettingsSection
 
 /** 设置展示宿主。section 只是最后渲染值；所有稳定页面命令交回导航控制器。 */
@@ -17,6 +18,8 @@ class SettingsAssembly(
     context: Context,
     private val onOpenSection: (SettingsSection) -> Unit,
     private val onOpenLink: (String) -> Unit,
+    private val displayScale: DisplayScaleOption,
+    private val onDisplayScaleSelected: (DisplayScaleOption) -> Unit,
     private val onTransitionStart: (SettingsSection?, SettingsSection?, Float) -> Unit,
     private val onTransitionFrame: (TransitionProgress) -> Unit,
 ) : FrameLayout(context) {
@@ -180,7 +183,15 @@ class SettingsAssembly(
         childHost.descendantFocusability = if (!transitioning && renderedSection != null) ViewGroup.FOCUS_AFTER_DESCENDANTS else ViewGroup.FOCUS_BLOCK_DESCENDANTS
     }
     private fun updatePadding() = rootPage.setContentMargins(margin, split)
-    private fun buildChild(section: SettingsSection) = SettingsPages.child(context, section, margin, split, onOpenLink)
+    private fun buildChild(section: SettingsSection) = SettingsPages.child(
+        context = context,
+        section = section,
+        margin = margin,
+        split = split,
+        openLink = onOpenLink,
+        displayScale = displayScale,
+        onDisplayScaleSelected = onDisplayScaleSelected,
+    )
     private fun reset(view: View) { view.alpha = 1f; view.scaleX = 1f; view.scaleY = 1f; view.translationX = 0f; view.translationY = 0f }
     private fun dp(value: Int) = (value * resources.displayMetrics.density + 0.5f).toInt()
     private fun exact(value: Int) = MeasureSpec.makeMeasureSpec(value.coerceAtLeast(0), MeasureSpec.EXACTLY)

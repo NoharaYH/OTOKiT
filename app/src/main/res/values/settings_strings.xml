@@ -17,4 +17,8 @@
     <string name="about_check_update">点击检查新版本</string>
     <string name="about_feedback_subtitle">前往 GitHub Issues 门户</string>
     <string name="about_repo_url">https://github.com/NoharaYH/OTOKiT</string>
+    <string name="settings_display_scale">应用显示比例</string>
+    <string name="settings_display_scale_small">较小（85%）</string>
+    <string name="settings_display_scale_standard">标准（100%）</string>
+    <string name="settings_display_scale_large">较大（115%）</string>
 </resources>
