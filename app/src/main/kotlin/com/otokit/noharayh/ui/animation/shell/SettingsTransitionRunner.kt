@@ -30,6 +30,9 @@ class SettingsTransitionRunner(
     private var previewProgress = 0f
     private var previewing = false
 
+    /** 当前呈现进度：0=功能态，1=设置态；关闭接续预览的最后一帧。 */
+    val openProgress: Float get() = progress
+
     fun openImmediate() {
         token++
         cancelAnimator()
@@ -84,6 +87,14 @@ class SettingsTransitionRunner(
         token++
         val runToken = token
         cancelAnimator()
+        clearGhost()
+        previewing = false
+        progress = fromProgress.coerceIn(0f, 1f)
+        if (progress <= 0f) {
+            applySettled(0f)
+            onClosed()
+            return
+        }
         val settings = settingsProvider() ?: run {
             onClosed()
             return
@@ -91,17 +102,13 @@ class SettingsTransitionRunner(
         val captured = capture(settings)
         settings.visibility = View.GONE
         if (captured == null || !ValueAnimator.areAnimatorsEnabled()) {
-            featureProvider()?.let {
-                it.visibility = View.VISIBLE
-                it.alpha = 1f
-                it.scaleX = 1f
-                it.scaleY = 1f
-            }
+            clearGhost()
+            applySettled(0f)
             onClosed()
             return
         }
         featureProvider()?.visibility = View.VISIBLE
-        progress = fromProgress.coerceIn(0f, 1f)
+        applyOpenState(progress, ghostVisible = true)
         animator = ValueAnimator.ofFloat(progress, 0f).apply {
             duration = (SettingsTransition.EXIT_DURATION_MS * progress).toLong().coerceAtLeast(1L)
             interpolator = MotionInterpolators.of(SettingsTransition.CURVE)
@@ -244,6 +251,7 @@ class SettingsTransitionRunner(
     }
 
     private fun applyPreviewState(value: Float) {
+        progress = 1f - value
         val feature = featureProvider()
         val settings = settingsProvider()
         feature?.let {

@@ -102,7 +102,8 @@ class TitleBar(context: Context) : FrameLayout(context) {
     private var circleColorGeneration = 0
     private var ghost: ImageView? = null
     private var backPreviewActive = false
-    private var backPreviewProgress = 0f
+    /** 0=功能态，1=设置态；手势与普通转场共用当前呈现进度。 */
+    private var settingsProgress = 0f
 
     private val layoutListener = OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
         val height = height
@@ -319,7 +320,7 @@ class TitleBar(context: Context) : FrameLayout(context) {
                 backPreviewActive = false
             }
             if (!runSettingsTransition(open)) settleLayers(open)
-        } else if (!backPreviewActive) {
+        } else if (!backPreviewActive && settingsAnimator == null) {
             settleLayers(state.settingsOpen)
         }
 
@@ -358,15 +359,13 @@ class TitleBar(context: Context) : FrameLayout(context) {
         cancelNavTransition()
         cancelSettingsTransition()
         backPreviewActive = true
-        backPreviewProgress = 0f
         // 预览进度 0=设置态；内部设置进度 1=设置态。
         applySettingsProgress(1f, animate = false)
     }
 
     fun updateBackProgress(progress: Float) {
         if (!backPreviewActive) return
-        backPreviewProgress = progress.coerceIn(0f, 1f)
-        applySettingsProgress(1f - backPreviewProgress, animate = false)
+        applySettingsProgress(1f - progress.coerceIn(0f, 1f), animate = false)
         applyTextColors(lastState ?: return)
     }
 
@@ -379,8 +378,7 @@ class TitleBar(context: Context) : FrameLayout(context) {
 
     fun endBackPreview() {
         backPreviewActive = false
-        backPreviewProgress = 0f
-        lastState?.let { settleLayers(it.settingsOpen) }
+        // 保留预览最后一帧，已提交状态的退出动画从这里继续。
     }
 
     fun cancelPressFeedback() = menuButton.cancelFeedback()
@@ -701,7 +699,7 @@ class TitleBar(context: Context) : FrameLayout(context) {
 
     private fun applySettingsProgress(progress: Float, animate: Boolean) {
         val p = progress.coerceIn(0f, 1f)
-        backPreviewProgress = p
+        settingsProgress = p
         refreshFunctionalPivot()
         refreshSettingsPivot()
         if (p >= 1f) {
@@ -800,10 +798,11 @@ class TitleBar(context: Context) : FrameLayout(context) {
     private fun runSettingsTransition(open: Boolean): Boolean {
         if (!animationsEnabled() || width <= 0) return false
         cancelSettingsTransition()
-        val from = if (open) 0f else 1f
+        val from = settingsProgress
         val to = if (open) 1f else 0f
         settingsAnimator = ValueAnimator.ofFloat(from, to).apply {
-            duration = if (open) SettingsTransition.ENTER_DURATION_MS else SettingsTransition.EXIT_DURATION_MS
+            val fullDuration = if (open) SettingsTransition.ENTER_DURATION_MS else SettingsTransition.EXIT_DURATION_MS
+            duration = (fullDuration * kotlin.math.abs(to - from)).toLong().coerceAtLeast(1L)
             interpolator = MotionInterpolators.of(SettingsTitleTransition.CURVE)
             addUpdateListener { animation ->
                 applySettingsProgress(animation.animatedValue as Float, animate = true)
@@ -827,7 +826,7 @@ class TitleBar(context: Context) : FrameLayout(context) {
             applySettingsProgress(target, animate = false)
             return
         }
-        settingsAnimator = ValueAnimator.ofFloat(backPreviewProgress, target).apply {
+        settingsAnimator = ValueAnimator.ofFloat(settingsProgress, target).apply {
             duration = if (target >= 1f) SettingsTransition.ENTER_DURATION_MS else SettingsTransition.EXIT_DURATION_MS
             interpolator = MotionInterpolators.of(SettingsTitleTransition.CURVE)
             addUpdateListener { animation ->
@@ -846,8 +845,9 @@ class TitleBar(context: Context) : FrameLayout(context) {
     }
 
     private fun cancelSettingsTransition() {
-        settingsAnimator?.cancel()
+        val previous = settingsAnimator
         settingsAnimator = null
+        previous?.cancel()
     }
 
     private fun runNavTransition(state: TitleBarState, direction: Int) {

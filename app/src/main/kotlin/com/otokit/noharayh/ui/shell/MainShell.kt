@@ -564,7 +564,7 @@ class MainShell(
         } else if (previousSettings == true && !settingsClosing) {
             settingsClosing = true
             overlayHost.visibility = View.VISIBLE
-            settingsRunner?.animateClose(1f) {
+            settingsRunner?.animateClose(settingsRunner?.openProgress ?: 1f) {
                 settingsClosing = false
                 overlayHost.visibility = View.GONE
                 settingsContent?.view?.visibility = View.GONE
@@ -644,7 +644,7 @@ class MainShell(
                 chrome.endBackPreview()
                 controller.closeSettings()
                 render()
-                // render 的 applyModalState 已按普通关闭捕获设置 ghost；已到端点则直接落稳。
+                // render 从预览最后一帧接续关闭；已到端点则直接落稳。
                 if (progress >= 0.99f) {
                     settingsRunner?.cancel()
                     settingsRunner?.endPreview(settingsOpen = false)
