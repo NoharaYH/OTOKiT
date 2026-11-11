@@ -9,6 +9,7 @@ import com.otokit.noharayh.ui.animation.common.MotionInterpolators
 import android.widget.FrameLayout
 import android.widget.ImageView
 import com.otokit.noharayh.ui.animation.common.TransitionFrames
+import com.otokit.noharayh.ui.animation.common.TransitionFrame
 import com.otokit.noharayh.ui.constants.motion.SettingsTransition
 
 /**
@@ -37,19 +38,7 @@ class SettingsTransitionRunner(
         token++
         cancelAnimator()
         clearGhost()
-        progress = 1f
-        featureProvider()?.let { view ->
-            view.alpha = 0f
-            view.scaleX = SettingsTransition.CONTENT_SCALE
-            view.scaleY = SettingsTransition.CONTENT_SCALE
-            view.visibility = View.GONE
-        }
-        settingsProvider()?.let { view ->
-            view.visibility = View.VISIBLE
-            view.alpha = 1f
-            view.scaleX = 1f
-            view.scaleY = 1f
-        }
+        applySettled(1f)
     }
 
     fun animateOpen() {
@@ -188,19 +177,7 @@ class SettingsTransitionRunner(
         cancelAnimator()
         clearGhost()
         previewing = false
-        progress = 0f
-        featureProvider()?.let {
-            it.visibility = View.VISIBLE
-            it.alpha = 1f
-            it.scaleX = 1f
-            it.scaleY = 1f
-        }
-        settingsProvider()?.let {
-            it.visibility = View.GONE
-            it.alpha = 0f
-            it.scaleX = SettingsTransition.OVERLAY_SCALE_FROM
-            it.scaleY = SettingsTransition.OVERLAY_SCALE_FROM
-        }
+        applySettled(0f)
     }
     fun cancel() {
         token++
@@ -251,100 +228,45 @@ class SettingsTransitionRunner(
     }
 
     private fun applyPreviewState(value: Float) {
-        progress = 1f - value
-        val feature = featureProvider()
-        val settings = settingsProvider()
-        feature?.let {
-            it.visibility = View.VISIBLE
-            it.alpha = value
-            val scale = SettingsTransition.CONTENT_SCALE +
-                (1f - SettingsTransition.CONTENT_SCALE) * value
-            it.scaleX = scale
-            it.scaleY = scale
-            it.pivotX = it.width / 2f
-            it.pivotY = it.height / 2f
-        }
-        settings?.let {
-            it.visibility = View.VISIBLE
-            it.alpha = 1f - value
-            val scale = 1f + (SettingsTransition.OVERLAY_SCALE_FROM - 1f) * value
-            it.scaleX = scale
-            it.scaleY = scale
-            it.pivotX = it.width / 2f
-            it.pivotY = it.height / 2f
-        }
+        // 系统进度只换算方向，不额外套时间曲线；与普通进出共用属性帧。
+        applyOpenState(1f - value, ghostVisible = false)
     }
 
     private fun applySettled(value: Float) {
-        progress = value
-        if (value >= 1f) {
-            featureProvider()?.let {
-                it.visibility = View.GONE
-                it.alpha = 0f
-                it.scaleX = SettingsTransition.CONTENT_SCALE
-                it.scaleY = SettingsTransition.CONTENT_SCALE
-            }
-            settingsProvider()?.let {
-                it.visibility = View.VISIBLE
-                it.alpha = 1f
-                it.scaleX = 1f
-                it.scaleY = 1f
-            }
-        } else {
-            featureProvider()?.let {
-                it.visibility = View.VISIBLE
-                it.alpha = 1f
-                it.scaleX = 1f
-                it.scaleY = 1f
-            }
-            settingsProvider()?.let {
-                it.visibility = View.GONE
-                it.alpha = 0f
-                it.scaleX = SettingsTransition.OVERLAY_SCALE_FROM
-                it.scaleY = SettingsTransition.OVERLAY_SCALE_FROM
-            }
-        }
+        applyOpenState(value, ghostVisible = false)
+        featureProvider()?.visibility = if (value >= 1f) View.GONE else View.VISIBLE
+        settingsProvider()?.visibility = if (value >= 1f) View.VISIBLE else View.GONE
     }
 
     private fun applyOpenState(value: Float, ghostVisible: Boolean) {
         progress = value
-        val feature = featureProvider()
-        val settings = settingsProvider()
-        feature?.let {
-            val frame = TransitionFrames.exit(
+        featureProvider()?.let { view ->
+            applyFrame(view, TransitionFrames.exit(
                 kind = SettingsTransition.KIND,
                 progress = value,
                 scaleTo = SettingsTransition.CONTENT_SCALE,
-            )
-            it.visibility = View.VISIBLE
-            it.alpha = frame.alpha
-            it.scaleX = frame.scale
-            it.scaleY = frame.scale
-            it.pivotX = it.width / 2f
-            it.pivotY = it.height / 2f
+            ))
         }
-        settings?.let {
-            if (!ghostVisible) {
-                val frame = TransitionFrames.enter(
-                    kind = SettingsTransition.KIND,
-                    progress = value,
-                    scaleFrom = SettingsTransition.OVERLAY_SCALE_FROM,
-                )
-                it.visibility = View.VISIBLE
-                it.alpha = frame.alpha
-                it.scaleX = frame.scale
-                it.scaleY = frame.scale
-                it.pivotX = it.width / 2f
-                it.pivotY = it.height / 2f
-            }
+        // 真实设置与退场截图共享同一帧，切换承载者不改变类型、缩放或透明度。
+        val presentedSettings = if (ghostVisible) ghost else settingsProvider()
+        presentedSettings?.let { view ->
+            applyFrame(view, TransitionFrames.enter(
+                kind = SettingsTransition.KIND,
+                progress = value,
+                scaleFrom = SettingsTransition.OVERLAY_SCALE_FROM,
+            ))
         }
-        ghost?.let {
-            // ghost 从设置态(1)向透明退场：p=1 时完全可见，p=0 时放大淡出。
-            it.alpha = value.coerceIn(0f, 1f)
-            val scale = 1f + (1f - value) * (SettingsTransition.OVERLAY_SCALE_FROM - 1f)
-            it.scaleX = scale
-            it.scaleY = scale
-        }
+    }
+
+    private fun applyFrame(view: View, frame: TransitionFrame) {
+        view.visibility = View.VISIBLE
+        view.alpha = frame.alpha
+        view.scaleX = frame.scale
+        view.scaleY = frame.scale
+        view.translationX = frame.translationX
+        view.translationY = frame.translationY
+        view.pivotX = view.width / 2f
+        view.pivotY = view.height / 2f
     }
 
     private fun capture(view: View): ImageView? {

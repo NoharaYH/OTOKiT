@@ -16,7 +16,6 @@ import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.AnimationUtils
-import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -28,6 +27,7 @@ import com.otokit.noharayh.ui.animation.common.GameFrame
 import com.otokit.noharayh.ui.animation.common.GamePhase
 import com.otokit.noharayh.ui.animation.common.MotionInterpolators
 import com.otokit.noharayh.ui.animation.common.TransitionFrames
+import com.otokit.noharayh.ui.animation.common.TransitionFrame
 import com.otokit.noharayh.ui.constants.dimensions.ShellDimensions
 import com.otokit.noharayh.ui.constants.motion.ChromeIconTransition
 import com.otokit.noharayh.ui.constants.motion.ChromeThemeTransition
@@ -477,7 +477,7 @@ class TitleBar(context: Context) : FrameLayout(context) {
         if (displayedIconAction == null) {
             displayedIconAction = action
             iconLayer.setImageResource(iconFor(action))
-            iconLayer.alpha = 1f
+            applyIconFrame(iconLayer, TransitionFrame(1f, 1f, 0f, 0f))
             outgoingIconLayer.visibility = View.INVISIBLE
             outgoingIconLayer.alpha = 0f
             return
@@ -490,7 +490,7 @@ class TitleBar(context: Context) : FrameLayout(context) {
             iconAnimator?.cancel()
             iconAnimator = null
             iconLayer.setImageResource(iconFor(action))
-            iconLayer.alpha = 1f
+            applyIconFrame(iconLayer, TransitionFrame(1f, 1f, 0f, 0f))
             outgoingIconLayer.visibility = View.INVISIBLE
             outgoingIconLayer.alpha = 0f
             return
@@ -510,11 +510,21 @@ class TitleBar(context: Context) : FrameLayout(context) {
 
         iconAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = ChromeIconTransition.DURATION_MS
-            interpolator = DecelerateInterpolator()
+            interpolator = MotionInterpolators.of(ChromeIconTransition.CURVE)
             addUpdateListener { animation ->
                 val p = animation.animatedValue as Float
-                outgoingIconLayer.alpha = 1f - p
-                iconLayer.alpha = p
+                applyIconFrame(outgoingIconLayer, TransitionFrames.exit(
+                    kind = ChromeIconTransition.KIND,
+                    progress = p,
+                    scaleTo = ChromeIconTransition.SCALE_FROM,
+                    translationYTo = -iconLayer.height * ChromeIconTransition.TRANSLATION_SIZE_FRACTION,
+                ))
+                applyIconFrame(iconLayer, TransitionFrames.enter(
+                    kind = ChromeIconTransition.KIND,
+                    progress = p,
+                    scaleFrom = ChromeIconTransition.SCALE_FROM,
+                    translationYFrom = iconLayer.height * ChromeIconTransition.TRANSLATION_SIZE_FRACTION,
+                ))
             }
             addListener(object : android.animation.AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: android.animation.Animator) {
@@ -522,12 +532,19 @@ class TitleBar(context: Context) : FrameLayout(context) {
                     outgoingIconLayer.alpha = 0f
                     outgoingIconLayer.visibility = View.INVISIBLE
                     iconLayer.setImageResource(iconFor(action))
-                    iconLayer.alpha = 1f
+                    applyIconFrame(iconLayer, TransitionFrame(1f, 1f, 0f, 0f))
                     if (iconAnimator === animation) iconAnimator = null
                 }
             })
             start()
         }
+    }
+    private fun applyIconFrame(view: View, frame: TransitionFrame) {
+        view.alpha = frame.alpha
+        view.scaleX = frame.scale
+        view.scaleY = frame.scale
+        view.translationX = frame.translationX
+        view.translationY = frame.translationY
     }
     private fun iconFor(action: TitleBarPrimaryAction): Int =
         if (action == TitleBarPrimaryAction.Back) R.drawable.ic_arrow_back_24 else R.drawable.ic_menu_24
@@ -566,7 +583,7 @@ class TitleBar(context: Context) : FrameLayout(context) {
         val evaluator = ArgbEvaluator()
         circleColorAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = ChromeThemeTransition.DURATION_MS
-            interpolator = DecelerateInterpolator()
+            interpolator = MotionInterpolators.of(ChromeThemeTransition.CURVE)
             addUpdateListener { animation ->
                 if (generation != circleColorGeneration) return@addUpdateListener
                 menuButton.circleColor = evaluator.evaluate(
@@ -599,6 +616,7 @@ class TitleBar(context: Context) : FrameLayout(context) {
         val evaluator = ArgbEvaluator()
         decorAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = ChromeThemeTransition.DURATION_MS
+            interpolator = MotionInterpolators.of(ChromeThemeTransition.CURVE)
             addUpdateListener { animation ->
                 val p = animation.animatedValue as Float
                 decor.setColors(
@@ -702,34 +720,12 @@ class TitleBar(context: Context) : FrameLayout(context) {
         settingsProgress = p
         refreshFunctionalPivot()
         refreshSettingsPivot()
-        if (p >= 1f) {
-            functionalHost.visibility = View.INVISIBLE
-            functionalHost.alpha = 0f
-            functionalHost.scaleX = SettingsTitleTransition.SCALE_SHRINK
-            functionalHost.scaleY = SettingsTitleTransition.SCALE_SHRINK
-            settingsColumn.visibility = View.VISIBLE
-            settingsColumn.alpha = 1f
-            settingsColumn.scaleX = 1f
-            settingsColumn.scaleY = 1f
-            return
-        }
-        if (p <= 0f) {
-            functionalHost.visibility = View.VISIBLE
-            functionalHost.alpha = 1f
-            functionalHost.scaleX = 1f
-            functionalHost.scaleY = 1f
-            settingsColumn.visibility = View.INVISIBLE
-            settingsColumn.alpha = 0f
-            settingsColumn.scaleX = SettingsTitleTransition.SCALE_EXPAND_FROM
-            settingsColumn.scaleY = SettingsTitleTransition.SCALE_EXPAND_FROM
-            return
-        }
         val exit = TransitionFrames.exit(
             kind = SettingsTitleTransition.KIND,
             progress = p,
             scaleTo = SettingsTitleTransition.SCALE_SHRINK,
         )
-        functionalHost.visibility = View.VISIBLE
+        functionalHost.visibility = if (p >= 1f) View.INVISIBLE else View.VISIBLE
         functionalHost.alpha = exit.alpha
         functionalHost.scaleX = exit.scale
         functionalHost.scaleY = exit.scale
@@ -739,7 +735,7 @@ class TitleBar(context: Context) : FrameLayout(context) {
             progress = p,
             scaleFrom = SettingsTitleTransition.SCALE_EXPAND_FROM,
         )
-        settingsColumn.visibility = View.VISIBLE
+        settingsColumn.visibility = if (p <= 0f) View.INVISIBLE else View.VISIBLE
         settingsColumn.alpha = enter.alpha
         settingsColumn.scaleX = enter.scale
         settingsColumn.scaleY = enter.scale

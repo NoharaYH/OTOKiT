@@ -48,17 +48,14 @@ object NavTitleTransition {
     val CURVE: MotionCurve = MotionCurve.OutQuint
 }
 
-/** 双页联动的横移、缩放与透明度。 */
+/** 双页联动只映射 Pager 进度到属性；不在消费者中增加第二份计时或曲线。 */
 object PagerPairTransition {
     val KIND: TransitionKind = TransitionKind.ScaleFadeSlide
-    const val DURATION_MS: Long = 260L
 
     /** 横移距离占容器宽度的比例。 */
     const val TRANSLATION_RATIO: Float = 0.7f
     const val MIN_SCALE: Float = 0.7f
     const val MIN_ALPHA: Float = 0f
-
-    val CURVE: MotionCurve = MotionCurve.OutQuint
 }
 
 /** 进出设置时的整体过渡。 */
@@ -93,6 +90,9 @@ object ChromeThemeTransition {
 /** 菜单/返回图标的交叉淡变。 */
 object ChromeIconTransition {
     val KIND: TransitionKind = TransitionKind.Fade
+    /** 只在启用缩放/位移类型时使用；默认 Fade 保持原来的纯交叉淡变。 */
+    const val SCALE_FROM: Float = 0.85f
+    const val TRANSLATION_SIZE_FRACTION: Float = 0.25f
     const val DURATION_MS: Long = 200L
     val CURVE: MotionCurve = MotionCurve.FastOutSlowIn
 }
