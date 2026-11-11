@@ -46,10 +46,12 @@ open class PressSurface @JvmOverloads constructor(
         }
     var baseRadius = 16f * dp
     var pressInset = PressSurfaceSpec.INSET_DP * dp
-    var pressedRadiusScale = 2f
     var whiteMaxAlpha = PressSurfaceSpec.WHITE_ALPHA
     var followTauMs = 30f
     var maxRipples = PressSurfaceSpec.MAX_RIPPLES
+
+    /** 离开窗口的动作可等待释放反馈；不含外链或页面等业务语义。 */
+    var deferClickUntilReleaseFeedback = false
 
     /**
      * 黑圆最大直径。
@@ -163,9 +165,16 @@ open class PressSurface @JvmOverloads constructor(
     private var pressHapticAt = 0L
     private var gestureSeq = 0
     private var scheduledHapticSeq = -1
+    private var deferredClick = false
     private val releaseHapticRunnable = Runnable {
-        if (scheduledHapticSeq == gestureSeq) tickUp()
+        val valid = scheduledHapticSeq == gestureSeq
         scheduledHapticSeq = -1
+        if (valid) deliverReleaseFeedback()
+    }
+    private val deferredClickRunnable = Runnable {
+        val dispatch = deferredClick && canDeliverFeedback()
+        deferredClick = false
+        if (dispatch) performClick()
     }
 
     init {
@@ -177,12 +186,20 @@ open class PressSurface @JvmOverloads constructor(
     private fun now() = AnimationUtils.currentAnimationTimeMillis()
     private fun lerp(a: Float, b: Float, t: Float) = a + (b - a) * t
 
+    /** 可选装饰只接收按压事实，不接管点击、触觉或内部涟漪。 */
+    protected open fun onPressStateChanged(pressed: Boolean) = Unit
+
+    /** 底层装饰位于填充和内容下面；默认不绘制。 */
+    protected open fun drawUnderlay(canvas: Canvas, cornerRadius: Float, inset: Float) = Unit
+
     private companion object {
         /** 按下与抬起触觉之间的最小间隔，避免抬起被 HAL 以 ignored_for_ongoing 丢弃。 */
         const val MIN_HAPTIC_GAP_MS = PressSurfaceSpec.MIN_HAPTIC_GAP_MS
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        // 一次已接受的点击正在完成反馈，不让第二次按下覆盖或重复派发它。
+        if (deferredClick) return true
         if (!isEnabled || !isClickable) {
             release()
             return false
@@ -201,6 +218,7 @@ open class PressSurface @JvmOverloads constructor(
                 held = ripple
                 activePointerId = event.getPointerId(0)
                 isPressed = true
+                onPressStateChanged(true)
                 press.animateToFinalPosition(1f)
                 ripple.start()
                 gestureSeq++
@@ -234,7 +252,7 @@ open class PressSurface @JvmOverloads constructor(
                 val clicked = ripple != null && inside(event.x, event.y)
                 release()
                 if (clicked) {
-                    performClick()
+                    if (deferClickUntilReleaseFeedback) deferredClick = true else performClick()
                     requestReleaseHaptic()
                 }
             }
@@ -254,6 +272,7 @@ open class PressSurface @JvmOverloads constructor(
         activePointerId = MotionEvent.INVALID_POINTER_ID
         val ripple = held ?: return
         held = null
+        onPressStateChanged(false)
         ripple.release()
         press.animateToFinalPosition(0f)
         invalidate()
@@ -267,11 +286,35 @@ open class PressSurface @JvmOverloads constructor(
         performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
     }
 
-    private fun tickUp() {
+    private fun tickUp(): Boolean =
         performHapticFeedback(
             if (Build.VERSION.SDK_INT >= 30) HapticFeedbackConstants.GESTURE_END
             else HapticFeedbackConstants.CLOCK_TICK,
         )
+
+    private fun canDeliverFeedback(): Boolean =
+        isAttachedToWindow && hasWindowFocus() && isShown && isEnabled && isClickable
+
+    private fun deliverReleaseFeedback() {
+        if (!deferredClick) {
+            tickUp()
+            return
+        }
+        if (!canDeliverFeedback()) {
+            cancelDeferredClick()
+            return
+        }
+        // 触觉关闭或系统拒绝时不额外等待；受理后留出短暂播放时间再离开窗口。
+        val accepted = tickUp()
+        if (accepted) postDelayed(deferredClickRunnable, PressSurfaceSpec.RELEASE_FEEDBACK_SETTLE_MS)
+        else deferredClickRunnable.run()
+    }
+
+    private fun cancelDeferredClick() {
+        deferredClick = false
+        scheduledHapticSeq = -1
+        removeCallbacks(releaseHapticRunnable)
+        removeCallbacks(deferredClickRunnable)
     }
 
     /**
@@ -284,7 +327,7 @@ open class PressSurface @JvmOverloads constructor(
     private fun requestReleaseHaptic() {
         val delay = (MIN_HAPTIC_GAP_MS - (now() - pressHapticAt)).coerceAtLeast(0L)
         if (delay == 0L) {
-            tickUp()
+            deliverReleaseFeedback()
             return
         }
         scheduledHapticSeq = gestureSeq
@@ -302,8 +345,11 @@ open class PressSurface @JvmOverloads constructor(
         val inset = max(progress, 0f) * pressInset
         shapeRect.set(inset, inset, width - inset, height - inset)
         val cap = min(shapeRect.width(), shapeRect.height()) / 2f
-        val radius = lerp(baseRadius, min(baseRadius * pressedRadiusScale, cap), boundedProgress)
+        // 固定 dp 等距内收；按下圆角取内收后短边的一半，不受静止圆角大小影响。
+        val radius = lerp(baseRadius.coerceAtMost(cap), cap, boundedProgress)
             .coerceAtMost(cap)
+
+        drawUnderlay(canvas, radius, inset)
 
         val follow = 1f - exp(-delta / followTauMs)
         ripples.removeAll { it.isDead() }
@@ -328,7 +374,7 @@ open class PressSurface @JvmOverloads constructor(
     }
 
     override fun onDetachedFromWindow() {
-        removeCallbacks(releaseHapticRunnable)
+        cancelDeferredClick()
         press.cancel()
         pressHolder.value = 0f
         ripples.forEach { it.cancel() }
@@ -338,5 +384,10 @@ open class PressSurface @JvmOverloads constructor(
         activePointerId = MotionEvent.INVALID_POINTER_ID
         isPressed = false
         super.onDetachedFromWindow()
+    }
+
+    override fun onWindowFocusChanged(hasWindowFocus: Boolean) {
+        super.onWindowFocusChanged(hasWindowFocus)
+        if (!hasWindowFocus && deferredClick) cancelDeferredClick()
     }
 }

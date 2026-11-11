@@ -15,6 +15,6 @@
     <string name="about_card_feedback">建议和反馈</string>
     <string name="about_current_version">当前版本</string>
     <string name="about_check_update">点击检查新版本</string>
-    <string name="about_feedback_title">提交 Issue 或功能请求</string>
     <string name="about_feedback_subtitle">前往 GitHub Issues 门户</string>
+    <string name="about_repo_url">https://github.com/NoharaYH/OTOKiT</string>
 </resources>

@@ -19,11 +19,11 @@ internal object AboutSettingsPage {
         body.addView(card(context, R.drawable.ic_info_outline_24, R.string.about_card_version,
             info(context, context.getString(R.string.about_current_version), versionLabel(context))))
         body.addView(card(context, R.drawable.ic_update_24, R.string.about_card_update,
-            action(context, context.getString(R.string.about_check_update), null) { openLink("https://github.com/NoharaYH/OTOKiT/releases") }), gap(context))
+            action(context, context.getString(R.string.about_check_update)) { openLink("https://github.com/NoharaYH/OTOKiT/releases") }), gap(context))
         body.addView(card(context, R.drawable.ic_code_24, R.string.about_card_repo,
-            action(context, "NoharaYH/OTOKiT", "https://github.com/NoharaYH/OTOKiT") { openLink("https://github.com/NoharaYH/OTOKiT") }), gap(context))
+            action(context, context.getString(R.string.about_repo_url), external = true) { openLink("https://github.com/NoharaYH/OTOKiT") }), gap(context))
         body.addView(card(context, R.drawable.ic_feedback_24, R.string.about_card_feedback,
-            action(context, context.getString(R.string.about_feedback_title), context.getString(R.string.about_feedback_subtitle)) { openLink("https://github.com/NoharaYH/OTOKiT/issues") }), gap(context))
+            action(context, context.getString(R.string.about_feedback_subtitle), external = true) { openLink("https://github.com/NoharaYH/OTOKiT/issues") }), gap(context))
 
         return ScrollView(context).apply {
             isFillViewport = true

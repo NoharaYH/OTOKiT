@@ -25,6 +25,9 @@ internal object PressSurfaceSpec {
     /** 按下与点击释放两次触觉的最小间隔。 */
     const val MIN_HAPTIC_GAP_MS = 120L
 
+    /** 需要离开当前窗口的操作，给已受理的抬起反馈留出播放时间。 */
+    const val RELEASE_FEEDBACK_SETTLE_MS = 60L
+
     const val MIN_VISIBLE_CHANGE = 0.002f
 
     const val PRESS_DAMPING = 0.85f

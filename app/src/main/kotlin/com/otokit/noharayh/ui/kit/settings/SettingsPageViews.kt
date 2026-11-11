@@ -3,6 +3,7 @@ package com.otokit.noharayh.ui.kit.settings
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
 import android.widget.FrameLayout
@@ -11,8 +12,8 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import com.otokit.noharayh.R
+import com.otokit.noharayh.ui.constants.dimensions.SettingsCardDimensions
 import com.otokit.noharayh.ui.kit.common.AppTypography
-import com.otokit.noharayh.ui.kit.common.PressSurface
 
 /** 设置的纯展示积木，只接文案、尺寸、配色和点击回调。 */
 internal object SettingsPageViews {
@@ -30,9 +31,11 @@ internal object SettingsPageViews {
     }
 
     fun card(context: Context, icon: Int, title: Int, content: View) = LinearLayout(context).apply {
+        clipChildren = false
+        clipToPadding = false
         orientation = LinearLayout.VERTICAL
-        background = shape(context, Color.WHITE, 16)
-        val pad = dp(context, 12)
+        background = shape(context, Color.WHITE, SettingsCardDimensions.CORNER_DP)
+        val pad = dp(context, SettingsCardDimensions.CONTENT_INSET_DP)
         setPadding(pad, pad, pad, pad)
         val header = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL; minimumHeight = dp(context, 28) }
         header.addView(ImageView(context).apply { setImageResource(icon); setColorFilter(0xFF616161.toInt()) }, LinearLayout.LayoutParams(dp(context, 22), dp(context, 22)))
@@ -44,32 +47,36 @@ internal object SettingsPageViews {
 
     fun info(context: Context, label: String, value: String) = LinearLayout(context).apply {
         gravity = Gravity.CENTER_VERTICAL
-        setPadding(dp(context, 16), dp(context, 14), dp(context, 16), dp(context, 14))
-        minimumHeight = dp(context, 48)
-        background = shape(context, 0xFFF5F5F5.toInt(), 16)
-        addView(text(context, label, 14f, 0xFF757575.toInt()), LinearLayout.LayoutParams(0, -2, 1f))
-        addView(text(context, value, 14f, 0xFF323232.toInt(), true))
+        setPadding(dp(context, 16), 0, dp(context, 16), 0)
+        minimumHeight = dp(context, SettingsCardDimensions.CONTENT_ROW_HEIGHT_DP)
+        background = shape(context, 0xFFF5F5F5.toInt(), SettingsCardDimensions.CONTENT_CORNER_DP)
+        addView(rowText(context, label), LinearLayout.LayoutParams(0, -1, 1f))
+        addView(text(context, value, 14f, 0xFF323232.toInt(), true).apply { gravity = Gravity.CENTER_VERTICAL }, LinearLayout.LayoutParams(-2, -1))
     }
 
-    fun action(context: Context, label: String, subtitle: String?, onClick: () -> Unit) = PressSurface(context).apply {
+    fun action(context: Context, label: String, external: Boolean = false, onClick: () -> Unit) = SettingsPressSurface(context).apply {
+        deferClickUntilReleaseFeedback = external
         fillColor = 0xFFF5F5F5.toInt()
-        contentDescription = if (subtitle == null) label else "$label，$subtitle"
-        val column = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            minimumHeight = dp(context, 48)
-            setPadding(dp(context, 16), dp(context, 14), dp(context, 16), dp(context, 14))
-            val titleRow = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
-            titleRow.addView(text(context, label, 15f, 0xFF616161.toInt(), true), LinearLayout.LayoutParams(0, -2, 1f))
-            val iconSize = dp(context, if (subtitle == null) 20 else 16)
-            titleRow.addView(ImageView(context).apply {
-                setImageResource(if (subtitle == null) R.drawable.ic_chevron_right_24 else R.drawable.ic_open_in_new_16)
+        baseRadius = dp(context, SettingsCardDimensions.CONTENT_CORNER_DP).toFloat()
+        contentDescription = label
+        val row = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(context, 16), 0, dp(context, 16), 0)
+            addView(rowText(context, label), LinearLayout.LayoutParams(0, -1, 1f))
+            addView(ImageView(context).apply {
+                setImageResource(if (external) R.drawable.ic_open_in_new_24 else R.drawable.ic_chevron_right_24)
                 setColorFilter(0xFFBDBDBD.toInt())
-            }, LinearLayout.LayoutParams(iconSize, iconSize).apply { if (subtitle != null) marginStart = dp(context, 4) })
-            addView(titleRow, LinearLayout.LayoutParams(-1, -2))
-            if (subtitle != null) addView(text(context, subtitle, 12f, 0xFF9E9E9E.toInt()), LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(context, 4) })
+            }, LinearLayout.LayoutParams(dp(context, 20), dp(context, 20)).apply { marginStart = dp(context, 4) })
         }
-        addView(column, FrameLayout.LayoutParams(-1, -2))
+        addView(row, FrameLayout.LayoutParams(-1, dp(context, SettingsCardDimensions.CONTENT_ROW_HEIGHT_DP)))
         setOnClickListener { onClick() }
+    }
+
+    private fun rowText(context: Context, value: String) = text(context, value, 14f, 0xFF616161.toInt()).apply {
+        gravity = Gravity.CENTER_VERTICAL
+        maxLines = 1
+        ellipsize = TextUtils.TruncateAt.END
     }
 
     fun text(context: Context, value: String, size: Float, color: Int, bold: Boolean = false) = TextView(context).apply {

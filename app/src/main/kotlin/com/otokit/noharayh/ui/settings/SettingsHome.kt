@@ -17,6 +17,10 @@ internal class SettingsHome(context: Context, onOpenSection: (SettingsSection) -
     }
 
     init {
+        clipChildren = false
+        clipToPadding = false
+        body.clipChildren = false
+        body.clipToPadding = false
         options.values.forEachIndexed { index, option ->
             body.addView(option, LinearLayout.LayoutParams(-1, -2).apply {
                 if (index < options.size - 1) bottomMargin = (12 * resources.displayMetrics.density + 0.5f).toInt()

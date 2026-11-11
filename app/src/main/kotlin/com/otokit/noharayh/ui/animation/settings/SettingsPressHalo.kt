@@ -1,0 +1,72 @@
+package com.otokit.noharayh.ui.animation.settings
+
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.RectF
+import android.view.View
+import android.view.animation.AnimationUtils
+import androidx.dynamicanimation.animation.FloatValueHolder
+import androidx.dynamicanimation.animation.SpringAnimation
+import androidx.dynamicanimation.animation.SpringForce
+import com.otokit.noharayh.ui.constants.motion.SettingsPressHaloSpec as Spec
+
+/** 独立装饰执行器，只绘制硬边外溢底层，不派发事件或增加第二次触觉。 */
+internal class SettingsPressHalo(private val host: View) {
+    private val density = host.resources.displayMetrics.density
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(Spec.ALPHA, 0, 0, 0) }
+    private val rect = RectF()
+    private val expansion = FloatValueHolder(0f)
+    private val spring = SpringAnimation(expansion).apply {
+        setMinimumVisibleChange(Spec.MIN_VISIBLE_CHANGE)
+        addUpdateListener { _, _, _ -> host.invalidate() }
+    }
+    private var released = true
+    private var pressedAt = 0L
+    private val rest = Runnable {
+        if (!released) animate(1f, Spec.REST_DAMPING, Spec.REST_STIFFNESS)
+    }
+    private val shrink = Runnable {
+        if (released) animate(0f, Spec.RELEASE_DAMPING, Spec.RELEASE_STIFFNESS)
+    }
+
+    fun press() {
+        host.removeCallbacks(rest)
+        host.removeCallbacks(shrink)
+        released = false
+        pressedAt = AnimationUtils.currentAnimationTimeMillis()
+        animate(Spec.PEAK_OUTSET_DP / Spec.REST_OUTSET_DP, Spec.EXPAND_DAMPING, Spec.EXPAND_STIFFNESS)
+        host.postDelayed(rest, Spec.EXPAND_DURATION_MS)
+    }
+
+    fun release() {
+        if (released) return
+        released = true
+        host.removeCallbacks(rest)
+        host.removeCallbacks(shrink)
+        val elapsed = AnimationUtils.currentAnimationTimeMillis() - pressedAt
+        host.postDelayed(shrink, (Spec.EXPAND_DURATION_MS - elapsed).coerceAtLeast(0L))
+    }
+
+    fun draw(canvas: Canvas, width: Int, height: Int, cornerRadius: Float) {
+        val outset = Spec.REST_OUTSET_DP * density * expansion.value.coerceAtLeast(0f)
+        if (outset < 0.01f || width <= 0 || height <= 0) return
+        rect.set(-outset, -outset, width + outset, height + outset)
+        val radius = (cornerRadius + outset).coerceAtMost(rect.height() / 2f)
+        canvas.drawRoundRect(rect, radius, radius, paint)
+    }
+
+    fun reset() {
+        host.removeCallbacks(rest)
+        host.removeCallbacks(shrink)
+        spring.cancel()
+        expansion.value = 0f
+        released = true
+        host.invalidate()
+    }
+
+    private fun animate(target: Float, damping: Float, stiffness: Float) {
+        spring.spring = SpringForce(target).setDampingRatio(damping).setStiffness(stiffness)
+        spring.animateToFinalPosition(target)
+    }
+}
