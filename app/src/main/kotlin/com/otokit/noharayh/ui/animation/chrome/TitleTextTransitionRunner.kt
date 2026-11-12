@@ -15,7 +15,7 @@ import com.otokit.noharayh.ui.animation.common.GamePhase
 import com.otokit.noharayh.ui.animation.common.TransitionFrames
 import com.otokit.noharayh.ui.animation.common.TransitionFrame
 import com.otokit.noharayh.ui.animation.common.TransitionProgress
-import com.otokit.noharayh.ui.constants.motion.PagerPairTransition
+import com.otokit.noharayh.ui.constants.motion.NavContentTransition
 
 /** 标题文字的属性呈现与 ghost 所有者；只消费外部进度，不计时、不提交导航状态。 */
 internal class TitleTextTransitionRunner(
@@ -27,6 +27,7 @@ internal class TitleTextTransitionRunner(
     private val chuStack: FrameLayout,
     private val refreshPivots: () -> Unit,
     private val refreshStackPivot: (FrameLayout) -> Unit,
+    private val stackBounds: (FrameLayout) -> RectF?,
     private val navigationBounds: () -> RectF?,
 ) {
     private val settingsOpticalY = settingsColumn.translationY
@@ -36,6 +37,7 @@ internal class TitleTextTransitionRunner(
         private set
     private var ghost: ImageView? = null
     private var ghostStart = TransitionFrame(1f, 1f, 0f, 0f)
+    private var ghostAnchorY = 0f
     var backPreviewActive = false
         private set
 
@@ -73,15 +75,9 @@ internal class TitleTextTransitionRunner(
         }
 
         val width = titleHost.width.coerceAtLeast(1)
-        val pair = TransitionFrames.pagerPair(
-            kind = PagerPairTransition.KIND,
-            progress = progress,
-            slideDistancePx = width * PagerPairTransition.TRANSLATION_RATIO,
-            minScale = PagerPairTransition.MIN_SCALE,
-            minAlpha = PagerPairTransition.MIN_ALPHA,
-        )
-        applyStackFrame(maiStack, pair.first)
-        applyStackFrame(chuStack, pair.second)
+        val pair = TitleTransitionFrames.gamePair(progress, width.toFloat())
+        applyStackFrame(maiStack, pair.first, exitOnLeft = true)
+        applyStackFrame(chuStack, pair.second, exitOnLeft = false)
         maiStack.visibility = View.VISIBLE
         chuStack.visibility = View.VISIBLE
     }
@@ -99,12 +95,16 @@ internal class TitleTextTransitionRunner(
         stack.translationY = 0f
     }
 
-    private fun applyStackFrame(stack: FrameLayout, frame: com.otokit.noharayh.ui.animation.common.TransitionFrame) {
+    private fun applyStackFrame(stack: FrameLayout, frame: TransitionFrame, exitOnLeft: Boolean) {
         refreshStackPivot(stack)
+        val bounds = stackBounds(stack)
+        val anchorX = if (exitOnLeft) bounds?.left ?: 0f else bounds?.right ?: stack.width.toFloat()
         stack.alpha = frame.alpha
         stack.scaleX = frame.scale
         stack.scaleY = frame.scale
-        stack.translationX = frame.translationX
+        stack.translationX = TransitionFrames.rebasePivotTranslation(
+            frame.translationX, frame.scale, anchorX, stack.pivotX,
+        )
         stack.translationY = frame.translationY
     }
 
@@ -136,13 +136,23 @@ internal class TitleTextTransitionRunner(
     /** 只准备新旧标题；计时由内容切页执行器唯一负责。 */
     fun prepareNavigation(translationY: Float, updateTitles: () -> Unit) {
         if (disposed) return
+        val bounds = navigationBounds()
+        val exitAnchor = if (translationY > 0f) bounds?.top else bounds?.bottom
         val presented = TransitionFrame(
             titleMotionHost.alpha, titleMotionHost.scaleX,
-            titleMotionHost.translationX, titleMotionHost.translationY,
+            titleMotionHost.translationX,
+            TransitionFrames.rebasePivotTranslation(
+                titleMotionHost.translationY, titleMotionHost.scaleY,
+                titleMotionHost.pivotY, exitAnchor ?: titleMotionHost.pivotY,
+            ),
         )
         cancelNavigation()
         ghostStart = presented
         ghost = captureGhost()
+        // ghost 是裁切后的标题截图，其锚点需要换算到截图局部坐标。
+        ghostAnchorY = if (bounds != null && exitAnchor != null) {
+            exitAnchor - kotlin.math.floor(bounds.top)
+        } else 0f
         updateTitles()
         navigationDistanceY = translationY
         navigationActive = ghost != null && ValueAnimator.areAnimatorsEnabled()
@@ -154,15 +164,25 @@ internal class TitleTextTransitionRunner(
 
     fun renderNavigationProgress(frame: TransitionProgress) {
         if (disposed || !navigationActive) return
+        refreshPivots()
+        val bounds = navigationBounds()
+        val entryAnchor = (if (navigationDistanceY > 0f) bounds?.bottom else bounds?.top)
+            ?: titleMotionHost.pivotY
         val entry = TitleTransitionFrames.navEntry(frame.value, navigationDistanceY)
-        val exit = TitleTransitionFrames.navGhostExit(frame.value, -navigationDistanceY, ghostStart)
+        val exit = TitleTransitionFrames.navGhostExit(
+            frame.value, -navigationDistanceY * NavContentTransition.EXIT_DISTANCE_RATIO, ghostStart,
+        )
         titleMotionHost.alpha = entry.alpha
-        titleMotionHost.translationY = entry.translationY
+        titleMotionHost.translationY = TransitionFrames.rebasePivotTranslation(
+            entry.translationY, entry.scale, entryAnchor, titleMotionHost.pivotY,
+        )
         titleMotionHost.scaleX = entry.scale
         titleMotionHost.scaleY = entry.scale
         ghost?.let {
             it.alpha = exit.alpha
-            it.translationY = exit.translationY
+            it.translationY = TransitionFrames.rebasePivotTranslation(
+                exit.translationY, exit.scale, ghostAnchorY, it.pivotY,
+            )
             it.translationX = exit.translationX
             it.scaleX = exit.scale
             it.scaleY = exit.scale

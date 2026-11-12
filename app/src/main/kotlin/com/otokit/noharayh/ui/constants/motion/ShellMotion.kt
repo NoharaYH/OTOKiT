@@ -58,9 +58,9 @@ object PageCardTransition {
 
 /** 手机标题的局部幅度，量纲与内容区解耦。 */
 object NavTitleTransition {
-    /** 原组合模式保持原来的等比例字形；纯 Scale 模式使用明确的缩放幅度。 */
-    const val COMBINED_SCALE: Float = 1f
-    const val SCALE_ONLY: Float = 0.85f
+    /** 标题与内容使用同一缩放幅度，位移仍按标题行自身尺寸计算。 */
+    const val COMBINED_SCALE: Float = NavContentTransition.SCALE
+    const val SCALE_ONLY: Float = NavContentTransition.SCALE
     const val TRANSLATION_ROW_HEIGHT_FRACTION: Float = 0.76f
     const val TRANSLATION_MAX_DP: Float = 44f
 }
@@ -72,7 +72,7 @@ object PagerPairTransition {
 
     /** 横移距离占容器宽度的比例。 */
     const val TRANSLATION_RATIO: Float = 0.7f
-    /** 卡片缩短位移，标题继续使用原距离；横滑往返共用同一路径。 */
+    /** 卡片与标题均按各自宿主宽度缩短位移；横滑往返共用同一路径。 */
     const val CONTENT_TRANSLATION_RATIO: Float = TRANSLATION_RATIO * 0.6f
     const val MIN_SCALE: Float = 0.1f
     const val MIN_ALPHA: Float = 0f

@@ -85,6 +85,7 @@ class TitleBar(context: Context) : FrameLayout(context) {
         titleHost, titleMotionHost, functionalHost, settingsMotionHost, maiStack, chuStack,
         refreshPivots = { refreshFunctionalPivot(); refreshSettingsPivot() },
         refreshStackPivot = ::refreshPivot,
+        stackBounds = { stack -> titleBoundsFor(stack, if (stack === maiStack) maiColumn else chuColumn) },
         navigationBounds = { titleBoundsFor(titleMotionHost, currentFunctionalColumn()) },
     )
     private val appearanceMotion = TitleAppearanceTransitionRunner(

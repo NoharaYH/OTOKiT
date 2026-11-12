@@ -4,6 +4,7 @@ import com.otokit.noharayh.ui.animation.common.TransitionFrame
 import com.otokit.noharayh.ui.animation.common.TransitionFrames
 import com.otokit.noharayh.ui.constants.motion.NavTitleTransition
 import com.otokit.noharayh.ui.constants.motion.NavigationTransition
+import com.otokit.noharayh.ui.constants.motion.PagerPairTransition
 import com.otokit.noharayh.ui.constants.motion.SettingsTitleTransition
 import com.otokit.noharayh.ui.constants.motion.SettingsTransition
 import com.otokit.noharayh.ui.constants.motion.TransitionKind
@@ -11,13 +12,23 @@ import com.otokit.noharayh.ui.constants.motion.TransitionKind
 /**
  * 标题文字转场的纯数学。
  *
- * LM 锚点固定为组合左边中点：pivotX=0，pivotY=墨迹并集的纵向中心。
- * 导航入场/ghost 退场共用该表，不创建 View/Animator。
+ * 静止态使用 LM 锚点；转场由执行器补偿到进出侧边缘，避免缩放反拉。
+ * 游戏横切、导航入场/ghost 退场共用内容的曲线，不创建 View/Animator。
  */
 object TitleTransitionFrames {
 
     fun lmPivotY(inkTop: Float, inkBottom: Float): Float =
         (inkTop + inkBottom) / 2f
+
+    fun gamePair(progress: Float, width: Float): Pair<TransitionFrame, TransitionFrame> =
+        TransitionFrames.pagerPair(
+            kind = PagerPairTransition.KIND,
+            progress = progress,
+            slideDistancePx = width * PagerPairTransition.CONTENT_TRANSLATION_RATIO,
+            minScale = PagerPairTransition.MIN_SCALE,
+            minAlpha = PagerPairTransition.MIN_ALPHA,
+            cardMotion = true,
+        )
 
     fun navEntry(progress: Float, translationY: Float): TransitionFrame = navBetween(
         start = TransitionFrames.enter(
