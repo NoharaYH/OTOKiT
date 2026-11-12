@@ -17,7 +17,6 @@ internal class ThemeSelectorPanel(
     private val onHeightChanged: () -> Unit,
 ) : FrameLayout(context) {
     private val rowHeight = dp(Dimensions.FIELD_HEIGHT_DP)
-    private val gap = dp(Dimensions.MENU_ANCHOR_GAP_DP)
     private var menu: ThemeDropdownMenu? = null
     private var optionIds = emptyList<String>()
     private var opening = false
@@ -27,7 +26,7 @@ internal class ThemeSelectorPanel(
     private val runner = ThemePanelTransitionRunner(::render)
     val isOpen: Boolean get() = opening
     val extraHeight: Float get() = menu?.let {
-        (it.contentHeight + 2 * gap) * ThemePanelFrames.extension(runner.progress)
+        it.contentHeight * ThemePanelFrames.extension(runner.progress)
     } ?: 0f
 
     init {
@@ -48,14 +47,15 @@ internal class ThemeSelectorPanel(
         reset()
         opening = true
         optionIds = options.map { it.id }
-        val content = ThemeDropdownMenu(context, options, availableHeight) { option ->
+        val content = ThemeDropdownMenu(context, options, availableHeight,
+            onBottomRadiusChanged = { render(runner.progress, notifyHeight = false) }) { option ->
             if (opening && previewStart == null && controlsEnabled) {
                 close()
                 onSelected(option)
             }
         }
         menu = content
-        addView(content, LayoutParams(-1, content.contentHeight).apply { topMargin = rowHeight + gap })
+        addView(content, LayoutParams(-1, content.contentHeight).apply { topMargin = rowHeight })
         header.setExpanded(true)
         render(0f)
         runner.play(1f) { menu?.scheduleOpeningHaptic(header.openingHapticDelay()) }
@@ -102,7 +102,8 @@ internal class ThemeSelectorPanel(
     }
 
     private fun render(progress: Float, notifyHeight: Boolean = true) {
-        header.renderPanel(extraHeight, ThemePanelFrames.gap(progress))
+        header.renderPanel(extraHeight, ThemePanelFrames.gap(progress),
+            ThemePanelFrames.extension(progress), menu?.bottomCornerRadius ?: 0f)
         if (previewStart != null) header.previewExpanded(progress)
         menu?.let {
             val visibility = ThemePanelFrames.menu(progress)

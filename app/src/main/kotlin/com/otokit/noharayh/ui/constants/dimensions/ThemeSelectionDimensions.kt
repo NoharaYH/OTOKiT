@@ -17,8 +17,7 @@ internal object ThemeSelectionDimensions {
     const val MENU_ROW_DP = 44
     const val MENU_GAP_DP = 4
     const val MENU_BAR_DP = 6
-    const val MENU_PADDING_DP = 8
-    const val MENU_ANCHOR_GAP_DP = 4
+    const val MENU_PADDING_DP = FIELD_GAP_DP
     const val MENU_MAX_SLOTS = 6
     const val MENU_LARGE_RADIUS_DP = 22f
     const val MENU_BAR_RADIUS_DP = 3f

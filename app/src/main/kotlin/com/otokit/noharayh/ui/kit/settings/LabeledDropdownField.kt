@@ -16,6 +16,7 @@ import android.widget.TextView
 import com.otokit.noharayh.ui.animation.settings.ThemeDropdownArrowRunner
 import com.otokit.noharayh.ui.constants.dimensions.ThemeSelectionDimensions as Dimensions
 import com.otokit.noharayh.ui.constants.motion.ThemeSelectionMotion
+import com.otokit.noharayh.ui.constants.motion.PressHaloSpec
 import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.kit.common.AppTypography
 import com.otokit.noharayh.ui.kit.common.PressSurface
@@ -32,6 +33,10 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
     private val outline = RectF()
     private val outlinePath = Path()
     private val arc = RectF()
+    private val panelFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
+    private val panelFillPath = Path()
+    private val panelCorners = FloatArray(8)
+    private var outlineBottomRadius = 0f
     override val surfaceFillInset: Float
         get() = stroke.strokeWidth / 2f
     private fun valueText() = TextView(context).apply {
@@ -110,6 +115,8 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
     private val arrowRunner = ThemeDropdownArrowRunner(arrow)
     private var panelHeight = 0f
     private var panelGap = 0f
+    private var panelExpansion = 0f
+    private var menuBottomRadius = 0f
     private var pressedAt = 0L
 
     init {
@@ -151,10 +158,32 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
         if (pressed) pressedAt = SystemClock.uptimeMillis()
     }
 
-    override fun drawOutline(canvas: Canvas, cornerRadius: Float, inset: Float) {
+    private fun updateOutlineGeometry(cornerRadius: Float, inset: Float): Float {
         val half = stroke.strokeWidth / 2f
         outline.set(inset + half, inset + half, width - inset - half, height + panelHeight - inset - half)
         val radius = (cornerRadius - half).coerceAtLeast(0f)
+        // 菜单与框的左右、底部留白相同。半径之差等于边界之差，圆心才能重合。
+        val clearance = dp(Dimensions.MENU_PADDING_DP) - inset - half
+        val expandedRadius = (menuBottomRadius + clearance).coerceAtLeast(0f)
+        outlineBottomRadius = (radius + (expandedRadius - radius) * panelExpansion)
+            .coerceIn(0f, minOf(outline.width() / 2f, outline.height() - radius).coerceAtLeast(0f))
+        return radius
+    }
+
+    override fun drawUnderlay(canvas: Canvas, cornerRadius: Float, inset: Float) {
+        if (panelHeight <= 0f) return
+        val radius = updateOutlineGeometry(cornerRadius, inset)
+        panelCorners.fill(radius, 0, 4)
+        panelCorners.fill(outlineBottomRadius, 4, 8)
+        panelFillPath.rewind()
+        panelFillPath.addRoundRect(outline, panelCorners, Path.Direction.CW)
+        // 位于外环之上、标题内部涟漪之下；白底随描边延展，盖住原胶囊的下半圈。
+        canvas.drawPath(panelFillPath, panelFill)
+    }
+
+    override fun drawOutline(canvas: Canvas, cornerRadius: Float, inset: Float) {
+        val radius = updateOutlineGeometry(cornerRadius, inset)
+        val bottomRadius = outlineBottomRadius
         val gapStart = (labelView.left - dp(Dimensions.LABEL_GAP_DP)).toFloat().coerceIn(outline.left + radius, outline.right - radius)
         val gapEnd = (labelView.right + labelView.translationX + dp(Dimensions.LABEL_GAP_DP)).coerceIn(gapStart, outline.right - radius)
         labelView.translationY = outline.top - labelView.height / 2f
@@ -165,17 +194,24 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
         outlinePath.lineTo(outline.right - radius, outline.top)
         arc.set(outline.right - radius * 2, outline.top, outline.right, outline.top + radius * 2)
         outlinePath.arcTo(arc, -90f, 90f)
-        val stub = Dimensions.PANEL_STROKE_STUB_DP * resources.displayMetrics.density
-        val opening = (outline.height() - 2f * (radius + stub)).coerceAtLeast(0f) * panelGap
-        val upperEnd = outline.centerY() - opening / 2f
-        val lowerStart = outline.centerY() + opening / 2f
+        // 上段越过标题外环的峰值范围，断口不与黑圈下缘相交。
+        val haloBottom = height + (PressHaloSpec.PEAK_OUTSET_DP + Dimensions.FIELD_STROKE_DP) * resources.displayMetrics.density
+        // 上下段共用直线长度；底部圆角仍独立跟随末项，避免加长时破坏同心关系。
+        val stub = maxOf(Dimensions.PANEL_STROKE_STUB_DP * resources.displayMetrics.density,
+            haloBottom - outline.top - radius)
+        val upperLimit = haloBottom.coerceIn(outline.top + radius, outline.bottom - bottomRadius)
+        val lowerLimit = (outline.bottom - bottomRadius - stub).coerceAtLeast(upperLimit)
+        val opening = (lowerLimit - upperLimit) * panelGap
+        val middle = (upperLimit + lowerLimit) / 2f
+        val upperEnd = middle - opening / 2f
+        val lowerStart = middle + opening / 2f
         outlinePath.lineTo(outline.right, upperEnd)
         if (opening > 0f) outlinePath.moveTo(outline.right, lowerStart)
-        outlinePath.lineTo(outline.right, outline.bottom - radius)
-        arc.set(outline.right - radius * 2, outline.bottom - radius * 2, outline.right, outline.bottom)
+        outlinePath.lineTo(outline.right, outline.bottom - bottomRadius)
+        arc.set(outline.right - bottomRadius * 2, outline.bottom - bottomRadius * 2, outline.right, outline.bottom)
         outlinePath.arcTo(arc, 0f, 90f)
-        outlinePath.lineTo(outline.left + radius, outline.bottom)
-        arc.set(outline.left, outline.bottom - radius * 2, outline.left + radius * 2, outline.bottom)
+        outlinePath.lineTo(outline.left + bottomRadius, outline.bottom)
+        arc.set(outline.left, outline.bottom - bottomRadius * 2, outline.left + bottomRadius * 2, outline.bottom)
         outlinePath.arcTo(arc, 90f, 90f)
         outlinePath.lineTo(outline.left, lowerStart)
         if (opening > 0f) outlinePath.moveTo(outline.left, upperEnd)
@@ -234,9 +270,11 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
         invalidate()
     }
 
-    fun renderPanel(extraHeight: Float, gap: Float) {
+    fun renderPanel(extraHeight: Float, gap: Float, expansion: Float = 0f, bottomRadius: Float = 0f) {
         panelHeight = extraHeight
         panelGap = gap
+        panelExpansion = expansion
+        menuBottomRadius = bottomRadius
         invalidate()
     }
 

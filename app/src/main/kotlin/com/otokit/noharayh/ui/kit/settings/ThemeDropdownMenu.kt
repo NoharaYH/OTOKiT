@@ -26,6 +26,7 @@ internal class ThemeDropdownMenu(
     context: Context,
     options: List<ThemeOption>,
     availableHeight: Int,
+    onBottomRadiusChanged: () -> Unit,
     onSelected: (ThemeOption) -> Unit,
 ) : FrameLayout(context) {
     private fun dp(value: Int) = (value * resources.displayMetrics.density + 0.5f).toInt()
@@ -41,7 +42,8 @@ internal class ThemeDropdownMenu(
     private val geometry = ThemeMenuGeometry(options.size, slots, rowHeight, gap,
         collapsedHeight, dp(Dimensions.MENU_PADDING_DP).toFloat())
     val contentHeight = geometry.height.roundToInt()
-    private val viewport = MenuViewport(context, options, geometry, onSelected)
+    private val viewport = MenuViewport(context, options, geometry, onBottomRadiusChanged, onSelected)
+    val bottomCornerRadius: Float get() = viewport.bottomCornerRadius
     init {
         clipChildren = false
         clipToPadding = false
@@ -58,6 +60,7 @@ private class MenuViewport(
     context: Context,
     options: List<ThemeOption>,
     private val geometry: ThemeMenuGeometry,
+    private val onBottomRadiusChanged: () -> Unit,
     onSelected: (ThemeOption) -> Unit,
 ) : ViewGroup(context) {
     private val edges = themeMenuEdges(options)
@@ -66,6 +69,14 @@ private class MenuViewport(
     private var interactionEnabled = false
     private var touching = false
     private var offset = 0f
+    private var reportedBottomRadius = -1f
+    /** 末项永远是分组尾部；返回实际高度约束后的 DMB 半径，不返回 22dp 的目标值。 */
+    val bottomCornerRadius: Float get() {
+        val expansion = geometry.expansion(childCount - 1, offset)
+        val height = geometry.collapsedHeight + expansion * (geometry.rowHeight - geometry.collapsedHeight)
+        return ((Dimensions.MENU_BAR_RADIUS_DP + (Dimensions.MENU_LARGE_RADIUS_DP -
+            Dimensions.MENU_BAR_RADIUS_DP) * expansion) * density).coerceAtMost(height / 2f)
+    }
     private var dragging = false
     private var interrupted = false
     private var downY = 0f
@@ -155,6 +166,11 @@ private class MenuViewport(
             child.layout(pad, (top + overscroll).roundToInt(), width - pad,
                 (top + overscroll).roundToInt() + h.roundToInt())
             child.invalidate()
+        }
+        val radius = bottomCornerRadius
+        if (radius != reportedBottomRadius) {
+            reportedBottomRadius = radius
+            onBottomRadiusChanged()
         }
     }
 
