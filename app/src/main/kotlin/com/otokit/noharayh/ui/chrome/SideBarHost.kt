@@ -10,6 +10,9 @@ import android.view.View
 import android.view.ViewConfiguration
 import android.widget.FrameLayout
 import androidx.customview.widget.ViewDragHelper
+import com.otokit.noharayh.ui.animation.chrome.DrawerSettleTiming
+import com.otokit.noharayh.ui.animation.common.MotionInterpolators
+import com.otokit.noharayh.ui.constants.motion.DrawerTransition
 import com.otokit.noharayh.ui.constants.dimensions.ShellDimensions
 import com.otokit.noharayh.ui.shell.navigation.Destination
 import com.otokit.noharayh.ui.window.PixelRect
@@ -26,6 +29,8 @@ class SideBarHost @JvmOverloads constructor(
     private val sideBar = SideBar(context)
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
     private val minFlingVelocity = ViewConfiguration.get(context).scaledMinimumFlingVelocity.toFloat()
+    private val maxFlingVelocity = ViewConfiguration.get(context).scaledMaximumFlingVelocity
+    private val settleInterpolator = MotionInterpolators.of(DrawerTransition.CURVE)
     private val motion = DrawerMotionState()
     private val helper = ViewDragHelper.create(this, 1f, DragCallback())
 
@@ -282,25 +287,23 @@ class SideBarHost @JvmOverloads constructor(
         stopHelper()
         motion.request(open)
         clearDown()
-        startSettle(open, released = false)
+        startSettle(open)
     }
 
     private fun cancelCapturedDrag() {
         stopHelper()
         motion.cancelDrag()
         clearDown()
-        startSettle(motion.targetOpen == true, released = false)
+        startSettle(motion.targetOpen == true)
     }
 
-    private fun startSettle(open: Boolean, released: Boolean) {
+    private fun startSettle(open: Boolean, velocityX: Float = 0f, velocityY: Float = 0f) {
         positionPanel()
         updateBlocking()
         val left = if (open) interaction.left else closedLeft
-        val moving = if (released) {
-            helper.settleCapturedViewAt(left, interaction.top)
-        } else {
-            helper.smoothSlideViewTo(sideBar, left, interaction.top)
-        }
+        val duration = DrawerSettleTiming.duration(left - sideBar.left, width, drawerWidthPx,
+            velocityX, velocityY, minFlingVelocity.toInt(), maxFlingVelocity)
+        val moving = helper.smoothSlideViewTo(sideBar, left, interaction.top, duration, settleInterpolator)
         if (moving) postInvalidateOnAnimation() else finishSettle()
     }
 
@@ -407,7 +410,7 @@ class SideBarHost @JvmOverloads constructor(
                 else -> motion.progress >= 0.5f
             }
             motion.releaseTo(open)
-            startSettle(open, released = true)
+            startSettle(open, xvel, yvel)
         }
 
         override fun onViewDragStateChanged(state: Int) {

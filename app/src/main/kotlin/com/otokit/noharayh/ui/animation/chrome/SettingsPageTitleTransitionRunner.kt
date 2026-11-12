@@ -22,6 +22,7 @@ internal class SettingsPageTitleTransitionRunner(
     private var forward = true
     private var split = false
     private var distanceWidth = 0f
+    private var unfold = false
     private var restore: (() -> Unit)? = null
     var active = false
         private set
@@ -30,6 +31,7 @@ internal class SettingsPageTitleTransitionRunner(
         forward: Boolean,
         split: Boolean,
         distanceWidth: Float,
+        unfold: Boolean,
         restoreSource: () -> Unit,
         showTarget: () -> Unit,
     ) {
@@ -37,6 +39,7 @@ internal class SettingsPageTitleTransitionRunner(
         this.forward = forward
         this.split = split
         this.distanceWidth = distanceWidth
+        this.unfold = unfold
         restore = restoreSource
         val rect = bounds()
         if (rect != null && rect.width() > 0 && rect.height() > 0) {
@@ -82,14 +85,16 @@ internal class SettingsPageTitleTransitionRunner(
         if (!active) return
         refreshPivot()
         val width = distanceWidth.takeIf { it > 0f } ?: host.width.toFloat()
-        val entry = SettingsPageFrames.title(frame.value, true, forward, split, width)
+        val entry = if (unfold) SettingsPageFrames.unfoldTitle(frame.value, true, forward, host.resources.displayMetrics.density)
+            else SettingsPageFrames.title(frame.value, true, forward, split, width)
         column.alpha = entry.alpha
         column.scaleX = entry.scale
         column.scaleY = entry.scale
         column.translationX = entry.translationX
         column.translationY = baselineY + entry.translationY
         ghost?.let {
-            val exit = SettingsPageFrames.title(frame.value, false, forward, split, width)
+            val exit = if (unfold) SettingsPageFrames.unfoldTitle(frame.value, false, forward, host.resources.displayMetrics.density)
+                else SettingsPageFrames.title(frame.value, false, forward, split, width)
             it.alpha = exit.alpha
             it.scaleX = exit.scale
             it.scaleY = exit.scale

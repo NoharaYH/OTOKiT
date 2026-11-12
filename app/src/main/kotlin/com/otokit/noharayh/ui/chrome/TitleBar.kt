@@ -353,6 +353,7 @@ class TitleBar(context: Context) : FrameLayout(context) {
         to: SettingsSection?,
         split: Boolean,
         distancePx: Float,
+        unfold: Boolean,
     ) {
         fun show(section: SettingsSection?) {
             settingsColumn.setTexts(TitleTexts.forSettings(section))
@@ -363,6 +364,7 @@ class TitleBar(context: Context) : FrameLayout(context) {
             forward = to != null,
             split = split,
             distanceWidth = distancePx,
+            unfold = unfold,
             restoreSource = { show(from) },
             showTarget = { show(to) },
         )

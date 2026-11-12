@@ -181,9 +181,10 @@ class ChromeAssembly(
         from: SettingsSection?,
         to: SettingsSection?,
         distancePx: Float,
+        unfold: Boolean,
     ) {
         if (attached && !disposed) {
-            titleBar?.prepareSettingsPageTransition(from, to, split = !compact, distancePx = distancePx)
+            titleBar?.prepareSettingsPageTransition(from, to, split = !compact, distancePx = distancePx, unfold = unfold)
         }
     }
 

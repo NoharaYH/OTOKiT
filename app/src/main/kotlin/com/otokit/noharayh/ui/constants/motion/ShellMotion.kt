@@ -31,13 +31,14 @@ object PressFeedback {
 object MotionDefaults {
     val PAGE_CURVE: MotionCurve = MotionCurve.OutQuint
     val CHROME_CURVE: MotionCurve = MotionCurve.FastOutSlowIn
+    val EMPHASIZED_CURVE: MotionCurve = MotionCurve.FastOutSlowIn
 }
 
 /** 同一次功能切页的唯一类型与节奏；内容和标题共享进度。 */
 object NavigationTransition {
     val KIND: TransitionKind = TransitionKind.ScaleFadeSlide
     const val DURATION_MS: Long = 300L
-    val CURVE: MotionCurve = MotionDefaults.PAGE_CURVE
+    val CURVE: MotionCurve = MotionDefaults.EMPHASIZED_CURVE
 }
 
 /** 导航内容只描述自己的空间幅度。 */
@@ -60,11 +61,17 @@ object NavTitleTransition {
 /** 双页联动只映射 Pager 进度到属性；不在消费者中增加第二份计时或曲线。 */
 object PagerPairTransition {
     val KIND: TransitionKind = TransitionKind.ScaleFadeSlide
+    val CURVE: MotionCurve = MotionDefaults.EMPHASIZED_CURVE
 
     /** 横移距离占容器宽度的比例。 */
     const val TRANSLATION_RATIO: Float = 0.7f
     const val MIN_SCALE: Float = 0.7f
     const val MIN_ALPHA: Float = 0f
+}
+
+/** 仅替换抽屉收尾曲线；跟手进度与原生按距离/速度计算的时长保留。 */
+object DrawerTransition {
+    val CURVE: MotionCurve = MotionDefaults.EMPHASIZED_CURVE
 }
 
 /** 进出设置时的整体过渡。 */

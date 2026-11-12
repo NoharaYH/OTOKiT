@@ -7,6 +7,9 @@ import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.widget.FrameLayout
 import androidx.viewpager2.widget.ViewPager2
+import androidx.recyclerview.widget.PagerSnapHelper
+import androidx.recyclerview.widget.RecyclerView
+import com.otokit.noharayh.ui.animation.shell.PagerSettleCurve
 import com.otokit.noharayh.ui.theme.GameLine
 import com.otokit.noharayh.ui.theme.BackgroundSelection
 import kotlin.math.abs
@@ -33,6 +36,7 @@ class BackgroundHost(
     }
 
     private var pager: ViewPager2? = null
+    private var settleCurve: PagerSettleCurve? = null
     private var adapter: BackgroundPagerAdapter? = null
     private var touchRoot: BackgroundTouchFrameLayout? = null
     private var attached = false
@@ -143,6 +147,12 @@ class BackgroundHost(
                 registerOnPageChangeCallback(pageCallback)
             }
             this.pager = pager
+            // 背景宿主拥有 Pager；仅在此处接入公开 RecyclerView/SnapHelper 收尾接口。
+            val recycler = pager.getChildAt(0) as RecyclerView
+            val snap = recycler.onFlingListener as PagerSnapHelper
+            settleCurve = PagerSettleCurve(recycler, snap) {
+                !disposed && gate.canCommit && !pager.isFakeDragging
+            }
             root.addView(pager)
             container.addView(root)
             beginAlignment(requireNextLayout = true)
@@ -341,6 +351,8 @@ class BackgroundHost(
         oldRoot?.beforeGestureCancel = null
         oldRoot?.afterGestureCancel = null
         val oldPager = pager
+        val oldSettleCurve = settleCurve
+        settleCurve = null
         oldPager?.isUserInputEnabled = false
         val oldPages = pages.values.toList()
         pages.clear()
@@ -349,6 +361,7 @@ class BackgroundHost(
         touchRoot = null
 
         val release = {
+            oldSettleCurve?.close()
             oldPager?.unregisterOnPageChangeCallback(pageCallback)
             oldPager?.setPageTransformer(null)
             oldPager?.adapter = null

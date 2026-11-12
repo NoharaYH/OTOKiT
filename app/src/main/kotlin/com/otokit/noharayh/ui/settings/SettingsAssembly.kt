@@ -28,7 +28,7 @@ class SettingsAssembly(
     private val selectionProvider: () -> GameSelectionState,
     private val onThemeModeSelected: (ThemeSelectionMode) -> Unit,
     private val onThemeOptionSelected: (ThemeOption, GameLine?) -> Unit,
-    private val onTransitionStart: (SettingsSection?, SettingsSection?, Float) -> Unit,
+    private val onTransitionStart: (SettingsSection?, SettingsSection?, Float, Boolean) -> Unit,
     private val onTransitionFrame: (TransitionProgress) -> Unit,
 ) : FrameLayout(context) {
     private val rootPage = SettingsHome(context, onOpenSection)
@@ -41,6 +41,7 @@ class SettingsAssembly(
     private var fromView: View? = null
     private var toView: View? = null
     private var transitioning = false
+    private var unfold = false
     private var split = false
     private var margin = dp(20)
     private var disposed = false
@@ -168,8 +169,9 @@ class SettingsAssembly(
         rootPage.visibility = VISIBLE
         childHost.visibility = VISIBLE
         transitioning = true
-        runner.reset()
-        onTransitionStart(from, to, width.toFloat())
+        unfold = true
+        runner.reset(unfold)
+        onTransitionStart(from, to, width.toFloat(), unfold)
         renderFrame(TransitionProgress(0f, true))
         updateAccessibility()
     }
@@ -179,12 +181,10 @@ class SettingsAssembly(
         val forward = toSection != null
         val distance = width.toFloat()
         fromView?.let {
-            if (!split || it !== rootPage) SettingsPageTransitionRunner.apply(it,
-                SettingsPageFrames.page(frame.value, false, forward, split, distance))
+            if (!split || it !== rootPage) applyPageFrame(it, frame.value, false, forward, distance)
         }
         toView?.let {
-            if (!split || it !== rootPage) SettingsPageTransitionRunner.apply(it,
-                SettingsPageFrames.page(frame.value, true, forward, split, distance))
+            if (!split || it !== rootPage) applyPageFrame(it, frame.value, true, forward, distance)
         }
         val changed = SettingsPageFrames.selectionChange(frame.value)
         options.forEach { (key, option) ->
@@ -193,6 +193,15 @@ class SettingsAssembly(
             option.setSelectionProgress(start + (end - start) * changed)
         }
         onTransitionFrame(frame)
+    }
+
+    private fun applyPageFrame(view: View, progress: Float, entering: Boolean, forward: Boolean, distance: Float) {
+        val visual = if (unfold) SettingsPageFrames.unfoldPage(progress, entering, forward, resources.displayMetrics.density)
+            else SettingsPageFrames.page(progress, entering, forward, split, distance)
+        // 分栏中直接换子页时，旧子页完整退场；仅展开侧使用揭示裁剪。
+        val reveal = if (unfold && view !== rootPage && entering == forward)
+            SettingsPageFrames.unfoldReveal(progress, forward) else 1f
+        runner.apply(view, visual, reveal)
     }
 
     override fun onInterceptTouchEvent(event: MotionEvent): Boolean = transitioning || super.onInterceptTouchEvent(event)
@@ -247,7 +256,7 @@ class SettingsAssembly(
             setDisabledProgress(themeDisabledProgress)
         }
     }
-    private fun reset(view: View) { view.alpha = 1f; view.scaleX = 1f; view.scaleY = 1f; view.translationX = 0f; view.translationY = 0f }
+    private fun reset(view: View) { view.alpha = 1f; view.scaleX = 1f; view.scaleY = 1f; view.translationX = 0f; view.translationY = 0f; view.clipBounds = null }
     private fun dp(value: Int) = (value * resources.displayMetrics.density + 0.5f).toInt()
     private fun exact(value: Int) = MeasureSpec.makeMeasureSpec(value.coerceAtLeast(0), MeasureSpec.EXACTLY)
 }
