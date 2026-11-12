@@ -150,6 +150,7 @@ private class MenuViewport(
     private val geometry: ThemeMenuGeometry,
     onSelected: (ThemeOption) -> Unit,
 ) : ViewGroup(context) {
+    private val edges = themeMenuEdges(options)
     private val density = resources.displayMetrics.density
     private val config = ViewConfiguration.get(context)
     private var touching = false
@@ -236,8 +237,8 @@ private class MenuViewport(
             labels[index].alpha = ((h / geometry.rowHeight - Spec.LABEL_FADE_START) / (1f - Spec.LABEL_FADE_START)).coerceIn(0f, 1f)
             val outerRadius = (Dimensions.MENU_BAR_RADIUS_DP + (Dimensions.MENU_LARGE_RADIUS_DP -
                 Dimensions.MENU_BAR_RADIUS_DP) * geometry.expansion(index, offset)) * density
-            child.topCornerRadius = if (index == 0) outerRadius else Dimensions.MENU_INNER_RADIUS_DP * density
-            child.bottomCornerRadius = if (index == childCount - 1) outerRadius else Dimensions.MENU_INNER_RADIUS_DP * density
+            child.topCornerRadius = if (edges[index].top) outerRadius else Dimensions.MENU_INNER_RADIUS_DP * density
+            child.bottomCornerRadius = if (edges[index].bottom) outerRadius else Dimensions.MENU_INNER_RADIUS_DP * density
             child.measure(MeasureSpec.makeMeasureSpec((width - 2 * pad).coerceAtLeast(0), MeasureSpec.EXACTLY),
                 MeasureSpec.makeMeasureSpec(h.roundToInt(), MeasureSpec.EXACTLY))
             child.layout(pad, (top + overscroll).roundToInt(), width - pad,

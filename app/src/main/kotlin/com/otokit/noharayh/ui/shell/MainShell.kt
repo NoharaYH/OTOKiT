@@ -469,6 +469,8 @@ class MainShell(
                 backgroundSwitching = false
                 settingsPage?.setThemeControlsEnabled(true)
             }
+        }, onProgress = { progress ->
+            settingsPage?.renderThemeDisabledProgress(progress)
         })
     }
 

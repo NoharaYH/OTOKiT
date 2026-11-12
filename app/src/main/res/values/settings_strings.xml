@@ -23,9 +23,9 @@
     <string name="settings_display_scale_large">较大（100%）</string>
     <string name="settings_display_scale_warning">调整应用比例可能造成未知的显示错误!</string>
     <string name="settings_theme_selection">主题选择</string>
-    <string name="settings_theme_independent">独立背景</string>
-    <string name="settings_theme_merged">通用背景</string>
-    <string name="settings_theme_none">无背景</string>
+    <string name="settings_theme_independent">多主题</string>
+    <string name="settings_theme_merged">单主题</string>
+    <string name="settings_theme_none">无主题</string>
     <string name="settings_theme_mai">舞萌主题选择</string>
     <string name="settings_theme_chu">中二主题选择</string>
     <string name="settings_theme_merged_field">主题选择</string>

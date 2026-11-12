@@ -9,6 +9,7 @@ import android.widget.TextView
 import com.otokit.noharayh.ui.animation.settings.SettingsChoiceTransitionRunner
 import com.otokit.noharayh.ui.constants.dimensions.ThemeSelectionDimensions as Dimensions
 import com.otokit.noharayh.ui.constants.dimensions.SettingsCardDimensions
+import com.otokit.noharayh.ui.constants.motion.ThemeSelectionMotion
 import com.otokit.noharayh.ui.kit.common.AppTypography
 import com.otokit.noharayh.ui.kit.common.PressSurface
 
@@ -24,7 +25,8 @@ internal class SettingsSegmentedChoice(context: Context) : LinearLayout(context)
     private val labels = mutableListOf<TextView>()
     private val transition = SettingsChoiceTransitionRunner()
     private var selectedIndex = -1
-    private var controlsEnabled = true
+    private var disabledProgress = 0f
+    private val textColors = mutableListOf<Int>()
     private var onSelected: ((Int) -> Unit)? = null
 
     init {
@@ -42,6 +44,7 @@ internal class SettingsSegmentedChoice(context: Context) : LinearLayout(context)
         removeAllViews()
         buttons.clear()
         this.labels.clear()
+        textColors.clear()
         transition.stop()
         this.onSelected = onSelected
         this.selectedIndex = selectedIndex
@@ -73,6 +76,7 @@ internal class SettingsSegmentedChoice(context: Context) : LinearLayout(context)
                     this@SettingsSegmentedChoice.onSelected?.invoke(index)
                 }
             }
+            textColors += if (index == selectedIndex) ACTIVE_TEXT else INACTIVE_TEXT
             buttons += surface
             this.labels += text
             addView(
@@ -85,11 +89,14 @@ internal class SettingsSegmentedChoice(context: Context) : LinearLayout(context)
     }
 
     fun setControlsEnabled(enabled: Boolean) {
-        controlsEnabled = enabled
+        buttons.forEach { it.isEnabled = enabled }
+    }
+
+    fun setDisabledProgress(progress: Float) {
+        disabledProgress = progress.coerceIn(0f, 1f)
         buttons.forEachIndexed { index, button ->
-            button.isEnabled = enabled
-            button.fillColor = if (enabled) INACTIVE_FILL else 0xFFFAFAFA.toInt()
-            labels[index].setTextColor(displayColor(if (index == selectedIndex) ACTIVE_TEXT else INACTIVE_TEXT))
+            button.fillColor = ColorUtils.blendARGB(INACTIVE_FILL, 0xFFFAFAFA.toInt(), disabledProgress)
+            labels[index].setTextColor(displayColor(textColors[index]))
         }
     }
 
@@ -119,10 +126,11 @@ internal class SettingsSegmentedChoice(context: Context) : LinearLayout(context)
         val text = labels.getOrNull(index) ?: return
         val fromRadius = surface.baseRadius
         val toRadius = radiusFor(toCapsule)
-        val fromColor = (text.currentTextColor)
+        val fromColor = textColors[index]
         val toColor = if (toCapsule) ACTIVE_TEXT else INACTIVE_TEXT
         transition.play(index, fromRadius, toRadius, fromColor, toColor) { radius, color ->
             surface.baseRadius = radius
+            textColors[index] = color
             text.setTextColor(displayColor(color))
             surface.invalidate()
         }
@@ -132,12 +140,14 @@ internal class SettingsSegmentedChoice(context: Context) : LinearLayout(context)
         val surface = buttons.getOrNull(index) ?: return
         val text = labels.getOrNull(index) ?: return
         surface.baseRadius = radiusFor(capsule > 0.5f)
-        text.setTextColor(displayColor(if (capsule > 0.5f) ACTIVE_TEXT else INACTIVE_TEXT))
+        textColors[index] = if (capsule > 0.5f) ACTIVE_TEXT else INACTIVE_TEXT
+        text.setTextColor(displayColor(textColors[index]))
         surface.invalidate()
     }
 
     private fun displayColor(color: Int): Int =
-        if (controlsEnabled) color else ColorUtils.blendARGB(color, android.graphics.Color.WHITE, 0.62f)
+        ColorUtils.blendARGB(color, android.graphics.Color.WHITE,
+            ThemeSelectionMotion.DISABLED_BLEND * disabledProgress)
 
     private fun radiusFor(capsule: Boolean): Float = dp(
         if (capsule) Dimensions.CHOICE_RADIUS_DP else SettingsCardDimensions.CONTENT_CORNER_DP,

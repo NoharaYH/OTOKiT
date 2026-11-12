@@ -2,6 +2,7 @@ package com.otokit.noharayh.ui.constants.dimensions
 
 /** 主题触发框、分段按钮与容器菜单的标准几何。 */
 internal object ThemeSelectionDimensions {
+    const val FIELD_GAP_DP = 12
     const val FIELD_HEIGHT_DP = 44
     const val FIELD_RADIUS_DP = FIELD_HEIGHT_DP / 2
     const val FIELD_STROKE_DP = 2.5f

@@ -45,11 +45,19 @@ class SettingsAssembly(
     private var margin = dp(20)
     private var disposed = false
     private var themeControlsEnabled = true
+    private var themeDisabledProgress = 0f
 
     fun renderThemeSelection(selection: GameSelectionState) {
         if (disposed) return
         for (index in 0 until childHost.childCount) {
             (childHost.getChildAt(index) as? PersonalizationSettingsPage)?.renderSelection(selection)
+        }
+    }
+
+    fun renderThemeDisabledProgress(progress: Float) {
+        themeDisabledProgress = progress
+        for (index in 0 until childHost.childCount) {
+            (childHost.getChildAt(index) as? PersonalizationSettingsPage)?.setDisabledProgress(progress)
         }
     }
 
@@ -223,7 +231,12 @@ class SettingsAssembly(
             onThemeOptionSelected(option, game)
             renderThemeSelection(selectionProvider())
         },
-    ).also { (it as? PersonalizationSettingsPage)?.setControlsEnabled(themeControlsEnabled) }
+    ).also {
+        (it as? PersonalizationSettingsPage)?.apply {
+            setControlsEnabled(themeControlsEnabled)
+            setDisabledProgress(themeDisabledProgress)
+        }
+    }
     private fun reset(view: View) { view.alpha = 1f; view.scaleX = 1f; view.scaleY = 1f; view.translationX = 0f; view.translationY = 0f }
     private fun dp(value: Int) = (value * resources.displayMetrics.density + 0.5f).toInt()
     private fun exact(value: Int) = MeasureSpec.makeMeasureSpec(value.coerceAtLeast(0), MeasureSpec.EXACTLY)

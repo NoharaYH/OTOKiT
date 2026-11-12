@@ -2,6 +2,9 @@ package com.otokit.noharayh.ui.constants.motion
 
 /** 主题选择的固定节奏和运动参数，不持有执行对象。 */
 internal object ThemeSelectionMotion {
+    const val CARD_DURATION_MS = 300L
+    const val FIELD_TRANSLATION_DP = 8f
+    const val DISABLED_BLEND = 0.62f
     const val CHOICE_DURATION_MS = 220L
     const val ARROW_DURATION_MS = 220L
     const val MENU_OPEN_MS = 180L

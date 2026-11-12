@@ -410,10 +410,13 @@ open class PressSurface @JvmOverloads constructor(
             .coerceAtMost(cap)
         val top = lerp((topCornerRadius ?: baseRadius).coerceAtMost(cap), cap, boundedProgress)
         val bottom = lerp((bottomCornerRadius ?: baseRadius).coerceAtMost(cap), cap, boundedProgress)
+        val fillInset = surfaceFillInset.coerceIn(0f, cap)
 
         // 外环半径要补上按压内收量，才能和按钮保持同心；否则外圈两端会变成圆角矩形，
         // 看起来像被一个更大的方框限位。
-        halo?.draw(canvas, width, height, inset, top, bottom)
+        // 外环收尾必须回到实际填充边界；带内缩填充的描边组件否则会残留半圈黑边。
+        halo?.draw(canvas, width, height, inset + fillInset,
+            (top - fillInset).coerceAtLeast(0f), (bottom - fillInset).coerceAtLeast(0f))
         drawUnderlay(canvas, radius, inset)
 
         val follow = 1f - exp(-delta / followTauMs)
@@ -424,7 +427,6 @@ open class PressSurface @JvmOverloads constructor(
         }
 
         val layer = canvas.saveLayer(0f, 0f, width.toFloat(), height.toFloat(), null)
-        val fillInset = surfaceFillInset.coerceIn(0f, cap)
         shapeRect.inset(fillInset, fillInset)
         shapeCorners.fill((top - fillInset).coerceAtLeast(0f), 0, 4)
         shapeCorners.fill((bottom - fillInset).coerceAtLeast(0f), 4, 8)
