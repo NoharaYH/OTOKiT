@@ -199,7 +199,7 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
         // 上下段共用直线长度；底部圆角仍独立跟随末项，避免加长时破坏同心关系。
         val stub = maxOf(Dimensions.PANEL_STROKE_STUB_DP * resources.displayMetrics.density,
             haloBottom - outline.top - radius)
-        val upperLimit = haloBottom.coerceIn(outline.top + radius, outline.bottom - bottomRadius)
+        val upperLimit = themePanelSideEnd(outline.top + radius, outline.bottom - bottomRadius, haloBottom)
         val lowerLimit = (outline.bottom - bottomRadius - stub).coerceAtLeast(upperLimit)
         val opening = (lowerLimit - upperLimit) * panelGap
         val middle = (upperLimit + lowerLimit) / 2f
@@ -292,3 +292,7 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density + 0.5f).toInt()
 }
+
+/** 胶囊闭合时两段圆弧相接；分别计算的端点可能相差一个浮点单位，按相接处理。 */
+internal fun themePanelSideEnd(topArcEnd: Float, bottomArcStart: Float, preferredEnd: Float): Float =
+    preferredEnd.coerceIn(topArcEnd, bottomArcStart.coerceAtLeast(topArcEnd))
