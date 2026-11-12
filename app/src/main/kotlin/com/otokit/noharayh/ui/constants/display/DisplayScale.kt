@@ -9,16 +9,20 @@ import kotlin.math.roundToInt
  * 实际系统密度由平台层读取，避免常量层接触 Android 运行状态。
  */
 enum class DisplayScaleOption(val scale: Float, val savedValue: String) {
-    Small(0.85f, "small"),
-    Standard(1f, "standard"),
-    Large(1.15f, "large"),
+    Small(0.70f, "70"),
+    Standard(0.85f, "85"),
+    Large(1f, "100"),
     ;
 
     companion object {
-        val DEFAULT: DisplayScaleOption = Small
+        val DEFAULT: DisplayScaleOption = Standard
 
-        fun fromSavedValue(value: String?): DisplayScaleOption? =
-            entries.firstOrNull { it.savedValue == value }
+        // 旧档名按原比例兼容：85% 保持原大小，原 115% 归到新的最大档 100%。
+        fun fromSavedValue(value: String?): DisplayScaleOption? = when (value) {
+            "small" -> Standard
+            "standard", "large" -> Large
+            else -> entries.firstOrNull { it.savedValue == value }
+        }
     }
 }
 

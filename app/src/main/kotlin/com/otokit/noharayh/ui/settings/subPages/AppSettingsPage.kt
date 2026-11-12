@@ -1,8 +1,10 @@
 package com.otokit.noharayh.ui.settings.subPages
 
 import android.content.Context
+import android.view.Gravity
 import android.view.View
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import com.otokit.noharayh.R
@@ -11,6 +13,7 @@ import com.otokit.noharayh.ui.kit.common.PressFrontColumn
 import com.otokit.noharayh.ui.kit.settings.SettingsPageViews.card
 import com.otokit.noharayh.ui.kit.settings.SettingsPageViews.choice
 import com.otokit.noharayh.ui.kit.settings.SettingsPageViews.dp
+import com.otokit.noharayh.ui.kit.settings.SettingsPageViews.text
 
 
 internal object AppSettingsPage {
@@ -42,9 +45,22 @@ internal object AppSettingsPage {
                 },
             )
         }
-        body.addView(
-            card(context, R.drawable.ic_aspect_ratio_24, R.string.settings_display_scale, choices),
-        )
+        val warningColor = 0xFFE57373.toInt()
+        val warning = LinearLayout(context).apply {
+            gravity = Gravity.END or Gravity.CENTER_VERTICAL
+            addView(text(context, context.getString(R.string.settings_display_scale_warning), 11f, warningColor).apply {
+                gravity = Gravity.END or Gravity.CENTER_VERTICAL
+            }, LinearLayout.LayoutParams(0, -2, 1f))
+            addView(ImageView(context).apply {
+                setImageResource(R.drawable.ic_error_40)
+                setColorFilter(warningColor)
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            }, LinearLayout.LayoutParams(dp(context, 18), dp(context, 18)).apply {
+                marginStart = dp(context, 4)
+            })
+        }
+        body.addView(card(context, R.drawable.ic_aspect_ratio_24,
+            R.string.settings_display_scale, choices, trailing = warning))
 
         return ScrollView(context).apply {
             isFillViewport = true
