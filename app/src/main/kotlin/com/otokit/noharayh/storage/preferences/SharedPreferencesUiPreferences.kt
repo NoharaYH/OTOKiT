@@ -31,17 +31,14 @@ class SharedPreferencesUiPreferences(context: Context) : UiPreferences {
         currentGame: String,
         maiThemeId: String,
         chuThemeId: String,
+        themeMode: String,
+        mergedThemeId: String,
     ) {
         preferences.edit {
             putInt(KEY_VERSION, version)
             putString(KEY_CURRENT_GAME, currentGame)
             putString(KEY_THEME_MAI, maiThemeId)
             putString(KEY_THEME_CHU, chuThemeId)
-        }
-    }
-
-    override fun writeThemeSelection(themeMode: String, mergedThemeId: String) {
-        preferences.edit {
             putString(KEY_THEME_MODE, themeMode)
             putString(KEY_MERGED_THEME, mergedThemeId)
         }

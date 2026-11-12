@@ -20,8 +20,13 @@ interface UiPreferences {
 
     fun readSelection(): UiPreferenceRecord
 
-    fun writeSelection(version: Int, currentGame: String, maiThemeId: String, chuThemeId: String)
-
-    /** 主题模式单独写入；默认空实现兼容只关心旧字段的实现。 */
-    fun writeThemeSelection(themeMode: String, mergedThemeId: String) = Unit
+    /** 完整快照必须一次写入，所有字段均为必填；实现不得静默丢弃模式字段。 */
+    fun writeSelection(
+        version: Int,
+        currentGame: String,
+        maiThemeId: String,
+        chuThemeId: String,
+        themeMode: String,
+        mergedThemeId: String,
+    )
 }
