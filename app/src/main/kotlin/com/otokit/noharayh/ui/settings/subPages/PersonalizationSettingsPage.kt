@@ -22,131 +22,95 @@ internal class PersonalizationSettingsPage(
     margin: Int,
     split: Boolean,
     selection: GameSelectionState,
-    onModeSelected: (ThemeSelectionMode) -> Unit,
-    onOptionSelected: (ThemeOption, GameLine?) -> Unit,
+    private val onModeSelected: (ThemeSelectionMode) -> Unit,
+    private val onOptionSelected: (ThemeOption, GameLine?) -> Unit,
 ) : ScrollView(context) {
     private var controlsEnabled = true
     private val fields = mutableListOf<LabeledDropdownField>()
     private val segment = SettingsSegmentedChoice(context)
 
+    // 只缓存最后一次确认的展示快照；点击不会在这里修改主题选择。
+    private var renderedSelection: GameSelectionState? = null
+    private val content = LinearLayout(context).apply {
+        orientation = LinearLayout.VERTICAL
+        clipChildren = false
+        clipToPadding = false
+    }
+
     init {
-        var state = selection
         val body = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(if (split) 0 else margin, margin, margin, margin)
             clipChildren = false
             clipToPadding = false
         }
-
-        val content = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            clipChildren = false
-            clipToPadding = false
-        }
-
-        fun renderContent() {
-            fields.forEach { it.dismissMenu() }
-            fields.clear()
-            content.removeAllViews()
-            when (state.themeMode) {
-                ThemeSelectionMode.None -> Unit
-                ThemeSelectionMode.Independent -> {
-                    val mai = field(
-                        context = context,
-                        label = context.getString(R.string.settings_theme_mai),
-                        optionsFor = {
-                            ThemeOptions.forGame(GameLine.Mai).filterNot {
-                                it.id == state.maiThemeId
-                            }
-                        },
-                        selectedTitle = ThemeOptions.resolveForGame(
-                            GameLine.Mai,
-                            state.maiThemeId,
-                        ).title,
-                        onSelected = { option ->
-                            state = state.copy(maiThemeId = option.id)
-                            onOptionSelected(option, GameLine.Mai)
-                        },
-                    )
-                    val chu = field(
-                        context = context,
-                        label = context.getString(R.string.settings_theme_chu),
-                        optionsFor = {
-                            ThemeOptions.forGame(GameLine.Chu).filterNot {
-                                it.id == state.chuThemeId
-                            }
-                        },
-                        selectedTitle = ThemeOptions.resolveForGame(
-                            GameLine.Chu,
-                            state.chuThemeId,
-                        ).title,
-                        onSelected = { option ->
-                            state = state.copy(chuThemeId = option.id)
-                            onOptionSelected(option, GameLine.Chu)
-                        },
-                    )
-                    content.addView(mai)
-                    content.addView(chu, LinearLayout.LayoutParams(-1, -2).apply {
-                        topMargin = dp(context, 12)
-                    })
-                }
-                ThemeSelectionMode.Merged -> {
-                    val merged = field(
-                        context = context,
-                        label = context.getString(R.string.settings_theme_merged_field),
-                        optionsFor = {
-                            ThemeOptions.merged().filterNot { it.id == state.mergedThemeId }
-                        },
-                        selectedTitle = ThemeOptions.resolveMerged(state.mergedThemeId).title,
-                        onSelected = { option ->
-                            state = state.copy(mergedThemeId = option.id)
-                            onOptionSelected(option, null)
-                        },
-                    )
-                    content.addView(merged)
-                }
-            }
-        }
-
         segment.setItems(
-            labels = listOf(
+            listOf(
                 context.getString(R.string.settings_theme_independent),
                 context.getString(R.string.settings_theme_merged),
                 context.getString(R.string.settings_theme_none),
             ),
-            selectedIndex = when (state.themeMode) {
-                ThemeSelectionMode.Independent -> 0
-                ThemeSelectionMode.Merged -> 1
-                ThemeSelectionMode.None -> 2
-            },
+            modeIndex(selection.themeMode),
         ) { index ->
-            val mode = when (index) {
+            onModeSelected(when (index) {
                 0 -> ThemeSelectionMode.Independent
                 1 -> ThemeSelectionMode.Merged
                 else -> ThemeSelectionMode.None
-            }
-            if (mode != state.themeMode) {
-                state = state.copy(themeMode = mode)
-                onModeSelected(mode)
-                renderContent()
-            }
+            })
         }
-
-        body.addView(
-            card(
-                context = context,
-                icon = R.drawable.ic_format_paint_24,
-                title = R.string.settings_theme_selection,
-                content = content,
-                trailing = segment,
-            ),
-        )
-        renderContent()
-
+        body.addView(card(context, R.drawable.ic_format_paint_24,
+            R.string.settings_theme_selection, content, trailing = segment))
+        renderSelection(selection)
         isFillViewport = true
         clipChildren = false
         clipToPadding = false
         addView(body, FrameLayout.LayoutParams(-1, -2))
+    }
+
+    fun renderSelection(selection: GameSelectionState) {
+        val modeChanged = renderedSelection?.themeMode != selection.themeMode
+        renderedSelection = selection
+        segment.setSelection(modeIndex(selection.themeMode))
+        if (modeChanged) {
+            fields.forEach { it.dismissMenu() }
+            fields.clear()
+            content.removeAllViews()
+            when (selection.themeMode) {
+                ThemeSelectionMode.None -> Unit
+                ThemeSelectionMode.Independent -> {
+                    addField(R.string.settings_theme_mai, GameLine.Mai)
+                    addField(R.string.settings_theme_chu, GameLine.Chu)
+                }
+                ThemeSelectionMode.Merged -> addField(R.string.settings_theme_merged_field, null)
+            }
+        }
+        fields.forEachIndexed { index, field ->
+            val option = if (selection.themeMode == ThemeSelectionMode.Merged) {
+                ThemeOptions.resolveMerged(selection.mergedThemeId)
+            } else {
+                val game = if (index == 0) GameLine.Mai else GameLine.Chu
+                ThemeOptions.resolveForGame(game, selection.selectedThemeId(game))
+            }
+            field.setValue(option.title)
+        }
+    }
+
+    private fun addField(label: Int, game: GameLine?) {
+        val field = field(context, context.getString(label), optionsFor = {
+            val state = requireNotNull(renderedSelection)
+            val selected = if (game == null) state.mergedThemeId else state.selectedThemeId(game)
+            (if (game == null) ThemeOptions.merged() else ThemeOptions.forGame(game))
+                .filterNot { it.id == selected }
+        }, selectedTitle = "", onSelected = { onOptionSelected(it, game) })
+        content.addView(field, LinearLayout.LayoutParams(-1, -2).apply {
+            if (content.childCount > 0) topMargin = dp(context, 12)
+        })
+    }
+
+    private fun modeIndex(mode: ThemeSelectionMode): Int = when (mode) {
+        ThemeSelectionMode.Independent -> 0
+        ThemeSelectionMode.Merged -> 1
+        ThemeSelectionMode.None -> 2
     }
 
     fun setControlsEnabled(enabled: Boolean) {

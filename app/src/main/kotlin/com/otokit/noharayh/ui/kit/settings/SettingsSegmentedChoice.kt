@@ -73,7 +73,6 @@ internal class SettingsSegmentedChoice(context: Context) : LinearLayout(context)
                 addView(text, FrameLayout.LayoutParams(-1, -1))
                 setOnClickListener {
                     if (this@SettingsSegmentedChoice.selectedIndex == index) return@setOnClickListener
-                    setSelection(index)
                     this@SettingsSegmentedChoice.onSelected?.invoke(index)
                 }
             }

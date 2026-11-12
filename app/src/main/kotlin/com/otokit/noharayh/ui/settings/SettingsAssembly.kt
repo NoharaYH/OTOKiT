@@ -46,6 +46,13 @@ class SettingsAssembly(
     private var disposed = false
     private var themeControlsEnabled = true
 
+    fun renderThemeSelection(selection: GameSelectionState) {
+        if (disposed) return
+        for (index in 0 until childHost.childCount) {
+            (childHost.getChildAt(index) as? PersonalizationSettingsPage)?.renderSelection(selection)
+        }
+    }
+
     fun setThemeControlsEnabled(enabled: Boolean) {
         themeControlsEnabled = enabled
         for (index in 0 until childHost.childCount) {
@@ -208,8 +215,14 @@ class SettingsAssembly(
         displayScale = displayScale,
         onDisplayScaleSelected = onDisplayScaleSelected,
         selection = selectionProvider(),
-        onThemeModeSelected = onThemeModeSelected,
-        onThemeOptionSelected = onThemeOptionSelected,
+        onThemeModeSelected = {
+            onThemeModeSelected(it)
+            renderThemeSelection(selectionProvider())
+        },
+        onThemeOptionSelected = { option, game ->
+            onThemeOptionSelected(option, game)
+            renderThemeSelection(selectionProvider())
+        },
     ).also { (it as? PersonalizationSettingsPage)?.setControlsEnabled(themeControlsEnabled) }
     private fun reset(view: View) { view.alpha = 1f; view.scaleX = 1f; view.scaleY = 1f; view.translationX = 0f; view.translationY = 0f }
     private fun dp(value: Int) = (value * resources.displayMetrics.density + 0.5f).toInt()

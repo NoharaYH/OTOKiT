@@ -421,6 +421,7 @@ class MainShell(
     /** 选择变化后只更新颜色、背景页与落盘，不重建页面、不改导航。 */
     private fun applySelection() {
         val current = selection.state
+        settingsPage?.renderThemeSelection(current)
         val color = placeholderTextColor()
         mountedContent?.updateColor(color)
         settingsContent?.updateColor(color)
@@ -560,6 +561,7 @@ class MainShell(
         if (!selection.selectGame(gameLine)) return selection.state.currentGame
 
         val current = selection.state
+        settingsPage?.renderThemeSelection(current)
         val color = placeholderTextColor()
         mountedContent?.updateColor(color)
         settingsContent?.updateColor(color)

@@ -137,7 +137,6 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
         setExpanded(true)
         val openingHapticDelay = (120L - (SystemClock.uptimeMillis() - pressedAt)).coerceAtLeast(0L)
         menu = ThemeDropdownMenu.show(this, options, openingHapticDelay, { option ->
-            setValue(option.title)
             onSelected(option)
         }) {
             menu = null
