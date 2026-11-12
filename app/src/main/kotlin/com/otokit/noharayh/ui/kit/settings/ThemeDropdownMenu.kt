@@ -264,6 +264,17 @@ private class MenuViewport(
             tracker = VelocityTracker.obtain()
             updatePosition(offset)
         }
+        if (event.actionMasked == MotionEvent.ACTION_POINTER_UP &&
+            event.getPointerId(event.actionIndex) == pointerId) {
+            // 拦截发生的这一条事件只会给旧子目标发送 CANCEL，不会再交给父 onTouchEvent。
+            // 因此主指结束必须在分发入口处理，兼容尚未拖动、子卡片仍持有触摸的情况。
+            dragging = false
+            touching = false
+            pointerId = MotionEvent.INVALID_POINTER_ID
+            tracker?.recycle()
+            tracker = null
+            snap()
+        }
         tracker?.addMovement(event)
         val handled = super.dispatchTouchEvent(event)
         if (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL) {
@@ -279,8 +290,6 @@ private class MenuViewport(
         if (event.actionMasked == MotionEvent.ACTION_DOWN) return interrupted
         // 主指离开就结束本次手势；拦截剩余指针，避免子项收到尾部 UP 而误点击。
         if (pointerId == MotionEvent.INVALID_POINTER_ID) return true
-        if (event.actionMasked == MotionEvent.ACTION_POINTER_UP &&
-            event.getPointerId(event.actionIndex) == pointerId) return true
         val index = event.findPointerIndex(pointerId)
         if (event.actionMasked == MotionEvent.ACTION_MOVE && index >= 0 &&
             abs(event.getY(index) - downY) > config.scaledTouchSlop) {
@@ -318,9 +327,7 @@ private class MenuViewport(
                     motion.startFling(offset, velocity)
                 } else snap(velocity)
             }
-            MotionEvent.ACTION_CANCEL, MotionEvent.ACTION_POINTER_UP -> {
-                if (event.actionMasked == MotionEvent.ACTION_POINTER_UP &&
-                    event.getPointerId(event.actionIndex) != pointerId) return true
+            MotionEvent.ACTION_CANCEL -> {
                 dragging = false
                 touching = false
                 pointerId = MotionEvent.INVALID_POINTER_ID
