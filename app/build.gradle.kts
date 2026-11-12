@@ -3,6 +3,14 @@ plugins {
     alias(libs.plugins.kotlin.android)
 }
 
+// Configure these in GRADLE_USER_HOME/gradle.properties, outside the repository.
+// Temporary values can also use ORG_GRADLE_PROJECT_<property name> environment variables.
+val releaseStoreFile = providers.gradleProperty("OTOKIT_RELEASE_STORE_FILE")
+    .orNull?.let { rootProject.file(it) }
+val releaseStorePassword = providers.gradleProperty("OTOKIT_RELEASE_STORE_PASSWORD")
+val releaseKeyPassword = providers.gradleProperty("OTOKIT_RELEASE_KEY_PASSWORD")
+    .orElse(releaseStorePassword)
+
 android {
     namespace = "com.otokit.noharayh"
     compileSdk = 35
@@ -15,8 +23,23 @@ android {
         versionName = "1.0"
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = releaseStoreFile
+            storePassword = releaseStorePassword.orNull
+            keyAlias = providers.gradleProperty("OTOKIT_RELEASE_KEY_ALIAS")
+                .orElse("otokit-release").get()
+            keyPassword = releaseKeyPassword.orNull
+            enableV1Signing = false
+            enableV2Signing = true
+            enableV3Signing = true
+            enableV4Signing = false
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -36,6 +59,22 @@ android {
 
     kotlinOptions {
         jvmTarget = "17"
+    }
+}
+
+// Fail before building release if credentials are missing; never silently emit an unsigned APK.
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    val signingFile = releaseStoreFile
+    val signingStorePassword = releaseStorePassword
+    val signingKeyPassword = releaseKeyPassword
+    doFirst {
+        check(signingFile?.isFile == true) {
+            "Set OTOKIT_RELEASE_STORE_FILE to the release keystore path in your local Gradle properties."
+        }
+        check(!signingStorePassword.orNull.isNullOrEmpty() && !signingKeyPassword.orNull.isNullOrEmpty()) {
+            "Set OTOKIT_RELEASE_STORE_PASSWORD in your local Gradle properties or " +
+                "ORG_GRADLE_PROJECT_OTOKIT_RELEASE_STORE_PASSWORD for this build."
+        }
     }
 }
 
