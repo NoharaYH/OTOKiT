@@ -79,7 +79,14 @@ internal object SettingsPageViews {
     fun choice(context: Context, label: String, selected: Boolean, onClick: () -> Unit) = PressSurface(context).apply {
         outerHaloEnabled = true
         fillColor = 0xFFF5F5F5.toInt()
-        baseRadius = dp(context, SettingsCardDimensions.CONTENT_CORNER_DP).toFloat()
+        baseRadius = dp(
+            context,
+            if (selected) {
+                SettingsCardDimensions.CONTENT_SELECTED_CORNER_DP
+            } else {
+                SettingsCardDimensions.CONTENT_CORNER_DP
+            },
+        ).toFloat()
         contentDescription = label
         val row = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL

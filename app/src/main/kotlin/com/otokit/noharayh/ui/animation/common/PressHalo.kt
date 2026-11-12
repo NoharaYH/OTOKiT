@@ -58,10 +58,21 @@ internal class PressHalo(private val host: View) {
         host.postDelayed(shrink, (Spec.EXPAND_DURATION_MS - elapsed).coerceAtLeast(0L))
     }
 
-    fun draw(canvas: Canvas, width: Int, height: Int, cornerRadius: Float) {
+    fun draw(
+        canvas: Canvas,
+        width: Int,
+        height: Int,
+        inset: Float,
+        cornerRadius: Float,
+    ) {
         val outset = Spec.REST_OUTSET_DP * density * expansion.value.coerceAtLeast(0f)
         if (outset < 0.01f || width <= 0 || height <= 0) return
-        rect.set(-outset, -outset, width + outset, height + outset)
+        rect.set(
+            inset - outset,
+            inset - outset,
+            width - inset + outset,
+            height - inset + outset,
+        )
         val radius = (cornerRadius + outset).coerceAtMost(rect.height() / 2f)
         canvas.drawRoundRect(rect, radius, radius, paint)
     }

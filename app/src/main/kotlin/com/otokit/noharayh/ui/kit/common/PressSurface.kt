@@ -67,6 +67,14 @@ open class PressSurface @JvmOverloads constructor(
     /** 离开窗口的动作可等待释放反馈；不含外链或页面等业务语义。 */
     var deferClickUntilReleaseFeedback = false
 
+    private val pressStateListeners = mutableListOf<(Boolean) -> Unit>()
+
+    /** 供容器观察按压事实（例如把按压行提到最前）；返回注销函数。 */
+    fun addOnPressStateChangedListener(listener: (Boolean) -> Unit): () -> Unit {
+        if (listener !in pressStateListeners) pressStateListeners += listener
+        return { pressStateListeners -= listener }
+    }
+
     /**
      * 是否绘制通用黑色外溢层；内容区按钮与设置卡片共用，标题/胶囊另有定位方式。
      *
@@ -224,6 +232,7 @@ open class PressSurface @JvmOverloads constructor(
     /** 可选装饰只接收按压事实，不接管点击、触觉或内部涟漪。 */
     protected open fun onPressStateChanged(pressed: Boolean) {
         if (pressed) halo?.press() else halo?.release()
+        pressStateListeners.forEach { it(pressed) }
     }
 
     /** 底层装饰位于填充和内容下面；默认不绘制。 */
@@ -388,7 +397,7 @@ open class PressSurface @JvmOverloads constructor(
 
         // 外环半径要补上按压内收量，才能和按钮保持同心；否则外圈两端会变成圆角矩形，
         // 看起来像被一个更大的方框限位。
-        halo?.draw(canvas, width, height, radius + inset)
+        halo?.draw(canvas, width, height, inset, radius)
         drawUnderlay(canvas, radius, inset)
 
         val follow = 1f - exp(-delta / followTauMs)
