@@ -19,6 +19,10 @@ class UiPreferencesAdapter(private val preferences: UiPreferences) {
             maiThemeId = state.maiThemeId,
             chuThemeId = state.chuThemeId,
         )
+        preferences.writeThemeSelection(
+            themeMode = GameSelectionFormat.modeValue(state.themeMode),
+            mergedThemeId = state.mergedThemeId,
+        )
     }
 }
 
@@ -27,4 +31,6 @@ private fun UiPreferenceRecord.toSelectionSource(): SelectionSource = SelectionS
     currentGame = currentGame,
     maiThemeId = maiThemeId,
     chuThemeId = chuThemeId,
+    themeMode = themeMode,
+    mergedThemeId = mergedThemeId,
 )

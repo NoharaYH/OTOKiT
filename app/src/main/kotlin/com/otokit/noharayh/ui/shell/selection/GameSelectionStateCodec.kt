@@ -16,6 +16,8 @@ object GameSelectionStateCodec {
     private const val KEY_CURRENT_GAME = "current_game"
     private const val KEY_THEME_MAI = "theme_mai"
     private const val KEY_THEME_CHU = "theme_chu"
+    private const val KEY_THEME_MODE = "theme_mode"
+    private const val KEY_MERGED_THEME = "merged_theme"
 
     /**
      * 无类型读取用于区分“缺失”和“类型错误”：带类型的 getter 在类型不符时会抛异常或返回默认值。
@@ -29,6 +31,8 @@ object GameSelectionStateCodec {
             currentGame = container?.get(KEY_CURRENT_GAME) as? String,
             maiThemeId = container?.get(KEY_THEME_MAI) as? String,
             chuThemeId = container?.get(KEY_THEME_CHU) as? String,
+            themeMode = container?.get(KEY_THEME_MODE) as? String,
+            mergedThemeId = container?.get(KEY_MERGED_THEME) as? String,
         )
     }
 
@@ -38,6 +42,8 @@ object GameSelectionStateCodec {
             putString(KEY_CURRENT_GAME, GameSelectionFormat.gameValue(state.currentGame))
             putString(KEY_THEME_MAI, state.maiThemeId)
             putString(KEY_THEME_CHU, state.chuThemeId)
+            putString(KEY_THEME_MODE, GameSelectionFormat.modeValue(state.themeMode))
+            putString(KEY_MERGED_THEME, state.mergedThemeId)
         }
         bundle.putBundle(BUNDLE_KEY, container)
     }

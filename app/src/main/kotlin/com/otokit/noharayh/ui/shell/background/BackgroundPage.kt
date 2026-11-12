@@ -8,8 +8,9 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import com.otokit.noharayh.ui.theme.BackgroundPalette
+import com.otokit.noharayh.ui.theme.BackgroundSelection
 import com.otokit.noharayh.ui.theme.GameLine
-import com.otokit.noharayh.ui.theme.RegisteredTheme
 
 /**
  * 单个音游页的 WebView 与已加载入口。
@@ -51,13 +52,14 @@ internal class BackgroundPage(
 
             override fun onPageFinished(view: WebView, url: String?) {
                 super.onPageFinished(view, url)
+                if (url != expectedUrl || loadedHtmlThemeId == null) return
                 val requestId = ++visualRequest
                 // onPageFinished 仍可能早于最后一张 WebP 上屏；再等视觉状态提交。
                 view.postVisualStateCallback(
                     requestId,
                     object : WebView.VisualStateCallback() {
                         override fun onComplete(id: Long) {
-                            if (id == visualRequest && loadedPath != null && !readySent) {
+                            if (id == visualRequest && loadedHtmlThemeId != null && !readySent) {
                                 readySent = true
                                 onFirstVisualReady()
                             }
@@ -74,12 +76,19 @@ internal class BackgroundPage(
         }
     }
 
-    private var loadedPath: String? = null
+    private var loadedHtmlThemeId: String? = null
+    private var loadedSelectionKey: String? = null
     private var visualRequest = 0L
     private var readySent = false
+    private var resumed = false
+    private var expectedUrl: String? = null
 
-    val isLoaded: Boolean
-        get() = loadedPath != null
+    private val solidView: View = View(context).apply {
+        isClickable = false
+        isFocusable = false
+        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        visibility = View.GONE
+    }
 
     init {
         (view as ViewGroup).addView(
@@ -89,35 +98,81 @@ internal class BackgroundPage(
                 ViewGroup.LayoutParams.MATCH_PARENT,
             ),
         )
+        (view as ViewGroup).addView(
+            solidView,
+            ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            ),
+        )
     }
 
     /** 入口变化时才加载；只改颜色不重新加载。返回是否更换了入口。 */
-    fun show(theme: RegisteredTheme): Boolean {
-        val path = theme.definition.htmlAssetPath
-        if (path == loadedPath) return false
-        loadedPath = path
+    fun show(selection: BackgroundSelection): Boolean {
+        val key = when (selection) {
+            is BackgroundSelection.Html -> "html:${selection.theme.id}"
+            BackgroundSelection.Placeholder -> "placeholder"
+            BackgroundSelection.None -> "none"
+        }
+        if (key == loadedSelectionKey) return false
+        loadedSelectionKey = key
         visualRequest++
         readySent = false
-        loader.load(webView, path)
+        when (selection) {
+            is BackgroundSelection.Html -> {
+                loadedHtmlThemeId = selection.theme.id
+                expectedUrl = AssetBackgroundLoader.BASE_URL + selection.theme.definition.htmlAssetPath
+                if (resumed) webView.onResume() else webView.onPause()
+                solidView.visibility = View.GONE
+                webView.visibility = View.VISIBLE
+                loader.load(webView, selection.theme.definition.htmlAssetPath)
+            }
+            BackgroundSelection.Placeholder -> {
+                showSolid(BackgroundPalette.PLACEHOLDER_COLOR)
+            }
+            BackgroundSelection.None -> {
+                showSolid(BackgroundPalette.NONE_COLOR)
+            }
+        }
         return true
     }
 
+    private fun showSolid(color: Int) {
+        loadedHtmlThemeId = null
+        expectedUrl = null
+        webView.onPause()
+        webView.stopLoading()
+        webView.visibility = View.GONE
+        solidView.setBackgroundColor(color)
+        solidView.visibility = View.VISIBLE
+        val key = loadedSelectionKey
+        solidView.post {
+            if (key == loadedSelectionKey && !readySent) {
+                readySent = true
+                onFirstVisualReady()
+            }
+        }
+    }
+
     fun resume() {
-        webView.onResume()
+        resumed = true
+        if (loadedHtmlThemeId != null) webView.onResume()
     }
 
     fun pause() {
+        resumed = false
         webView.onPause()
     }
 
     fun destroy() {
         visualRequest++
-        loadedPath = null
+        loadedHtmlThemeId = null
+        loadedSelectionKey = null
         webView.stopLoading()
         webView.webViewClient = WebViewClient()
         (webView.parent as? ViewGroup)?.removeView(webView)
+        (solidView.parent as? ViewGroup)?.removeView(solidView)
         webView.destroy()
         (view as ViewGroup).removeAllViews()
-        loadedPath = null
     }
 }

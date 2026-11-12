@@ -1,5 +1,8 @@
 package com.otokit.noharayh.ui.shell.selection
 
+import com.otokit.noharayh.ui.theme.ThemeOption
+import com.otokit.noharayh.ui.theme.ThemeOptions
+import com.otokit.noharayh.ui.theme.ThemeSelectionMode
 import com.otokit.noharayh.ui.theme.GameLine
 import com.otokit.noharayh.ui.theme.RegisteredTheme
 import com.otokit.noharayh.ui.theme.ThemeColors
@@ -118,6 +121,32 @@ class GameSelectionControllerTest {
         controller.selectGame(GameLine.Chu)
 
         assertEquals("chu-a", controller.state.selectedThemeId())
+    }
+
+    @Test fun modeRoundTripPreservesIndependentAndMergedSelections() {
+        val controller = controller()
+        assertTrue(controller.selectTheme(maiB))
+        assertTrue(controller.selectThemeMode(ThemeSelectionMode.Merged))
+        assertTrue(controller.selectOption(ThemeOption.Html(chuB)))
+        assertEquals("mai-b", controller.state.maiThemeId)
+        assertEquals("chu-a", controller.state.chuThemeId)
+        assertTrue(controller.selectThemeMode(ThemeSelectionMode.None))
+        assertFalse(controller.selectOption(ThemeOptions.placeholder, GameLine.Mai))
+        assertTrue(controller.selectThemeMode(ThemeSelectionMode.Independent))
+        assertEquals("mai-b", controller.state.maiThemeId)
+        assertEquals("chu-b", controller.state.mergedThemeId)
+        assertTrue(controller.selectOption(ThemeOptions.placeholder, GameLine.Chu))
+        assertEquals(ThemeOptions.PLACEHOLDER_ID, controller.state.chuThemeId)
+    }
+
+    @Test fun mergedModeRejectsUnknownIdsAndForgedOwnership() {
+        val controller = controller()
+        controller.selectThemeMode(ThemeSelectionMode.Merged)
+        val before = controller.state
+        assertFalse(controller.selectOption(ThemeOption.Html(theme("missing", GameLine.Mai))))
+        assertFalse(controller.selectOption(ThemeOption.Html(maiA.copy(gameLine = GameLine.Chu))))
+        assertFalse(controller.selectOption(ThemeOption.Placeholder("fake", "fake")))
+        assertEquals(before, controller.state)
     }
 
     private fun theme(id: String, gameLine: GameLine): RegisteredTheme = RegisteredTheme(

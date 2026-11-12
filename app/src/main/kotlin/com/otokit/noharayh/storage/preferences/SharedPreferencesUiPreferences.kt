@@ -21,6 +21,8 @@ class SharedPreferencesUiPreferences(context: Context) : UiPreferences {
             currentGame = stored[KEY_CURRENT_GAME] as? String,
             maiThemeId = stored[KEY_THEME_MAI] as? String,
             chuThemeId = stored[KEY_THEME_CHU] as? String,
+            themeMode = stored[KEY_THEME_MODE] as? String,
+            mergedThemeId = stored[KEY_MERGED_THEME] as? String,
         )
     }
 
@@ -38,11 +40,20 @@ class SharedPreferencesUiPreferences(context: Context) : UiPreferences {
         }
     }
 
+    override fun writeThemeSelection(themeMode: String, mergedThemeId: String) {
+        preferences.edit {
+            putString(KEY_THEME_MODE, themeMode)
+            putString(KEY_MERGED_THEME, mergedThemeId)
+        }
+    }
+
     companion object {
         const val FILE_NAME: String = "ui_shell_preferences"
         const val KEY_VERSION: String = "version"
         const val KEY_CURRENT_GAME: String = "current_game"
         const val KEY_THEME_MAI: String = "theme_mai"
         const val KEY_THEME_CHU: String = "theme_chu"
+        const val KEY_THEME_MODE: String = "theme_mode"
+        const val KEY_MERGED_THEME: String = "merged_theme"
     }
 }

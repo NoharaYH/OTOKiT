@@ -4,6 +4,10 @@ import android.content.Context
 import com.otokit.noharayh.ui.constants.display.DisplayScaleOption
 import com.otokit.noharayh.ui.settings.subPages.*
 import com.otokit.noharayh.ui.shell.navigation.SettingsSection
+import com.otokit.noharayh.ui.shell.selection.GameSelectionState
+import com.otokit.noharayh.ui.theme.GameLine
+import com.otokit.noharayh.ui.theme.ThemeOption
+import com.otokit.noharayh.ui.theme.ThemeSelectionMode
 
 internal object SettingsPages {
     fun child(
@@ -14,6 +18,9 @@ internal object SettingsPages {
         openLink: (String) -> Unit,
         displayScale: DisplayScaleOption,
         onDisplayScaleSelected: (DisplayScaleOption) -> Unit,
+        selection: GameSelectionState,
+        onThemeModeSelected: (ThemeSelectionMode) -> Unit,
+        onThemeOptionSelected: (ThemeOption, GameLine?) -> Unit,
     ) = when (section) {
         SettingsSection.ScoreSync -> ScoreSyncSettingsPage.create(context, margin, split)
         SettingsSection.App -> AppSettingsPage.create(
@@ -23,7 +30,14 @@ internal object SettingsPages {
             displayScale = displayScale,
             onDisplayScaleSelected = onDisplayScaleSelected,
         )
-        SettingsSection.Personalization -> PersonalizationSettingsPage.create(context, margin, split)
+        SettingsSection.Personalization -> PersonalizationSettingsPage(
+            context = context,
+            margin = margin,
+            split = split,
+            selection = selection,
+            onModeSelected = onThemeModeSelected,
+            onOptionSelected = onThemeOptionSelected,
+        )
         SettingsSection.About -> AboutSettingsPage.create(context, margin, split, openLink)
     }
 }

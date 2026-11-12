@@ -2,7 +2,10 @@ package com.otokit.noharayh.ui.shell.selection
 
 import com.otokit.noharayh.ui.theme.GameLine
 import com.otokit.noharayh.ui.theme.RegisteredTheme
+import com.otokit.noharayh.ui.theme.ThemeOption
+import com.otokit.noharayh.ui.theme.ThemeOptions
 import com.otokit.noharayh.ui.theme.ThemeRegistry
+import com.otokit.noharayh.ui.theme.ThemeSelectionMode
 
 /**
  * shell 私有的唯一选择写入口。
@@ -30,19 +33,59 @@ class GameSelectionController(
      *
      * 改变非当前音游的主题不改变 currentGame。
      */
-    fun selectTheme(theme: RegisteredTheme): Boolean {
-        val registered = lookup(theme.id) ?: return false
-        if (registered.id != theme.id || registered.gameLine != theme.gameLine) return false
+    fun selectTheme(theme: RegisteredTheme): Boolean =
+        selectOption(ThemeOption.Html(theme), theme.gameLine)
 
-        val changed = when (registered.gameLine) {
-            GameLine.Mai -> state.maiThemeId != registered.id
-            GameLine.Chu -> state.chuThemeId != registered.id
+    fun selectThemeMode(mode: ThemeSelectionMode): Boolean {
+        if (state.themeMode == mode) return false
+        state = state.copy(themeMode = mode)
+        return true
+    }
+
+    /**
+     * 统一提交主题选项。
+     *
+     * 独立模式写对应音游字段；合并模式只写 mergedThemeId；无模式拒绝修改。
+     * 通用占位不属于任何音游，独立模式必须由 target 指定应用对象。
+     */
+    fun selectOption(option: ThemeOption, target: GameLine? = null): Boolean {
+        if (state.themeMode == ThemeSelectionMode.None) return false
+        // 调用方传来的对象不是登记凭证；所有模式都必须先验证稳定 ID。
+        when (option) {
+            is ThemeOption.Html -> {
+                val registered = lookup(option.id) ?: return false
+                if (registered.gameLine != option.theme.gameLine) return false
+            }
+            is ThemeOption.Placeholder -> if (option.id != ThemeOptions.PLACEHOLDER_ID) return false
+        }
+
+        if (state.themeMode == ThemeSelectionMode.Merged) {
+            if (state.mergedThemeId == option.id) return false
+            state = state.copy(mergedThemeId = option.id)
+            return true
+        }
+
+        val gameLine = target ?: when (option) {
+            is ThemeOption.Html -> option.theme.gameLine
+            is ThemeOption.Placeholder -> return false
+        }
+        val registered = when (option) {
+            is ThemeOption.Html -> lookup(option.id)?.takeIf {
+                it.id == option.id && it.gameLine == gameLine
+            }
+            is ThemeOption.Placeholder -> null
+        }
+        if (option !is ThemeOption.Placeholder && registered == null) return false
+
+        val changed = when (gameLine) {
+            GameLine.Mai -> state.maiThemeId != option.id
+            GameLine.Chu -> state.chuThemeId != option.id
         }
         if (!changed) return false
 
-        state = when (registered.gameLine) {
-            GameLine.Mai -> state.copy(maiThemeId = registered.id)
-            GameLine.Chu -> state.copy(chuThemeId = registered.id)
+        state = when (gameLine) {
+            GameLine.Mai -> state.copy(maiThemeId = option.id)
+            GameLine.Chu -> state.copy(chuThemeId = option.id)
         }
         return true
     }

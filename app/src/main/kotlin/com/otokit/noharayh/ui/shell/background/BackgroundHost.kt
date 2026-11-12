@@ -8,7 +8,7 @@ import android.view.ViewTreeObserver
 import android.widget.FrameLayout
 import androidx.viewpager2.widget.ViewPager2
 import com.otokit.noharayh.ui.theme.GameLine
-import com.otokit.noharayh.ui.theme.RegisteredTheme
+import com.otokit.noharayh.ui.theme.BackgroundSelection
 import kotlin.math.abs
 
 /** 双背景的运行所有者；稳定选择由 shell 确认，归位期间不接受新选择。 */
@@ -28,8 +28,8 @@ class BackgroundHost(
     ).also { pages -> pages.values.forEach(BackgroundPage::pause) }
 
     private var initialVisualReady: (() -> Unit)? = null
-    private var maiTheme: RegisteredTheme? = null
-    private var chuTheme: RegisteredTheme? = null
+    private var maiBackground: BackgroundSelection? = null
+    private var chuBackground: BackgroundSelection? = null
     private val visuallyReady = mutableSetOf<GameLine>()
 
     private var pager: ViewPager2? = null
@@ -150,15 +150,19 @@ class BackgroundHost(
         }
     }
 
-    fun renderSelection(currentGame: GameLine, maiTheme: RegisteredTheme, chuTheme: RegisteredTheme) {
+    fun renderSelection(
+        currentGame: GameLine,
+        maiBackground: BackgroundSelection,
+        chuBackground: BackgroundSelection,
+    ) {
         if (!attached || disposed) return
-        this.maiTheme = maiTheme
-        this.chuTheme = chuTheme
+        this.maiBackground = maiBackground
+        this.chuBackground = chuBackground
 
         // 首帧只加载当前音游；另一页等当前页真正上屏后再加载，避免两个 WebView
         // 在冷启动时同时抢 Chromium 渲染。
         val selected = pages.getValue(currentGame)
-        if (selected.show(if (currentGame == GameLine.Mai) maiTheme else chuTheme)) {
+        if (selected.show(if (currentGame == GameLine.Mai) maiBackground else chuBackground)) {
             visuallyReady.remove(currentGame)
         }
         if (currentGame != committedGame) {
@@ -171,9 +175,8 @@ class BackgroundHost(
     private fun loadOther(game: GameLine) {
         val other = if (game == GameLine.Mai) GameLine.Chu else GameLine.Mai
         val page = pages[other] ?: return
-        if (page.isLoaded) return
-        val theme = (if (other == GameLine.Mai) maiTheme else chuTheme) ?: return
-        page.show(theme)
+        val background = (if (other == GameLine.Mai) maiBackground else chuBackground) ?: return
+        if (page.show(background)) visuallyReady.remove(other)
     }
 
     /** shell 已更新背景宿主的几何；同步关门，确认本次真实布局后再开放。 */

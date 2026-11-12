@@ -56,8 +56,8 @@ class ThemeRegistryTest {
         val maiThemes = ThemeRegistry.themesFor(GameLine.Mai)
         val chuThemes = ThemeRegistry.themesFor(GameLine.Chu)
 
-        assertEquals(1, maiThemes.size)
-        assertEquals(1, chuThemes.size)
+        assertEquals(12, maiThemes.size)
+        assertEquals(5, chuThemes.size)
         assertTrue(maiThemes.all { it.gameLine == GameLine.Mai })
         assertTrue(chuThemes.all { it.gameLine == GameLine.Chu })
 
@@ -96,7 +96,7 @@ class ThemeRegistryTest {
     /** 查询不改变登记项与默认项。 */
     @Test
     fun queriesDoNotMutateRegistry() {
-        val before = ThemeRegistry.themesFor(GameLine.Mai).single()
+        val before = ThemeRegistry.themesFor(GameLine.Mai).first()
 
         ThemeRegistry.findById("unknown")
         ThemeRegistry.resolveForGame(GameLine.Chu, "mai-circle-plus")

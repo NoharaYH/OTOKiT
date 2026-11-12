@@ -31,17 +31,25 @@ internal object SettingsPageViews {
         addView(body, FrameLayout.LayoutParams(-1, -2))
     }
 
-    fun card(context: Context, icon: Int, title: Int, content: View) = LinearLayout(context).apply {
+    fun card(context: Context, icon: Int, title: Int, content: View, trailing: View? = null) = LinearLayout(context).apply {
         clipChildren = false
         clipToPadding = false
         orientation = LinearLayout.VERTICAL
         background = shape(context, Color.WHITE, SettingsCardDimensions.CORNER_DP)
         val pad = dp(context, SettingsCardDimensions.CONTENT_INSET_DP)
         setPadding(pad, pad, pad, pad)
-        val header = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL; minimumHeight = dp(context, 28) }
+        val header = LinearLayout(context).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            minimumHeight = dp(context, 28)
+            clipChildren = false
+            clipToPadding = false
+        }
         header.addView(ImageView(context).apply { setImageResource(icon); setColorFilter(0xFF616161.toInt()) }, LinearLayout.LayoutParams(dp(context, 22), dp(context, 22)))
         header.addView(text(context, context.getString(title), 16f, 0xFF323232.toInt(), true).apply { letterSpacing = 0.07f },
             LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(context, 8) })
+        if (trailing != null) {
+            header.addView(trailing, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(context, 8) })
+        }
         addView(header, LinearLayout.LayoutParams(-1, -2))
         addView(content, LinearLayout.LayoutParams(-1, -2).apply { topMargin = pad })
     }

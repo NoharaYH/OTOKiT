@@ -3,6 +3,7 @@ package com.otokit.noharayh.ui.animation.common
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.RectF
 import android.view.View
 import android.view.animation.AnimationUtils
@@ -26,6 +27,8 @@ internal class PressHalo(private val host: View) {
         color = Color.argb(Spec.ALPHA, 0, 0, 0)
     }
     private val rect = RectF()
+    private val path = Path()
+    private val corners = FloatArray(8)
     private val expansion = FloatValueHolder(0f)
     private val spring = SpringAnimation(expansion).apply {
         setMinimumVisibleChange(Spec.MIN_VISIBLE_CHANGE)
@@ -64,6 +67,7 @@ internal class PressHalo(private val host: View) {
         height: Int,
         inset: Float,
         cornerRadius: Float,
+        bottomCornerRadius: Float = cornerRadius,
     ) {
         val outset = Spec.REST_OUTSET_DP * density * expansion.value.coerceAtLeast(0f)
         if (outset < 0.01f || width <= 0 || height <= 0) return
@@ -73,8 +77,11 @@ internal class PressHalo(private val host: View) {
             width - inset + outset,
             height - inset + outset,
         )
-        val radius = (cornerRadius + outset).coerceAtMost(rect.height() / 2f)
-        canvas.drawRoundRect(rect, radius, radius, paint)
+        corners.fill((cornerRadius + outset).coerceAtMost(rect.height() / 2f), 0, 4)
+        corners.fill((bottomCornerRadius + outset).coerceAtMost(rect.height() / 2f), 4, 8)
+        path.reset()
+        path.addRoundRect(rect, corners, Path.Direction.CW)
+        canvas.drawPath(path, paint)
     }
 
     fun reset() {

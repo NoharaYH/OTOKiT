@@ -11,6 +11,11 @@ import com.otokit.noharayh.ui.animation.common.SettingsPageFrames
 import com.otokit.noharayh.ui.animation.settings.SettingsPageTransitionRunner
 import com.otokit.noharayh.ui.constants.display.DisplayScaleOption
 import com.otokit.noharayh.ui.shell.navigation.SettingsSection
+import com.otokit.noharayh.ui.shell.selection.GameSelectionState
+import com.otokit.noharayh.ui.settings.subPages.PersonalizationSettingsPage
+import com.otokit.noharayh.ui.theme.GameLine
+import com.otokit.noharayh.ui.theme.ThemeOption
+import com.otokit.noharayh.ui.theme.ThemeSelectionMode
 
 /** 设置展示宿主。section 只是最后渲染值；所有稳定页面命令交回导航控制器。 */
 @android.annotation.SuppressLint("ViewConstructor") // 由主壳传入明确事件构造，不提供 XML 入口。
@@ -20,6 +25,9 @@ class SettingsAssembly(
     private val onOpenLink: (String) -> Unit,
     private val displayScale: DisplayScaleOption,
     private val onDisplayScaleSelected: (DisplayScaleOption) -> Unit,
+    private val selectionProvider: () -> GameSelectionState,
+    private val onThemeModeSelected: (ThemeSelectionMode) -> Unit,
+    private val onThemeOptionSelected: (ThemeOption, GameLine?) -> Unit,
     private val onTransitionStart: (SettingsSection?, SettingsSection?, Float) -> Unit,
     private val onTransitionFrame: (TransitionProgress) -> Unit,
 ) : FrameLayout(context) {
@@ -36,6 +44,14 @@ class SettingsAssembly(
     private var split = false
     private var margin = dp(20)
     private var disposed = false
+    private var themeControlsEnabled = true
+
+    fun setThemeControlsEnabled(enabled: Boolean) {
+        themeControlsEnabled = enabled
+        for (index in 0 until childHost.childCount) {
+            (childHost.getChildAt(index) as? PersonalizationSettingsPage)?.setControlsEnabled(enabled)
+        }
+    }
     private val runner = SettingsPageTransitionRunner(::renderFrame)
 
     init {
@@ -191,7 +207,10 @@ class SettingsAssembly(
         openLink = onOpenLink,
         displayScale = displayScale,
         onDisplayScaleSelected = onDisplayScaleSelected,
-    )
+        selection = selectionProvider(),
+        onThemeModeSelected = onThemeModeSelected,
+        onThemeOptionSelected = onThemeOptionSelected,
+    ).also { (it as? PersonalizationSettingsPage)?.setControlsEnabled(themeControlsEnabled) }
     private fun reset(view: View) { view.alpha = 1f; view.scaleX = 1f; view.scaleY = 1f; view.translationX = 0f; view.translationY = 0f }
     private fun dp(value: Int) = (value * resources.displayMetrics.density + 0.5f).toInt()
     private fun exact(value: Int) = MeasureSpec.makeMeasureSpec(value.coerceAtLeast(0), MeasureSpec.EXACTLY)

@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import android.graphics.RectF
@@ -59,6 +60,9 @@ open class PressSurface @JvmOverloads constructor(
             invalidate()
         }
     var baseRadius = 16f * dp
+    /** 分组选项可分别描述上下圆角；为空时沿用统一 baseRadius。 */
+    var topCornerRadius: Float? = null
+    var bottomCornerRadius: Float? = null
     var pressInset = PressSurfaceSpec.INSET_DP * dp
     var whiteMaxAlpha = PressSurfaceSpec.WHITE_ALPHA
     var followTauMs = 30f
@@ -66,6 +70,8 @@ open class PressSurface @JvmOverloads constructor(
 
     /** 离开窗口的动作可等待释放反馈；不含外链或页面等业务语义。 */
     var deferClickUntilReleaseFeedback = false
+    /** 自带展开反馈的组件可关闭释放震动，避免两次触觉叠加。 */
+    var releaseHapticEnabled = true
 
     private val pressStateListeners = mutableListOf<(Boolean) -> Unit>()
 
@@ -123,6 +129,8 @@ open class PressSurface @JvmOverloads constructor(
         xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP)
     }
     private val shapeRect = RectF()
+    private val shapePath = Path()
+    private val shapeCorners = FloatArray(8)
 
     /**
      * 按压进度弹簧（0 = 静止，1 = 完全按下）。
@@ -238,6 +246,9 @@ open class PressSurface @JvmOverloads constructor(
     /** 底层装饰位于填充和内容下面；默认不绘制。 */
     protected open fun drawUnderlay(canvas: Canvas, cornerRadius: Float, inset: Float) = Unit
 
+    /** 与底形共享按压几何的描边，绘制在反馈层之上、文字之下。 */
+    protected open fun drawOutline(canvas: Canvas, cornerRadius: Float, inset: Float) = Unit
+
     private companion object {
         /** 按下与抬起触觉之间的最小间隔，避免抬起被 HAL 以 ignored_for_ongoing 丢弃。 */
         const val MIN_HAPTIC_GAP_MS = PressSurfaceSpec.MIN_HAPTIC_GAP_MS
@@ -298,8 +309,8 @@ open class PressSurface @JvmOverloads constructor(
                 val clicked = ripple != null && inside(event.x, event.y)
                 release()
                 if (clicked) {
-                    if (deferClickUntilReleaseFeedback) deferredClick = true else performClick()
-                    requestReleaseHaptic()
+                    if (deferClickUntilReleaseFeedback && releaseHapticEnabled) deferredClick = true else performClick()
+                    if (releaseHapticEnabled) requestReleaseHaptic()
                 }
             }
             MotionEvent.ACTION_CANCEL -> release()
@@ -342,12 +353,12 @@ open class PressSurface @JvmOverloads constructor(
         isAttachedToWindow && hasWindowFocus() && isShown && isEnabled && isClickable
 
     private fun deliverReleaseFeedback() {
-        if (!deferredClick) {
-            tickUp()
-            return
-        }
         if (!canDeliverFeedback()) {
             cancelDeferredClick()
+            return
+        }
+        if (!deferredClick) {
+            tickUp()
             return
         }
         // 触觉关闭或系统拒绝时不额外等待；受理后留出短暂播放时间再离开窗口。
@@ -394,10 +405,12 @@ open class PressSurface @JvmOverloads constructor(
         // 固定 dp 等距内收；按下圆角取内收后短边的一半，不受静止圆角大小影响。
         val radius = lerp(baseRadius.coerceAtMost(cap), cap, boundedProgress)
             .coerceAtMost(cap)
+        val top = lerp((topCornerRadius ?: baseRadius).coerceAtMost(cap), cap, boundedProgress)
+        val bottom = lerp((bottomCornerRadius ?: baseRadius).coerceAtMost(cap), cap, boundedProgress)
 
         // 外环半径要补上按压内收量，才能和按钮保持同心；否则外圈两端会变成圆角矩形，
         // 看起来像被一个更大的方框限位。
-        halo?.draw(canvas, width, height, inset, radius)
+        halo?.draw(canvas, width, height, inset, top, bottom)
         drawUnderlay(canvas, radius, inset)
 
         val follow = 1f - exp(-delta / followTauMs)
@@ -408,7 +421,11 @@ open class PressSurface @JvmOverloads constructor(
         }
 
         val layer = canvas.saveLayer(0f, 0f, width.toFloat(), height.toFloat(), null)
-        canvas.drawRoundRect(shapeRect, radius, radius, fillPaint)
+        shapeCorners.fill(top, 0, 4)
+        shapeCorners.fill(bottom, 4, 8)
+        shapePath.reset()
+        shapePath.addRoundRect(shapeRect, shapeCorners, Path.Direction.CW)
+        canvas.drawPath(shapePath, fillPaint)
         whitePaint.alpha = (whiteMaxAlpha * boundedProgress * 255f).roundToInt()
         if (whitePaint.alpha > 0) canvas.drawRect(shapeRect, whitePaint)
 
@@ -419,6 +436,7 @@ open class PressSurface @JvmOverloads constructor(
             if (radiusNow > 0.5f) canvas.drawCircle(ripple.x, ripple.y, radiusNow, ripplePaint)
         }
         canvas.restoreToCount(layer)
+        drawOutline(canvas, radius, inset)
         if (ripples.isNotEmpty()) postInvalidateOnAnimation()
     }
 

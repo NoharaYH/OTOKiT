@@ -10,6 +10,20 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class GameSelectionRestoreTest {
+    @org.junit.Test fun restoresMergedAndNoneWithPlaceholderAcrossSavedState() {
+        val registry = com.otokit.noharayh.ui.theme.ThemeRegistry
+        val initial = GameSelectionState(
+            com.otokit.noharayh.ui.theme.GameLine.Chu,
+            com.otokit.noharayh.ui.theme.ThemeOptions.PLACEHOLDER_ID,
+            registry.defaultFor(com.otokit.noharayh.ui.theme.GameLine.Chu).id,
+            com.otokit.noharayh.ui.theme.ThemeSelectionMode.None,
+            registry.defaultFor(com.otokit.noharayh.ui.theme.GameLine.Mai).id,
+        )
+        org.junit.Assert.assertEquals(initial, restoreGameSelection(
+            GameSelectionFormat.encode(initial), null, registry::findById, registry::defaultFor,
+        ))
+    }
+
 
     private val maiA = theme("mai-a", GameLine.Mai)
     private val maiB = theme("mai-b", GameLine.Mai)

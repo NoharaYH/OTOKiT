@@ -42,9 +42,14 @@ import com.otokit.noharayh.ui.shell.selection.GameSelectionState
 import com.otokit.noharayh.ui.shell.selection.SelectionSource
 import com.otokit.noharayh.ui.shell.selection.UiPreferencesAdapter
 import com.otokit.noharayh.ui.shell.selection.restoreGameSelection
+import com.otokit.noharayh.ui.theme.BackgroundPalette
+import com.otokit.noharayh.ui.theme.BackgroundSelection
 import com.otokit.noharayh.ui.theme.GameLine
 import com.otokit.noharayh.ui.theme.RegisteredTheme
+import com.otokit.noharayh.ui.theme.ThemeOption
+import com.otokit.noharayh.ui.theme.ThemeOptions
 import com.otokit.noharayh.ui.theme.ThemeRegistry
+import com.otokit.noharayh.ui.theme.ThemeSelectionMode
 import com.otokit.noharayh.ui.window.PixelRect
 import com.otokit.noharayh.ui.window.WindowSnapshot
 import com.otokit.noharayh.ui.window.metrics.WindowMetricsSnapshot
@@ -110,6 +115,12 @@ class MainShell(
     private var background: BackgroundHost? = null
     private var backgroundVeil: BackgroundVeilRunner? = null
     private var backgroundVeilView: BackgroundVeilView? = null
+    private var backgroundSwitchScrim: View? = null
+    private var backgroundSwitchToken = 0
+    private var backgroundSwitching = false
+    private val backgroundSwitchCallbacks = mutableListOf<Runnable>()
+    private var lastMaiBackground: BackgroundSelection? = null
+    private var lastChuBackground: BackgroundSelection? = null
     private var backgroundSubscription: AutoCloseable? = null
     private var latestWindowSnapshot: WindowSnapshot? = null
     private var latestBackgroundSnapshot: BackgroundSnapshot? = null
@@ -165,9 +176,11 @@ class MainShell(
             host.attach(current.currentGame)
             host.renderSelection(
                 currentGame = current.currentGame,
-                maiTheme = themeFor(current.maiThemeId, GameLine.Mai),
-                chuTheme = themeFor(current.chuThemeId, GameLine.Chu),
+                maiBackground = backgroundFor(current, GameLine.Mai),
+                chuBackground = backgroundFor(current, GameLine.Chu),
             )
+            lastMaiBackground = backgroundFor(current, GameLine.Mai)
+            lastChuBackground = backgroundFor(current, GameLine.Chu)
             host.setInputEnabled(!(controller.state.settingsOpen || chrome.blocksUnderlyingInput))
             backgroundSubscription = host.subscribe { snapshot ->
                 latestBackgroundSnapshot = snapshot
@@ -186,6 +199,23 @@ class MainShell(
         val veilRunner = BackgroundVeilRunner(veilView)
         backgroundVeilView = veilView
         backgroundVeil = veilRunner
+        val switchScrim = View(backgroundHost.context).apply {
+            setBackgroundColor(android.graphics.Color.BLACK)
+            alpha = 0f
+            visibility = View.GONE
+            isClickable = true
+            isFocusable = false
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }
+        backgroundHost.addView(
+            switchScrim,
+            FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            ),
+        )
+        backgroundHost.bringChildToFront(switchScrim)
+        backgroundSwitchScrim = switchScrim
         background?.setOnFirstVisualReady(veilRunner::ready)
         veilRunner.show()
         val observer = backgroundHost.viewTreeObserver
@@ -208,6 +238,9 @@ class MainShell(
             onOpenLink = onOpenExternalLink,
             displayScale = displayScale,
             onDisplayScaleSelected = onDisplayScaleSelected,
+            selectionProvider = { selection.state },
+            onThemeModeSelected = ::selectThemeMode,
+            onThemeOptionSelected = ::selectThemeOption,
             onTransitionStart = chrome::prepareSettingsPageTransition,
             onTransitionFrame = chrome::renderSettingsPageProgress,
         )
@@ -222,6 +255,7 @@ class MainShell(
                 ViewGroup.LayoutParams.MATCH_PARENT,
             ),
         )
+        // 背景切换期间只压黑幕；不额外加全屏触摸锁，避免锁在设置页上。
         contentRunner = ContentTransitionRunner(contentHost) { frame ->
             chrome.renderNavigationProgress(frame)
         }
@@ -246,6 +280,7 @@ class MainShell(
         lifecycleState = LifecycleState.Disposed
         onCanHandleBackChanged = null
         if (!wasAttached) return
+        cancelBackgroundSwitch()
 
         backPreview.reset()
         backgroundSubscription?.close()
@@ -365,8 +400,21 @@ class MainShell(
 
     /** 提交某个已登记主题；控制器校验登记 ID 与音游归属。 */
     fun selectTheme(theme: RegisteredTheme) {
-        if (lifecycleState != LifecycleState.Attached) return
+        if (lifecycleState != LifecycleState.Attached || backgroundSwitching) return
         if (!selection.selectTheme(theme)) return
+        applySelection()
+    }
+
+    /** 个性化设置的主题选项写入口；通用占位也可通过 target 落到单个音游。 */
+    fun selectThemeOption(option: ThemeOption, target: GameLine? = null) {
+        if (lifecycleState != LifecycleState.Attached || backgroundSwitching) return
+        if (!selection.selectOption(option, target)) return
+        applySelection()
+    }
+
+    fun selectThemeMode(mode: ThemeSelectionMode) {
+        if (lifecycleState != LifecycleState.Attached || backgroundSwitching) return
+        if (!selection.selectThemeMode(mode)) return
         applySelection()
     }
 
@@ -376,22 +424,121 @@ class MainShell(
         val color = placeholderTextColor()
         mountedContent?.updateColor(color)
         settingsContent?.updateColor(color)
-        background?.renderSelection(
-            currentGame = current.currentGame,
-            maiTheme = themeFor(current.maiThemeId, GameLine.Mai),
-            chuTheme = themeFor(current.chuThemeId, GameLine.Chu),
+        val nextMai = backgroundFor(current, GameLine.Mai)
+        val nextChu = backgroundFor(current, GameLine.Chu)
+        val changed = lastMaiBackground != null && (
+            lastMaiBackground != nextMai || lastChuBackground != nextChu
         )
+        lastMaiBackground = nextMai
+        lastChuBackground = nextChu
+        if (changed) {
+            switchBackground(current, nextMai, nextChu)
+        } else {
+            background?.renderSelection(
+                currentGame = current.currentGame,
+                maiBackground = nextMai,
+                chuBackground = nextChu,
+            )
+        }
         chrome.render(chromeDisplay())
         selectionPreferences.write(current)
     }
 
-    private fun placeholderTextColor(): Int {
-        val current = selection.state
-        return themeFor(current.selectedThemeId(), current.currentGame).definition.colors.basicColor
+    /** 背景硬切换：黑幕压住切换瞬间，切换完成后再淡出。 */
+    private fun switchBackground(
+        current: GameSelectionState,
+        mai: BackgroundSelection,
+        chu: BackgroundSelection,
+    ) {
+        val scrim = backgroundSwitchScrim
+        val host = background
+        if (scrim == null || host == null) {
+            host?.renderSelection(current.currentGame, mai, chu)
+            return
+        }
+        scrim.animate().cancel()
+        val token = ++backgroundSwitchToken
+        backgroundSwitching = true
+        settingsPage?.setThemeControlsEnabled(false)
+        scrim.visibility = View.VISIBLE
+        scrim.alpha = 0f
+        scrim.animate()
+            .alpha(1f)
+            .setDuration(120L)
+            .start()
+        // 用独立时序收尾，不依赖属性动画 end callback；避免黑幕/触摸锁卡住。
+        postBackgroundSwitch(120L, token) {
+            host.renderSelection(current.currentGame, mai, chu)
+            postBackgroundSwitch(260L, token) {
+                scrim.animate()
+                    .alpha(0f)
+                    .setDuration(300L)
+                    .start()
+                postBackgroundSwitch(340L, token) {
+                    scrim.visibility = View.GONE
+                    backgroundSwitching = false
+                    settingsPage?.setThemeControlsEnabled(true)
+                }
+            }
+        }
     }
 
-    private fun themeFor(themeId: String, gameLine: GameLine): RegisteredTheme =
-        ThemeRegistry.resolveForGame(gameLine, themeId)
+    private fun postBackgroundSwitch(delay: Long, token: Int, action: () -> Unit) {
+        val callback = object : Runnable {
+            override fun run() {
+                backgroundSwitchCallbacks.remove(this)
+                if (token == backgroundSwitchToken && lifecycleState == LifecycleState.Attached) action()
+            }
+        }
+        backgroundSwitchCallbacks += callback
+        backgroundSwitchScrim?.postDelayed(callback, delay)
+    }
+
+    private fun cancelBackgroundSwitch() {
+        backgroundSwitchToken++
+        backgroundSwitchScrim?.let { scrim ->
+            backgroundSwitchCallbacks.forEach(scrim::removeCallbacks)
+            scrim.animate().cancel()
+            backgroundHost.removeView(scrim)
+        }
+        backgroundSwitchCallbacks.clear()
+        backgroundSwitchScrim = null
+        backgroundSwitching = false
+    }
+
+    private fun placeholderTextColor(): Int {
+        val current = selection.state
+        return BackgroundPalette.colorsFor(colorBackgroundFor(current, current.currentGame)).basicColor
+    }
+
+    /** 无模式只关闭背景；chrome 仍沿用当前音游已选主题的颜色。 */
+    private fun colorBackgroundFor(
+        state: GameSelectionState,
+        gameLine: GameLine,
+    ): BackgroundSelection = if (state.themeMode == ThemeSelectionMode.None) {
+        val option = ThemeOptions.resolveForGame(gameLine, state.selectedThemeId(gameLine))
+        val fallback = if (option is ThemeOption.Placeholder) {
+            ThemeOption.Html(ThemeRegistry.defaultFor(gameLine))
+        } else {
+            option
+        }
+        BackgroundPalette.fromOption(fallback)
+    } else {
+        backgroundFor(state, gameLine)
+    }
+
+    private fun backgroundFor(
+        state: GameSelectionState,
+        gameLine: GameLine,
+    ): BackgroundSelection = when (state.themeMode) {
+        ThemeSelectionMode.None -> BackgroundSelection.None
+        ThemeSelectionMode.Merged -> BackgroundPalette.fromOption(
+            ThemeOptions.resolveMerged(state.mergedThemeId),
+        )
+        ThemeSelectionMode.Independent -> BackgroundPalette.fromOption(
+            ThemeOptions.resolveForGame(gameLine, state.selectedThemeId(gameLine)),
+        )
+    }
 
     /** 背景随 Activity 生命周期暂停/恢复，不重建 WebView；离开前台时收起抽屉。 */
     fun setBackgroundResumed(resumed: Boolean) {
@@ -521,7 +668,9 @@ class MainShell(
     private fun chromeDisplay(): ChromeDisplayInput {
         val nav = controller.state
         val current = selection.state
-        val theme = themeFor(current.selectedThemeId(), current.currentGame)
+        val currentColors = BackgroundPalette.colorsFor(colorBackgroundFor(current, current.currentGame))
+        val maiColors = BackgroundPalette.colorsFor(colorBackgroundFor(current, GameLine.Mai))
+        val chuColors = BackgroundPalette.colorsFor(colorBackgroundFor(current, GameLine.Chu))
         val direction = if (
             lastChromeDestination == null || lastChromeDestination == nav.destination
         ) {
@@ -534,11 +683,11 @@ class MainShell(
             currentGame = current.currentGame,
             settingsOpen = nav.settingsOpen,
             settingsSection = nav.settingsSection,
-            themeColor = theme.definition.colors.basicColor,
-            maiTextColor = themeFor(current.maiThemeId, GameLine.Mai).definition.colors.basicColor,
-            chuTextColor = themeFor(current.chuThemeId, GameLine.Chu).definition.colors.basicColor,
-            maiDecorColor = themeFor(current.maiThemeId, GameLine.Mai).definition.colors.basicColor,
-            chuDecorColor = themeFor(current.chuThemeId, GameLine.Chu).definition.colors.basicColor,
+            themeColor = currentColors.basicColor,
+            maiTextColor = maiColors.basicColor,
+            chuTextColor = chuColors.basicColor,
+            maiDecorColor = maiColors.basicColor,
+            chuDecorColor = chuColors.basicColor,
             gameFrame = latestGameFrame,
             navDirection = direction,
         )

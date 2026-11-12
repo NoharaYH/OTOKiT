@@ -11,6 +11,8 @@ data class UiPreferenceRecord(
     val currentGame: String?,
     val maiThemeId: String?,
     val chuThemeId: String?,
+    val themeMode: String? = null,
+    val mergedThemeId: String? = null,
 )
 
 /** 最小 UI 偏好读写入口：只读写原始字段。 */
@@ -19,4 +21,7 @@ interface UiPreferences {
     fun readSelection(): UiPreferenceRecord
 
     fun writeSelection(version: Int, currentGame: String, maiThemeId: String, chuThemeId: String)
+
+    /** 主题模式单独写入；默认空实现兼容只关心旧字段的实现。 */
+    fun writeThemeSelection(themeMode: String, mergedThemeId: String) = Unit
 }
