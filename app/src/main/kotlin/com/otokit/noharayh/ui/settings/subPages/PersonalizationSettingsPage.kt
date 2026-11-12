@@ -11,6 +11,7 @@ import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.animation.settings.ThemeCardFrame
 import com.otokit.noharayh.ui.animation.settings.ThemeCardTransitionRunner
 import com.otokit.noharayh.ui.constants.dimensions.ThemeSelectionDimensions
+import com.otokit.noharayh.ui.constants.dimensions.SettingsCardDimensions
 import com.otokit.noharayh.ui.constants.motion.ThemeSelectionMotion
 import com.otokit.noharayh.ui.kit.settings.LabeledDropdownField
 import com.otokit.noharayh.ui.kit.settings.SettingsPageViews.card
@@ -142,8 +143,11 @@ internal class PersonalizationSettingsPage(
 
     private fun renderFrame(frame: ThemeCardFrame) {
         val height = frame.height.roundToInt()
-        if (content.layoutParams.height != height) {
-            content.layoutParams = content.layoutParams.apply { this.height = height }
+        val gap = (dp(context, SettingsCardDimensions.CONTENT_INSET_DP) * frame.first).roundToInt()
+        val params = content.layoutParams as LinearLayout.LayoutParams
+        // 内容为空时不保留标题与内容的间距；进退时与字段共用同一动画进度。
+        if (params.height != height || params.topMargin != gap) {
+            content.layoutParams = params.apply { this.height = height; topMargin = gap }
         }
         // 过渡期间只裁内容；静止时释放裁剪，保留 PressSurface 外环。
         content.clipTransition = transition.isRunning
