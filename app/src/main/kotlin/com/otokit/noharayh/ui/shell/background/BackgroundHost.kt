@@ -28,9 +28,9 @@ class BackgroundHost(
     ).also { pages -> pages.values.forEach(BackgroundPage::pause) }
 
     private var initialVisualReady: (() -> Unit)? = null
-    private var maiBackground: BackgroundSelection? = null
-    private var chuBackground: BackgroundSelection? = null
-    private val visuallyReady = mutableSetOf<GameLine>()
+    private val sources = BackgroundSourceCoordinator { game, source ->
+        pages.getValue(game).show(source)
+    }
 
     private var pager: ViewPager2? = null
     private var adapter: BackgroundPagerAdapter? = null
@@ -68,6 +68,8 @@ class BackgroundHost(
             val confirmed = requestSelection(game)
             if (disposed) return@onPagerEvent
             committedGame = confirmed
+            sources.select(confirmed)
+            deliverInitialVisualReady()
             if (confirmed != game) {
                 beginAlignment(requireNextLayout = true)
             } else {
@@ -156,27 +158,13 @@ class BackgroundHost(
         chuBackground: BackgroundSelection,
     ) {
         if (!attached || disposed) return
-        this.maiBackground = maiBackground
-        this.chuBackground = chuBackground
-
-        // 首帧只加载当前音游；另一页等当前页真正上屏后再加载，避免两个 WebView
-        // 在冷启动时同时抢 Chromium 渲染。
-        val selected = pages.getValue(currentGame)
-        if (selected.show(if (currentGame == GameLine.Mai) maiBackground else chuBackground)) {
-            visuallyReady.remove(currentGame)
-        }
+        // 冷启动先加载当前页；切页必须主动加载目标，不能依赖旧页迟到的首帧。
+        sources.render(currentGame, maiBackground, chuBackground)
         if (currentGame != committedGame) {
             committedGame = currentGame
             beginAlignment(requireNextLayout = true)
         }
-        if (visuallyReady.contains(currentGame)) loadOther(currentGame)
-    }
-
-    private fun loadOther(game: GameLine) {
-        val other = if (game == GameLine.Mai) GameLine.Chu else GameLine.Mai
-        val page = pages[other] ?: return
-        val background = (if (other == GameLine.Mai) maiBackground else chuBackground) ?: return
-        if (page.show(background)) visuallyReady.remove(other)
+        deliverInitialVisualReady()
     }
 
     /** shell 已更新背景宿主的几何；同步关门，确认本次真实布局后再开放。 */
@@ -189,20 +177,20 @@ class BackgroundHost(
     /** 当前已提交音游的首帧回调；只交付一次，迟到页不覆盖新的遮罩。 */
     fun setOnFirstVisualReady(listener: (() -> Unit)?) {
         initialVisualReady = listener
-        if (listener != null && visuallyReady.contains(committedGame)) {
-            initialVisualReady = null
-            listener()
-        }
+        deliverInitialVisualReady()
+    }
+
+    private fun deliverInitialVisualReady() {
+        if (disposed || !sources.isReady(committedGame)) return
+        val listener = initialVisualReady
+        initialVisualReady = null
+        listener?.invoke()
     }
 
     private fun onPageVisualReady(game: GameLine) {
         if (disposed) return
-        visuallyReady.add(game)
-        if (game != committedGame) return
-        val listener = initialVisualReady
-        initialVisualReady = null
-        listener?.invoke()
-        loadOther(game)
+        sources.onVisualReady(game, committedGame)
+        deliverInitialVisualReady()
     }
 
     fun setInputEnabled(enabled: Boolean) {
@@ -343,7 +331,7 @@ class BackgroundHost(
         attached = false
         gate = gate.beginAlignment().copy(resumed = false, inputEnabled = false)
         initialVisualReady = null
-        visuallyReady.clear()
+        sources.clear()
         publisher.dispose()
         removeAlignmentCorrection()
         removeConfirmationListener()
