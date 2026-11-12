@@ -302,6 +302,7 @@ private class MenuViewport(
         val handled = super.dispatchTouchEvent(event)
         if (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL) {
             touching = false
+            pointerId = MotionEvent.INVALID_POINTER_ID
             tracker?.recycle()
             tracker = null
         }
@@ -310,7 +311,13 @@ private class MenuViewport(
 
     override fun onInterceptTouchEvent(event: MotionEvent): Boolean {
         if (event.actionMasked == MotionEvent.ACTION_DOWN) return interrupted
-        if (event.actionMasked == MotionEvent.ACTION_MOVE && abs(event.y - downY) > config.scaledTouchSlop) {
+        // 主指离开就结束本次手势；拦截剩余指针，避免子项收到尾部 UP 而误点击。
+        if (pointerId == MotionEvent.INVALID_POINTER_ID) return true
+        if (event.actionMasked == MotionEvent.ACTION_POINTER_UP &&
+            event.getPointerId(event.actionIndex) == pointerId) return true
+        val index = event.findPointerIndex(pointerId)
+        if (event.actionMasked == MotionEvent.ACTION_MOVE && index >= 0 &&
+            abs(event.getY(index) - downY) > config.scaledTouchSlop) {
             dragging = true
             motion = Motion.DRAGGING
             parent?.requestDisallowInterceptTouchEvent(true)
@@ -319,6 +326,9 @@ private class MenuViewport(
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        // INVALID_POINTER_ID 为 -1，而 VelocityTracker 将 -1 解释为“当前活动指针”。
+        // 已终止的主指不能借另一根手指的 UP 再次启动运动。
+        if (pointerId == MotionEvent.INVALID_POINTER_ID) return true
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> return true
             MotionEvent.ACTION_MOVE -> {
@@ -339,7 +349,10 @@ private class MenuViewport(
                 touching = false
                 tracker?.computeCurrentVelocity(1000, config.scaledMaximumFlingVelocity.toFloat())
                 val velocity = -(tracker?.getYVelocity(pointerId) ?: 0f)
+                pointerId = MotionEvent.INVALID_POINTER_ID
                 if (abs(velocity) > geometry.stride * 3f && offset in 0f..geometry.maximum && geometry.maximum > 0f) {
+                    spring.cancel()
+                    fling.cancel()
                     motion = Motion.FLINGING
                     fling.setStartValue(offset).setStartVelocity(velocity).start()
                     updatePosition(offset)
@@ -351,6 +364,8 @@ private class MenuViewport(
                 dragging = false
                 touching = false
                 pointerId = MotionEvent.INVALID_POINTER_ID
+                tracker?.recycle()
+                tracker = null
                 snap()
             }
         }
@@ -369,6 +384,8 @@ private class MenuViewport(
 
     private fun snap(velocity: Float = 0f, target: Float = geometry.snap(offset)) {
         if (touching) return
+        fling.cancel()
+        spring.cancel()
         motion = Motion.SETTLING
         spring.setStartValue(offset)
         spring.setStartVelocity(velocity.coerceIn(-geometry.stride * 6f, geometry.stride * 6f))
@@ -388,6 +405,7 @@ private class MenuViewport(
         spring.cancel()
         motion = Motion.IDLE
         touching = false
+        pointerId = MotionEvent.INVALID_POINTER_ID
         tracker?.recycle()
         tracker = null
     }
