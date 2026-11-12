@@ -43,10 +43,17 @@ object NavigationTransition {
 
 /** 导航内容只描述自己的空间幅度。 */
 object NavContentTransition {
-    const val SCALE: Float = 0.85f
+    const val SCALE: Float = 0.1f
+    const val EXIT_DISTANCE_RATIO: Float = 0.6f
 
     /** 纵向位移占安全内容高度的比例。 */
     const val TRANSLATION_HEIGHT_FRACTION: Float = 0.4f
+}
+
+/** 全程连续的卡片退场；缩放、位移、淡出共享走势，不设置静止区间。 */
+object PageCardTransition {
+    const val SHRINK_STEEPNESS = 6.0
+    const val SHRINK_CENTER = 0.58
 }
 
 /** 手机标题的局部幅度，量纲与内容区解耦。 */
@@ -65,7 +72,9 @@ object PagerPairTransition {
 
     /** 横移距离占容器宽度的比例。 */
     const val TRANSLATION_RATIO: Float = 0.7f
-    const val MIN_SCALE: Float = 0.7f
+    /** 卡片缩短位移，标题继续使用原距离；横滑往返共用同一路径。 */
+    const val CONTENT_TRANSLATION_RATIO: Float = TRANSLATION_RATIO * 0.6f
+    const val MIN_SCALE: Float = 0.1f
     const val MIN_ALPHA: Float = 0f
 }
 

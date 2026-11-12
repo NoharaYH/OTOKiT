@@ -37,12 +37,12 @@ class GroupedTransitionFramesTest {
                 assertEquals(1f, entry.alpha, 0.0001f)
             }
             TransitionKind.Fade -> {
-                assertEquals(0.5f, entry.alpha, 0.0001f)
+                assertEquals(TransitionFrames.pageFadeProgress(0.5f, true), entry.alpha, 0.0001f)
                 assertEquals(0f, entry.translationY, 0.0001f)
                 assertEquals(1f, entry.scale, 0.0001f)
             }
             TransitionKind.ScaleFadeSlide -> {
-                assertEquals(0.5f, entry.alpha, 0.0001f)
+                assertEquals(TransitionFrames.pageFadeProgress(0.5f, true), entry.alpha, 0.0001f)
                 assertTrue(entry.translationY > 0f && exit.translationY < 0f)
             }
         }

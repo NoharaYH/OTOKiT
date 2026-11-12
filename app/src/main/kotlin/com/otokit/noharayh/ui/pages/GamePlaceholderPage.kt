@@ -81,16 +81,17 @@ object GamePlaceholderPage {
 
             maiPanel.visibility = View.VISIBLE
             chuPanel.visibility = View.VISIBLE
-            val slideDistance = root.width * PagerPairTransition.TRANSLATION_RATIO
+            val slideDistance = root.width * PagerPairTransition.CONTENT_TRANSLATION_RATIO
             val (maiFrame, chuFrame) = TransitionFrames.pagerPair(
                 kind = PagerPairTransition.KIND,
                 progress = progress,
                 slideDistancePx = slideDistance,
                 minScale = PagerPairTransition.MIN_SCALE,
                 minAlpha = PagerPairTransition.MIN_ALPHA,
+                cardMotion = true,
             )
-            applyPanelFrame(maiPanel, maiFrame)
-            applyPanelFrame(chuPanel, chuFrame)
+            applyPanelFrame(maiPanel, maiFrame, exitOnLeft = true)
+            applyPanelFrame(chuPanel, chuFrame, exitOnLeft = false)
             maiPanel.setInteractive(false)
             chuPanel.setInteractive(false)
         }
@@ -121,11 +122,13 @@ object GamePlaceholderPage {
         panel.translationX = 0f
     }
 
-    private fun applyPanelFrame(panel: GamePlaceholderPanel, frame: com.otokit.noharayh.ui.animation.common.TransitionFrame) {
+    private fun applyPanelFrame(panel: GamePlaceholderPanel, frame: com.otokit.noharayh.ui.animation.common.TransitionFrame, exitOnLeft: Boolean) {
         panel.alpha = frame.alpha
         panel.scaleX = frame.scale
         panel.scaleY = frame.scale
-        panel.translationX = frame.translationX
+        panel.translationX = TransitionFrames.rebasePivotTranslation(
+            frame.translationX, frame.scale, if (exitOnLeft) 0f else panel.width.toFloat(), panel.pivotX,
+        )
         panel.translationY = frame.translationY
     }
 

@@ -19,13 +19,22 @@ object TitleTransitionFrames {
     fun lmPivotY(inkTop: Float, inkBottom: Float): Float =
         (inkTop + inkBottom) / 2f
 
-    fun navEntry(progress: Float, translationY: Float): TransitionFrame =
-        TransitionFrames.enter(
+    fun navEntry(progress: Float, translationY: Float): TransitionFrame = navBetween(
+        start = TransitionFrames.enter(
             kind = NavigationTransition.KIND,
-            progress = progress,
+            progress = 0f,
             scaleFrom = navigationScale(),
             translationYFrom = translationY,
-        )
+        ),
+        end = TransitionFrames.enter(
+            kind = NavigationTransition.KIND,
+            progress = 1f,
+            scaleFrom = navigationScale(),
+            translationYFrom = translationY,
+        ),
+        progress = progress,
+        entering = true,
+    )
 
     fun navGhostExit(
         progress: Float,
@@ -38,11 +47,18 @@ object TitleTransitionFrames {
             scaleTo = navigationScale(),
             translationYTo = translationY,
         )
+        return navBetween(from, target, progress, entering = false)
+    }
+
+    /** 内容切页仍是唯一时钟；标题按自己的距离采样同一组位移、淡变曲线。 */
+    private fun navBetween(start: TransitionFrame, end: TransitionFrame, progress: Float, entering: Boolean): TransitionFrame {
+        val travel = TransitionFrames.pageTravelProgress(progress, entering)
+        val fade = TransitionFrames.pageFadeProgress(progress, entering)
         return TransitionFrame(
-            alpha = TransitionFrames.lerp(from.alpha, target.alpha, progress),
-            scale = TransitionFrames.lerp(from.scale, target.scale, progress),
-            translationX = TransitionFrames.lerp(from.translationX, target.translationX, progress),
-            translationY = TransitionFrames.lerp(from.translationY, target.translationY, progress),
+            alpha = TransitionFrames.lerp(start.alpha, end.alpha, fade),
+            scale = TransitionFrames.pageScale(start.scale, end.scale, progress, entering),
+            translationX = TransitionFrames.lerp(start.translationX, end.translationX, travel),
+            translationY = TransitionFrames.lerp(start.translationY, end.translationY, travel),
         )
     }
 

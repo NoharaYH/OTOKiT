@@ -1,7 +1,9 @@
 package com.otokit.noharayh.ui.animation.common
 
 import com.otokit.noharayh.ui.constants.motion.TransitionKind
+import com.otokit.noharayh.ui.constants.motion.PageCardTransition as Card
 import kotlin.math.roundToInt
+import kotlin.math.exp
 
 /** 进度帧：所有字段都是相对量，由消费者换算成像素或直接写入属性。 */
 data class TransitionFrame(
@@ -18,6 +20,42 @@ data class TransitionFrame(
  * 类型只决定允许变化的属性，幅度和像素量由调用方传入；in/out 共用同一套映射。
  */
 object TransitionFrames {
+    private val shrinkStart = sigmoid(0.0)
+    private val shrinkRange = sigmoid(1.0) - shrinkStart
+
+    /** 全程缩小，中段较快但没有平台；入场反向采样同一路径。 */
+    fun pageScale(start: Float, end: Float, progress: Float, entering: Boolean): Float {
+        val p = progress.coerceIn(0f, 1f)
+        if (p == 0f) return start
+        if (p == 1f) return end
+        val amount = if (entering) 1f - shrink(1f - p) else shrink(p)
+        if (amount <= 0f) return start
+        if (amount >= 1f) return end
+        return lerp(start, end, amount).coerceIn(minOf(start, end), maxOf(start, end))
+    }
+
+    private fun sigmoid(progress: Double): Double =
+        1.0 / (1.0 + exp(-Card.SHRINK_STEEPNESS * (progress - Card.SHRINK_CENTER)))
+
+    private fun shrink(progress: Float): Float =
+        ((sigmoid(progress.toDouble()) - shrinkStart) / shrinkRange).toFloat().coerceIn(0f, 1f)
+
+    /** 淡出跟随缩小量；平方让前段保持可见，不另设一段等待区间。 */
+    private fun fade(progress: Float): Float = shrink(progress).let { it * it }
+
+    fun pageFadeProgress(progress: Float, entering: Boolean): Float {
+        val p = progress.coerceIn(0f, 1f)
+        return if (entering) 1f - fade(1f - p) else fade(p)
+    }
+
+    fun pageTravelProgress(progress: Float, entering: Boolean): Float {
+        val p = progress.coerceIn(0f, 1f)
+        return if (entering) 1f - shrink(1f - p) else shrink(p)
+    }
+
+    /** 换缩放中心时保持所有屏幕点不动；用于转场中途接管。 */
+    fun rebasePivotTranslation(translation: Float, scale: Float, oldPivot: Float, newPivot: Float): Float =
+        translation + (1f - scale) * (oldPivot - newPivot)
 
     fun enter(
         kind: TransitionKind,
@@ -96,24 +134,29 @@ object TransitionFrames {
         slideDistancePx: Float,
         minScale: Float,
         minAlpha: Float,
+        cardMotion: Boolean = false,
     ): Pair<TransitionFrame, TransitionFrame> {
         val p = progress.coerceIn(0f, 1f)
-        val scaleDelta = 1f - minScale.coerceIn(0f, 1f)
+        val smallestScale = minScale.coerceIn(0f, 1f)
         val alphaDelta = 1f - minAlpha.coerceIn(0f, 1f)
         val useSlide = kind == TransitionKind.Slide || kind == TransitionKind.ScaleFadeSlide
         val useScale = kind == TransitionKind.Scale || kind == TransitionKind.ScaleFadeSlide
         val useFade = kind == TransitionKind.Fade || kind == TransitionKind.ScaleFadeSlide
+        val exitFade = if (cardMotion) pageFadeProgress(p, entering = false) else p
+        val enterFade = if (cardMotion) pageFadeProgress(p, entering = true) else p
+        val exitTravel = if (cardMotion) pageTravelProgress(p, entering = false) else p
+        val enterTravel = if (cardMotion) pageTravelProgress(p, entering = true) else p
 
         val mai = TransitionFrame(
-            alpha = if (useFade) 1f - alphaDelta * p else 1f,
-            scale = if (useScale) 1f - scaleDelta * p else 1f,
-            translationX = if (useSlide) -slideDistancePx * p else 0f,
+            alpha = if (useFade) 1f - alphaDelta * exitFade else 1f,
+            scale = if (useScale) pageScale(1f, smallestScale, p, entering = false) else 1f,
+            translationX = if (useSlide) -slideDistancePx * exitTravel else 0f,
             translationY = 0f,
         )
         val chu = TransitionFrame(
-            alpha = if (useFade) minAlpha + alphaDelta * p else 1f,
-            scale = if (useScale) minScale + scaleDelta * p else 1f,
-            translationX = if (useSlide) slideDistancePx * (1f - p) else 0f,
+            alpha = if (useFade) minAlpha + alphaDelta * enterFade else 1f,
+            scale = if (useScale) pageScale(smallestScale, 1f, p, entering = true) else 1f,
+            translationX = if (useSlide) slideDistancePx * (1f - enterTravel) else 0f,
             translationY = 0f,
         )
         return mai to chu
