@@ -124,10 +124,15 @@ internal class PersonalizationSettingsPage(
         fields.forEach { it.dismissMenu() }
         val morph = previous != null && previous.themeMode != ThemeSelectionMode.None &&
             selection.themeMode != ThemeSelectionMode.None
-        val valueChanged = if (morph) {
-            firstField.setValue(firstTitle(requireNotNull(previous)))
-            firstField.prepareValueTransition(title)
-        } else { firstField.setValue(title); false }
+        val valueChanged = when {
+            // 无主题没有待展示的新值，保留原文字随整个选择框退场。
+            selection.themeMode == ThemeSelectionMode.None && previous != null -> false
+            morph -> {
+                firstField.setValue(firstTitle(requireNotNull(previous)))
+                firstField.prepareValueTransition(title)
+            }
+            else -> { firstField.setValue(title); false }
+        }
         secondField.setValue(ThemeOptions.resolveForGame(GameLine.Chu, selection.chuThemeId).title)
         val target = when (selection.themeMode) {
             ThemeSelectionMode.Independent -> ThemeCardFrame((rowHeight * 2 + rowGap).toFloat(), 1f, 1f, 1f)
