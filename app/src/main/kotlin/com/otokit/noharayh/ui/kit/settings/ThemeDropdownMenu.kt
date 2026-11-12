@@ -16,10 +16,10 @@ import android.widget.FrameLayout
 import android.widget.PopupWindow
 import android.widget.TextView
 import androidx.core.graphics.drawable.toDrawable
-import androidx.dynamicanimation.animation.FloatValueHolder
-import androidx.dynamicanimation.animation.FlingAnimation
-import androidx.dynamicanimation.animation.SpringAnimation
-import androidx.dynamicanimation.animation.SpringForce
+import com.otokit.noharayh.ui.animation.settings.ThemeDropdownTransitionRunner
+import com.otokit.noharayh.ui.animation.settings.ThemeMenuMotionRunner
+import com.otokit.noharayh.ui.constants.dimensions.ThemeSelectionDimensions as Dimensions
+import com.otokit.noharayh.ui.constants.motion.ThemeSelectionMotion as Spec
 import com.otokit.noharayh.ui.kit.common.AppTypography
 import com.otokit.noharayh.ui.kit.common.PressSurface
 import com.otokit.noharayh.ui.theme.ThemeOption
@@ -39,21 +39,21 @@ internal class ThemeDropdownMenu private constructor(
     private var allowDismiss = false
     private val frame = Rect().also(anchor::getWindowVisibleDisplayFrame)
     private val location = IntArray(2).also(anchor::getLocationOnScreen)
-    private val below = frame.bottom - location[1] - anchor.height - dp(8)
-    private val above = location[1] - frame.top - dp(8)
-    private val openBelow = below >= minOf(dp(220), above)
+    private val below = frame.bottom - location[1] - anchor.height - dp(Dimensions.MENU_PADDING_DP)
+    private val above = location[1] - frame.top - dp(Dimensions.MENU_PADDING_DP)
+    private val openBelow = below >= minOf(dp(Dimensions.MENU_PREFERRED_SPACE_DP), above)
     private val space = (if (openBelow) below else above).coerceAtLeast(1)
-    private val rowHeight = dp(44).toFloat()
+    private val rowHeight = dp(Dimensions.MENU_ROW_DP).toFloat()
     // 即使窗口很矮，也给每个折叠项目保留等高、等间距的薄条。
-    private val previewScale = ((space - dp(16) - rowHeight) /
-        ((options.size - 1).coerceAtLeast(1) * dp(10).toFloat())).coerceIn(0f, 1f)
-    private val gap = dp(4) * previewScale
-    private val collapsedHeight = dp(6) * previewScale
-    private val slots = ((space - dp(16) - options.size * collapsedHeight -
+    private val previewScale = ((space - dp(Dimensions.MENU_PADDING_DP * 2) - rowHeight) /
+        ((options.size - 1).coerceAtLeast(1) * dp(Dimensions.MENU_BAR_DP + Dimensions.MENU_GAP_DP).toFloat())).coerceIn(0f, 1f)
+    private val gap = dp(Dimensions.MENU_GAP_DP) * previewScale
+    private val collapsedHeight = dp(Dimensions.MENU_BAR_DP) * previewScale
+    private val slots = ((space - dp(Dimensions.MENU_PADDING_DP * 2) - options.size * collapsedHeight -
         (options.size - 1) * gap) / (rowHeight - collapsedHeight))
-        .toInt().coerceIn(1, options.size.coerceAtLeast(1)).coerceAtMost(6)
+        .toInt().coerceIn(1, options.size.coerceAtLeast(1)).coerceAtMost(Dimensions.MENU_MAX_SLOTS)
     private val geometry = ThemeMenuGeometry(options.size, slots, rowHeight, gap,
-        collapsedHeight, dp(8).toFloat())
+        collapsedHeight, dp(Dimensions.MENU_PADDING_DP).toFloat())
     private val viewport = MenuViewport(anchor.context, options, geometry) { option ->
         if (!closing && !closed) {
             // 先关闭菜单，再提交，允许提交同步禁用触发框。
@@ -61,6 +61,8 @@ internal class ThemeDropdownMenu private constructor(
             onSelected(option)
         }
     }
+    private val transition = ThemeDropdownTransitionRunner(viewport,
+        dp(Dimensions.MENU_TRANSLATION_DP).toFloat() * if (openBelow) -1 else 1)
     private val popup = object : PopupWindow(
         viewport, anchor.width, minOf(space, geometry.height.roundToInt()), true,
     ) {
@@ -94,12 +96,10 @@ internal class ThemeDropdownMenu private constructor(
         }
         anchor.addOnAttachStateChangeListener(attachListener)
         anchor.addOnLayoutChangeListener(layoutListener)
-        viewport.alpha = 0f
-        viewport.translationY = dp(if (openBelow) -8 else 8).toFloat()
         popup.showAsDropDown(anchor, 0,
-            if (openBelow) dp(4) else -anchor.height - popup.height - dp(4))
+            if (openBelow) dp(Dimensions.MENU_ANCHOR_GAP_DP) else -anchor.height - popup.height - dp(Dimensions.MENU_ANCHOR_GAP_DP))
         viewport.requestFocus()
-        viewport.animate().alpha(1f).translationY(0f).setDuration(180L).start()
+        transition.show()
         // Popup 已取得焦点后播放，并避开触发框仍在播放的按下反馈。
         viewport.scheduleOpeningHaptic(openingHapticDelayMillis)
     }
@@ -107,13 +107,12 @@ internal class ThemeDropdownMenu private constructor(
     fun dismiss(immediate: Boolean = false) {
         if (closed) return
         if (immediate) {
-            viewport.animate().cancel()
+            transition.cancel()
             finishDismiss()
         } else if (!closing) {
             closing = true
             viewport.stopMotion()
-            viewport.animate().alpha(0f).translationY(dp(if (openBelow) -8 else 8).toFloat())
-                .setDuration(140L).withEndAction { finishDismiss() }.start()
+            transition.hide { finishDismiss() }
         }
     }
 
@@ -127,7 +126,7 @@ internal class ThemeDropdownMenu private constructor(
         if (closed) return
         closed = true
         viewport.stopMotion()
-        viewport.animate().cancel()
+        transition.cancel()
         anchor.removeOnAttachStateChangeListener(attachListener)
         anchor.removeOnLayoutChangeListener(layoutListener)
         onDismiss()
@@ -153,10 +152,7 @@ private class MenuViewport(
 ) : ViewGroup(context) {
     private val density = resources.displayMetrics.density
     private val config = ViewConfiguration.get(context)
-    private enum class Motion { IDLE, DRAGGING, FLINGING, SETTLING }
-    private var motion = Motion.IDLE
     private var touching = false
-    private val position = FloatValueHolder(0f)
     private var offset = 0f
     private var dragging = false
     private var interrupted = false
@@ -170,39 +166,8 @@ private class MenuViewport(
     }
     private var frontIndex = -1
     private val labels = mutableListOf<TextView>()
-    private val spring = SpringAnimation(position).apply {
-        spring = SpringForce(0f).setDampingRatio(0.82f).setStiffness(240f)
-        setMinimumVisibleChange(0.2f * density)
-        addUpdateListener { _, value, _ -> updatePosition(value) }
-        addEndListener { _, canceled, _, _ ->
-            if (!canceled) {
-                finishSettling()
-            }
-        }
-    }
-    private val fling = FlingAnimation(position).apply {
-        friction = FLING_FRICTION
-        setMinValue(0f)
-        setMaxValue(geometry.maximum)
-        addUpdateListener { _, value, velocity ->
-            updatePosition(value)
-            val remaining = if (velocity > 0) geometry.maximum - value else value
-            // 在惯性还没停下时接入吸附，并传递速度；只有一个动画可以写位置。
-            if (abs(velocity) < geometry.stride * 3f || remaining < geometry.stride * 0.6f) {
-                cancel()
-                snap(velocity, geometry.snap(value + velocity / FLING_DECAY))
-            }
-        }
-        addEndListener { _, canceled, _, velocity ->
-            if (!canceled && motion == Motion.FLINGING) snap(velocity)
-        }
-    }
-
-    private companion object {
-        const val FLING_FRICTION = 1.8f
-        // AndroidX FlingAnimation 的指数衰减系数。
-        const val FLING_DECAY = 4.2f * FLING_FRICTION
-    }
+    private val motion = ThemeMenuMotionRunner(density, geometry.stride, geometry.maximum,
+        geometry::snap, ::updatePosition, ::layoutRows)
 
     init {
         clipChildren = false
@@ -223,16 +188,16 @@ private class MenuViewport(
             labels += label
             addView(PressSurface(context).apply {
                 fillColor = 0xFFF2F2F2.toInt()
-                baseRadius = 4 * density
+                baseRadius = Dimensions.MENU_INNER_RADIUS_DP * density
                 outerHaloEnabled = true
                 deferClickUntilReleaseFeedback = true
                 contentDescription = option.title
-                setPadding((16 * density).roundToInt(), 0, (16 * density).roundToInt(), 0)
+                setPadding((Dimensions.MENU_TEXT_INSET_DP * density).roundToInt(), 0, (Dimensions.MENU_TEXT_INSET_DP * density).roundToInt(), 0)
                 addView(label, FrameLayout.LayoutParams(-1, -1))
                 addOnPressStateChangedListener { pressed ->
                     if (pressed) { frontIndex = index; invalidate() }
                 }
-                setOnClickListener { if (motion == Motion.IDLE && !dragging) onSelected(option) }
+                setOnClickListener { if (!motion.isRunning && !dragging) onSelected(option) }
             })
         }
     }
@@ -250,7 +215,7 @@ private class MenuViewport(
         // 动画回调直接更新当前帧，避免在 draw/computeScroll 中排下一次布局。
         if (width > 0) layoutRows()
         val expanded = expansionFeedback.update(offset)
-        if (expanded && motion != Motion.IDLE && isAttachedToWindow && isShown && hasWindowFocus()) {
+        if (expanded && (dragging || motion.isRunning) && isAttachedToWindow && isShown && hasWindowFocus()) {
             // 和容器到达完整显示高度的这一帧同步，拖动、惯性和回弹都适用，不等弹簧结束。
             performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
         }
@@ -259,19 +224,20 @@ private class MenuViewport(
 
     private fun layoutRows() {
         val pad = geometry.padding.roundToInt()
-        val overscroll = (offset - offset.coerceIn(0f, geometry.maximum)) * -0.25f
+        val overscroll = (offset - offset.coerceIn(0f, geometry.maximum)) * Spec.OVERSCROLL_SHIFT_FACTOR
         for (index in 0 until childCount) {
             val child = getChildAt(index) as PressSurface
             val (top, bottom) = geometry.bounds(index, offset)
             val h = (bottom - top).coerceAtLeast(0f)
-            child.visibility = if (h < 2 * density) INVISIBLE else VISIBLE
-            child.isEnabled = h >= geometry.rowHeight - density && motion == Motion.IDLE
+            child.visibility = if (h < Dimensions.MENU_MIN_VISIBLE_DP * density) INVISIBLE else VISIBLE
+            child.isEnabled = h >= geometry.rowHeight - density && !motion.isRunning && !dragging
             child.isFocusable = child.isEnabled
             child.importantForAccessibility = if (child.isEnabled) IMPORTANT_FOR_ACCESSIBILITY_YES else IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
-            labels[index].alpha = ((h / geometry.rowHeight - 0.45f) / 0.55f).coerceIn(0f, 1f)
-            val outerRadius = (3f + 19f * geometry.expansion(index, offset)) * density
-            child.topCornerRadius = if (index == 0) outerRadius else 4 * density
-            child.bottomCornerRadius = if (index == childCount - 1) outerRadius else 4 * density
+            labels[index].alpha = ((h / geometry.rowHeight - Spec.LABEL_FADE_START) / (1f - Spec.LABEL_FADE_START)).coerceIn(0f, 1f)
+            val outerRadius = (Dimensions.MENU_BAR_RADIUS_DP + (Dimensions.MENU_LARGE_RADIUS_DP -
+                Dimensions.MENU_BAR_RADIUS_DP) * geometry.expansion(index, offset)) * density
+            child.topCornerRadius = if (index == 0) outerRadius else Dimensions.MENU_INNER_RADIUS_DP * density
+            child.bottomCornerRadius = if (index == childCount - 1) outerRadius else Dimensions.MENU_INNER_RADIUS_DP * density
             child.measure(MeasureSpec.makeMeasureSpec((width - 2 * pad).coerceAtLeast(0), MeasureSpec.EXACTLY),
                 MeasureSpec.makeMeasureSpec(h.roundToInt(), MeasureSpec.EXACTLY))
             child.layout(pad, (top + overscroll).roundToInt(), width - pad,
@@ -288,7 +254,7 @@ private class MenuViewport(
 
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
         if (event.actionMasked == MotionEvent.ACTION_DOWN) {
-            interrupted = motion != Motion.IDLE
+            interrupted = motion.isRunning
             stopMotion()
             touching = true
             pointerId = event.getPointerId(0)
@@ -319,7 +285,6 @@ private class MenuViewport(
         if (event.actionMasked == MotionEvent.ACTION_MOVE && index >= 0 &&
             abs(event.getY(index) - downY) > config.scaledTouchSlop) {
             dragging = true
-            motion = Motion.DRAGGING
             parent?.requestDisallowInterceptTouchEvent(true)
         }
         return dragging
@@ -338,10 +303,9 @@ private class MenuViewport(
                 val delta = lastY - y
                 lastY = y
                 dragging = true
-                motion = Motion.DRAGGING
                 val outside = offset < 0f || offset > geometry.maximum
-                updatePosition((offset + delta * if (outside) 0.3f else 1f)
-                    .coerceIn(-32 * density, geometry.maximum + 32 * density))
+                updatePosition((offset + delta * if (outside) Spec.OVERSCROLL_DRAG_FACTOR else 1f)
+                    .coerceIn(-Dimensions.MENU_OVERSCROLL_DP * density, geometry.maximum + Dimensions.MENU_OVERSCROLL_DP * density))
             }
             MotionEvent.ACTION_UP -> {
                 if (!dragging && !interrupted) performClick()
@@ -350,12 +314,8 @@ private class MenuViewport(
                 tracker?.computeCurrentVelocity(1000, config.scaledMaximumFlingVelocity.toFloat())
                 val velocity = -(tracker?.getYVelocity(pointerId) ?: 0f)
                 pointerId = MotionEvent.INVALID_POINTER_ID
-                if (abs(velocity) > geometry.stride * 3f && offset in 0f..geometry.maximum && geometry.maximum > 0f) {
-                    spring.cancel()
-                    fling.cancel()
-                    motion = Motion.FLINGING
-                    fling.setStartValue(offset).setStartVelocity(velocity).start()
-                    updatePosition(offset)
+                if (abs(velocity) > geometry.stride * Spec.FLING_HANDOFF_SPEED && offset in 0f..geometry.maximum && geometry.maximum > 0f) {
+                    motion.startFling(offset, velocity)
                 } else snap(velocity)
             }
             MotionEvent.ACTION_CANCEL, MotionEvent.ACTION_POINTER_UP -> {
@@ -376,34 +336,21 @@ private class MenuViewport(
 
     fun scheduleOpeningHaptic(delayMillis: Long) {
         removeCallbacks(openingHaptic)
-        postDelayed(openingHaptic, delayMillis.coerceAtLeast(32L))
+        postDelayed(openingHaptic, delayMillis.coerceAtLeast(Spec.OPEN_HAPTIC_MIN_DELAY_MS))
     }
 
     private fun canPlayHaptic(): Boolean =
-        motion == Motion.IDLE && !touching && isAttachedToWindow && isShown && hasWindowFocus()
+        !motion.isRunning && !touching && isAttachedToWindow && isShown && hasWindowFocus()
 
     private fun snap(velocity: Float = 0f, target: Float = geometry.snap(offset)) {
         if (touching) return
-        fling.cancel()
-        spring.cancel()
-        motion = Motion.SETTLING
-        spring.setStartValue(offset)
-        spring.setStartVelocity(velocity.coerceIn(-geometry.stride * 6f, geometry.stride * 6f))
-        spring.animateToFinalPosition(target)
-        updatePosition(offset)
-    }
-
-    private fun finishSettling() {
-        updatePosition(geometry.snap(offset))
-        motion = Motion.IDLE
-        layoutRows()
+        motion.snap(offset, velocity, target)
     }
 
     fun stopMotion() {
         removeCallbacks(openingHaptic)
-        fling.cancel()
-        spring.cancel()
-        motion = Motion.IDLE
+        motion.stop()
+        dragging = false
         touching = false
         pointerId = MotionEvent.INVALID_POINTER_ID
         tracker?.recycle()

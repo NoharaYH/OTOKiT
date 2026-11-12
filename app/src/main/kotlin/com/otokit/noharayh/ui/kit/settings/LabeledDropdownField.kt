@@ -11,6 +11,9 @@ import android.view.Gravity
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
+import com.otokit.noharayh.ui.animation.settings.ThemeDropdownArrowRunner
+import com.otokit.noharayh.ui.constants.dimensions.ThemeSelectionDimensions as Dimensions
+import com.otokit.noharayh.ui.constants.motion.ThemeSelectionMotion
 import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.kit.common.AppTypography
 import com.otokit.noharayh.ui.kit.common.PressSurface
@@ -22,7 +25,7 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
     private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = 0xFF757575.toInt()
         style = Paint.Style.STROKE
-        strokeWidth = 2.5f * resources.displayMetrics.density
+        strokeWidth = Dimensions.FIELD_STROKE_DP * resources.displayMetrics.density
         strokeCap = Paint.Cap.ROUND
     }
     private val outline = RectF()
@@ -54,6 +57,7 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
         ellipsize = android.text.TextUtils.TruncateAt.END
         AppTypography.applyAppTypeface(this)
     }
+    private val arrowRunner = ThemeDropdownArrowRunner(arrow)
     private var menu: ThemeDropdownMenu? = null
     private var pressedAt = 0L
 
@@ -61,19 +65,19 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
         fillColor = Color.WHITE
         outerHaloEnabled = true
         releaseHapticEnabled = false // 菜单展开统一给一次轻触觉。
-        baseRadius = dp(22).toFloat()
+        baseRadius = dp(Dimensions.FIELD_RADIUS_DP).toFloat()
         clipChildren = false
         clipToPadding = false
         val row = LinearLayout(context).apply {
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(26), 0, dp(12), 0)
+            setPadding(dp(Dimensions.FIELD_TEXT_INSET_DP), 0, dp(Dimensions.FIELD_END_INSET_DP), 0)
             addView(valueView, LinearLayout.LayoutParams(0, -1, 1f))
-            addView(arrow, LinearLayout.LayoutParams(dp(20), dp(20)))
+            addView(arrow, LinearLayout.LayoutParams(dp(Dimensions.FIELD_ARROW_DP), dp(Dimensions.FIELD_ARROW_DP)))
         }
-        addView(row, LayoutParams(-1, dp(44)))
+        addView(row, LayoutParams(-1, dp(Dimensions.FIELD_HEIGHT_DP)))
         addView(labelView, LayoutParams(-2, -2).apply {
-            leftMargin = dp(26)
-            rightMargin = dp(26)
+            leftMargin = dp(Dimensions.FIELD_TEXT_INSET_DP)
+            rightMargin = dp(Dimensions.FIELD_TEXT_INSET_DP)
         })
     }
 
@@ -91,8 +95,8 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
         val half = stroke.strokeWidth / 2f
         outline.set(inset + half, inset + half, width - inset - half, height - inset - half)
         val radius = (cornerRadius - half).coerceAtLeast(0f)
-        val gapStart = (labelView.left - dp(4)).toFloat().coerceIn(outline.left + radius, outline.right - radius)
-        val gapEnd = (labelView.right + dp(4)).toFloat().coerceIn(gapStart, outline.right - radius)
+        val gapStart = (labelView.left - dp(Dimensions.LABEL_GAP_DP)).toFloat().coerceIn(outline.left + radius, outline.right - radius)
+        val gapEnd = (labelView.right + dp(Dimensions.LABEL_GAP_DP)).toFloat().coerceIn(gapStart, outline.right - radius)
         labelView.translationY = outline.top - labelView.height / 2f
         // 描边在标签两侧主动断开，圆形笔帽收尾；文字不再用白色矩形覆盖描边。
         outlinePath.rewind()
@@ -135,7 +139,7 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
             return
         }
         setExpanded(true)
-        val openingHapticDelay = (120L - (SystemClock.uptimeMillis() - pressedAt)).coerceAtLeast(0L)
+        val openingHapticDelay = (ThemeSelectionMotion.OPEN_HAPTIC_GAP_MS - (SystemClock.uptimeMillis() - pressedAt)).coerceAtLeast(0L)
         menu = ThemeDropdownMenu.show(this, options, openingHapticDelay, { option ->
             onSelected(option)
         }) {
@@ -151,13 +155,12 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
 
     override fun onDetachedFromWindow() {
         dismissMenu()
-        arrow.animate().cancel()
-        arrow.rotation = 90f
+        arrowRunner.reset()
         super.onDetachedFromWindow()
     }
 
     private fun setExpanded(expanded: Boolean) {
-        arrow.animate().rotation(if (expanded) 270f else 90f).setDuration(220L).start()
+        arrowRunner.render(expanded)
     }
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density + 0.5f).toInt()

@@ -1,9 +1,9 @@
 package com.otokit.noharayh.ui.settings.subPages
 
 import android.content.Context
-import android.view.View
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import androidx.core.view.isNotEmpty
 import android.widget.ScrollView
 import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.kit.settings.LabeledDropdownField
@@ -103,7 +103,7 @@ internal class PersonalizationSettingsPage(
                 .filterNot { it.id == selected }
         }, selectedTitle = "", onSelected = { onOptionSelected(it, game) })
         content.addView(field, LinearLayout.LayoutParams(-1, -2).apply {
-            if (content.childCount > 0) topMargin = dp(context, 12)
+            if (content.isNotEmpty()) topMargin = dp(context, 12)
         })
     }
 

@@ -1,5 +1,6 @@
 package com.otokit.noharayh.ui.kit.settings
 
+import com.otokit.noharayh.ui.constants.motion.ThemeSelectionMotion
 import kotlin.math.roundToInt
 
 /** 一步只交换一对行的高度；其余完整行、薄条和所有间距保持不变。 */
@@ -42,7 +43,7 @@ internal class ThemeMenuExpansionFeedback(private val geometry: ThemeMenuGeometr
         var expanded = false
         for (index in 0 until geometry.count) {
             val fraction = geometry.expansion(index, offset)
-            if (fraction <= 0.9f) armed[index] = true
+            if (fraction <= ThemeSelectionMotion.FEEDBACK_REARM_FRACTION) armed[index] = true
             val height = geometry.collapsedHeight + fraction * (geometry.rowHeight - geometry.collapsedHeight)
             if (armed[index] && height.roundToInt() >= geometry.rowHeight.roundToInt()) {
                 armed[index] = false

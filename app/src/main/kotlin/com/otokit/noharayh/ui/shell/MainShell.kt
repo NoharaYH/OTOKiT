@@ -14,6 +14,7 @@ import com.otokit.noharayh.ui.chrome.ChromeAssembly
 import com.otokit.noharayh.ui.chrome.ChromeDisplayInput
 import com.otokit.noharayh.ui.chrome.ChromeInsets
 import com.otokit.noharayh.ui.animation.common.GameFrame
+import com.otokit.noharayh.ui.animation.shell.BackgroundSwitchRunner
 import com.otokit.noharayh.ui.animation.shell.BackgroundVeilRunner
 import com.otokit.noharayh.ui.animation.shell.ContentTransitionRunner
 import com.otokit.noharayh.ui.animation.shell.SettingsTransitionRunner
@@ -116,9 +117,8 @@ class MainShell(
     private var backgroundVeil: BackgroundVeilRunner? = null
     private var backgroundVeilView: BackgroundVeilView? = null
     private var backgroundSwitchScrim: View? = null
-    private var backgroundSwitchToken = 0
+    private var backgroundSwitchRunner: BackgroundSwitchRunner? = null
     private var backgroundSwitching = false
-    private val backgroundSwitchCallbacks = mutableListOf<Runnable>()
     private var lastMaiBackground: BackgroundSelection? = null
     private var lastChuBackground: BackgroundSelection? = null
     private var backgroundSubscription: AutoCloseable? = null
@@ -216,6 +216,7 @@ class MainShell(
         )
         backgroundHost.bringChildToFront(switchScrim)
         backgroundSwitchScrim = switchScrim
+        backgroundSwitchRunner = BackgroundSwitchRunner(switchScrim)
         background?.setOnFirstVisualReady(veilRunner::ready)
         veilRunner.show()
         val observer = backgroundHost.viewTreeObserver
@@ -451,58 +452,30 @@ class MainShell(
         mai: BackgroundSelection,
         chu: BackgroundSelection,
     ) {
-        val scrim = backgroundSwitchScrim
+        val runner = backgroundSwitchRunner
         val host = background
-        if (scrim == null || host == null) {
+        if (runner == null || host == null) {
             host?.renderSelection(current.currentGame, mai, chu)
             return
         }
-        scrim.animate().cancel()
-        val token = ++backgroundSwitchToken
         backgroundSwitching = true
         settingsPage?.setThemeControlsEnabled(false)
-        scrim.visibility = View.VISIBLE
-        scrim.alpha = 0f
-        scrim.animate()
-            .alpha(1f)
-            .setDuration(120L)
-            .start()
-        // 用独立时序收尾，不依赖属性动画 end callback；避免黑幕/触摸锁卡住。
-        postBackgroundSwitch(120L, token) {
-            host.renderSelection(current.currentGame, mai, chu)
-            postBackgroundSwitch(260L, token) {
-                scrim.animate()
-                    .alpha(0f)
-                    .setDuration(300L)
-                    .start()
-                postBackgroundSwitch(340L, token) {
-                    scrim.visibility = View.GONE
-                    backgroundSwitching = false
-                    settingsPage?.setThemeControlsEnabled(true)
-                }
+        runner.play(onCovered = {
+            if (lifecycleState == LifecycleState.Attached) {
+                host.renderSelection(selection.state.currentGame, mai, chu)
             }
-        }
-    }
-
-    private fun postBackgroundSwitch(delay: Long, token: Int, action: () -> Unit) {
-        val callback = object : Runnable {
-            override fun run() {
-                backgroundSwitchCallbacks.remove(this)
-                if (token == backgroundSwitchToken && lifecycleState == LifecycleState.Attached) action()
+        }, onFinished = {
+            if (lifecycleState == LifecycleState.Attached) {
+                backgroundSwitching = false
+                settingsPage?.setThemeControlsEnabled(true)
             }
-        }
-        backgroundSwitchCallbacks += callback
-        backgroundSwitchScrim?.postDelayed(callback, delay)
+        })
     }
 
     private fun cancelBackgroundSwitch() {
-        backgroundSwitchToken++
-        backgroundSwitchScrim?.let { scrim ->
-            backgroundSwitchCallbacks.forEach(scrim::removeCallbacks)
-            scrim.animate().cancel()
-            backgroundHost.removeView(scrim)
-        }
-        backgroundSwitchCallbacks.clear()
+        backgroundSwitchRunner?.cancel()
+        backgroundSwitchRunner = null
+        backgroundSwitchScrim?.let(backgroundHost::removeView)
         backgroundSwitchScrim = null
         backgroundSwitching = false
     }

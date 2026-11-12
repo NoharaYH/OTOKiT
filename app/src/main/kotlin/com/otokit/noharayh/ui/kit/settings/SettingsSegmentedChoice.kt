@@ -1,16 +1,14 @@
 package com.otokit.noharayh.ui.kit.settings
 
-import android.animation.ArgbEvaluator
-import android.animation.ValueAnimator
 import android.content.Context
 import androidx.core.graphics.ColorUtils
 import android.view.Gravity
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
-import com.otokit.noharayh.ui.animation.common.MotionInterpolators
+import com.otokit.noharayh.ui.animation.settings.SettingsChoiceTransitionRunner
+import com.otokit.noharayh.ui.constants.dimensions.ThemeSelectionDimensions as Dimensions
 import com.otokit.noharayh.ui.constants.dimensions.SettingsCardDimensions
-import com.otokit.noharayh.ui.constants.motion.MotionCurve
 import com.otokit.noharayh.ui.kit.common.AppTypography
 import com.otokit.noharayh.ui.kit.common.PressSurface
 
@@ -24,7 +22,7 @@ internal class SettingsSegmentedChoice(context: Context) : LinearLayout(context)
 
     private val buttons = mutableListOf<PressSurface>()
     private val labels = mutableListOf<TextView>()
-    private val animators = mutableMapOf<Int, ValueAnimator>()
+    private val transition = SettingsChoiceTransitionRunner()
     private var selectedIndex = -1
     private var controlsEnabled = true
     private var onSelected: ((Int) -> Unit)? = null
@@ -44,8 +42,7 @@ internal class SettingsSegmentedChoice(context: Context) : LinearLayout(context)
         removeAllViews()
         buttons.clear()
         this.labels.clear()
-        animators.values.forEach(ValueAnimator::cancel)
-        animators.clear()
+        transition.stop()
         this.onSelected = onSelected
         this.selectedIndex = selectedIndex
 
@@ -60,7 +57,7 @@ internal class SettingsSegmentedChoice(context: Context) : LinearLayout(context)
                 AppTypography.applyAppTypeface(this, bold = true)
             }
             text.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED)
-            val buttonHeight = dp(26)
+            val buttonHeight = dp(Dimensions.CHOICE_HEIGHT_DP)
             val textPadding = ((buttonHeight - text.measuredHeight) / 2).coerceAtLeast(0)
             val buttonWidth = text.measuredWidth + textPadding * 2
             val surface = PressSurface(context).apply {
@@ -81,7 +78,7 @@ internal class SettingsSegmentedChoice(context: Context) : LinearLayout(context)
             addView(
                 surface,
                 LayoutParams(buttonWidth, buttonHeight).apply {
-                    if (index > 0) marginStart = dp(4)
+                    if (index > 0) marginStart = dp(Dimensions.CHOICE_GAP_DP)
                 },
             )
         }
@@ -97,8 +94,7 @@ internal class SettingsSegmentedChoice(context: Context) : LinearLayout(context)
     }
 
     override fun onDetachedFromWindow() {
-        animators.values.toList().forEach(ValueAnimator::cancel)
-        animators.clear()
+        transition.stop()
         buttons.indices.forEach { applyState(it, if (it == selectedIndex) 1f else 0f) }
         super.onDetachedFromWindow()
     }
@@ -108,6 +104,8 @@ internal class SettingsSegmentedChoice(context: Context) : LinearLayout(context)
         val previous = selectedIndex
         selectedIndex = index
         if (!animate) {
+            transition.stop(previous)
+            transition.stop(index)
             applyState(previous, 0f)
             applyState(index, 1f)
             return
@@ -123,25 +121,11 @@ internal class SettingsSegmentedChoice(context: Context) : LinearLayout(context)
         val toRadius = radiusFor(toCapsule)
         val fromColor = (text.currentTextColor)
         val toColor = if (toCapsule) ACTIVE_TEXT else INACTIVE_TEXT
-        val evaluator = ArgbEvaluator()
-        animators.remove(index)?.cancel()
-        val animator = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = 220L
-            interpolator = MotionInterpolators.of(MotionCurve.FastOutSlowIn)
-            addUpdateListener {
-                val t = it.animatedValue as Float
-                surface.baseRadius = fromRadius + (toRadius - fromRadius) * t
-                text.setTextColor(displayColor(evaluator.evaluate(t, fromColor, toColor) as Int))
-                surface.invalidate()
-            }
+        transition.play(index, fromRadius, toRadius, fromColor, toColor) { radius, color ->
+            surface.baseRadius = radius
+            text.setTextColor(displayColor(color))
+            surface.invalidate()
         }
-        animators[index] = animator
-        animator.addListener(object : android.animation.AnimatorListenerAdapter() {
-            override fun onAnimationEnd(animation: android.animation.Animator) {
-                if (animators[index] === animation) animators.remove(index)
-            }
-        })
-        animator.start()
     }
 
     private fun applyState(index: Int, capsule: Float) {
@@ -156,7 +140,7 @@ internal class SettingsSegmentedChoice(context: Context) : LinearLayout(context)
         if (controlsEnabled) color else ColorUtils.blendARGB(color, android.graphics.Color.WHITE, 0.62f)
 
     private fun radiusFor(capsule: Boolean): Float = dp(
-        if (capsule) 13 else SettingsCardDimensions.CONTENT_CORNER_DP,
+        if (capsule) Dimensions.CHOICE_RADIUS_DP else SettingsCardDimensions.CONTENT_CORNER_DP,
     ).toFloat()
 
     private fun dp(value: Int): Int =
