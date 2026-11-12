@@ -31,7 +31,7 @@ class BackPreviewSessionTest {
     }
 
     @Test fun invalidatedFinishCannotReturnATarget() {
-        for (target in listOf(Target.Settings, Target.Drawer)) {
+        for (target in listOf(Target.Settings, Target.SettingsChild, Target.SettingsMenu, Target.Drawer)) {
             val session = BackPreviewSession()
             session.begin(target)
             session.update(0.7f)

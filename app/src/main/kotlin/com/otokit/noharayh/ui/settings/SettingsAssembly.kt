@@ -108,6 +108,16 @@ class SettingsAssembly(
         }
     }
 
+    private fun personalizationPage(): PersonalizationSettingsPage? =
+        if (renderedSection == SettingsSection.Personalization && !transitioning)
+            childHost.getChildAt(childHost.childCount - 1) as? PersonalizationSettingsPage else null
+
+    fun closeThemePanel(): Boolean = personalizationPage()?.closeThemePanel() == true
+    fun beginThemePanelBack(): Boolean = personalizationPage()?.beginThemePanelBack() == true
+    fun previewThemePanelBack(progress: Float) { personalizationPage()?.previewThemePanelBack(progress) }
+    fun cancelThemePanelBack() { personalizationPage()?.cancelThemePanelBack() }
+    fun finishThemePanelBack() { personalizationPage()?.finishThemePanelBack() }
+
     fun beginBackPreview(): Boolean {
         val current = renderedSection ?: return false
         settle(current)

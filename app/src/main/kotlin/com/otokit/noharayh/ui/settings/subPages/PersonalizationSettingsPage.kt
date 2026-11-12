@@ -13,6 +13,7 @@ import com.otokit.noharayh.ui.animation.settings.ThemeCardTransitionRunner
 import com.otokit.noharayh.ui.constants.dimensions.ThemeSelectionDimensions
 import com.otokit.noharayh.ui.constants.dimensions.SettingsCardDimensions
 import com.otokit.noharayh.ui.constants.motion.ThemeSelectionMotion
+import com.otokit.noharayh.ui.kit.settings.ThemeSelectorPanel
 import com.otokit.noharayh.ui.kit.settings.LabeledDropdownField
 import com.otokit.noharayh.ui.kit.settings.SettingsPageViews.card
 import com.otokit.noharayh.ui.kit.settings.SettingsPageViews.dp
@@ -61,6 +62,10 @@ internal class PersonalizationSettingsPage(
         }
     }
     private val transition = ThemeCardTransitionRunner(::renderFrame)
+    private val firstPanel = ThemeSelectorPanel(context, firstField, ::layoutContent)
+    private val secondPanel = ThemeSelectorPanel(context, secondField, ::layoutContent)
+    private val panels = listOf(firstPanel, secondPanel)
+    private var backPanel: ThemeSelectorPanel? = null
 
     init {
         val body = LinearLayout(context).apply {
@@ -76,15 +81,15 @@ internal class PersonalizationSettingsPage(
             val game = if (state.themeMode == ThemeSelectionMode.Merged) null else GameLine.Mai
             val id = if (game == null) state.mergedThemeId else state.maiThemeId
             val options = if (game == null) ThemeOptions.merged() else ThemeOptions.forGame(game)
-            firstField.toggleMenu(options.filterNot { it.id == id }) { onOptionSelected(it, game) }
+            togglePanel(firstPanel, options.filterNot { it.id == id }) { onOptionSelected(it, game) }
         }
         secondField.setOnClickListener {
             val state = renderedSelection ?: return@setOnClickListener
-            secondField.toggleMenu(ThemeOptions.forGame(GameLine.Chu)
+            togglePanel(secondPanel, ThemeOptions.forGame(GameLine.Chu)
                 .filterNot { it.id == state.chuThemeId }) { onOptionSelected(it, GameLine.Chu) }
         }
-        content.addView(firstField, FrameLayout.LayoutParams(-1, rowHeight))
-        content.addView(secondField, FrameLayout.LayoutParams(-1, rowHeight).apply {
+        content.addView(firstPanel, FrameLayout.LayoutParams(-1, rowHeight))
+        content.addView(secondPanel, FrameLayout.LayoutParams(-1, rowHeight).apply {
             topMargin = rowHeight + rowGap
         })
         segment.setItems(listOf(
@@ -121,7 +126,7 @@ internal class PersonalizationSettingsPage(
             }
             return
         }
-        fields.forEach { it.dismissMenu() }
+        panels.forEach { it.close() }
         val morph = previous != null && previous.themeMode != ThemeSelectionMode.None &&
             selection.themeMode != ThemeSelectionMode.None
         val valueChanged = when {
@@ -147,20 +152,15 @@ internal class PersonalizationSettingsPage(
         else ThemeOptions.resolveForGame(GameLine.Mai, state.maiThemeId).title
 
     private fun renderFrame(frame: ThemeCardFrame) {
-        val height = frame.height.roundToInt()
-        val gap = (dp(context, SettingsCardDimensions.CONTENT_INSET_DP) * frame.first).roundToInt()
-        val params = content.layoutParams as LinearLayout.LayoutParams
-        // 内容为空时不保留标题与内容的间距；进退时与字段共用同一动画进度。
-        if (params.height != height || params.topMargin != gap) {
-            content.layoutParams = params.apply { this.height = height; topMargin = gap }
-        }
+        layoutContent()
         // 过渡期间只裁内容；静止时释放裁剪，保留 PressSurface 外环。
         content.clipTransition = transition.isRunning
         fields.forEachIndexed { index, field ->
             val visibility = if (index == 0) frame.first else frame.second
-            field.visibility = if (visibility > 0f) View.VISIBLE else View.INVISIBLE
-            field.alpha = visibility
-            field.translationY = -ThemeSelectionMotion.FIELD_TRANSLATION_DP *
+            val panel = panels[index]
+            panel.visibility = if (visibility > 0f) View.VISIBLE else View.INVISIBLE
+            panel.setPresentation(visibility)
+            panel.translationY = -ThemeSelectionMotion.FIELD_TRANSLATION_DP *
                 resources.displayMetrics.density * (1f - visibility)
             field.importantForAccessibility = if (visibility == 1f && !transition.isRunning)
                 View.IMPORTANT_FOR_ACCESSIBILITY_AUTO else View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
@@ -170,13 +170,67 @@ internal class PersonalizationSettingsPage(
         updateControls()
     }
 
+    private fun layoutContent() {
+        val frame = transition.frame
+        val firstExtra = firstPanel.extraHeight * frame.first
+        val secondExtra = secondPanel.extraHeight * frame.second
+        val height = (frame.height + firstExtra + secondExtra).roundToInt()
+        val gap = (dp(context, SettingsCardDimensions.CONTENT_INSET_DP) * frame.first).roundToInt()
+        (content.layoutParams as? LinearLayout.LayoutParams)?.let { params ->
+            if (params.height != height || params.topMargin != gap) {
+                content.layoutParams = params.apply { this.height = height; topMargin = gap }
+            }
+        }
+        panels.forEachIndexed { index, panel ->
+            val params = panel.layoutParams as? FrameLayout.LayoutParams ?: return@forEachIndexed
+            val panelHeight = rowHeight + panel.extraHeight.roundToInt()
+            val top = if (index == 0) 0 else rowHeight + rowGap + firstExtra.roundToInt()
+            if (params.height != panelHeight || params.topMargin != top) {
+                panel.layoutParams = params.apply { this.height = panelHeight; topMargin = top }
+            }
+        }
+    }
+
+    private fun togglePanel(panel: ThemeSelectorPanel, options: List<ThemeOption>, onSelected: (ThemeOption) -> Unit) {
+        if (panel.isOpen) { panel.close(); return }
+        panels.filterNot { it === panel }.forEach { it.close() }
+        // 预算只依赖视口，不随本次展开后的卡片高度变化，避免测量反馈循环。
+        val budget = (height - rowHeight * 2 - rowGap * 4).coerceAtLeast(rowHeight + rowGap * 2)
+        panel.open(options, budget, onSelected)
+    }
+
+    fun closeThemePanel(): Boolean {
+        val panel = panels.firstOrNull { it.isOpen } ?: return false
+        panel.close()
+        return true
+    }
+    fun beginThemePanelBack(): Boolean {
+        val panel = panels.firstOrNull { it.isOpen } ?: return false
+        if (!panel.beginBackPreview()) return false
+        backPanel = panel
+        updateControls()
+        return true
+    }
+    fun previewThemePanelBack(progress: Float) { backPanel?.previewBack(progress) }
+    fun cancelThemePanelBack() {
+        backPanel?.cancelBackPreview()
+        backPanel = null
+        updateControls()
+    }
+    fun finishThemePanelBack() {
+        backPanel?.finishBackPreview()
+        backPanel = null
+        updateControls()
+    }
+
     fun setControlsEnabled(enabled: Boolean) { controlsEnabled = enabled; updateControls() }
 
     private fun updateControls() {
         val enabled = controlsEnabled && !transition.isRunning
-        segment.setControlsEnabled(enabled)
-        firstField.setControlsEnabled(enabled && transition.frame.first == 1f)
-        secondField.setControlsEnabled(enabled && transition.frame.second == 1f)
+        segment.setControlsEnabled(enabled && backPanel == null)
+        panels.forEach { it.setControlsEnabled(enabled) }
+        firstField.setControlsEnabled(enabled && backPanel == null && transition.frame.first == 1f)
+        secondField.setControlsEnabled(enabled && backPanel == null && transition.frame.second == 1f)
     }
 
     fun setDisabledProgress(progress: Float) {
@@ -185,7 +239,9 @@ internal class PersonalizationSettingsPage(
     }
 
     override fun onDetachedFromWindow() {
+        backPanel = null
         transition.finish()
+        panels.forEach { it.reset() }
         super.onDetachedFromWindow()
     }
 

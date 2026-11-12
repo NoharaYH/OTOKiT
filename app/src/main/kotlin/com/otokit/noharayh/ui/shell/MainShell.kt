@@ -98,7 +98,7 @@ class MainShell(
         sidebarHost = sidebarHost,
         onNavigate = { destination -> onDrawerNavigate(destination) },
         onOpenSettings = { openSettings() },
-        onCloseSettings = { consumeBack() },
+        onCloseSettings = { navigateSettingsBack() },
         onInsetsChanged = { insets -> onChromeInsetsChanged(insets) },
         onInputBlockedChanged = { onDrawerInputChanged() },
         onStatusBarHiddenChanged = { hidden -> statusBarHiddenListener?.invoke(hidden) },
@@ -378,6 +378,13 @@ class MainShell(
         render()
     }
 
+    /** 标题栏返回明确离开当前设置层级，不消费局部选择面板。 */
+    private fun navigateSettingsBack() {
+        if (lifecycleState != LifecycleState.Attached || !controller.state.settingsOpen) return
+        invalidateBackPreview()
+        if (controller.consumeBack()) render()
+    }
+
     fun consumeBack(): Boolean {
         if (lifecycleState != LifecycleState.Attached) return false
         if (backPreview.awaitingTerminal) {
@@ -385,6 +392,7 @@ class MainShell(
             return true
         }
         if (chrome.consumeBack()) return true
+        if (controller.state.settingsOpen && settingsPage?.closeThemePanel() == true) return true
         if (controller.state.settingsOpen && controller.state.settingsSection == null) settingsPage?.settle(null)
         val consumed = controller.consumeBack()
         if (consumed) render()
@@ -794,6 +802,10 @@ class MainShell(
             backPreview.begin(Target.Drawer)
             return true
         }
+        if (controller.state.settingsOpen && settingsPage?.beginThemePanelBack() == true) {
+            backPreview.begin(Target.SettingsMenu)
+            return true
+        }
         if (controller.state.settingsOpen && controller.state.settingsSection != null) {
             settingsRunner?.endPreview(true)
             chrome.settleTransitions()
@@ -822,6 +834,7 @@ class MainShell(
                 settingsRunner?.preview(backPreview.progress)
             }
 
+            Target.SettingsMenu -> settingsPage?.previewThemePanelBack(backPreview.progress)
             Target.SettingsChild -> settingsPage?.preview(backPreview.progress)
             Target.Drawer -> chrome.updateDrawerBackPreview(backPreview.progress)
             Target.None -> Unit
@@ -836,6 +849,7 @@ class MainShell(
                 settingsRunner?.cancelPreview()
             }
 
+            Target.SettingsMenu -> settingsPage?.cancelThemePanelBack()
             Target.SettingsChild -> settingsPage?.cancelPreview()
             Target.Drawer -> chrome.cancelDrawerBackPreview()
             Target.None, null -> Unit
@@ -852,6 +866,7 @@ class MainShell(
             return
         }
         when (preview.target) {
+            Target.SettingsMenu -> settingsPage?.finishThemePanelBack()
             Target.Settings -> {
                 if (!controller.state.settingsOpen) return
                 chrome.endBackPreview()
@@ -901,6 +916,7 @@ class MainShell(
                 settingsRunner?.cancelPreview()
             }
 
+            Target.SettingsMenu -> settingsPage?.cancelThemePanelBack()
             Target.SettingsChild -> settingsPage?.cancelPreview()
             Target.Drawer -> chrome.cancelDrawerBackPreview()
             Target.None -> return

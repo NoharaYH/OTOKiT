@@ -2,7 +2,7 @@ package com.otokit.noharayh.ui.shell.navigation
 
 /** 返回手势的瞬态会话，不持有导航状态或 View。失效后仍等待本轮终止事件。 */
 internal class BackPreviewSession {
-    enum class Target { None, Settings, SettingsChild, Drawer }
+    enum class Target { None, Settings, SettingsChild, SettingsMenu, Drawer }
     private enum class Phase { Idle, Active, Invalidated }
     data class Preview(val target: Target, val progress: Float)
 

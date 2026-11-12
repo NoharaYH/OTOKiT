@@ -19,7 +19,6 @@ import com.otokit.noharayh.ui.constants.motion.ThemeSelectionMotion
 import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.kit.common.AppTypography
 import com.otokit.noharayh.ui.kit.common.PressSurface
-import com.otokit.noharayh.ui.theme.ThemeOption
 
 /** 胶囊触发框；描边和反馈层共享按压几何，不叠加固定尺寸外框。 */
 @android.annotation.SuppressLint("ViewConstructor") // 仅由代码提供标签并创建。
@@ -91,7 +90,7 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
         }
         val overflow = drawingOverflow
         val layer = canvas.saveLayerAlpha(-overflow, -overflow,
-            width + overflow, height + overflow, drawingAlpha)
+            width + overflow, height + panelHeight + overflow, drawingAlpha)
         super.draw(canvas)
         canvas.restoreToCount(layer)
     }
@@ -109,7 +108,8 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
     }
 
     private val arrowRunner = ThemeDropdownArrowRunner(arrow)
-    private var menu: ThemeDropdownMenu? = null
+    private var panelHeight = 0f
+    private var panelGap = 0f
     private var pressedAt = 0L
 
     init {
@@ -153,7 +153,7 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
 
     override fun drawOutline(canvas: Canvas, cornerRadius: Float, inset: Float) {
         val half = stroke.strokeWidth / 2f
-        outline.set(inset + half, inset + half, width - inset - half, height - inset - half)
+        outline.set(inset + half, inset + half, width - inset - half, height + panelHeight - inset - half)
         val radius = (cornerRadius - half).coerceAtLeast(0f)
         val gapStart = (labelView.left - dp(Dimensions.LABEL_GAP_DP)).toFloat().coerceIn(outline.left + radius, outline.right - radius)
         val gapEnd = (labelView.right + labelView.translationX + dp(Dimensions.LABEL_GAP_DP)).coerceIn(gapStart, outline.right - radius)
@@ -165,12 +165,20 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
         outlinePath.lineTo(outline.right - radius, outline.top)
         arc.set(outline.right - radius * 2, outline.top, outline.right, outline.top + radius * 2)
         outlinePath.arcTo(arc, -90f, 90f)
+        val stub = Dimensions.PANEL_STROKE_STUB_DP * resources.displayMetrics.density
+        val opening = (outline.height() - 2f * (radius + stub)).coerceAtLeast(0f) * panelGap
+        val upperEnd = outline.centerY() - opening / 2f
+        val lowerStart = outline.centerY() + opening / 2f
+        outlinePath.lineTo(outline.right, upperEnd)
+        if (opening > 0f) outlinePath.moveTo(outline.right, lowerStart)
         outlinePath.lineTo(outline.right, outline.bottom - radius)
         arc.set(outline.right - radius * 2, outline.bottom - radius * 2, outline.right, outline.bottom)
         outlinePath.arcTo(arc, 0f, 90f)
         outlinePath.lineTo(outline.left + radius, outline.bottom)
         arc.set(outline.left, outline.bottom - radius * 2, outline.left + radius * 2, outline.bottom)
         outlinePath.arcTo(arc, 90f, 90f)
+        outlinePath.lineTo(outline.left, lowerStart)
+        if (opening > 0f) outlinePath.moveTo(outline.left, upperEnd)
         outlinePath.lineTo(outline.left, outline.top + radius)
         arc.set(outline.left, outline.top, outline.left + radius * 2, outline.top + radius * 2)
         outlinePath.arcTo(arc, 180f, 90f)
@@ -211,7 +219,6 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
     }
 
     fun setControlsEnabled(enabled: Boolean) {
-        if (!enabled) dismissMenu()
         isEnabled = enabled
     }
 
@@ -227,36 +234,23 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
         invalidate()
     }
 
-    fun toggleMenu(options: List<ThemeOption>, onSelected: (ThemeOption) -> Unit) {
-        if (!isEnabled) return
-        if (menu != null) {
-            menu?.dismiss()
-            return
-        }
-        setExpanded(true)
-        val openingHapticDelay = (ThemeSelectionMotion.OPEN_HAPTIC_GAP_MS - (SystemClock.uptimeMillis() - pressedAt)).coerceAtLeast(0L)
-        menu = ThemeDropdownMenu.show(this, options, openingHapticDelay, { option ->
-            onSelected(option)
-        }) {
-            menu = null
-            setExpanded(false)
-        }
+    fun renderPanel(extraHeight: Float, gap: Float) {
+        panelHeight = extraHeight
+        panelGap = gap
+        invalidate()
     }
 
-    fun dismissMenu() {
-        menu?.dismiss(immediate = true)
-        menu = null
-    }
+    fun openingHapticDelay(): Long =
+        (ThemeSelectionMotion.OPEN_HAPTIC_GAP_MS - (SystemClock.uptimeMillis() - pressedAt)).coerceAtLeast(0L)
+
+    fun setExpanded(expanded: Boolean) { arrowRunner.render(expanded) }
+    fun previewExpanded(progress: Float) { arrowRunner.preview(progress) }
 
     override fun onDetachedFromWindow() {
-        dismissMenu()
         arrowRunner.reset()
         super.onDetachedFromWindow()
     }
 
-    private fun setExpanded(expanded: Boolean) {
-        arrowRunner.render(expanded)
-    }
 
     private fun dp(value: Int) = (value * resources.displayMetrics.density + 0.5f).toInt()
 }
