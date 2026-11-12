@@ -31,6 +31,7 @@ internal class SettingsSegmentedChoice(context: Context) : LinearLayout(context)
 
     init {
         orientation = HORIZONTAL
+        gravity = Gravity.END or Gravity.CENTER_VERTICAL
         clipChildren = false
         clipToPadding = false
     }
@@ -53,19 +54,22 @@ internal class SettingsSegmentedChoice(context: Context) : LinearLayout(context)
                 text = label
                 textSize = 12f
                 maxLines = 1
-                androidx.core.widget.TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(this, 9, 12, 1, android.util.TypedValue.COMPLEX_UNIT_SP)
                 gravity = Gravity.CENTER
                 includeFontPadding = false
                 setTextColor(if (index == selectedIndex) ACTIVE_TEXT else INACTIVE_TEXT)
                 AppTypography.applyAppTypeface(this, bold = true)
             }
+            text.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED)
+            val buttonHeight = dp(26)
+            val textPadding = ((buttonHeight - text.measuredHeight) / 2).coerceAtLeast(0)
+            val buttonWidth = text.measuredWidth + textPadding * 2
             val surface = PressSurface(context).apply {
                 outerHaloEnabled = true
                 deferClickUntilReleaseFeedback = false
                 fillColor = INACTIVE_FILL
                 baseRadius = radiusFor(index == selectedIndex)
                 contentDescription = label
-                setPadding(dp(3), 0, dp(3), 0)
+                setPadding(textPadding, textPadding, textPadding, textPadding)
                 addView(text, FrameLayout.LayoutParams(-1, -1))
                 setOnClickListener {
                     if (this@SettingsSegmentedChoice.selectedIndex == index) return@setOnClickListener
@@ -77,7 +81,7 @@ internal class SettingsSegmentedChoice(context: Context) : LinearLayout(context)
             this.labels += text
             addView(
                 surface,
-                LayoutParams(0, dp(32), 1f).apply {
+                LayoutParams(buttonWidth, buttonHeight).apply {
                     if (index > 0) marginStart = dp(4)
                 },
             )
@@ -153,7 +157,7 @@ internal class SettingsSegmentedChoice(context: Context) : LinearLayout(context)
         if (controlsEnabled) color else ColorUtils.blendARGB(color, android.graphics.Color.WHITE, 0.62f)
 
     private fun radiusFor(capsule: Boolean): Float = dp(
-        if (capsule) 16 else SettingsCardDimensions.CONTENT_CORNER_DP,
+        if (capsule) 13 else SettingsCardDimensions.CONTENT_CORNER_DP,
     ).toFloat()
 
     private fun dp(value: Int): Int =

@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.RectF
 import android.os.SystemClock
 import android.view.Gravity
@@ -22,8 +23,13 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
         color = 0xFF757575.toInt()
         style = Paint.Style.STROKE
         strokeWidth = 2.5f * resources.displayMetrics.density
+        strokeCap = Paint.Cap.ROUND
     }
     private val outline = RectF()
+    private val outlinePath = Path()
+    private val arc = RectF()
+    override val surfaceFillInset: Float
+        get() = stroke.strokeWidth / 2f
     private val valueView = TextView(context).apply {
         textSize = 14f
         includeFontPadding = false
@@ -44,8 +50,8 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
         includeFontPadding = false
         gravity = Gravity.CENTER
         setTextColor(0xFF757575.toInt())
-        setPadding(dp(4), 0, dp(4), 0)
-        setBackgroundColor(Color.WHITE)
+        maxLines = 1
+        ellipsize = android.text.TextUtils.TruncateAt.END
         AppTypography.applyAppTypeface(this)
     }
     private var menu: ThemeDropdownMenu? = null
@@ -60,17 +66,20 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
         clipToPadding = false
         val row = LinearLayout(context).apply {
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(16), 0, dp(12), 0)
+            setPadding(dp(26), 0, dp(12), 0)
             addView(valueView, LinearLayout.LayoutParams(0, -1, 1f))
             addView(arrow, LinearLayout.LayoutParams(dp(20), dp(20)))
         }
         addView(row, LayoutParams(-1, dp(44)))
-        addView(labelView, LayoutParams(-2, -2).apply { leftMargin = dp(14) })
+        addView(labelView, LayoutParams(-2, -2).apply {
+            leftMargin = dp(26)
+            rightMargin = dp(26)
+        })
     }
 
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
         super.onLayout(changed, left, top, right, bottom)
-        labelView.translationY = -labelView.height / 2f + dp(2)
+        labelView.translationY = -labelView.height / 2f + stroke.strokeWidth / 2f
     }
 
     override fun onPressStateChanged(pressed: Boolean) {
@@ -82,7 +91,26 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
         val half = stroke.strokeWidth / 2f
         outline.set(inset + half, inset + half, width - inset - half, height - inset - half)
         val radius = (cornerRadius - half).coerceAtLeast(0f)
-        canvas.drawRoundRect(outline, radius, radius, stroke)
+        val gapStart = (labelView.left - dp(4)).toFloat().coerceIn(outline.left + radius, outline.right - radius)
+        val gapEnd = (labelView.right + dp(4)).toFloat().coerceIn(gapStart, outline.right - radius)
+        labelView.translationY = outline.top - labelView.height / 2f
+        // 描边在标签两侧主动断开，圆形笔帽收尾；文字不再用白色矩形覆盖描边。
+        outlinePath.rewind()
+        outlinePath.moveTo(gapEnd, outline.top)
+        outlinePath.lineTo(outline.right - radius, outline.top)
+        arc.set(outline.right - radius * 2, outline.top, outline.right, outline.top + radius * 2)
+        outlinePath.arcTo(arc, -90f, 90f)
+        outlinePath.lineTo(outline.right, outline.bottom - radius)
+        arc.set(outline.right - radius * 2, outline.bottom - radius * 2, outline.right, outline.bottom)
+        outlinePath.arcTo(arc, 0f, 90f)
+        outlinePath.lineTo(outline.left + radius, outline.bottom)
+        arc.set(outline.left, outline.bottom - radius * 2, outline.left + radius * 2, outline.bottom)
+        outlinePath.arcTo(arc, 90f, 90f)
+        outlinePath.lineTo(outline.left, outline.top + radius)
+        arc.set(outline.left, outline.top, outline.left + radius * 2, outline.top + radius * 2)
+        outlinePath.arcTo(arc, 180f, 90f)
+        outlinePath.lineTo(gapStart, outline.top)
+        canvas.drawPath(outlinePath, stroke)
     }
 
     fun setValue(title: String) {

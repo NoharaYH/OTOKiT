@@ -249,6 +249,9 @@ open class PressSurface @JvmOverloads constructor(
     /** 与底形共享按压几何的描边，绘制在反馈层之上、文字之下。 */
     protected open fun drawOutline(canvas: Canvas, cornerRadius: Float, inset: Float) = Unit
 
+    /** 填充与内部反馈相对外形额外内缩的距离，带描边的控件可对齐到描边中心。 */
+    protected open val surfaceFillInset: Float = 0f
+
     private companion object {
         /** 按下与抬起触觉之间的最小间隔，避免抬起被 HAL 以 ignored_for_ongoing 丢弃。 */
         const val MIN_HAPTIC_GAP_MS = PressSurfaceSpec.MIN_HAPTIC_GAP_MS
@@ -421,8 +424,10 @@ open class PressSurface @JvmOverloads constructor(
         }
 
         val layer = canvas.saveLayer(0f, 0f, width.toFloat(), height.toFloat(), null)
-        shapeCorners.fill(top, 0, 4)
-        shapeCorners.fill(bottom, 4, 8)
+        val fillInset = surfaceFillInset.coerceIn(0f, cap)
+        shapeRect.inset(fillInset, fillInset)
+        shapeCorners.fill((top - fillInset).coerceAtLeast(0f), 0, 4)
+        shapeCorners.fill((bottom - fillInset).coerceAtLeast(0f), 4, 8)
         shapePath.reset()
         shapePath.addRoundRect(shapeRect, shapeCorners, Path.Direction.CW)
         canvas.drawPath(shapePath, fillPaint)
