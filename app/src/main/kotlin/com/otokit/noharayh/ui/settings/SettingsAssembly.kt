@@ -13,6 +13,8 @@ import com.otokit.noharayh.ui.constants.display.DisplayScaleOption
 import com.otokit.noharayh.ui.shell.navigation.SettingsSection
 import com.otokit.noharayh.ui.shell.selection.GameSelectionState
 import com.otokit.noharayh.ui.settings.subPages.PersonalizationSettingsPage
+import com.otokit.noharayh.ui.settings.subPages.AppSettingsPage
+import com.otokit.noharayh.ui.shell.background.BackgroundRenderingOptions
 import com.otokit.noharayh.ui.theme.GameLine
 import com.otokit.noharayh.ui.theme.ThemeOption
 import com.otokit.noharayh.ui.theme.ThemeSelectionMode
@@ -25,6 +27,10 @@ class SettingsAssembly(
     private val onOpenLink: (String) -> Unit,
     private val displayScale: DisplayScaleOption,
     private val onDisplayScaleSelected: (DisplayScaleOption) -> Unit,
+    private val renderingProvider: () -> BackgroundRenderingOptions,
+    private val onHardwareAccelerationSelected: (Boolean) -> Unit,
+    private val onHtmlAnimationsSelected: (Boolean) -> Unit,
+    private val takeHardwareWarning: () -> Boolean,
     private val selectionProvider: () -> GameSelectionState,
     private val onThemeModeSelected: (ThemeSelectionMode) -> Unit,
     private val onThemeOptionSelected: (ThemeOption, GameLine?) -> Unit,
@@ -47,6 +53,13 @@ class SettingsAssembly(
     private var disposed = false
     private var themeControlsEnabled = true
     private var themeDisabledProgress = 0f
+
+    fun renderBackgroundRendering(options: BackgroundRenderingOptions) {
+        if (disposed) return
+        for (index in 0 until childHost.childCount) {
+            (childHost.getChildAt(index) as? AppSettingsPage)?.renderBackgroundRendering(options)
+        }
+    }
 
     fun renderThemeSelection(selection: GameSelectionState) {
         if (disposed) return
@@ -241,6 +254,10 @@ class SettingsAssembly(
         openLink = onOpenLink,
         displayScale = displayScale,
         onDisplayScaleSelected = onDisplayScaleSelected,
+        rendering = renderingProvider(),
+        onHardwareAccelerationSelected = onHardwareAccelerationSelected,
+        onHtmlAnimationsSelected = onHtmlAnimationsSelected,
+        takeHardwareWarning = takeHardwareWarning,
         selection = selectionProvider(),
         onThemeModeSelected = {
             onThemeModeSelected(it)

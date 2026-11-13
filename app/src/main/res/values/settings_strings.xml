@@ -18,6 +18,11 @@
     <string name="about_feedback_subtitle">前往 GitHub Issues 门户</string>
     <string name="about_repo_url">https://github.com/NoharaYH/OTOKiT</string>
     <string name="settings_display_scale">应用显示比例</string>
+    <string name="settings_background_hardware_acceleration">硬件加速</string>
+    <string name="settings_background_html_animations">HTML 动画</string>
+    <string name="settings_hardware_warning"><annotation color="warning">关闭硬件加速将会造成严重卡顿！</annotation>请确认是否关闭。若有真实需要，<annotation color="warning">请先关闭HTML动画</annotation>后再关闭本选项！</string>
+    <string name="settings_hardware_confirm">我想好了</string>
+    <string name="settings_hardware_cancel">暂时不用</string>
     <string name="settings_display_scale_small">较小（70%）</string>
     <string name="settings_display_scale_standard">默认（85%）</string>
     <string name="settings_display_scale_large">较大（100%）</string>

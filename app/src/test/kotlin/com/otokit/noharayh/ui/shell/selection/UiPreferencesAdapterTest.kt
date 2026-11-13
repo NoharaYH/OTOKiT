@@ -2,6 +2,7 @@ package com.otokit.noharayh.ui.shell.selection
 
 import com.otokit.noharayh.storage.preferences.UiPreferenceRecord
 import com.otokit.noharayh.storage.preferences.UiPreferences
+import com.otokit.noharayh.ui.shell.background.BackgroundRenderingOptions
 import com.otokit.noharayh.ui.theme.ThemeSelectionMode
 import com.otokit.noharayh.ui.theme.GameLine
 import org.junit.Assert.assertEquals
@@ -50,6 +51,35 @@ class UiPreferencesAdapterTest {
         }
     }
 
+    @Test
+    fun oldPreferencesKeepBothRenderingOptionsEnabled() {
+        val adapter = UiPreferencesAdapter(FakePreferences(UiPreferenceRecord(null, null, null, null)))
+        assertEquals(BackgroundRenderingOptions(), adapter.readBackgroundRendering())
+    }
+
+    @Test
+    fun renderingAndThemeWritesPreserveEachOtherForEveryCombination() {
+        for (hardware in listOf(false, true)) for (animations in listOf(false, true)) {
+            val fake = FakePreferences(UiPreferenceRecord(null, null, null, null))
+            val adapter = UiPreferencesAdapter(fake)
+            val theme = GameSelectionState(GameLine.Chu, "mai-a", "chu-a", ThemeSelectionMode.Merged, "shared")
+            val options = BackgroundRenderingOptions(hardware, animations)
+            adapter.write(theme)
+            adapter.writeBackgroundRendering(options)
+            assertEquals(GameSelectionFormat.encode(theme), adapter.read())
+            assertEquals(options, adapter.readBackgroundRendering())
+            adapter.write(theme.copy(currentGame = GameLine.Mai))
+            assertEquals(options, adapter.readBackgroundRendering())
+        }
+    }
+
+    @Test
+    fun missingRenderingFieldDoesNotResetTheOtherField() {
+        val fake = FakePreferences(UiPreferenceRecord(null, null, null, null,
+            backgroundHtmlAnimations = false))
+        assertEquals(BackgroundRenderingOptions(true, false), UiPreferencesAdapter(fake).readBackgroundRendering())
+    }
+
     private class FakePreferences(var record: UiPreferenceRecord) : UiPreferences {
 
         var written: UiPreferenceRecord? = null
@@ -66,8 +96,14 @@ class UiPreferencesAdapterTest {
             mergedThemeId: String,
         ) {
             writeCount++
-            written = UiPreferenceRecord(version, currentGame, maiThemeId, chuThemeId, themeMode, mergedThemeId)
+            written = record.copy(version = version, currentGame = currentGame, maiThemeId = maiThemeId,
+                chuThemeId = chuThemeId, themeMode = themeMode, mergedThemeId = mergedThemeId)
             record = requireNotNull(written)
+        }
+
+        override fun writeBackgroundRendering(hardwareAccelerated: Boolean, htmlAnimations: Boolean) {
+            record = record.copy(backgroundHardwareAcceleration = hardwareAccelerated,
+                backgroundHtmlAnimations = htmlAnimations)
         }
     }
 }

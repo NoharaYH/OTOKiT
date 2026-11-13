@@ -2,6 +2,7 @@ package com.otokit.noharayh.ui.shell.selection
 
 import com.otokit.noharayh.storage.preferences.UiPreferenceRecord
 import com.otokit.noharayh.storage.preferences.UiPreferences
+import com.otokit.noharayh.ui.shell.background.BackgroundRenderingOptions
 
 /**
  * 把 storage 的原始偏好字段映射成选择恢复候选，并把稳定状态编码后写回。
@@ -11,6 +12,14 @@ import com.otokit.noharayh.storage.preferences.UiPreferences
 class UiPreferencesAdapter(private val preferences: UiPreferences) {
 
     fun read(): SelectionSource = preferences.readSelection().toSelectionSource()
+
+    fun readBackgroundRendering(): BackgroundRenderingOptions = preferences.readSelection().let {
+        BackgroundRenderingOptions(it.backgroundHardwareAcceleration ?: true, it.backgroundHtmlAnimations ?: true)
+    }
+
+    fun writeBackgroundRendering(options: BackgroundRenderingOptions) {
+        preferences.writeBackgroundRendering(options.hardwareAccelerated, options.htmlAnimations)
+    }
 
     fun write(state: GameSelectionState) {
         preferences.writeSelection(

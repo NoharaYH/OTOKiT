@@ -23,6 +23,8 @@ class SharedPreferencesUiPreferences(context: Context) : UiPreferences {
             chuThemeId = stored[KEY_THEME_CHU] as? String,
             themeMode = stored[KEY_THEME_MODE] as? String,
             mergedThemeId = stored[KEY_MERGED_THEME] as? String,
+            backgroundHardwareAcceleration = stored[KEY_BACKGROUND_HARDWARE] as? Boolean,
+            backgroundHtmlAnimations = stored[KEY_BACKGROUND_ANIMATIONS] as? Boolean,
         )
     }
 
@@ -44,6 +46,13 @@ class SharedPreferencesUiPreferences(context: Context) : UiPreferences {
         }
     }
 
+    override fun writeBackgroundRendering(hardwareAccelerated: Boolean, htmlAnimations: Boolean) {
+        preferences.edit {
+            putBoolean(KEY_BACKGROUND_HARDWARE, hardwareAccelerated)
+            putBoolean(KEY_BACKGROUND_ANIMATIONS, htmlAnimations)
+        }
+    }
+
     companion object {
         const val FILE_NAME: String = "ui_shell_preferences"
         const val KEY_VERSION: String = "version"
@@ -52,5 +61,7 @@ class SharedPreferencesUiPreferences(context: Context) : UiPreferences {
         const val KEY_THEME_CHU: String = "theme_chu"
         const val KEY_THEME_MODE: String = "theme_mode"
         const val KEY_MERGED_THEME: String = "merged_theme"
+        const val KEY_BACKGROUND_HARDWARE = "background_hardware_acceleration"
+        const val KEY_BACKGROUND_ANIMATIONS = "background_html_animations"
     }
 }

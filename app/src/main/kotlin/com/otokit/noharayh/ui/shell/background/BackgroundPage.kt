@@ -1,7 +1,10 @@
 package com.otokit.noharayh.ui.shell.background
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.graphics.Color
+import android.graphics.Canvas
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.WebResourceRequest
@@ -33,18 +36,35 @@ internal class BackgroundPage(
         importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
     }
 
-    private val webView: WebView = WebView(context).apply {
+    private var rendering = BackgroundRenderingOptions()
+    private var documentReady = false
+    private val debugLogging = context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
+
+    @android.annotation.SuppressLint("SetJavaScriptEnabled") // 仅操作本地背景的 CSS 状态，不暴露 Java bridge。
+    private val webView: WebView = object : WebView(context) {
+        private var lastDrawHardware: Boolean? = null
+        override fun onDraw(canvas: Canvas) {
+            if (debugLogging && lastDrawHardware != canvas.isHardwareAccelerated) {
+                lastDrawHardware = canvas.isHardwareAccelerated
+                Log.d("BackgroundRendering", "$gameLine drawCanvasHardware=${canvas.isHardwareAccelerated}")
+            }
+            super.onDraw(canvas)
+        }
+    }.apply {
         setBackgroundColor(Color.TRANSPARENT)
         isFocusable = false
         importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         isVerticalScrollBarEnabled = false
         isHorizontalScrollBarEnabled = false
         settings.apply {
-            javaScriptEnabled = false
+            javaScriptEnabled = true
             loadWithOverviewMode = true
             useWideViewPort = true
         }
         webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
+                !request.url.toString().startsWith(AssetBackgroundLoader.BASE_URL)
+
             override fun shouldInterceptRequest(
                 view: WebView,
                 request: WebResourceRequest,
@@ -53,19 +73,24 @@ internal class BackgroundPage(
             override fun onPageFinished(view: WebView, url: String?) {
                 super.onPageFinished(view, url)
                 if (url != expectedUrl || loadedHtmlThemeId == null) return
+                documentReady = true
                 val requestId = ++visualRequest
                 // onPageFinished 仍可能早于最后一张 WebP 上屏；再等视觉状态提交。
-                view.postVisualStateCallback(
-                    requestId,
-                    object : WebView.VisualStateCallback() {
-                        override fun onComplete(id: Long) {
-                            if (id == visualRequest && loadedHtmlThemeId != null && !readySent) {
-                                readySent = true
-                                onFirstVisualReady()
+                applyAnimationState {
+                    if (requestId == visualRequest && documentReady && loadedHtmlThemeId != null) {
+                        view.postVisualStateCallback(
+                            requestId,
+                            object : WebView.VisualStateCallback() {
+                                override fun onComplete(id: Long) {
+                                    if (id == visualRequest && loadedHtmlThemeId != null && !readySent) {
+                                        readySent = true
+                                        onFirstVisualReady()
+                                    }
+                                }
                             }
-                        }
-                    },
-                )
+                        )
+                    }
+                }
             }
 
             override fun onPageCommitVisible(view: WebView, url: String?) {
@@ -82,6 +107,35 @@ internal class BackgroundPage(
     private var readySent = false
     private var resumed = false
     private var expectedUrl: String? = null
+
+    /** 只切换背景层的绘制路径及 CSS 状态，不重载页面或覆盖 Activity 的硬件设置。 */
+    fun setRenderingOptions(options: BackgroundRenderingOptions) {
+        rendering = options
+        val layer = if (options.hardwareAccelerated) View.LAYER_TYPE_NONE else View.LAYER_TYPE_SOFTWARE
+        if (webView.layerType != layer) webView.setLayerType(layer, null)
+        if (documentReady) applyAnimationState()
+        if (debugLogging) Log.d("BackgroundRendering", "$gameLine hardware=${options.hardwareAccelerated} " +
+            "layer=${webView.layerType} windowAccelerated=${webView.isHardwareAccelerated} animations=${options.htmlAnimations}")
+    }
+
+    private fun applyAnimationState(onApplied: () -> Unit = {}) {
+        if (!documentReady || loadedHtmlThemeId == null) return
+        // 单一样式同时覆盖元素和伪元素；移除覆盖后由原始 CSS 从暂停位置接续。
+        // JS 只在设置改变或文档加载后执行，没有计时器、逐帧回调或原生接口。
+        val disabled = rendering.htmlAnimations
+        webView.evaluateJavascript("""
+            (() => {
+              let style = document.getElementById('otokit-animation-control');
+              if (!style) {
+                style = document.createElement('style');
+                style.id = 'otokit-animation-control';
+                style.textContent = '*,*::before,*::after{animation-play-state:paused!important}';
+                document.head.appendChild(style);
+              }
+              style.disabled = $disabled;
+            })()
+        """.trimIndent()) { onApplied() }
+    }
 
     private val solidView: View = View(context).apply {
         isClickable = false
@@ -118,6 +172,7 @@ internal class BackgroundPage(
         loadedSelectionKey = key
         visualRequest++
         readySent = false
+        documentReady = false
         when (selection) {
             is BackgroundSelection.Html -> {
                 loadedHtmlThemeId = selection.theme.id
@@ -139,6 +194,7 @@ internal class BackgroundPage(
 
     private fun showSolid(color: Int) {
         loadedHtmlThemeId = null
+        documentReady = false
         expectedUrl = null
         webView.onPause()
         webView.stopLoading()
@@ -165,6 +221,7 @@ internal class BackgroundPage(
     }
 
     fun destroy() {
+        documentReady = false
         visualRequest++
         loadedHtmlThemeId = null
         loadedSelectionKey = null

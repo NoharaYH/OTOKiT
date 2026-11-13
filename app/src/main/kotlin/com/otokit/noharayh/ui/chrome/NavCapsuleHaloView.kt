@@ -48,7 +48,8 @@ internal class NavCapsuleHaloView(context: Context) : View(context) {
 
     private val restRunnable = Runnable {
         if (!released) {
-            expansionAnim.spring = SpringForce(1f)
+            // 保留停止阈值；运行中只调参，不替换 SpringForce。
+            expansionAnim.spring
                 .setDampingRatio(NavCapsulePressSpec.REST_DAMPING)
                 .setStiffness(NavCapsulePressSpec.REST_STIFFNESS)
             expansionAnim.animateToFinalPosition(1f)
@@ -57,7 +58,7 @@ internal class NavCapsuleHaloView(context: Context) : View(context) {
 
     private val shrinkRunnable = Runnable {
         if (released) {
-            expansionAnim.spring = SpringForce(0f)
+            expansionAnim.spring
                 .setDampingRatio(NavCapsulePressSpec.RELEASE_DAMPING)
                 .setStiffness(NavCapsulePressSpec.RELEASE_STIFFNESS)
             expansionAnim.animateToFinalPosition(0f)

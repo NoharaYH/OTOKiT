@@ -43,14 +43,15 @@ internal class TitleButtonFeedback(private val owner: View, private val invalida
         var released = false
         val rest = Runnable {
             if (!released) {
-                animation.spring = SpringForce(1f).setDampingRatio(Spec.REST_DAMPING)
+                // 保留停止阈值；运行中只调参，不替换 SpringForce。
+                animation.spring.setDampingRatio(Spec.REST_DAMPING)
                     .setStiffness(Spec.REST_STIFFNESS)
                 animation.animateToFinalPosition(1f)
             }
         }
         val shrink = Runnable {
             if (released) {
-                animation.spring = SpringForce(0f).setDampingRatio(Spec.RELEASE_DAMPING)
+                animation.spring.setDampingRatio(Spec.RELEASE_DAMPING)
                     .setStiffness(Spec.RELEASE_STIFFNESS)
                 animation.animateToFinalPosition(0f)
             }

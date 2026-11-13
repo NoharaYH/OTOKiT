@@ -31,6 +31,7 @@ internal class PressHalo(private val host: View) {
     private val corners = FloatArray(8)
     private val expansion = FloatValueHolder(0f)
     private val spring = SpringAnimation(expansion).apply {
+        setSpring(SpringForce(0f))
         setMinimumVisibleChange(Spec.MIN_VISIBLE_CHANGE)
         addUpdateListener { _, _, _ -> host.invalidate() }
     }
@@ -94,7 +95,8 @@ internal class PressHalo(private val host: View) {
     }
 
     private fun animate(target: Float, damping: Float, stiffness: Float) {
-        spring.spring = SpringForce(target).setDampingRatio(damping).setStiffness(stiffness)
+        // animateToFinalPosition 在运行中不会重新初始化新 SpringForce 的停止阈值。
+        spring.spring.setDampingRatio(damping).setStiffness(stiffness)
         spring.animateToFinalPosition(target)
     }
 }

@@ -13,12 +13,17 @@ data class UiPreferenceRecord(
     val chuThemeId: String?,
     val themeMode: String? = null,
     val mergedThemeId: String? = null,
+    val backgroundHardwareAcceleration: Boolean? = null,
+    val backgroundHtmlAnimations: Boolean? = null,
 )
 
 /** 最小 UI 偏好读写入口：只读写原始字段。 */
 interface UiPreferences {
 
     fun readSelection(): UiPreferenceRecord
+
+    /** 两个背景选项一次写入；保留音游和主题字段。 */
+    fun writeBackgroundRendering(hardwareAccelerated: Boolean, htmlAnimations: Boolean)
 
     /** 完整快照必须一次写入，所有字段均为必填；实现不得静默丢弃模式字段。 */
     fun writeSelection(

@@ -28,6 +28,7 @@ import com.otokit.noharayh.ui.settings.SettingsAssembly
 import com.otokit.noharayh.ui.shell.navigation.SettingsSection
 import com.otokit.noharayh.ui.window.breakpoints.WindowLayoutClass
 import com.otokit.noharayh.ui.shell.background.BackgroundHost
+import com.otokit.noharayh.ui.shell.background.BackgroundRenderingOptions
 import com.otokit.noharayh.ui.shell.background.BackgroundPhase
 import com.otokit.noharayh.ui.shell.background.BackgroundSnapshot
 import com.otokit.noharayh.ui.shell.background.BackgroundVeilView
@@ -82,6 +83,7 @@ class MainShell(
     private enum class LifecycleState { New, Attached, Disposed }
 
     private val controller = NavigationController(initialState)
+    private var backgroundRendering = selectionPreferences.readBackgroundRendering()
 
     /** 稳定的音游/主题选择；恢复顺序为保存状态、偏好、Registry 默认。 */
     private val selection = GameSelectionController(
@@ -170,7 +172,7 @@ class MainShell(
         check(chromeHost.childCount == 0) { "外围 UI 由 ChromeAssembly 挂载，开始时必须为空" }
         lifecycleState = LifecycleState.Attached
         val current = selection.state
-        background = BackgroundHost(backgroundHost) { gameLine ->
+        background = BackgroundHost(backgroundHost, backgroundRendering) { gameLine ->
             onBackgroundSelectionConfirmed(gameLine)
         }.also { host ->
             host.attach(current.currentGame)
@@ -239,6 +241,19 @@ class MainShell(
             onOpenLink = onOpenExternalLink,
             displayScale = displayScale,
             onDisplayScaleSelected = onDisplayScaleSelected,
+            renderingProvider = { backgroundRendering },
+            takeHardwareWarning = {
+                if (hardwareWarningShownThisProcess) false else {
+                    hardwareWarningShownThisProcess = true
+                    true
+                }
+            },
+            onHardwareAccelerationSelected = {
+                updateBackgroundRendering(backgroundRendering.copy(hardwareAccelerated = it))
+            },
+            onHtmlAnimationsSelected = {
+                updateBackgroundRendering(backgroundRendering.copy(htmlAnimations = it))
+            },
             selectionProvider = { selection.state },
             onThemeModeSelected = ::selectThemeMode,
             onThemeOptionSelected = ::selectThemeOption,
@@ -522,6 +537,15 @@ class MainShell(
         ThemeSelectionMode.Independent -> BackgroundPalette.fromOption(
             ThemeOptions.resolveForGame(gameLine, state.selectedThemeId(gameLine)),
         )
+    }
+
+    /** 主壳确认并保存背景选项，再分别交给背景运行层与设置展示层。 */
+    private fun updateBackgroundRendering(options: BackgroundRenderingOptions) {
+        if (lifecycleState != LifecycleState.Attached || backgroundRendering == options) return
+        backgroundRendering = options
+        selectionPreferences.writeBackgroundRendering(options)
+        background?.setRenderingOptions(options)
+        settingsPage?.renderBackgroundRendering(options)
     }
 
     /** 背景随 Activity 生命周期暂停/恢复，不重建 WebView；离开前台时收起抽屉。 */
@@ -945,5 +969,10 @@ class MainShell(
         if (lifecycleState != LifecycleState.Attached) return
         applyModalState(controller.state.settingsOpen)
         onCanHandleBackChanged?.invoke(canHandleBack)
+    }
+
+    private companion object {
+        // 只记录本进程是否展示过：取消也算已提醒；Activity/壳重建不重置，不写入偏好。
+        var hardwareWarningShownThisProcess = false
     }
 }

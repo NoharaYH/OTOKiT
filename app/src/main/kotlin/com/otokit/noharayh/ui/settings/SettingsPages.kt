@@ -8,6 +8,7 @@ import com.otokit.noharayh.ui.shell.selection.GameSelectionState
 import com.otokit.noharayh.ui.theme.GameLine
 import com.otokit.noharayh.ui.theme.ThemeOption
 import com.otokit.noharayh.ui.theme.ThemeSelectionMode
+import com.otokit.noharayh.ui.shell.background.BackgroundRenderingOptions
 
 internal object SettingsPages {
     fun child(
@@ -18,17 +19,25 @@ internal object SettingsPages {
         openLink: (String) -> Unit,
         displayScale: DisplayScaleOption,
         onDisplayScaleSelected: (DisplayScaleOption) -> Unit,
+        rendering: BackgroundRenderingOptions,
+        onHardwareAccelerationSelected: (Boolean) -> Unit,
+        onHtmlAnimationsSelected: (Boolean) -> Unit,
+        takeHardwareWarning: () -> Boolean,
         selection: GameSelectionState,
         onThemeModeSelected: (ThemeSelectionMode) -> Unit,
         onThemeOptionSelected: (ThemeOption, GameLine?) -> Unit,
     ) = when (section) {
         SettingsSection.ScoreSync -> ScoreSyncSettingsPage.create(context, margin, split)
-        SettingsSection.App -> AppSettingsPage.create(
+        SettingsSection.App -> AppSettingsPage(
             context = context,
             margin = margin,
             split = split,
             displayScale = displayScale,
             onDisplayScaleSelected = onDisplayScaleSelected,
+            rendering = rendering,
+            onHardwareAccelerationSelected = onHardwareAccelerationSelected,
+            onHtmlAnimationsSelected = onHtmlAnimationsSelected,
+            takeHardwareWarning = takeHardwareWarning,
         )
         SettingsSection.Personalization -> PersonalizationSettingsPage(
             context = context,

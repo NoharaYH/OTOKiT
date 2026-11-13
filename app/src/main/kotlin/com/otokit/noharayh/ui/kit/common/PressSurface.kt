@@ -176,13 +176,16 @@ open class PressSurface @JvmOverloads constructor(
         private val retractToRest = Runnable {
             if (released) return@Runnable
             // 回落稍慢、阻尼更高，避免在静止尺寸上反复弹动。
-            spring.setSpring(SpringForce(1f).apply { dampingRatio = PressSurfaceSpec.REST_DAMPING; stiffness = PressSurfaceSpec.REST_STIFFNESS })
+            // 运行中保留同一个 SpringForce，避免新实例丢失 start() 初始化的停止阈值。
+            spring.spring.setDampingRatio(PressSurfaceSpec.REST_DAMPING)
+                .setStiffness(PressSurfaceSpec.REST_STIFFNESS)
             spring.animateToFinalPosition(1f)
         }
 
         private val shrink = Runnable {
             if (!released) return@Runnable
-            spring.setSpring(SpringForce(0f).apply { dampingRatio = PressSurfaceSpec.RELEASE_DAMPING; stiffness = PressSurfaceSpec.RELEASE_STIFFNESS })
+            spring.spring.setDampingRatio(PressSurfaceSpec.RELEASE_DAMPING)
+                .setStiffness(PressSurfaceSpec.RELEASE_STIFFNESS)
             spring.animateToFinalPosition(0f)
         }
 

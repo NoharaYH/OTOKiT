@@ -17,6 +17,7 @@ import kotlin.math.abs
 /** 双背景的运行所有者；稳定选择由 shell 确认，归位期间不接受新选择。 */
 class BackgroundHost(
     private val container: FrameLayout,
+    private val initialRendering: BackgroundRenderingOptions = BackgroundRenderingOptions(),
     private val requestSelection: (GameLine) -> GameLine,
 ) {
     private val context = container.context
@@ -28,7 +29,12 @@ class BackgroundHost(
         GameLine.Chu to BackgroundPage(context, GameLine.Chu, loader) {
             onPageVisualReady(GameLine.Chu)
         },
-    ).also { pages -> pages.values.forEach(BackgroundPage::pause) }
+    ).also { pages -> pages.values.forEach { it.setRenderingOptions(initialRendering); it.pause() } }
+
+    fun setRenderingOptions(options: BackgroundRenderingOptions) {
+        if (disposed) return
+        pages.values.forEach { it.setRenderingOptions(options) }
+    }
 
     private var initialVisualReady: (() -> Unit)? = null
     private val sources = BackgroundSourceCoordinator { game, source ->
