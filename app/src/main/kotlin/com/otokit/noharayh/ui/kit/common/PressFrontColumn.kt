@@ -38,23 +38,38 @@ open class PressFrontColumn @JvmOverloads constructor(
 
     override fun onViewRemoved(child: View) {
         super.onViewRemoved(child)
-        if (child is PressSurface) {
-            bindings.remove(child)?.invoke()
-            if (front === child) front = null
+        // 包装行移除时也注销其内部按钮；不能只清理直接子 PressSurface。
+        bindings.keys.filter { surface ->
+            var current: View? = surface
+            while (current != null && current !== child) current = current.parent as? View
+            current === child
+        }.forEach { bindings.remove(it)?.invoke() }
+        if (front === child) {
+            front = null
+            invalidate()
         }
     }
 
-    /** 也用于包裹层内部的 PressSurface；同一行重复绑定只生效一次。 */
-    fun bind(surface: PressSurface) {
-        if (bindings.containsKey(surface)) return
-        bindings[surface] = surface.addOnPressStateChangedListener { pressed ->
-            if (pressed) bringVisualToFront(surface)
+    /**
+     * 也用于包装行内部的按钮，按压时提升其所属的直接子行；重复绑定只生效一次。
+     * 移除整行自动解绑；只移除内部按钮时，调用返回的注销函数。
+     */
+    fun bind(surface: PressSurface): () -> Unit {
+        if (!bindings.containsKey(surface)) {
+            bindings[surface] = surface.addOnPressStateChangedListener { pressed ->
+                if (pressed) bringVisualToFront(surface)
+            }
         }
+        val binding = bindings.getValue(surface)
+        return { if (bindings[surface] === binding) bindings.remove(surface)?.invoke(); Unit }
     }
 
+    /** 接受直接子行或其后代；不改变布局顺序，不处理其他容器的 View。 */
     fun bringVisualToFront(child: View) {
-        if (front === child) return
-        front = child
+        var row = child
+        while (row.parent !== this) row = row.parent as? View ?: return
+        if (front === row) return
+        front = row
         invalidate()
     }
 

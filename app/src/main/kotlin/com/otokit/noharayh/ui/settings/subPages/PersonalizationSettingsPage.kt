@@ -148,9 +148,7 @@ internal class PersonalizationSettingsPage(
             addView(themeCard, LinearLayout.LayoutParams(-1, -2))
             addView(noneOptions, LinearLayout.LayoutParams(-1, 0))
         }
-        backgroundSwitch.addOnPressStateChangedListener { pressed ->
-            if (pressed) themeGroup.bringVisualToFront(noneOptions)
-        }
+        themeGroup.bind(backgroundSwitch)
         body.addView(themeGroup, LinearLayout.LayoutParams(-1, -2))
         isFillViewport = true
         clipChildren = false
