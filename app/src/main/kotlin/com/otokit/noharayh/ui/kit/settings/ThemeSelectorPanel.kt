@@ -19,7 +19,9 @@ internal class ThemeSelectorPanel(
 ) : FrameLayout(context) {
     private val rowHeight = dp(Dimensions.FIELD_HEIGHT_DP)
     private var menu: ThemeDropdownMenu? = null
-    private var optionIds = emptyList<String>()
+    private var menuOptions = emptyList<ThemeOption>()
+    private var menuHeightBudget: Int? = null
+    private var onOptionSelected: ((ThemeOption) -> Unit)? = null
     private var opening = false
     private var previewStart: Float? = null
     private var presentation = 1f
@@ -46,8 +48,10 @@ internal class ThemeSelectorPanel(
     }
 
     fun open(options: List<ThemeOption>, availableHeight: Int, onSelected: (ThemeOption) -> Unit) {
-        if (options.isEmpty()) return
-        if (menu != null && optionIds == options.map { it.id }) {
+        if (options.isEmpty()) { reset(); return }
+        if (menu != null && menuOptions == options && menuHeightBudget == availableHeight) {
+            // 相同内容保留当前展开/滚动状态，但事件接收者始终使用本次绑定。
+            onOptionSelected = onSelected
             opening = true
             previewStart = null
             header.setExpanded(true)
@@ -56,13 +60,17 @@ internal class ThemeSelectorPanel(
         }
         reset()
         opening = true
-        optionIds = options.map { it.id }
+        menuOptions = options.toList()
+        menuHeightBudget = availableHeight
+        onOptionSelected = onSelected
         val content = ThemeDropdownMenu(context, options, availableHeight,
             onBottomRadiusChanged = { render(runner.progress, notifyHeight = false) },
             onScrollChanged = { renderScrollbar() }) { option ->
             if (opening && previewStart == null && controlsEnabled) {
+                // 关闭动画被系统禁用时会同步 releaseMenu，先保留本次接收者。
+                val selected = onOptionSelected
                 close()
-                onSelected(option)
+                selected?.invoke(option)
             }
         }
         menu = content
@@ -171,7 +179,9 @@ internal class ThemeSelectorPanel(
         menu?.stopMotion()
         menu?.let(::removeView)
         menu = null
-        optionIds = emptyList()
+        menuOptions = emptyList()
+        menuHeightBudget = null
+        onOptionSelected = null
         header.renderPanel(0f, 0f)
         onHeightChanged()
     }
