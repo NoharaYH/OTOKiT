@@ -34,6 +34,11 @@ import kotlin.math.roundToInt
  * 黑圆始终裁切在按钮圆角内，所以按钮本身要足够大（当前示例 260×160dp）才能完整容纳 120dp 的黑圆。
  * 内容由 FrameLayout 在遮罩上方绘制，不随遮罩变色。
  *
+ * 所有半径、内收量与直径均使用 px，由调用方从 dp 换算；时长使用 ms，
+ * 透明度与进度使用 0..1。绘制属性修改后自动 invalidate，不改变测量尺寸。
+ * rippleMaxDiameter / rippleExpandMs / maxRipples 配置作用于后续按压，
+ * 不重启已经运行的弹簧或重新排队已有任务。属性须在 UI 线程更新。
+ *
  * ## 外溢外环的宿主约束
  * 启用 [outerHaloEnabled] 时，[PressHalo] 会绘制到本 View 的边界之外。
  * Android 父容器默认 `clipChildren=true`，会把子 View 的绘制裁回自身边界，
@@ -61,17 +66,29 @@ open class PressSurface @JvmOverloads constructor(
             fillPaint.color = value
             invalidate()
         }
+    /** 静止圆角半径（px），绘制时按当前可用尺寸约束。 */
     var baseRadius = 16f * dp
-    /** 分组选项可分别描述上下圆角；为空时沿用统一 baseRadius。 */
+        set(value) { if (field != value) { field = value; invalidate() } }
+    /** 上下圆角半径（px）；为空时沿用 baseRadius。 */
     var topCornerRadius: Float? = null
+        set(value) { if (field != value) { field = value; invalidate() } }
     var bottomCornerRadius: Float? = null
+        set(value) { if (field != value) { field = value; invalidate() } }
+    /** 每边按压内收量（px）。 */
     var pressInset = PressSurfaceSpec.INSET_DP * dp
+        set(value) { if (field != value) { field = value; invalidate() } }
     /** 可生长容器的底端形状由展开进度约束；外环仍使用头行的按压几何。 */
     var bottomCornerPressFraction = 1f
+        set(value) { if (field != value) { field = value; invalidate() } }
     /** 可只保留外扩反馈；按压收缩、触觉和点击分发不受影响。 */
     var innerRippleEnabled = true
+        set(value) { if (field != value) { field = value; invalidate() } }
+    /** 白色反馈层的峰值不透明度（0..1）。 */
     var whiteMaxAlpha = PressSurfaceSpec.WHITE_ALPHA
+        set(value) { if (field != value) { field = value; invalidate() } }
+    /** 涟漪跟随时间常数（ms），应大于零。 */
     var followTauMs = 30f
+        set(value) { if (field != value) { field = value; invalidate() } }
     var maxRipples = PressSurfaceSpec.MAX_RIPPLES
 
     /** 离开窗口的动作可等待释放反馈；不含外链或页面等业务语义。 */
@@ -118,6 +135,7 @@ open class PressSurface @JvmOverloads constructor(
 
     /** 回落后保持的直径（106dp ≈ 16.8mm），约为峰值的 88%。 */
     var rippleRestDiameter = 106f * dp
+        set(value) { if (field != value) { field = value; invalidate() } }
 
     /** 扩张到最大直径后回落到静止直径的时间；点按要快，不能等。 */
     var rippleExpandMs = PressSurfaceSpec.EXPAND_DURATION_MS
