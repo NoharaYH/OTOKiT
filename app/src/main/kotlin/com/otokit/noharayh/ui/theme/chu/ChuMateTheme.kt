@@ -10,8 +10,8 @@ object ChuMateTheme {
     val definition: ThemeDefinition = ThemeDefinition(
         htmlAssetPath = HTML_ASSET_PATH,
         colors = ThemeColors(
-            primaryColor = 0xFFFFF5C7.toInt(),
-            secondaryColor = 0xFFFFBB4A.toInt(),
+            primaryColor = 0xFFFFBB4A.toInt(),
+            secondaryColor = 0xFFFFF5C7.toInt(),
         ),
     )
 }
