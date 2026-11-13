@@ -46,6 +46,44 @@ class SettingsPageFramesTest {
         val reverse = (100 downTo 0).map { SettingsPageFrames.selectionChange(it / 100f) }
         assertEquals(outward, reverse.reversed())
     }
+
+    @Test fun phoneKeepsRootOpaqueAndStationaryUntilTabletSelectionColorsAreReached() {
+        for (step in 0..25) {
+            val p = step / 100f
+            val pageProgress = SettingsPageFrames.phoneUnfoldProgress(p, true)
+            val root = SettingsPageFrames.unfoldPage(pageProgress, false, true, 2.45f)
+            val child = SettingsPageFrames.unfoldPage(pageProgress, true, true, 2.45f)
+            val title = SettingsPageFrames.unfoldTitle(pageProgress, false, true, 2.45f)
+            assertEquals(1f, root.alpha, 0f)
+            assertEquals(0f, root.translationX, 0f)
+            assertEquals(0f, child.alpha, 0f)
+            assertEquals(1f, title.alpha, 0f)
+            assertEquals(0f, title.translationX, 0f)
+            assertEquals(SettingsPageFrames.selectionChange(p),
+                SettingsPageFrames.phoneSelectionChange(p, true), 0f)
+        }
+        assertEquals(1f, SettingsPageFrames.phoneSelectionChange(.25f, true), 0f)
+        assertTrue(SettingsPageFrames.phoneUnfoldProgress(.3f, true) > 0f)
+        assertEquals(1f, SettingsPageFrames.phoneUnfoldProgress(1f, true), 0f)
+        assertEquals(1f, SettingsPageFrames.phoneUnfoldProgress(1f, false), 0f)
+    }
+
+    @Test fun phoneBackRetracesPageAndSelectionIncludingTheColorOnlyPhase() {
+        for (step in 0..100) {
+            val p = step / 100f
+            val outward = SettingsPageFrames.phoneUnfoldProgress(p, true)
+            val back = SettingsPageFrames.phoneUnfoldProgress(1f - p, false)
+            for (entering in listOf(true, false)) {
+                val page = SettingsPageFrames.unfoldPage(outward, entering, true, 2.45f)
+                val reverse = SettingsPageFrames.unfoldPage(back, !entering, false, 2.45f)
+                assertEquals(page.alpha, reverse.alpha, 0.00001f)
+                assertEquals(page.translationX, reverse.translationX, 0.0001f)
+            }
+            assertEquals(SettingsPageFrames.phoneSelectionChange(p, true),
+                1f - SettingsPageFrames.phoneSelectionChange(1f - p, false), 0.00001f)
+        }
+    }
+
     @Test fun phoneBackRevealsRootWithoutChangingItsSize() {
         val start = SettingsPageFrames.page(0f, true, false, false, 400f)
         val half = SettingsPageFrames.page(0.5f, false, false, false, 400f)

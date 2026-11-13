@@ -193,19 +193,23 @@ class SettingsAssembly(
         if (!transitioning || disposed) return
         val forward = toSection != null
         val distance = width.toFloat()
+        val phoneUnfold = unfold && !split
+        val pageProgress = if (phoneUnfold) SettingsPageFrames.phoneUnfoldProgress(frame.value, forward)
+            else frame.value
         fromView?.let {
-            if (!split || it !== rootPage) applyPageFrame(it, frame.value, false, forward, distance)
+            if (!split || it !== rootPage) applyPageFrame(it, pageProgress, false, forward, distance)
         }
         toView?.let {
-            if (!split || it !== rootPage) applyPageFrame(it, frame.value, true, forward, distance)
+            if (!split || it !== rootPage) applyPageFrame(it, pageProgress, true, forward, distance)
         }
-        val changed = SettingsPageFrames.selectionChange(frame.value)
+        val changed = if (phoneUnfold) SettingsPageFrames.phoneSelectionChange(frame.value, forward)
+            else SettingsPageFrames.selectionChange(frame.value)
         options.forEach { (key, option) ->
             val start = if (key == fromSection) 1f else 0f
             val end = if (key == toSection) 1f else 0f
             option.setSelectionProgress(start + (end - start) * changed)
         }
-        onTransitionFrame(frame)
+        onTransitionFrame(TransitionProgress(pageProgress, frame.running))
     }
 
     private fun applyPageFrame(view: View, progress: Float, entering: Boolean, forward: Boolean, distance: Float) {
