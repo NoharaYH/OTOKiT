@@ -3,6 +3,8 @@ package com.otokit.noharayh.ui.kit.settings
 import android.content.Context
 import androidx.core.graphics.ColorUtils
 import android.view.Gravity
+import android.view.View
+import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -58,12 +60,14 @@ internal class SettingsSegmentedChoice(context: Context) : LinearLayout(context)
                 includeFontPadding = false
                 setTextColor(if (index == selectedIndex) ACTIVE_TEXT else INACTIVE_TEXT)
                 AppTypography.applyAppTypeface(this, bold = true)
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             }
             text.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED)
             val buttonHeight = dp(Dimensions.CHOICE_HEIGHT_DP)
             val textPadding = ((buttonHeight - text.measuredHeight) / 2).coerceAtLeast(0)
             val buttonWidth = text.measuredWidth + textPadding * 2
             val surface = PressSurface(context).apply {
+                configureSingleChoiceSemantics(index == selectedIndex, column = index)
                 outerHaloEnabled = true
                 deferClickUntilReleaseFeedback = false
                 fillColor = INACTIVE_FILL
@@ -110,6 +114,8 @@ internal class SettingsSegmentedChoice(context: Context) : LinearLayout(context)
         if (index == selectedIndex || index !in buttons.indices) return
         val previous = selectedIndex
         selectedIndex = index
+        // 语义立即跟随确认值；圆角/文字动画只负责视觉过渡。
+        buttons.forEachIndexed { itemIndex, button -> button.isSelected = itemIndex == index }
         if (!animate) {
             transition.stop(previous)
             transition.stop(index)
@@ -134,6 +140,12 @@ internal class SettingsSegmentedChoice(context: Context) : LinearLayout(context)
             text.setTextColor(displayColor(color))
             surface.invalidate()
         }
+    }
+
+    override fun onInitializeAccessibilityNodeInfo(info: AccessibilityNodeInfo) {
+        super.onInitializeAccessibilityNodeInfo(info)
+        info.collectionInfo = AccessibilityNodeInfo.CollectionInfo.obtain(
+            1, buttons.size, false, AccessibilityNodeInfo.CollectionInfo.SELECTION_MODE_SINGLE)
     }
 
     private fun applyState(index: Int, capsule: Float) {

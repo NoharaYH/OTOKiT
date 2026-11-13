@@ -6,6 +6,7 @@ import android.graphics.drawable.GradientDrawable
 import android.text.TextUtils
 import android.view.Gravity
 import android.view.View
+import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -85,6 +86,7 @@ internal object SettingsPageViews {
 
     /** 单选行：与 action 行同一按压容器，右侧为圆形选择指示。 */
     fun choice(context: Context, label: String, selected: Boolean, onClick: () -> Unit) = PressSurface(context).apply {
+        configureSingleChoiceSemantics(selected)
         outerHaloEnabled = true
         fillColor = 0xFFF5F5F5.toInt()
         baseRadius = dp(
@@ -97,6 +99,7 @@ internal object SettingsPageViews {
         ).toFloat()
         contentDescription = label
         val row = LinearLayout(context).apply {
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
             setPadding(dp(context, 16), 0, dp(context, 16), 0)
@@ -140,4 +143,21 @@ internal object SettingsPageViews {
         setColor(color); cornerRadius = dp(context, radius).toFloat()
     }
     fun dp(context: Context, value: Int) = (value * context.resources.displayMetrics.density + 0.5f).toInt()
+}
+
+/** 只表达外部确认的单选状态；无障碍点击仍走原点击回调，不自行修改选择。 */
+internal fun PressSurface.configureSingleChoiceSemantics(selected: Boolean, column: Int? = null) {
+    isSelected = selected
+    accessibilityDelegate = object : View.AccessibilityDelegate() {
+        override fun onInitializeAccessibilityNodeInfo(host: View, info: AccessibilityNodeInfo) {
+            super.onInitializeAccessibilityNodeInfo(host, info)
+            info.className = "android.widget.RadioButton"
+            info.isCheckable = true
+            info.isChecked = host.isSelected
+            if (column != null) {
+                info.collectionItemInfo = AccessibilityNodeInfo.CollectionItemInfo.obtain(
+                    0, 1, column, 1, false, host.isSelected)
+            }
+        }
+    }
 }
