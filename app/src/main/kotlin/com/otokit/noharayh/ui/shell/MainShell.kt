@@ -1,7 +1,12 @@
 package com.otokit.noharayh.ui.shell
 
+import com.otokit.noharayh.ui.constants.motion.ColorPickerMotion
+
 import android.annotation.SuppressLint
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
+import com.otokit.noharayh.ui.theme.NoneThemeColorRole
 import android.view.Gravity
 import android.view.ViewTreeObserver
 import android.view.View
@@ -97,7 +102,21 @@ class MainShell(
         ),
     )
 
-    private val noneThemePalette = NoneThemePalette.fromSeed(selection.state.noneThemeSeedColor)
+    private var noneThemePalette = resolveNonePalette()
+    private val colorHandler = Handler(Looper.getMainLooper())
+    private var colorSavePending = false
+    private val saveColors = Runnable {
+        colorSavePending = false
+        selectionPreferences.write(selection.state)
+    }
+    private val wallpaperColors = WallpaperColorSource(contentHost.context) { seed ->
+        if (lifecycleState == LifecycleState.Attached && selection.updateWallpaperSeed(seed)) applyNoneColors()
+    }
+
+    private fun resolveNonePalette(): NoneThemePalette = selection.state.let {
+        NoneThemePalette.resolve(it.noneThemeSeedColor, it.noneThemeUseWallpaper,
+            it.noneThemePrimaryColor, it.noneThemeSecondaryColor)
+    }
 
     private val chrome = ChromeAssembly(
         chromeHost = chromeHost,
@@ -263,6 +282,8 @@ class MainShell(
             onThemeModeSelected = ::selectThemeMode,
             onThemeOptionSelected = ::selectThemeOption,
             onNoneThemeBackgroundSelected = ::selectNoneThemeBackground,
+            onNoneThemeWallpaperSelected = ::selectNoneThemeWallpaper,
+            onNoneThemeColorSelected = ::selectNoneThemeColor,
             onTransitionStart = chrome::prepareSettingsPageTransition,
             onTransitionFrame = chrome::renderSettingsPageProgress,
         )
@@ -293,11 +314,14 @@ class MainShell(
         }
         chrome.attach()
         render()
+        wallpaperColors.start()
     }
 
     /** 恢复宿主临时配置并解除监听；销毁为终态。 */
     fun detach() {
         if (lifecycleState == LifecycleState.Disposed) return
+        flushColorSave()
+        wallpaperColors.close()
         val wasAttached = lifecycleState == LifecycleState.Attached
         lifecycleState = LifecycleState.Disposed
         onCanHandleBackChanged = null
@@ -452,9 +476,41 @@ class MainShell(
         if (lifecycleState != LifecycleState.Attached || backgroundSwitching) return
         if (!selection.selectNoneThemeBackground(enabled)) return
         invalidateBackPreview()
-        background?.setNoneBackgroundColor(noneBackgroundColor())
+        background?.setNoneBackgroundColor(noneBackgroundColor(), animate = true)
         settingsPage?.renderThemeSelection(selection.state)
         selectionPreferences.write(selection.state)
+    }
+
+    private fun selectNoneThemeWallpaper(enabled: Boolean) {
+        if (lifecycleState != LifecycleState.Attached || backgroundSwitching) return
+        if (selection.selectNoneThemeWallpaper(enabled)) applyNoneColors()
+    }
+
+    private fun selectNoneThemeColor(role: NoneThemeColorRole, color: Int) {
+        if (lifecycleState != LifecycleState.Attached || backgroundSwitching) return
+        if (selection.selectNoneThemeColor(role, color)) applyNoneColors()
+    }
+
+    /** 连续调色不走背景换页/黑幕；保留当前 View 和手势，只刷新颜色。 */
+    private fun applyNoneColors() {
+        noneThemePalette = resolveNonePalette()
+        invalidateBackPreview()
+        background?.setNoneBackgroundColor(noneBackgroundColor())
+        settingsPage?.renderThemeSelection(selection.state)
+        if (selection.state.themeMode == ThemeSelectionMode.None) {
+            mountedContent?.updateColor(placeholderTextColor())
+            settingsContent?.updateColor(placeholderTextColor())
+            mountedContent?.let(::updatePageThemeColors)
+            chrome.render(chromeDisplay(), animateColors = false)
+        }
+        colorHandler.removeCallbacks(saveColors)
+        colorSavePending = true
+        colorHandler.postDelayed(saveColors, ColorPickerMotion.SAVE_DELAY_MS)
+    }
+
+    private fun flushColorSave() {
+        colorHandler.removeCallbacks(saveColors)
+        if (colorSavePending) saveColors.run()
     }
 
     private fun noneBackgroundColor(): Int = if (selection.state.noneThemeTintBackground) {
@@ -568,6 +624,7 @@ class MainShell(
     fun setBackgroundResumed(resumed: Boolean) {
         if (lifecycleState != LifecycleState.Attached) return
         this.resumed = resumed
+        if (resumed) wallpaperColors.refresh() else flushColorSave()
         if (!resumed) invalidateBackPreview()
         chrome.setResumed(resumed)
         background?.setResumed(resumed)

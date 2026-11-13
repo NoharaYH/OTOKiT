@@ -9,7 +9,9 @@ import android.widget.FrameLayout
 import androidx.viewpager2.widget.ViewPager2
 import androidx.recyclerview.widget.PagerSnapHelper
 import androidx.recyclerview.widget.RecyclerView
+import com.otokit.noharayh.ui.animation.shell.NoneBackgroundColorRunner
 import com.otokit.noharayh.ui.animation.shell.PagerSettleCurve
+import com.otokit.noharayh.ui.theme.BackgroundPalette
 import com.otokit.noharayh.ui.theme.GameLine
 import com.otokit.noharayh.ui.theme.BackgroundSelection
 import kotlin.math.abs
@@ -31,14 +33,18 @@ class BackgroundHost(
         },
     ).also { pages -> pages.values.forEach { it.setRenderingOptions(initialRendering); it.pause() } }
 
+    private val noneColorTransition = NoneBackgroundColorRunner(BackgroundPalette.NONE_COLOR) { color ->
+        pages.values.forEach { it.setNoneBackgroundColor(color) }
+    }
+
     fun setRenderingOptions(options: BackgroundRenderingOptions) {
         if (disposed) return
         pages.values.forEach { it.setRenderingOptions(options) }
     }
 
-    fun setNoneBackgroundColor(color: Int) {
+    fun setNoneBackgroundColor(color: Int, animate: Boolean = false) {
         if (disposed) return
-        pages.values.forEach { it.setNoneBackgroundColor(color) }
+        noneColorTransition.setColor(color, animate && attached && gate.resumed)
     }
 
     private var initialVisualReady: (() -> Unit)? = null
@@ -230,6 +236,7 @@ class BackgroundHost(
             // 屏障不按帧数过期；后台未布局时继续等待本轮布局/端点。
             if (gate.barrierActive) touchRoot?.requestLayout()
         } else {
+            noneColorTransition.finish()
             beginAlignment(requireNextLayout = false)
             pages.values.forEach(BackgroundPage::pause)
         }
@@ -351,6 +358,7 @@ class BackgroundHost(
         if (disposed) return
         disposed = true
         attached = false
+        noneColorTransition.dispose()
         gate = gate.beginAlignment().copy(resumed = false, inputEnabled = false)
         initialVisualReady = null
         sources.clear()

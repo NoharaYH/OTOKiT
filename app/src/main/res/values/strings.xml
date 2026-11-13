@@ -41,4 +41,8 @@
     <string name="placeholder_mai_coming_soon">敬请期待 Mai 占位</string>
     <string name="placeholder_chu_coming_soon">敬请期待 Chu 占位</string>
     <string name="placeholder_button_description">%1$s 测试按钮</string>
+    <string name="settings_none_theme_wallpaper">从壁纸取色</string>
+    <string name="settings_color_primary">主色</string>
+    <string name="settings_color_secondary">副色</string>
+    <string name="settings_color_hex">%1$s十六进制颜色</string>
 </resources>

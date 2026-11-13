@@ -9,9 +9,11 @@ import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import android.graphics.RectF
 import android.os.Build
+import android.os.SystemClock
 import android.util.AttributeSet
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
+import android.view.View
 import android.view.animation.AnimationUtils
 import android.widget.Button
 import android.widget.FrameLayout
@@ -64,6 +66,10 @@ open class PressSurface @JvmOverloads constructor(
     var topCornerRadius: Float? = null
     var bottomCornerRadius: Float? = null
     var pressInset = PressSurfaceSpec.INSET_DP * dp
+    /** 可生长容器的底端形状由展开进度约束；外环仍使用头行的按压几何。 */
+    var bottomCornerPressFraction = 1f
+    /** 可只保留外扩反馈；按压收缩、触觉和点击分发不受影响。 */
+    var innerRippleEnabled = true
     var whiteMaxAlpha = PressSurfaceSpec.WHITE_ALPHA
     var followTauMs = 30f
     var maxRipples = PressSurfaceSpec.MAX_RIPPLES
@@ -254,6 +260,8 @@ open class PressSurface @JvmOverloads constructor(
 
     /** 填充与内部反馈相对外形额外内缩的距离，带描边的控件可对齐到描边中心。 */
     protected open val surfaceFillInset: Float = 0f
+    /** 白底可随内容生长，按压圆角与外环的高度仍可固定为原始头行。 */
+    protected open val pressFeedbackHeight: Float get() = height.toFloat()
 
     private companion object {
         /** 按下与抬起触觉之间的最小间隔，避免抬起被 HAL 以 ignored_for_ongoing 丢弃。 */
@@ -286,7 +294,7 @@ open class PressSurface @JvmOverloads constructor(
                 ripple.start()
                 gestureSeq++
                 removeCallbacks(releaseHapticRunnable)
-                pressHapticAt = now()
+                pressHapticAt = SystemClock.uptimeMillis()
                 tickDown()
                 invalidate()
             }
@@ -315,8 +323,14 @@ open class PressSurface @JvmOverloads constructor(
                 val clicked = ripple != null && inside(event.x, event.y)
                 release()
                 if (clicked) {
-                    if (deferClickUntilReleaseFeedback && releaseHapticEnabled) deferredClick = true else performClick()
-                    if (releaseHapticEnabled) requestReleaseHaptic()
+                    if (deferClickUntilReleaseFeedback && releaseHapticEnabled) {
+                        deferredClick = true
+                        requestReleaseHaptic()
+                    } else {
+                        // 在回调替换页面/禁用按钮之前，交给当前窗口完成已接受点击的反馈。
+                        if (releaseHapticEnabled) requestAcceptedReleaseHaptic()
+                        performClick()
+                    }
                 }
             }
             MotionEvent.ACTION_CANCEL -> release()
@@ -349,14 +363,29 @@ open class PressSurface @JvmOverloads constructor(
         performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
     }
 
-    private fun tickUp(): Boolean =
-        performHapticFeedback(
+    private fun tickUp(target: View = this): Boolean =
+        target.performHapticFeedback(
             if (Build.VERSION.SDK_INT >= 30) HapticFeedbackConstants.GESTURE_END
             else HapticFeedbackConstants.CLOCK_TICK,
         )
 
     private fun canDeliverFeedback(): Boolean =
         isAttachedToWindow && hasWindowFocus() && isShown && isEnabled && isClickable
+
+    /** 点击已经验收：源 View 可因重绘、动画或站内导航被禁用/替换，窗口仍可交付抬手触觉。 */
+    private fun requestAcceptedReleaseHaptic() {
+        if (!isHapticFeedbackEnabled) return
+        val window = rootView
+        val sequence = gestureSeq
+        window.postDelayed({
+            if (sequence == gestureSeq && window.isAttachedToWindow && window.hasWindowFocus() && window.isShown) {
+                tickUp(window)
+            }
+        }, releaseHapticDelay())
+    }
+
+    private fun releaseHapticDelay(): Long =
+        (MIN_HAPTIC_GAP_MS - (SystemClock.uptimeMillis() - pressHapticAt)).coerceAtLeast(0L)
 
     private fun deliverReleaseFeedback() {
         if (!canDeliverFeedback()) {
@@ -388,7 +417,7 @@ open class PressSurface @JvmOverloads constructor(
      * 并用手势序号丢弃过期回调，避免延迟到下一次点按才响。
      */
     private fun requestReleaseHaptic() {
-        val delay = (MIN_HAPTIC_GAP_MS - (now() - pressHapticAt)).coerceAtLeast(0L)
+        val delay = releaseHapticDelay()
         if (delay == 0L) {
             deliverReleaseFeedback()
             return
@@ -408,18 +437,22 @@ open class PressSurface @JvmOverloads constructor(
         val inset = max(progress, 0f) * pressInset
         shapeRect.set(inset, inset, width - inset, height - inset)
         val cap = min(shapeRect.width(), shapeRect.height()) / 2f
+        val pressedCap = min(cap, (pressFeedbackHeight - inset * 2f).coerceAtLeast(0f) / 2f)
         // 固定 dp 等距内收；按下圆角取内收后短边的一半，不受静止圆角大小影响。
-        val radius = lerp(baseRadius.coerceAtMost(cap), cap, boundedProgress)
+        val radius = lerp(baseRadius.coerceAtMost(cap), pressedCap, boundedProgress)
             .coerceAtMost(cap)
-        val top = lerp((topCornerRadius ?: baseRadius).coerceAtMost(cap), cap, boundedProgress)
-        val bottom = lerp((bottomCornerRadius ?: baseRadius).coerceAtMost(cap), cap, boundedProgress)
+        val top = lerp((topCornerRadius ?: baseRadius).coerceAtMost(cap), pressedCap, boundedProgress)
+        val haloBottom = lerp((bottomCornerRadius ?: baseRadius).coerceAtMost(pressedCap), pressedCap, boundedProgress)
+        val bottom = lerp((bottomCornerRadius ?: baseRadius).coerceAtMost(cap), pressedCap,
+            boundedProgress * bottomCornerPressFraction.coerceIn(0f, 1f))
         val fillInset = surfaceFillInset.coerceIn(0f, cap)
 
         // 外环半径要补上按压内收量，才能和按钮保持同心；否则外圈两端会变成圆角矩形，
         // 看起来像被一个更大的方框限位。
         // 外环收尾必须回到实际填充边界；带内缩填充的描边组件否则会残留半圈黑边。
-        halo?.draw(canvas, width, height, inset + fillInset,
-            (top - fillInset).coerceAtLeast(0f), (bottom - fillInset).coerceAtLeast(0f))
+        // 与主题触发框相同：先画原头行外环，再让生长后的白底盖住下半圈。
+        halo?.draw(canvas, width, pressFeedbackHeight.roundToInt().coerceIn(0, height), inset + fillInset,
+            (top - fillInset).coerceAtLeast(0f), (haloBottom - fillInset).coerceAtLeast(0f))
         drawUnderlay(canvas, radius, inset)
 
         val follow = 1f - exp(-delta / followTauMs)
@@ -441,7 +474,7 @@ open class PressSurface @JvmOverloads constructor(
 
         // 黑圆裁切在按钮圆角之内，按固定 dp 尺寸弹性扩张；按钮需足够大才能完整容纳。
         val restRadius = rippleRestDiameter / 2f
-        for (ripple in ripples) {
+        if (innerRippleEnabled) for (ripple in ripples) {
             val radiusNow = restRadius * ripple.expansion.value
             if (radiusNow > 0.5f) canvas.drawCircle(ripple.x, ripple.y, radiusNow, ripplePaint)
         }

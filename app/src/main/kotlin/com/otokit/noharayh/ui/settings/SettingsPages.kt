@@ -5,6 +5,7 @@ import com.otokit.noharayh.ui.constants.display.DisplayScaleOption
 import com.otokit.noharayh.ui.settings.subPages.*
 import com.otokit.noharayh.ui.shell.navigation.SettingsSection
 import com.otokit.noharayh.ui.shell.selection.GameSelectionState
+import com.otokit.noharayh.ui.theme.NoneThemeColorRole
 import com.otokit.noharayh.ui.theme.GameLine
 import com.otokit.noharayh.ui.theme.ThemeOption
 import com.otokit.noharayh.ui.theme.ThemeSelectionMode
@@ -27,6 +28,8 @@ internal object SettingsPages {
         onThemeModeSelected: (ThemeSelectionMode) -> Unit,
         onThemeOptionSelected: (ThemeOption, GameLine?) -> Unit,
         onNoneThemeBackgroundSelected: (Boolean) -> Unit,
+        onNoneThemeWallpaperSelected: (Boolean) -> Unit,
+        onNoneThemeColorSelected: (NoneThemeColorRole, Int) -> Unit,
     ) = when (section) {
         SettingsSection.ScoreSync -> ScoreSyncSettingsPage.create(context, margin, split)
         SettingsSection.App -> AppSettingsPage(
@@ -48,6 +51,8 @@ internal object SettingsPages {
             onModeSelected = onThemeModeSelected,
             onOptionSelected = onThemeOptionSelected,
             onBackgroundTintSelected = onNoneThemeBackgroundSelected,
+            onWallpaperSelected = onNoneThemeWallpaperSelected,
+            onColorSelected = onNoneThemeColorSelected,
         )
         SettingsSection.About -> AboutSettingsPage.create(context, margin, split, openLink)
     }

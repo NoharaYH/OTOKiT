@@ -276,10 +276,10 @@ class TitleBar(context: Context) : FrameLayout(context) {
     }
 
     /** 同值幂等：更新文案、颜色、图标与许可；只有文案/形态变化才启动过渡。 */
-    fun render(state: TitleBarState) {
+    fun render(state: TitleBarState, animateColors: Boolean = true) {
         lastState = state
         appearanceMotion.updateIcon(iconFor(state.primaryAction))
-        appearanceMotion.updateDecor(state.maiDecorColor, state.chuDecorColor)
+        appearanceMotion.updateDecor(state.maiDecorColor, state.chuDecorColor, animateColors)
 
         val textChanged = displayedMaiTitle != null && displayedChuTitle != null &&
             (state.maiTitle != displayedMaiTitle || state.chuTitle != displayedChuTitle)
@@ -323,7 +323,8 @@ class TitleBar(context: Context) : FrameLayout(context) {
         textMotion.applyGameFrame(state.gameFrame, state.currentGame == GameLine.Mai)
         applyTextColors(state)
         if (!settingsPageMotion.active) setColumnColor(settingsColumn, state.settingTextColor)
-        appearanceMotion.updateCircleColor(circleColorFor(state), animate = state.settingsOpen || state.gameFrame?.phase == GamePhase.Idle)
+        appearanceMotion.updateCircleColor(circleColorFor(state),
+            animate = animateColors && (state.settingsOpen || state.gameFrame?.phase == GamePhase.Idle))
         menuButton.contentDescription = context.getString(
             if (state.primaryAction == TitleBarPrimaryAction.Back) R.string.title_back
             else R.string.title_open_navigation_menu,

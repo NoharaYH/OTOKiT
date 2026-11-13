@@ -35,7 +35,7 @@ class UiPreferencesAdapterTest {
         assertEquals(
             UiPreferenceRecord(version = 1, currentGame = "chu", maiThemeId = "mai-a", chuThemeId = "chu-a",
                 themeMode = "independent", mergedThemeId = "placeholder",
-                noneThemeSeedColor = NoneThemePalette.DEFAULT_SEED_COLOR, noneThemeTintBackground = false),
+                noneThemeSeedColor = NoneThemePalette.DEFAULT_SEED_COLOR, noneThemeTintBackground = false, noneThemeUseWallpaper = true),
             fake.written,
         )
     }
@@ -47,7 +47,9 @@ class UiPreferencesAdapterTest {
             val fake = FakePreferences(UiPreferenceRecord(null, null, null, null))
             val adapter = UiPreferencesAdapter(fake)
             val state = GameSelectionState(GameLine.Mai, "mai-a", "chu-a", mode, "chu-shared",
-                noneThemeSeedColor = 0xFF008577.toInt(), noneThemeTintBackground = true)
+                noneThemeSeedColor = 0xFF008577.toInt(), noneThemeTintBackground = true,
+                noneThemeUseWallpaper = false, noneThemePrimaryColor = 0xFF112233.toInt(),
+                noneThemeSecondaryColor = 0xFFAABBCC.toInt())
             adapter.write(state)
             assertEquals(1, fake.writeCount)
             assertEquals(GameSelectionFormat.encode(state), adapter.read())
@@ -99,11 +101,16 @@ class UiPreferencesAdapterTest {
             mergedThemeId: String,
             noneThemeSeedColor: Int,
             noneThemeTintBackground: Boolean,
+            noneThemeUseWallpaper: Boolean,
+            noneThemePrimaryColor: Int?,
+            noneThemeSecondaryColor: Int?,
         ) {
             writeCount++
             written = record.copy(version = version, currentGame = currentGame, maiThemeId = maiThemeId,
                 chuThemeId = chuThemeId, themeMode = themeMode, mergedThemeId = mergedThemeId,
-                noneThemeSeedColor = noneThemeSeedColor, noneThemeTintBackground = noneThemeTintBackground)
+                noneThemeSeedColor = noneThemeSeedColor, noneThemeTintBackground = noneThemeTintBackground,
+                noneThemeUseWallpaper = noneThemeUseWallpaper, noneThemePrimaryColor = noneThemePrimaryColor,
+                noneThemeSecondaryColor = noneThemeSecondaryColor)
             record = requireNotNull(written)
         }
 

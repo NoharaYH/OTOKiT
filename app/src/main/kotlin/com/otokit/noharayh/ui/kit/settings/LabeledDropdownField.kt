@@ -6,7 +6,6 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
-import android.os.SystemClock
 import android.view.Gravity
 import android.widget.FrameLayout
 import androidx.core.graphics.ColorUtils
@@ -118,12 +117,10 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
     private var panelGap = 0f
     private var panelExpansion = 0f
     private var menuBottomRadius = 0f
-    private var pressedAt = 0L
 
     init {
         fillColor = Color.WHITE
         outerHaloEnabled = true
-        releaseHapticEnabled = false // 菜单展开统一给一次轻触觉。
         baseRadius = dp(Dimensions.FIELD_RADIUS_DP).toFloat()
         clipChildren = false
         clipToPadding = false
@@ -152,11 +149,6 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
         labelView.translationY = -labelView.height / 2f + stroke.strokeWidth / 2f
         prefixView.translationY = labelView.translationY
         setLabelPrefixProgress(prefixProgress)
-    }
-
-    override fun onPressStateChanged(pressed: Boolean) {
-        super.onPressStateChanged(pressed)
-        if (pressed) pressedAt = SystemClock.uptimeMillis()
     }
 
     private fun updateOutlineGeometry(cornerRadius: Float, inset: Float): Float {
@@ -280,9 +272,6 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
         menuBottomRadius = bottomRadius
         invalidate()
     }
-
-    fun openingHapticDelay(): Long =
-        (ThemeSelectionMotion.OPEN_HAPTIC_GAP_MS - (SystemClock.uptimeMillis() - pressedAt)).coerceAtLeast(0L)
 
     fun setExpanded(expanded: Boolean) { arrowRunner.render(expanded) }
     fun previewExpanded(progress: Float) { arrowRunner.preview(progress) }

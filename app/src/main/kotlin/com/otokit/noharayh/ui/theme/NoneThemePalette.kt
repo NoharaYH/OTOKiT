@@ -17,6 +17,18 @@ data class NoneThemePalette(
 
         val default: NoneThemePalette by lazy { fromSeed(DEFAULT_SEED_COLOR) }
 
+        fun resolve(seed: Int, wallpaper: Boolean, primary: Int?, secondary: Int?): NoneThemePalette {
+            if (!wallpaper && primary != null && secondary != null) return fromColors(primary, secondary)
+            val generated = if (seed == DEFAULT_SEED_COLOR) default else fromSeed(seed)
+            if (wallpaper) return generated
+            return fromColors(primary ?: generated.colors.primaryColor, secondary ?: generated.colors.secondaryColor)
+        }
+
+        fun fromColors(primary: Int, secondary: Int): NoneThemePalette = NoneThemePalette(
+            ThemeColors(primary, secondary),
+            Hct.from(Hct.fromInt(primary).hue, BACKGROUND_CHROMA, BACKGROUND_TONE).toInt(),
+        )
+
         fun fromSeed(seedColor: Int): NoneThemePalette {
             require(seedColor ushr 24 == 0xFF) { "主题种子色必须是不透明 ARGB" }
             val source = Hct.fromInt(seedColor)

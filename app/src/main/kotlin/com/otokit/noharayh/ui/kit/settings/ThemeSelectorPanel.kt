@@ -70,7 +70,7 @@ internal class ThemeSelectorPanel(
         scrollbar.bringToFront()
         header.setExpanded(true)
         render(0f)
-        runner.play(1f) { menu?.scheduleOpeningHaptic(header.openingHapticDelay()) }
+        runner.play(1f)
     }
 
     fun close() {

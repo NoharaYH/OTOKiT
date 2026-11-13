@@ -108,7 +108,7 @@ class ChromeAssembly(
     }
 
     /** 只渲染展示输入；导航与设置的稳定状态仍由 shell 唯一修改。 */
-    fun render(input: ChromeDisplayInput) {
+    fun render(input: ChromeDisplayInput, animateColors: Boolean = true) {
         if (!attached || disposed) return
         display = input
         sidebarHost.setSelected(input.destination)
@@ -118,7 +118,7 @@ class ChromeAssembly(
             enabled = compact && !input.settingsOpen,
             closeImmediately = !input.settingsOpen,
         )
-        renderTitle()
+        renderTitle(animateColors)
         rail?.render(input)
     }
 
@@ -340,7 +340,7 @@ class ChromeAssembly(
         }
     }
 
-    private fun renderTitle() {
+    private fun renderTitle(animateColors: Boolean = true) {
         val bar = titleBar ?: return
         val input = display ?: return
         bar.render(
@@ -358,6 +358,7 @@ class ChromeAssembly(
                 maiDecorColor = input.maiDecorColor,
                 chuDecorColor = input.chuDecorColor,
             ),
+            animateColors = animateColors,
         )
     }
 

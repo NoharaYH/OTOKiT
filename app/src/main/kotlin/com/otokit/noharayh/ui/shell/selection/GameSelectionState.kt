@@ -21,6 +21,9 @@ data class GameSelectionState(
     val mergedThemeId: String = ThemeOptions.PLACEHOLDER_ID,
     val noneThemeSeedColor: Int = NoneThemePalette.DEFAULT_SEED_COLOR,
     val noneThemeTintBackground: Boolean = false,
+    val noneThemeUseWallpaper: Boolean = true,
+    val noneThemePrimaryColor: Int? = null,
+    val noneThemeSecondaryColor: Int? = null,
 ) {
     fun selectedThemeId(gameLine: GameLine = currentGame): String = when (gameLine) {
         GameLine.Mai -> maiThemeId
@@ -42,6 +45,9 @@ data class SelectionSource(
     val mergedThemeId: String? = null,
     val noneThemeSeedColor: Int? = null,
     val noneThemeTintBackground: Boolean? = null,
+    val noneThemeUseWallpaper: Boolean? = null,
+    val noneThemePrimaryColor: Int? = null,
+    val noneThemeSecondaryColor: Int? = null,
 )
 
 /** 稳定字符串编码：音游用 `mai` / `chu`，主题用规范 ID，版本固定为 1。 */
@@ -88,6 +94,9 @@ object GameSelectionFormat {
         mergedThemeId = state.mergedThemeId,
         noneThemeSeedColor = state.noneThemeSeedColor,
         noneThemeTintBackground = state.noneThemeTintBackground,
+        noneThemeUseWallpaper = state.noneThemeUseWallpaper,
+        noneThemePrimaryColor = state.noneThemePrimaryColor,
+        noneThemeSecondaryColor = state.noneThemeSecondaryColor,
     )
 
     /** 版本合法才可用；缺失或不支持的版本整份来源失效。 */
@@ -133,6 +142,12 @@ fun restoreGameSelection(
             ?: NoneThemePalette.DEFAULT_SEED_COLOR,
         noneThemeTintBackground = savedFields?.noneThemeTintBackground
             ?: preferenceFields?.noneThemeTintBackground ?: false,
+        noneThemeUseWallpaper = savedFields?.noneThemeUseWallpaper
+            ?: preferenceFields?.noneThemeUseWallpaper ?: true,
+        noneThemePrimaryColor = savedFields?.noneThemePrimaryColor?.takeIf { it ushr 24 == 0xFF }
+            ?: preferenceFields?.noneThemePrimaryColor?.takeIf { it ushr 24 == 0xFF },
+        noneThemeSecondaryColor = savedFields?.noneThemeSecondaryColor?.takeIf { it ushr 24 == 0xFF }
+            ?: preferenceFields?.noneThemeSecondaryColor?.takeIf { it ushr 24 == 0xFF },
     )
 }
 

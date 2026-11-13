@@ -56,7 +56,6 @@ internal class ThemeDropdownMenu(
         addView(viewport, LayoutParams(-1, -1))
     }
     fun setInteractionEnabled(enabled: Boolean) = viewport.setInteractionEnabled(enabled)
-    fun scheduleOpeningHaptic(delay: Long) = viewport.scheduleOpeningHaptic(delay)
     fun stopMotion() = viewport.stopMotion()
 }
 
@@ -92,9 +91,6 @@ private class MenuViewport(
     private var pointerId = -1
     private var tracker: VelocityTracker? = null
     private val expansionFeedback = ThemeMenuExpansionFeedback(geometry)
-    private val openingHaptic = Runnable {
-        if (canPlayHaptic()) performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
-    }
     private var frontIndex = -1
     private val labels = mutableListOf<TextView>()
     private val motion = ThemeMenuMotionRunner(density, geometry.stride, geometry.maximum,
@@ -307,21 +303,12 @@ private class MenuViewport(
 
     override fun performClick(): Boolean = super.performClick()
 
-    fun scheduleOpeningHaptic(delayMillis: Long) {
-        removeCallbacks(openingHaptic)
-        postDelayed(openingHaptic, delayMillis.coerceAtLeast(Spec.OPEN_HAPTIC_MIN_DELAY_MS))
-    }
-
-    private fun canPlayHaptic(): Boolean =
-        interactionEnabled && !motion.isRunning && !touching && isAttachedToWindow && isShown && hasWindowFocus()
-
     private fun snap(velocity: Float = 0f, target: Float = geometry.snap(offset)) {
         if (touching) return
         motion.snap(offset, velocity, target)
     }
 
     fun stopMotion() {
-        removeCallbacks(openingHaptic)
         motion.stop()
         dragging = false
         touching = false

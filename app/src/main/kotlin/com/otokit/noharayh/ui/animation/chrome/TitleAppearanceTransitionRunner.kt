@@ -146,13 +146,15 @@ internal class TitleAppearanceTransitionRunner(
             start()
         }
     }
-    fun updateDecor(maiColor: Int, chuColor: Int) {
+    fun updateDecor(maiColor: Int, chuColor: Int, animate: Boolean = true) {
         if (disposed) return
         val previousMai = displayedMaiDecorColor
         val previousChu = displayedChuDecorColor
         displayedMaiDecorColor = maiColor
         displayedChuDecorColor = chuColor
-        if (previousMai == null || previousChu == null) {
+        if (!animate || !animationsEnabled() || previousMai == null || previousChu == null) {
+            decorAnimator?.cancel()
+            decorAnimator = null
             applyDecorColors(maiColor, chuColor)
             return
         }

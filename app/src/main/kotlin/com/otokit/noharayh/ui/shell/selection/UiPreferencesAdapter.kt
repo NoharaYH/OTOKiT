@@ -31,6 +31,9 @@ class UiPreferencesAdapter(private val preferences: UiPreferences) {
             mergedThemeId = state.mergedThemeId,
             noneThemeSeedColor = state.noneThemeSeedColor,
             noneThemeTintBackground = state.noneThemeTintBackground,
+            noneThemeUseWallpaper = state.noneThemeUseWallpaper,
+            noneThemePrimaryColor = state.noneThemePrimaryColor,
+            noneThemeSecondaryColor = state.noneThemeSecondaryColor,
         )
     }
 }
@@ -44,4 +47,7 @@ private fun UiPreferenceRecord.toSelectionSource(): SelectionSource = SelectionS
     mergedThemeId = mergedThemeId,
     noneThemeSeedColor = noneThemeSeedColor,
     noneThemeTintBackground = noneThemeTintBackground,
+    noneThemeUseWallpaper = noneThemeUseWallpaper,
+    noneThemePrimaryColor = noneThemePrimaryColor,
+    noneThemeSecondaryColor = noneThemeSecondaryColor,
 )

@@ -24,6 +24,11 @@ import com.otokit.noharayh.ui.kit.common.toggle.GroupedSwitchRow
 import com.otokit.noharayh.ui.kit.common.PressFrontColumn
 import com.otokit.noharayh.ui.constants.dimensions.GroupedSwitchDimensions
 import com.otokit.noharayh.ui.shell.selection.GameSelectionState
+import com.otokit.noharayh.ui.theme.NoneThemePalette
+import com.otokit.noharayh.ui.theme.NoneThemeColorRole
+import com.otokit.noharayh.ui.kit.settings.NoneThemeColorPicker
+import com.otokit.noharayh.ui.kit.settings.ExpandableColorSwitch
+import com.otokit.noharayh.ui.animation.settings.ColorPickerTransitionRunner
 import com.otokit.noharayh.ui.theme.GameLine
 import com.otokit.noharayh.ui.theme.ThemeOption
 import com.otokit.noharayh.ui.theme.ThemeOptions
@@ -39,6 +44,8 @@ internal class PersonalizationSettingsPage(
     private val onModeSelected: (ThemeSelectionMode) -> Unit,
     private val onOptionSelected: (ThemeOption, GameLine?) -> Unit,
     onBackgroundTintSelected: (Boolean) -> Unit,
+    onWallpaperSelected: (Boolean) -> Unit,
+    onColorSelected: (NoneThemeColorRole, Int) -> Unit,
 ) : ScrollView(context) {
     private var controlsEnabled = true
     private var renderedSelection: GameSelectionState? = null
@@ -55,9 +62,22 @@ internal class PersonalizationSettingsPage(
         context.getString(R.string.settings_none_theme_tint_background), false, true,
         selection.noneThemeTintBackground, onBackgroundTintSelected,
         labelColor = 0xFF323232.toInt())
+    private val wallpaperSwitch = ExpandableColorSwitch(context,
+        context.getString(R.string.settings_none_theme_wallpaper), selection.noneThemeUseWallpaper, onWallpaperSelected)
+    private val picker = NoneThemeColorPicker(context, onColorSelected)
+    private var pickerProgress = if (selection.noneThemeUseWallpaper) 0f else 1f
+    private val pickerMotion = ColorPickerTransitionRunner()
+    private val pickerHost = FrameLayout(context).apply {
+        clipToPadding = false
+        addView(picker, FrameLayout.LayoutParams(-1, picker.panelHeight))
+    }
+    private val wallpaperBlock = wallpaperSwitch.apply {
+        addView(pickerHost, FrameLayout.LayoutParams(-1, 0).apply { topMargin = switchHeight })
+    }
     private val noneOptions = FrameLayout(context).apply {
         clipChildren = false
         clipToPadding = false
+        addView(wallpaperBlock, FrameLayout.LayoutParams(-1, switchHeight))
         addView(backgroundSwitch, FrameLayout.LayoutParams(-1, switchHeight))
     }
     private val content = object : FrameLayout(context) {
@@ -145,6 +165,19 @@ internal class PersonalizationSettingsPage(
         if (previous == selection) return
         renderedSelection = selection
         backgroundSwitch.isChecked = selection.noneThemeTintBackground
+        wallpaperSwitch.isChecked = selection.noneThemeUseWallpaper
+        picker.renderColors(NoneThemePalette.resolve(selection.noneThemeSeedColor, false,
+            selection.noneThemePrimaryColor, selection.noneThemeSecondaryColor).colors)
+        if (previous == null || previous.noneThemeUseWallpaper != selection.noneThemeUseWallpaper) {
+            picker.resetSelection()
+            val target = if (selection.noneThemeUseWallpaper) 0f else 1f
+            if (previous != null && isAttachedToWindow) pickerMotion.play(pickerProgress, target) {
+                pickerProgress = it
+                layoutNoneOptions()
+                updateControls()
+            } else { pickerProgress = target; layoutNoneOptions() }
+        }
+        if (previous?.themeMode != selection.themeMode) picker.resetSelection()
         segment.setSelection(modeIndex(selection.themeMode))
         val title = firstTitle(selection)
         if (previous?.themeMode == selection.themeMode) {
@@ -213,13 +246,7 @@ internal class PersonalizationSettingsPage(
         noneOptions.visibility = if (frame.none > 0f) View.VISIBLE else View.GONE
         noneOptions.alpha = frame.none
         noneOptions.translationY = -rowGap * (1f - frame.none)
-        val noneHeight = (switchHeight * frame.none).roundToInt()
-        val noneMargin = (dp(context, GroupedSwitchDimensions.GAP_DP) * frame.none).roundToInt()
-        (noneOptions.layoutParams as? LinearLayout.LayoutParams)?.let { params ->
-            if (params.height != noneHeight || params.topMargin != noneMargin) {
-                noneOptions.layoutParams = params.apply { height = noneHeight; topMargin = noneMargin }
-            }
-        }
+        layoutNoneOptions()
         // 开关进入分组时，只收小相邻的两边圆角；最外侧始终保留大圆角。
         val outerRadius = dp(context, GroupedSwitchDimensions.OUTER_RADIUS_DP).toFloat()
         val innerRadius = GroupedSwitchDimensions.INNER_RADIUS_DP * resources.displayMetrics.density
@@ -233,6 +260,35 @@ internal class PersonalizationSettingsPage(
         noneOptions.importantForAccessibility = if (frame.none == 1f && !transition.isRunning)
             View.IMPORTANT_FOR_ACCESSIBILITY_AUTO else View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
         updateControls()
+    }
+
+    private fun layoutNoneOptions() {
+        val pickerHeight = (picker.panelHeight * pickerProgress).roundToInt()
+        wallpaperSwitch.renderExpansion(pickerProgress)
+        pickerHost.visibility = if (pickerProgress > 0f) View.VISIBLE else View.GONE
+        pickerHost.clipChildren = pickerProgress < 1f
+        picker.alpha = pickerProgress
+        picker.translationY = -rowGap * (1f - pickerProgress)
+        pickerHost.importantForAccessibility = if (pickerProgress == 1f)
+            View.IMPORTANT_FOR_ACCESSIBILITY_AUTO else View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        (pickerHost.layoutParams as FrameLayout.LayoutParams).let {
+            if (it.height != pickerHeight) pickerHost.layoutParams = it.apply { height = pickerHeight }
+        }
+        val blockHeight = switchHeight + pickerHeight
+        (wallpaperBlock.layoutParams as FrameLayout.LayoutParams).let {
+            if (it.height != blockHeight) wallpaperBlock.layoutParams = it.apply { height = blockHeight }
+        }
+        val gap = dp(context, GroupedSwitchDimensions.GAP_DP)
+        (backgroundSwitch.layoutParams as FrameLayout.LayoutParams).let {
+            if (it.topMargin != blockHeight + gap) backgroundSwitch.layoutParams = it.apply { topMargin = blockHeight + gap }
+        }
+        val noneHeight = ((blockHeight + gap + switchHeight) * transition.frame.none).roundToInt()
+        val noneMargin = (gap * transition.frame.none).roundToInt()
+        (noneOptions.layoutParams as? LinearLayout.LayoutParams)?.let {
+            if (it.height != noneHeight || it.topMargin != noneMargin) {
+                noneOptions.layoutParams = it.apply { height = noneHeight; topMargin = noneMargin }
+            }
+        }
     }
 
     private fun layoutContent() {
@@ -296,7 +352,10 @@ internal class PersonalizationSettingsPage(
         panels.forEach { it.setControlsEnabled(enabled) }
         firstField.setControlsEnabled(enabled && backPanel == null && transition.frame.first == 1f)
         secondField.setControlsEnabled(enabled && backPanel == null && transition.frame.second == 1f)
-        backgroundSwitch.isEnabled = enabled && backPanel == null && transition.frame.none == 1f
+        val noneEnabled = enabled && backPanel == null && transition.frame.none == 1f
+        backgroundSwitch.isEnabled = noneEnabled
+        wallpaperSwitch.isEnabled = noneEnabled
+        picker.setControlsEnabled(noneEnabled && pickerProgress == 1f)
     }
 
     fun setDisabledProgress(progress: Float) {
@@ -307,6 +366,8 @@ internal class PersonalizationSettingsPage(
     override fun onDetachedFromWindow() {
         scrollbarTouchPanel = null
         backPanel = null
+        pickerMotion.stop()
+        pickerProgress = if (renderedSelection?.noneThemeUseWallpaper != false) 0f else 1f
         transition.finish()
         panels.forEach { it.reset() }
         super.onDetachedFromWindow()

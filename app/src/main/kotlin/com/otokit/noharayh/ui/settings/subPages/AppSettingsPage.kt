@@ -40,7 +40,10 @@ internal class AppSettingsPage(
     private val hardwareSwitch = GroupedSwitchRow(context,
         context.getString(R.string.settings_background_hardware_acceleration), true, false,
         rendering.hardwareAccelerated, ::requestHardwareAcceleration,
-        labelIconRes = R.drawable.ic_error_40)
+        labelIconRes = R.drawable.ic_error_40).apply {
+        // 首次关闭会打开独立窗口，先完成抬手反馈再交出焦点。
+        deferClickUntilReleaseFeedback = true
+    }
     private val animationSwitch = GroupedSwitchRow(context,
         context.getString(R.string.settings_background_html_animations), false, true,
         rendering.htmlAnimations, onHtmlAnimationsSelected)
@@ -62,7 +65,10 @@ internal class AppSettingsPage(
                     label = context.getString(option.labelRes()),
                     selected = option == displayScale,
                     onClick = { onDisplayScaleSelected(option) },
-                ),
+                ).apply {
+                    // 缩放会 recreate Activity，原窗口移除前先交付反馈。
+                    deferClickUntilReleaseFeedback = true
+                },
                 LinearLayout.LayoutParams(-1, -2).apply {
                     if (option != DisplayScaleOption.entries.first()) topMargin = dp(context, 4)
                 },

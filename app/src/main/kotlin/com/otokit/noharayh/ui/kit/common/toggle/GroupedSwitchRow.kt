@@ -21,7 +21,7 @@ import kotlin.math.roundToInt
 
 /** 分组开关行。只呈现确认值、发切换意图；整行共用 PressSurface 的触摸与反馈。 */
 @android.annotation.SuppressLint("ViewConstructor")
-class GroupedSwitchRow(
+open class GroupedSwitchRow(
     context: Context,
     label: CharSequence,
     groupStart: Boolean,

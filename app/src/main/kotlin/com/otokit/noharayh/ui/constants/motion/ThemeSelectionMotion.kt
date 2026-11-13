@@ -11,8 +11,6 @@ internal object ThemeSelectionMotion {
     const val DISABLED_BLEND = 0.62f
     const val CHOICE_DURATION_MS = 220L
     const val ARROW_DURATION_MS = 220L
-    const val OPEN_HAPTIC_GAP_MS = 120L
-    const val OPEN_HAPTIC_MIN_DELAY_MS = 32L
     const val SPRING_DAMPING = 0.82f
     const val SPRING_STIFFNESS = 240f
     const val MIN_VISIBLE_CHANGE_DP = 0.2f
@@ -39,4 +37,10 @@ internal object BackgroundSwitchMotion {
     const val HOLD_MS = 260L
     const val REVEAL_MS = 300L
     const val FINISH_DELAY_MS = 340L
+}
+
+/** 背景跟色开关仅过渡纯色，不进入背景来源切换。 */
+internal object NoneBackgroundColorMotion {
+    const val DURATION_MS = 300L
+    val CURVE = MotionCurve.FastOutSlowIn
 }

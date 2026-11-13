@@ -15,6 +15,7 @@ import com.otokit.noharayh.ui.shell.selection.GameSelectionState
 import com.otokit.noharayh.ui.settings.subPages.PersonalizationSettingsPage
 import com.otokit.noharayh.ui.settings.subPages.AppSettingsPage
 import com.otokit.noharayh.ui.shell.background.BackgroundRenderingOptions
+import com.otokit.noharayh.ui.theme.NoneThemeColorRole
 import com.otokit.noharayh.ui.theme.GameLine
 import com.otokit.noharayh.ui.theme.ThemeOption
 import com.otokit.noharayh.ui.theme.ThemeSelectionMode
@@ -35,6 +36,8 @@ class SettingsAssembly(
     private val onThemeModeSelected: (ThemeSelectionMode) -> Unit,
     private val onThemeOptionSelected: (ThemeOption, GameLine?) -> Unit,
     private val onNoneThemeBackgroundSelected: (Boolean) -> Unit,
+    private val onNoneThemeWallpaperSelected: (Boolean) -> Unit,
+    private val onNoneThemeColorSelected: (NoneThemeColorRole, Int) -> Unit,
     private val onTransitionStart: (SettingsSection?, SettingsSection?, Float, Boolean) -> Unit,
     private val onTransitionFrame: (TransitionProgress) -> Unit,
 ) : FrameLayout(context) {
@@ -272,6 +275,8 @@ class SettingsAssembly(
             onThemeOptionSelected(option, game)
             renderThemeSelection(selectionProvider())
         },
+        onNoneThemeWallpaperSelected = onNoneThemeWallpaperSelected,
+        onNoneThemeColorSelected = onNoneThemeColorSelected,
         onNoneThemeBackgroundSelected = {
             onNoneThemeBackgroundSelected(it)
             renderThemeSelection(selectionProvider())

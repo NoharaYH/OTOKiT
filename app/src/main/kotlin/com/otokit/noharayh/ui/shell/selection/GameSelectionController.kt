@@ -6,6 +6,8 @@ import com.otokit.noharayh.ui.theme.ThemeOption
 import com.otokit.noharayh.ui.theme.ThemeOptions
 import com.otokit.noharayh.ui.theme.ThemeRegistry
 import com.otokit.noharayh.ui.theme.ThemeSelectionMode
+import com.otokit.noharayh.ui.theme.NoneThemePalette
+import com.otokit.noharayh.ui.theme.NoneThemeColorRole
 
 /**
  * shell 私有的唯一选择写入口。
@@ -45,6 +47,32 @@ class GameSelectionController(
     fun selectNoneThemeBackground(enabled: Boolean): Boolean {
         if (state.themeMode != ThemeSelectionMode.None || state.noneThemeTintBackground == enabled) return false
         state = state.copy(noneThemeTintBackground = enabled)
+        return true
+    }
+
+    fun selectNoneThemeWallpaper(enabled: Boolean): Boolean {
+        if (state.themeMode != ThemeSelectionMode.None || state.noneThemeUseWallpaper == enabled) return false
+        val colors = NoneThemePalette.fromSeed(state.noneThemeSeedColor).colors
+        state = state.copy(noneThemeUseWallpaper = enabled,
+            noneThemePrimaryColor = state.noneThemePrimaryColor ?: colors.primaryColor,
+            noneThemeSecondaryColor = state.noneThemeSecondaryColor ?: colors.secondaryColor)
+        return true
+    }
+
+    fun selectNoneThemeColor(role: NoneThemeColorRole, color: Int): Boolean {
+        if (state.themeMode != ThemeSelectionMode.None || state.noneThemeUseWallpaper || color ushr 24 != 255) return false
+        val next = when (role) {
+            NoneThemeColorRole.Primary -> state.copy(noneThemePrimaryColor = color)
+            NoneThemeColorRole.Secondary -> state.copy(noneThemeSecondaryColor = color)
+        }
+        if (next == state) return false
+        state = next
+        return true
+    }
+
+    fun updateWallpaperSeed(color: Int): Boolean {
+        if (color ushr 24 != 255 || state.noneThemeSeedColor == color) return false
+        state = state.copy(noneThemeSeedColor = color)
         return true
     }
 

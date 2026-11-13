@@ -1,7 +1,7 @@
 package com.otokit.noharayh.ui.constants.dimensions
 
 internal object GroupedSwitchDimensions {
-    const val ROW_HEIGHT_DP = 64
+    const val ROW_HEIGHT_DP = 28 + SettingsCardDimensions.CONTENT_INSET_DP * 2
     const val TEXT_INSET_DP = 20
     const val GAP_DP = ThemeSelectionDimensions.MENU_GAP_DP
     const val OUTER_RADIUS_DP = SettingsCardDimensions.CORNER_DP
