@@ -31,6 +31,7 @@ class NavRailItemView(context: Context) : FrameLayout(context) {
     private val circleDrawable = GradientDrawable().apply { shape = GradientDrawable.OVAL }
     private var accentColor: Int = Color.GRAY
     private var navSelected: Boolean = false
+    private var activePointer = MotionEvent.INVALID_POINTER_ID
 
     init {
         isClickable = true
@@ -131,27 +132,65 @@ class NavRailItemView(context: Context) : FrameLayout(context) {
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
-    override fun performClick(): Boolean = super.performClick()
+    override fun performClick(): Boolean = if (isEnabled && isClickable) super.performClick() else false
+
+    private fun inside(x: Float, y: Float) = x in 0f..width.toFloat() && y in 0f..height.toFloat()
+
+    private fun endPress(immediate: Boolean = false) {
+        activePointer = MotionEvent.INVALID_POINTER_ID
+        isPressed = false
+        animate().cancel()
+        if (immediate) {
+            scaleX = 1f
+            scaleY = 1f
+        } else {
+            animate().scaleX(1f).scaleY(1f).setDuration(120L).start()
+        }
+    }
+
+    override fun setEnabled(enabled: Boolean) {
+        super.setEnabled(enabled)
+        if (!enabled) endPress(immediate = true)
+    }
+
+    override fun setClickable(clickable: Boolean) {
+        super.setClickable(clickable)
+        if (!clickable) endPress(immediate = true)
+    }
+
+    override fun onWindowFocusChanged(hasWindowFocus: Boolean) {
+        super.onWindowFocusChanged(hasWindowFocus)
+        if (!hasWindowFocus) endPress(immediate = true)
+    }
+
+    override fun onDetachedFromWindow() {
+        endPress(immediate = true)
+        super.onDetachedFromWindow()
+    }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (!isEnabled || !isClickable) { endPress(immediate = true); return false }
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                activePointer = event.getPointerId(0)
+                isPressed = true
+                animate().cancel()
                 animate().scaleX(0.96f).scaleY(0.96f).setDuration(90L).start()
-                return true
             }
-
+            MotionEvent.ACTION_MOVE -> {
+                val index = event.findPointerIndex(activePointer)
+                if (isPressed && (index < 0 || !inside(event.getX(index), event.getY(index)))) endPress()
+            }
+            MotionEvent.ACTION_POINTER_UP -> {
+                // 主指离开终止整次点击，不能由剩余手指补发 UP。
+                if (event.getPointerId(event.actionIndex) == activePointer) endPress()
+            }
             MotionEvent.ACTION_UP -> {
-                animate().scaleX(1f).scaleY(1f).setDuration(120L).start()
-                if (event.x in 0f..width.toFloat() && event.y in 0f..height.toFloat()) {
-                    performClick()
-                }
-                return true
+                val clicked = isPressed && event.getPointerId(0) == activePointer && inside(event.x, event.y)
+                endPress()
+                if (clicked) performClick()
             }
-
-            MotionEvent.ACTION_CANCEL -> {
-                animate().scaleX(1f).scaleY(1f).setDuration(120L).start()
-                return true
-            }
+            MotionEvent.ACTION_CANCEL -> endPress()
         }
         return true
     }
