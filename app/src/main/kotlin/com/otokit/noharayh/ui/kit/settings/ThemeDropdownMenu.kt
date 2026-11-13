@@ -27,6 +27,7 @@ internal class ThemeDropdownMenu(
     options: List<ThemeOption>,
     availableHeight: Int,
     onBottomRadiusChanged: () -> Unit,
+    onScrollChanged: () -> Unit,
     onSelected: (ThemeOption) -> Unit,
 ) : FrameLayout(context) {
     private fun dp(value: Int) = (value * resources.displayMetrics.density + 0.5f).toInt()
@@ -42,8 +43,13 @@ internal class ThemeDropdownMenu(
     private val geometry = ThemeMenuGeometry(options.size, slots, rowHeight, gap,
         collapsedHeight, dp(Dimensions.MENU_PADDING_DP).toFloat())
     val contentHeight = geometry.height.roundToInt()
-    private val viewport = MenuViewport(context, options, geometry, onBottomRadiusChanged, onSelected)
+    private val viewport = MenuViewport(context, options, geometry, onBottomRadiusChanged, onScrollChanged, onSelected)
     val bottomCornerRadius: Float get() = viewport.bottomCornerRadius
+    val canScroll: Boolean get() = geometry.maximum > 0f
+    val scrollFraction: Float get() = viewport.scrollFraction
+    fun beginScrollbarDrag() = viewport.beginScrollbarDrag()
+    fun dragScrollbarTo(fraction: Float) = viewport.dragScrollbarTo(fraction)
+    fun endScrollbarDrag() = viewport.endScrollbarDrag()
     init {
         clipChildren = false
         clipToPadding = false
@@ -61,6 +67,7 @@ private class MenuViewport(
     options: List<ThemeOption>,
     private val geometry: ThemeMenuGeometry,
     private val onBottomRadiusChanged: () -> Unit,
+    private val onScrollChanged: () -> Unit,
     onSelected: (ThemeOption) -> Unit,
 ) : ViewGroup(context) {
     private val edges = themeMenuEdges(options)
@@ -69,6 +76,7 @@ private class MenuViewport(
     private var interactionEnabled = false
     private var touching = false
     private var offset = 0f
+    val scrollFraction: Float get() = if (geometry.maximum > 0f) (offset / geometry.maximum).coerceIn(0f, 1f) else 0f
     private var reportedBottomRadius = -1f
     /** 末项永远是分组尾部；返回实际高度约束后的 DMB 半径，不返回 22dp 的目标值。 */
     val bottomCornerRadius: Float get() {
@@ -143,6 +151,24 @@ private class MenuViewport(
             performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
         }
         invalidate()
+        onScrollChanged()
+    }
+
+    fun beginScrollbarDrag() {
+        stopMotion()
+        touching = true
+        dragging = true
+        layoutRows()
+    }
+
+    fun dragScrollbarTo(fraction: Float) {
+        if (touching) updatePosition(fraction.coerceIn(0f, 1f) * geometry.maximum)
+    }
+
+    fun endScrollbarDrag() {
+        touching = false
+        dragging = false
+        snap()
     }
 
     private fun layoutRows() {

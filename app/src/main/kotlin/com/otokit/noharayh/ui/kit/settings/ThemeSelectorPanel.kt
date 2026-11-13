@@ -2,6 +2,7 @@ package com.otokit.noharayh.ui.kit.settings
 
 import android.content.Context
 import android.view.View
+import android.view.MotionEvent
 import android.widget.FrameLayout
 import com.otokit.noharayh.ui.animation.settings.ThemePanelFrames
 import com.otokit.noharayh.ui.animation.settings.ThemePanelTransitionRunner
@@ -24,6 +25,10 @@ internal class ThemeSelectorPanel(
     private var presentation = 1f
     private var controlsEnabled = true
     private val runner = ThemePanelTransitionRunner(::render)
+    private val scrollbar = ThemeScrollbar(context,
+        onDragStart = { menu?.beginScrollbarDrag() },
+        onDrag = { menu?.dragScrollbarTo(it) },
+        onDragEnd = { menu?.endScrollbarDrag() })
     val isOpen: Boolean get() = opening
     val extraHeight: Float get() = menu?.let {
         it.contentHeight * ThemePanelFrames.extension(runner.progress)
@@ -33,6 +38,11 @@ internal class ThemeSelectorPanel(
         clipChildren = false
         clipToPadding = false
         addView(header, LayoutParams(-1, rowHeight))
+        addView(scrollbar, LayoutParams(dp(Dimensions.SCROLLBAR_HIT_WIDTH_DP), -1,
+            android.view.Gravity.RIGHT).apply {
+            rightMargin = -dp(Dimensions.SCROLLBAR_HIT_WIDTH_DP) / 2 +
+                (Dimensions.FIELD_STROKE_DP * resources.displayMetrics.density / 2f).roundToInt()
+        })
     }
 
     fun open(options: List<ThemeOption>, availableHeight: Int, onSelected: (ThemeOption) -> Unit) {
@@ -48,7 +58,8 @@ internal class ThemeSelectorPanel(
         opening = true
         optionIds = options.map { it.id }
         val content = ThemeDropdownMenu(context, options, availableHeight,
-            onBottomRadiusChanged = { render(runner.progress, notifyHeight = false) }) { option ->
+            onBottomRadiusChanged = { render(runner.progress, notifyHeight = false) },
+            onScrollChanged = { renderScrollbar() }) { option ->
             if (opening && previewStart == null && controlsEnabled) {
                 close()
                 onSelected(option)
@@ -56,6 +67,7 @@ internal class ThemeSelectorPanel(
         }
         menu = content
         addView(content, LayoutParams(-1, content.contentHeight).apply { topMargin = rowHeight })
+        scrollbar.bringToFront()
         header.setExpanded(true)
         render(0f)
         runner.play(1f) { menu?.scheduleOpeningHaptic(header.openingHapticDelay()) }
@@ -65,6 +77,7 @@ internal class ThemeSelectorPanel(
         if (menu == null || (!opening && previewStart == null)) return
         opening = false
         previewStart = null
+        scrollbar.beginRetraction(runner.progress)
         header.setExpanded(false)
         menu?.stopMotion()
         runner.play(0f) { releaseMenu() }
@@ -73,6 +86,7 @@ internal class ThemeSelectorPanel(
     fun beginBackPreview(): Boolean {
         if (!opening) return false
         previewStart = runner.progress
+        scrollbar.beginRetraction(runner.progress)
         runner.preview(runner.progress)
         menu?.stopMotion()
         render(runner.progress)
@@ -114,7 +128,34 @@ internal class ThemeSelectorPanel(
             it.setInteractionEnabled(interactive)
             it.importantForAccessibility = if (interactive) IMPORTANT_FOR_ACCESSIBILITY_AUTO else IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
         }
+        renderScrollbar()
         if (notifyHeight) onHeightChanged()
+    }
+
+    private fun renderScrollbar() {
+        val (upper, lower) = header.scrollbarTrack()
+        scrollbar.alpha = presentation
+        scrollbar.render(upper, lower, if (lower > upper) 1f else 0f,
+            menu?.scrollFraction ?: 0f, menu?.canScroll == true,
+            menu != null && opening && previewStart == null && runner.progress == 1f && controlsEnabled && presentation == 1f,
+            runner.progress, !opening || previewStart != null)
+    }
+
+    /** 从页面接收完整 48dp 热区；常规子 View 分发会把外框右侧的一半裁掉。 */
+    fun dispatchScrollbarTouch(event: MotionEvent): Boolean {
+        if (visibility != View.VISIBLE) return false
+        val location = IntArray(2)
+        scrollbar.getLocationOnScreen(location)
+        val copy = MotionEvent.obtain(event)
+        copy.offsetLocation(event.rawX - event.x - location[0], event.rawY - event.y - location[1])
+        val handled = scrollbar.dispatchTouchEvent(copy)
+        copy.recycle()
+        return handled
+    }
+
+    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+        super.onLayout(changed, left, top, right, bottom)
+        renderScrollbar()
     }
 
     fun reset() {
@@ -126,6 +167,7 @@ internal class ThemeSelectorPanel(
         header.setExpanded(false)
     }
     private fun releaseMenu() {
+        scrollbar.reset()
         menu?.stopMotion()
         menu?.let(::removeView)
         menu = null

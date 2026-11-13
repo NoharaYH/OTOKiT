@@ -37,6 +37,7 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
     private val panelFillPath = Path()
     private val panelCorners = FloatArray(8)
     private var outlineBottomRadius = 0f
+    private var outlineMaximumBottomRadius = 0f
     override val surfaceFillInset: Float
         get() = stroke.strokeWidth / 2f
     private fun valueText() = TextView(context).apply {
@@ -167,8 +168,21 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
         val expandedRadius = (menuBottomRadius + clearance).coerceAtLeast(0f)
         outlineBottomRadius = (radius + (expandedRadius - radius) * panelExpansion)
             .coerceIn(0f, minOf(outline.width() / 2f, outline.height() - radius).coerceAtLeast(0f))
+        val maximumRadius = Dimensions.MENU_LARGE_RADIUS_DP * resources.displayMetrics.density + clearance
+        outlineMaximumBottomRadius = (radius + (maximumRadius - radius) * panelExpansion)
+            .coerceIn(0f, minOf(outline.width() / 2f, outline.height() - radius).coerceAtLeast(0f))
         return radius
     }
+
+    /** 与描边共用断口；下端以最大圆角的切点为界，不随最后一项的压缩状态漂移。 */
+    private fun sideGap(radius: Float): Pair<Float, Float> {
+        val haloBottom = height + (PressHaloSpec.PEAK_OUTSET_DP + Dimensions.FIELD_STROKE_DP) * resources.displayMetrics.density
+        return themePanelSideGap(outline.top + radius, outline.bottom,
+            outlineMaximumBottomRadius, haloBottom, panelGap,
+            (Dimensions.FIELD_HEIGHT_DP + Dimensions.SCROLLBAR_END_GAP_DP * 2f) * resources.displayMetrics.density)
+    }
+
+    fun scrollbarTrack(): Pair<Float, Float> = sideGap(updateOutlineGeometry(baseRadius, 0f))
 
     override fun drawUnderlay(canvas: Canvas, cornerRadius: Float, inset: Float) {
         if (panelHeight <= 0f) return
@@ -195,26 +209,15 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
         arc.set(outline.right - radius * 2, outline.top, outline.right, outline.top + radius * 2)
         outlinePath.arcTo(arc, -90f, 90f)
         // 上段越过标题外环的峰值范围，断口不与黑圈下缘相交。
-        val haloBottom = height + (PressHaloSpec.PEAK_OUTSET_DP + Dimensions.FIELD_STROKE_DP) * resources.displayMetrics.density
-        // 上下段共用直线长度；底部圆角仍独立跟随末项，避免加长时破坏同心关系。
-        val stub = maxOf(Dimensions.PANEL_STROKE_STUB_DP * resources.displayMetrics.density,
-            haloBottom - outline.top - radius)
-        val upperLimit = themePanelSideEnd(outline.top + radius, outline.bottom - bottomRadius, haloBottom)
-        val lowerLimit = (outline.bottom - bottomRadius - stub).coerceAtLeast(upperLimit)
-        val opening = (lowerLimit - upperLimit) * panelGap
-        val middle = (upperLimit + lowerLimit) / 2f
-        val upperEnd = middle - opening / 2f
-        val lowerStart = middle + opening / 2f
+        val (upperEnd, lowerStart) = sideGap(radius)
         outlinePath.lineTo(outline.right, upperEnd)
-        if (opening > 0f) outlinePath.moveTo(outline.right, lowerStart)
+        if (lowerStart > upperEnd) outlinePath.moveTo(outline.right, lowerStart)
         outlinePath.lineTo(outline.right, outline.bottom - bottomRadius)
         arc.set(outline.right - bottomRadius * 2, outline.bottom - bottomRadius * 2, outline.right, outline.bottom)
         outlinePath.arcTo(arc, 0f, 90f)
         outlinePath.lineTo(outline.left + bottomRadius, outline.bottom)
         arc.set(outline.left, outline.bottom - bottomRadius * 2, outline.left + bottomRadius * 2, outline.bottom)
         outlinePath.arcTo(arc, 90f, 90f)
-        outlinePath.lineTo(outline.left, lowerStart)
-        if (opening > 0f) outlinePath.moveTo(outline.left, upperEnd)
         outlinePath.lineTo(outline.left, outline.top + radius)
         arc.set(outline.left, outline.top, outline.left + radius * 2, outline.top + radius * 2)
         outlinePath.arcTo(arc, 180f, 90f)
@@ -296,3 +299,12 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
 /** 胶囊闭合时两段圆弧相接；分别计算的端点可能相差一个浮点单位，按相接处理。 */
 internal fun themePanelSideEnd(topArcEnd: Float, bottomArcStart: Float, preferredEnd: Float): Float =
     preferredEnd.coerceIn(topArcEnd, bottomArcStart.coerceAtLeast(topArcEnd))
+
+internal fun themePanelSideGap(topArcEnd: Float, bottom: Float, maximumRadius: Float,
+    preferredEnd: Float, progress: Float, minimumGap: Float = 0f): Pair<Float, Float> {
+    val upper = themePanelSideEnd(topArcEnd, bottom - maximumRadius, preferredEnd)
+    val lower = (bottom - maximumRadius).coerceAtLeast(upper)
+    val middle = (upper + lower) / 2f
+    // 够放下一段完整滑块及两端留白才直接切开，端点不再从中点向两边退缩。
+    return if (progress > 0f && lower - upper >= minimumGap) upper to lower else middle to middle
+}

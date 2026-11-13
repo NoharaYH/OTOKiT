@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Canvas
 import androidx.core.graphics.withSave
 import android.view.View
+import android.view.MotionEvent
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -66,6 +67,7 @@ internal class PersonalizationSettingsPage(
     private val secondPanel = ThemeSelectorPanel(context, secondField, ::layoutContent)
     private val panels = listOf(firstPanel, secondPanel)
     private var backPanel: ThemeSelectorPanel? = null
+    private var scrollbarTouchPanel: ThemeSelectorPanel? = null
 
     init {
         val body = LinearLayout(context).apply {
@@ -150,6 +152,21 @@ internal class PersonalizationSettingsPage(
     private fun firstTitle(state: GameSelectionState): String =
         if (state.themeMode == ThemeSelectionMode.Merged) ThemeOptions.resolveMerged(state.mergedThemeId).title
         else ThemeOptions.resolveForGame(GameLine.Mai, state.maiThemeId).title
+
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        // 页面比外框宽：优先转交滑块的完整热区，其余位置仍走原来的菜单/页面手势。
+        if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+            scrollbarTouchPanel = panels.firstOrNull { it.dispatchScrollbarTouch(event) }
+            if (scrollbarTouchPanel != null) return true
+        } else scrollbarTouchPanel?.let { panel ->
+            panel.dispatchScrollbarTouch(event)
+            if (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL) {
+                scrollbarTouchPanel = null
+            }
+            return true
+        }
+        return super.dispatchTouchEvent(event)
+    }
 
     private fun renderFrame(frame: ThemeCardFrame) {
         layoutContent()
@@ -239,6 +256,7 @@ internal class PersonalizationSettingsPage(
     }
 
     override fun onDetachedFromWindow() {
+        scrollbarTouchPanel = null
         backPanel = null
         transition.finish()
         panels.forEach { it.reset() }

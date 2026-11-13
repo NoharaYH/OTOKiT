@@ -3,7 +3,6 @@ package com.otokit.noharayh.ui.constants.dimensions
 /** 主题触发框、分段按钮与容器菜单的标准几何。 */
 internal object ThemeSelectionDimensions {
     const val FIELD_GAP_DP = 12
-    const val PANEL_STROKE_STUB_DP = 12
     const val FIELD_HEIGHT_DP = 44
     const val FIELD_RADIUS_DP = FIELD_HEIGHT_DP / 2
     const val FIELD_STROKE_DP = 2.5f
@@ -26,4 +25,9 @@ internal object ThemeSelectionDimensions {
     const val MENU_MIN_VISIBLE_DP = 2
     const val MENU_OVERSCROLL_DP = 32
     const val MENU_TRANSLATION_DP = 8
+    const val SCROLLBAR_WIDTH_DP = 9f
+    const val SCROLLBAR_HIT_WIDTH_DP = 48
+    const val SCROLLBAR_END_GAP_DP = 6f
+    const val SCROLLBAR_PULL_DP = 14f
+    const val SCROLLBAR_STRETCH_DP = 24f
 }

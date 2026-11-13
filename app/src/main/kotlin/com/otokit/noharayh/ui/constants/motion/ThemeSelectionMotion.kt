@@ -26,6 +26,11 @@ internal object ThemeSelectionMotion {
     const val OVERSCROLL_SHIFT_FACTOR = -0.25f
     const val FEEDBACK_REARM_FRACTION = 0.9f
     const val LABEL_FADE_START = 0.45f
+    // 连续欠阻尼运动：初速度拉出，允许一次可见的挤压回摆，不在顶点切换弹簧。
+    const val SCROLLBAR_DAMPING = 0.5f
+    const val SCROLLBAR_STIFFNESS = 420f
+    const val SCROLLBAR_INITIAL_VELOCITY = 24f
+    const val SCROLLBAR_EXIT_FRACTION = 1f - PANEL_EXTENSION_END
 }
 
 /** 保留现有固定黑幕时序；等待 HTML 就绪的改动另行处理。 */
