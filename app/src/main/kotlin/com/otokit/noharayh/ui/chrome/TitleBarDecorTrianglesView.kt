@@ -14,7 +14,7 @@ import android.view.View
  * - Mai 三角：`(w/2, 0) → (w, 0) → (w, 0.8h)`
  * - Chu 三角：`(0.75w, h) → (w, h) → (w, h/3)`
  *
- * 先画 Chu 再画 Mai；两者分别使用各自音游主题的 basicColor。本批不做颜色过渡动画（09 再处理）。
+ * 先画 Chu 再画 Mai；颜色由主壳传入。双主题分别用各音游主色，单主题用主色与副色。
  */
 class TitleBarDecorTrianglesView(context: Context) : View(context) {
 

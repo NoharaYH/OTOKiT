@@ -18,16 +18,16 @@ class ThemeRegistryTest {
         assertEquals("CiRCLE+", mai!!.displayName)
         assertEquals(GameLine.Mai, mai.gameLine)
         assertEquals("background/MaiCirclePlus/html/index.html", mai.definition.htmlAssetPath)
-        assertEquals(0xFF477FE5.toInt(), mai.definition.colors.basicColor)
-        assertEquals(0xFFCF9AFA.toInt(), mai.definition.colors.buttonColor)
+        assertEquals(0xFFFF93D0.toInt(), mai.definition.colors.primaryColor)
+        assertEquals(0xFFC1A1FD.toInt(), mai.definition.colors.secondaryColor)
 
         val chu = ThemeRegistry.findById("chu-xversex")
         assertNotNull(chu)
         assertEquals("X-Verse-X", chu!!.displayName)
         assertEquals(GameLine.Chu, chu.gameLine)
         assertEquals("background/ChuXVerseX/html/index.html", chu.definition.htmlAssetPath)
-        assertEquals(0xFF6F8CFF.toInt(), chu.definition.colors.basicColor)
-        assertEquals(0xFF6F8CFF.toInt(), chu.definition.colors.buttonColor)
+        assertEquals(0xFF6F8CFF.toInt(), chu.definition.colors.primaryColor)
+        assertEquals(0xFFB4CBF6.toInt(), chu.definition.colors.secondaryColor)
     }
 
     /** 原始查询不替未知、空、旧 ID 或展示名回退到默认项。 */
@@ -234,7 +234,7 @@ class ThemeRegistryTest {
         gameLine = gameLine,
         definition = ThemeDefinition(
             htmlAssetPath = htmlAssetPath,
-            colors = ThemeColors(basicColor = 0xFF000000.toInt(), buttonColor = 0xFF000000.toInt()),
+            colors = ThemeColors(primaryColor = 0xFF000000.toInt(), secondaryColor = 0xFF000000.toInt()),
         ),
     )
 }

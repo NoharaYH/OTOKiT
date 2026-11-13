@@ -21,12 +21,12 @@ object BackgroundPalette {
     fun colorsFor(selection: BackgroundSelection): ThemeColors = when (selection) {
         is BackgroundSelection.Html -> selection.theme.definition.colors
         BackgroundSelection.Placeholder -> ThemeColors(
-            basicColor = 0xFF9E9E9E.toInt(),
-            buttonColor = 0xFF757575.toInt(),
+            primaryColor = 0xFF9E9E9E.toInt(),
+            secondaryColor = 0xFF757575.toInt(),
         )
         BackgroundSelection.None -> ThemeColors(
-            basicColor = NONE_COLOR,
-            buttonColor = 0xFF616161.toInt(),
+            primaryColor = NONE_COLOR,
+            secondaryColor = 0xFF616161.toInt(),
         )
     }
 

@@ -14,7 +14,12 @@ class PageContent(
     private val frameUpdater: ((GameFrame) -> Unit)? = null,
     private val interactiveUpdater: ((Boolean) -> Unit)? = null,
     private val disposeAction: (() -> Unit)? = null,
+    private val gameColorsUpdater: ((Int, Int) -> Unit)? = null,
 ) {
+    fun updateGameColors(maiColor: Int, chuColor: Int) {
+        gameColorsUpdater?.invoke(maiColor, chuColor)
+    }
+
     fun updateColor(color: Int) {
         colorUpdater(color)
     }

@@ -12,8 +12,8 @@ object MaiCirclePlusTheme {
     val definition: ThemeDefinition = ThemeDefinition(
         htmlAssetPath = HTML_ASSET_PATH,
         colors = ThemeColors(
-            basicColor = 0xFF477FE5.toInt(),
-            buttonColor = 0xFFCF9AFA.toInt(),
+            primaryColor = 0xFFFF93D0.toInt(),
+            secondaryColor = 0xFFC1A1FD.toInt(),
         ),
     )
 }

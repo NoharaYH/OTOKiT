@@ -102,6 +102,10 @@ object GamePlaceholderPage {
 
         return PageContent(
             view = root,
+            gameColorsUpdater = { maiColor, chuColor ->
+                maiPanel.button.fillColor = maiColor
+                chuPanel.button.fillColor = chuColor
+            },
             frameUpdater = ::applyFrame,
             interactiveUpdater = { allowed ->
                 interactiveAllowed = allowed

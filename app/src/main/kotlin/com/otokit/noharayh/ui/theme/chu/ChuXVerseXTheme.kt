@@ -12,8 +12,8 @@ object ChuXVerseXTheme {
     val definition: ThemeDefinition = ThemeDefinition(
         htmlAssetPath = HTML_ASSET_PATH,
         colors = ThemeColors(
-            basicColor = 0xFF6F8CFF.toInt(),
-            buttonColor = 0xFF6F8CFF.toInt(),
+            primaryColor = 0xFF6F8CFF.toInt(),
+            secondaryColor = 0xFFB4CBF6.toInt(),
         ),
     )
 }

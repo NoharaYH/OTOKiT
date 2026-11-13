@@ -155,7 +155,7 @@ class GameSelectionControllerTest {
         gameLine = gameLine,
         definition = ThemeDefinition(
             htmlAssetPath = "background/$id/index.html",
-            colors = ThemeColors(basicColor = 0, buttonColor = 0),
+            colors = ThemeColors(primaryColor = 0, secondaryColor = 0),
         ),
     )
 }

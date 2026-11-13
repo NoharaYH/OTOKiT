@@ -449,6 +449,7 @@ class MainShell(
         val color = placeholderTextColor()
         mountedContent?.updateColor(color)
         settingsContent?.updateColor(color)
+        mountedContent?.let(::updatePageThemeColors)
         val nextMai = backgroundFor(current, GameLine.Mai)
         val nextChu = backgroundFor(current, GameLine.Chu)
         val changed = lastMaiBackground != null && (
@@ -507,7 +508,7 @@ class MainShell(
 
     private fun placeholderTextColor(): Int {
         val current = selection.state
-        return BackgroundPalette.colorsFor(colorBackgroundFor(current, current.currentGame)).basicColor
+        return BackgroundPalette.colorsFor(colorBackgroundFor(current, current.currentGame)).primaryColor
     }
 
     /** 无模式只关闭背景；chrome 仍沿用当前音游已选主题的颜色。 */
@@ -692,11 +693,15 @@ class MainShell(
             currentGame = current.currentGame,
             settingsOpen = nav.settingsOpen,
             settingsSection = nav.settingsSection,
-            themeColor = currentColors.basicColor,
-            maiTextColor = maiColors.basicColor,
-            chuTextColor = chuColors.basicColor,
-            maiDecorColor = maiColors.basicColor,
-            chuDecorColor = chuColors.basicColor,
+            themeColor = currentColors.primaryColor,
+            maiTextColor = maiColors.primaryColor,
+            chuTextColor = chuColors.primaryColor,
+            maiDecorColor = maiColors.primaryColor,
+            chuDecorColor = if (current.themeMode == ThemeSelectionMode.Merged) {
+                currentColors.secondaryColor
+            } else {
+                chuColors.primaryColor
+            },
             gameFrame = latestGameFrame,
             navDirection = direction,
         )
@@ -743,7 +748,14 @@ class MainShell(
             Destination.ScoreSync -> ScoreSyncPlaceholder.create(context)
             Destination.MusicData -> MusicDataPlaceholder.create(context)
             Destination.ComingSoon -> ComingSoonPlaceholder.create(context)
-        }
+        }.also(::updatePageThemeColors)
+
+    private fun updatePageThemeColors(content: PageContent) {
+        val current = selection.state
+        val maiColor = BackgroundPalette.colorsFor(colorBackgroundFor(current, GameLine.Mai)).primaryColor
+        val chuColor = BackgroundPalette.colorsFor(colorBackgroundFor(current, GameLine.Chu)).primaryColor
+        content.updateGameColors(maiColor, chuColor)
+    }
 
     /** 背景是唯一进度源；shell 把它转成纯帧，页面和 chrome 只消费帧。 */
     private fun applyGameFrame() {

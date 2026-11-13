@@ -7,10 +7,10 @@ package com.otokit.noharayh.ui.theme
  */
 enum class GameLine { Mai, Chu }
 
-/** 两个原生颜色角色：基调色与交互强调色，均为不透明 ARGB。 */
+/** 主色用于常规内容；副色仅用于单主题模式的另一标题栏三角。均为不透明 ARGB。 */
 data class ThemeColors(
-    val basicColor: Int,
-    val buttonColor: Int,
+    val primaryColor: Int,
+    val secondaryColor: Int,
 )
 
 /** 主题自身提供的描述：HTML 相对入口与颜色，不含 WebView 或加载函数。 */
