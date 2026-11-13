@@ -1,0 +1,113 @@
+*{box-sizing:border-box}
+body,div,html,img{margin:0;padding:0;border:0;outline:0;background-color:transparent;color:inherit;font-family:inherit;font-size:100%;font-weight:inherit;font-style:inherit;line-height:inherit;vertical-align:baseline;text-decoration:none;text-align:inherit;text-indent:0;tab-size:4}
+html{-webkit-text-size-adjust:100%;line-height:1.2}
+body,html{min-height:100%}
+img{max-width:100%;-webkit-user-select:none;-ms-user-select:none;user-select:none}
+img{vertical-align:middle}
+.dec-bg{display:block;position:fixed;top:0;left:0;width:100%;height:100%;overflow:hidden;pointer-events:none}
+@media screen and (min-width:601px){
+.dec-bg{min-width:1250px}
+}
+.linear-image{background-size:contain;background-repeat:no-repeat;position:absolute;margin-left:-5px;top:var(--linearImageTop);left:var(--linearDegree);filter:hue-rotate(90deg);-webkit-backface-visibility:hidden;backface-visibility:hidden;image-rendering:-webkit-optimize-contrast;scale:.4;animation:lightning 10s var(--linearDelay) infinite both cubic-bezier(.65,0,.35,1)}
+.linear-image.thunder_pink{transform:rotate(-20deg);background-image:url(../status/assets_maiDecorationBg_thunder_pink.webp)}
+@media screen and (min-width:601px){
+.linear-image.thunder_pink{width:103px;height:323px}
+}
+@media screen and (max-width:600px){
+.linear-image.thunder_pink{width:61.8px;height:193.8px}
+}
+.linear-image.thunder_yellow{transform:rotate(20deg);background-image:url(../status/assets_maiDecorationBg_thunder_yellow.webp)}
+@media screen and (min-width:601px){
+.linear-image.thunder_yellow{width:125px;height:316px}
+}
+@media screen and (max-width:600px){
+.linear-image.thunder_yellow{width:75px;height:189.6px}
+}
+.linear-image.thunder_green{transform:rotate(40deg);background-image:url(../status/assets_maiDecorationBg_thunder_green.webp)}
+@media screen and (min-width:601px){
+.linear-image.thunder_green{width:150px;height:177px}
+}
+@media screen and (max-width:600px){
+.linear-image.thunder_green{width:90px;height:106.2px}
+}
+.linear{bottom:0;z-index:100;width:100%;height:100%;transform-style:preserve-3d;perspective:80px}
+.linear,.linear-inner{position:relative;overflow:hidden}
+.linear-inner{margin:0 auto}
+@media screen and (min-width:601px){
+.linear-inner{width:100%;height:100%;transform:scale(2) rotateX(167deg)}
+}
+@media screen and (max-width:600px){
+.linear-inner{width:55%;height:110%;transform:scale(2) rotateX(157deg)}
+}
+.linear-item{position:absolute;margin-left:-5px;left:var(--linearDegree);height:var(--linearHeight);background-color:var(--linearColor);-webkit-clip-path:polygon(50% 0,100% 75%,50% 100%,0 75%);clip-path:polygon(50% 0,100% 75%,50% 100%,0 75%)}
+@media screen and (min-width:601px){
+.linear-item{width:5px;animation:ray 3s var(--linearDelay) infinite both cubic-bezier(.65,0,.35,1)}
+}
+@media screen and (max-width:600px){
+.linear-item{width:3px;animation:ray 5s var(--linearDelay) infinite both cubic-bezier(.65,0,.35,1)}
+}
+.pattern-bg{position:absolute;top:0;left:0;width:100%;height:100%;background-image:url(../status/assets_maiDecorationBg_pattern.webp);background-repeat:repeat}
+@media screen and (max-width:600px){
+.pattern-bg{background-size:50%}
+}
+.mirrorball{position:absolute;top:0;left:0;right:0;margin:auto;background-size:contain;z-index:100}
+@media screen and (min-width:601px){
+.mirrorball{width:322px;height:100px;background-image:url(../status/assets_maiDecorationBg_pc_mirrorball.webp)}
+}
+@media screen and (max-width:600px){
+.mirrorball{width:218.5px;height:102px;background-image:url(../status/assets_maiDecorationBg_sp_mirrorball.webp)}
+}
+.line-bg{position:absolute;top:0;left:0;width:100%;height:100%;background-repeat:no-repeat;background-size:cover;background-position:50%}
+@media screen and (min-width:601px){
+.line-bg{background-image:url(../status/assets_maiDecorationBg_pc_line.webp)}
+}
+@media screen and (max-width:600px){
+.line-bg{background-image:url(../status/assets_maiDecorationBg_sp_line.webp)}
+}
+.speaker{position:absolute;left:0;right:0;margin:auto;width:100%;background-repeat:repeat-x;background-position:50%;animation:bound .2s infinite alternate;z-index:100}
+@media screen and (min-width:601px){
+.speaker{bottom:70px;height:365px;background-image:url(../status/assets_maiDecorationBg_pc_speaker.webp);background-size:contain}
+}
+@media screen and (max-width:600px){
+.speaker{bottom:110px;height:160px;background-image:url(../status/assets_maiDecorationBg_sp_speaker.webp);background-size:cover}
+}
+.stream{position:absolute;bottom:0;left:0;right:0;margin:auto;width:100%;transform-style:preserve-3d;perspective:40px;overflow:hidden;background-color:#0e325d;z-index:100}
+@media screen and (min-width:601px){
+.stream{height:80px}
+}
+@media screen and (max-width:600px){
+.stream{height:110px}
+}
+.stream-inner{width:100%;height:100%;margin:0 auto;position:relative;transform:scale(2) rotateX(40deg);overflow:hidden}
+.stream-item{position:absolute;left:var(--streamDegree);top:0;margin-left:-5px;width:10px;height:150px;border-radius:30px;background:#fff;animation:stream 1s var(--streamDelay) linear infinite both}
+@media screen and (min-width:601px){
+.stream-item{transform:scale(.5)}
+}
+@media screen and (max-width:600px){
+.stream-item{transform:scale(.3)}
+}
+body{position:relative;font-family:ヒラギノ角ゴ Pro W3,Hiragino Kaku Gothic Pro,メイリオ,Meiryo,sans-serif;font-size:16px;line-height:1.6;color:#000;width:100%;height:100%;margin:0;padding:0;-webkit-overflow-scrolling:touch}
+@media screen and (min-width:601px){
+body{min-width:1250px}
+}
+body::-webkit-scrollbar{width:14px;background-color:#183665}
+body::-webkit-scrollbar-thumb{background-color:#f3497f}
+@keyframes ray{0%{top:-30%}to{top:100%;height:0}}
+@keyframes lightning{0%{opacity:1;-webkit-clip-path:polygon(0 0,100% 0,100% 0,0 0);clip-path:polygon(0 0,100% 0,100% 0,0 0);filter:hue-rotate(90deg)}5%{-webkit-clip-path:polygon(0 0,100% 0,100% 100%,0 100%);clip-path:polygon(0 0,100% 0,100% 100%,0 100%);filter:hue-rotate(0deg)}20%,to{opacity:0}}
+@keyframes stream{0%{top:-150%}to{top:150%;height:0}}
+@keyframes bound{0%{transform:translateY(.5%)}to{transform:translateY(1.5%)}}
+/* OTOKiT viewport adaptation. Original decoration rules above come from the archived official site. */
+*,*::before,*::after{box-sizing:border-box}
+html,body{width:100%;height:100%;min-width:0!important;min-height:0!important;margin:0;padding:0;overflow:hidden}
+ul,li{list-style:none;margin:0;padding:0}
+.otokit-background{position:fixed;inset:0;isolation:isolate;overflow:hidden;pointer-events:none;user-select:none}
+.otokit-hero{position:absolute;left:50%;top:50%;width:min(661px,60vw);height:64vh;transform:translate(-50%,-50%);z-index:300;animation:otokit-float 3s ease-in-out infinite alternate;display:flex;align-items:center;justify-content:center}
+.otokit-hero img{display:block;max-width:100%;max-height:100%;object-fit:contain}
+@keyframes otokit-float{from{transform:translate(-50%,-50%)}to{transform:translate(-50%,-48%)}}
+@media(max-width:600px){.otokit-hero{width:86vw;height:60vh}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-play-state:paused!important}}
+
+.pattern-bg{background-position:0 0;animation:otokit-pattern 16.8s steps(21,end) .8s infinite}@keyframes otokit-pattern{from{background-position:5% 0}to{background-position:110% 0}}
+@media(min-width:601px){[data-layout="sp"]{display:none}}@media(max-width:600px){[data-layout="pc"]{display:none}}
+/* Scale only the character artwork; preserve its center and floating motion. */
+.otokit-hero img{transform:scale(.7);transform-origin:center}

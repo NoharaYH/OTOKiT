@@ -1,0 +1,147 @@
+*{box-sizing:border-box}
+body,div,html,img,li,ul{margin:0;padding:0;border:0;outline:0;background-color:transparent;color:inherit;font-family:inherit;font-size:100%;font-weight:inherit;font-style:inherit;line-height:inherit;vertical-align:baseline;text-decoration:none;text-align:inherit;text-indent:0;tab-size:4}
+html{-webkit-text-size-adjust:100%;line-height:1.2}
+body,html{min-height:100%}
+ul,ul>li{list-style:none}
+img{max-width:100%;-webkit-user-select:none;-ms-user-select:none;user-select:none}
+img{vertical-align:middle}
+@media screen and (min-width:601px){
+.wrapper{display:block;position:fixed;top:0;width:100vw;height:100vh;overflow:hidden;pointer-events:none}
+.triangle .triangle-under{bottom:6%;min-width:99.9%;background:url(../status/assets_maiDecorationBg_triangle_under.webp) 0 0 repeat-x}
+.triangle .triangle-top,.triangle .triangle-under{position:fixed;height:30%;animation:60s linear infinite left}
+.triangle .triangle-top{top:7%;min-width:100.5%;background:url(../status/assets_maiDecorationBg_triangle_top.webp) 0 100% no-repeat}
+.triangle:nth-child(2) .triangle-under{position:fixed;left:99.8%;bottom:6%;min-width:99.9%;height:30%;background:url(../status/assets_maiDecorationBg_triangle_under.webp) 0 0 repeat-x;animation:60s linear infinite left}
+.triangle:nth-child(2) .triangle-top{position:fixed;left:100.45%;top:7%;min-width:100.5%;height:30%;background:url(../status/assets_maiDecorationBg_triangle_top.webp) 0 100% no-repeat;animation:60s linear infinite left}
+.silhouette-top{top:40px}
+.silhouette-bottom,.silhouette-top{position:fixed;width:100%;height:231px;background:url(../status/assets_maiDecorationBg_baloon_silhoutte.webp) top no-repeat}
+.silhouette-bottom{bottom:-70px}
+.garland{position:fixed;top:-30px;left:230px;width:1229px;height:170px;background:url(../status/assets_maiDecorationBg_garland.webp) no-repeat;animation:swing 10s ease-in-out infinite}
+.fireworks{position:fixed;top:-100px;right:55px;width:430px;height:430px;background:url(../status/assets_maiDecorationBg_fireworks.webp) no-repeat;animation:fireworks cubic-bezier(.54,-.14,1,1) 10s forwards infinite;opacity:0}
+.baloon-y{width:158px;height:158px;background:url(../status/assets_maiDecorationBg_baloon_y.webp) no-repeat}
+.baloon-b{width:151px;height:151px;background:url(../status/assets_maiDecorationBg_baloon_b.webp) no-repeat}
+.baloon-dp{width:176px;height:176px;background:url(../status/assets_maiDecorationBg_baloon_dp.webp) no-repeat}
+.baloon-p{width:154px;height:154px;background:url(../status/assets_maiDecorationBg_baloon_p.webp) no-repeat}
+.baloon-w1{width:127px;height:127px;background:url(../status/assets_maiDecorationBg_baloon_w1.webp) no-repeat}
+.baloon-w2{width:159px;height:159px;background:url(../status/assets_maiDecorationBg_baloon_w2.webp) no-repeat}
+.baloon-o{width:110px;height:110px;background:url(../status/assets_maiDecorationBg_baloon_o.webp) no-repeat}
+.swirl-h{width:32px;height:242px;background:url(../status/assets_maiDecorationBg_swirl_h.webp) no-repeat;background-size:contain}
+.swirl-o{width:37px;height:323px;background:url(../status/assets_maiDecorationBg_swirl_o.webp) no-repeat;background-size:contain}
+.swirl-b{width:30px;height:330px;background:url(../status/assets_maiDecorationBg_swirl_b.webp) no-repeat;background-size:contain}
+.box-p{width:118px;height:136px;background:url(../status/assets_maiDecorationBg_box_p.webp) no-repeat;background-size:contain}
+.decoration-topLeft{position:fixed;top:0;left:0}
+.decoration-topLeft .float{position:fixed}
+.decoration-topLeft .baloon-y{top:-15px;left:-15px;z-index:1}
+.decoration-topLeft .baloon-b{top:-45px;left:105px}
+.decoration-topLeft .baloon-dp{top:-50px;left:235px}
+.decoration-topLeft .baloon-p{top:205px;left:-50px}
+.decoration-topLeft .baloon-w1{top:65px;left:200px;z-index:-1}
+.decoration-topLeft .baloon-w2{top:105px;left:-15px}
+.decoration-topLeft .baloon-o{top:70px;left:95px;z-index:-2}
+.decoration-topLeft .swirl-h{top:320px;left:20px;width:32px;height:242px;background:url(../status/assets_maiDecorationBg_swirl_h.webp);z-index:-1}
+.decoration-topLeft .swirl-o{z-index:-1}
+.decoration-topLeft .swirl-o.type1{top:250px;left:60px;transform:rotateY(180deg)}
+.decoration-topLeft .swirl-o.type2{top:50px;left:310px}
+.decoration-topLeft .swirl-o.type3{top:-20px;left:350px}
+.decoration-topRight{position:fixed;top:0;right:0}
+.decoration-topRight .float{position:fixed}
+.decoration-topRight .baloon-b{top:-40px;right:-30px;z-index:1}
+.decoration-topRight .baloon-y{top:40px;right:-70px}
+.decoration-topRight .baloon-w2{top:-90px;right:30px}
+.decoration-topRight .swirl-b{top:60px;right:5px;z-index:-1}
+.decoration-topRight .swirl-o{top:0;right:35px;z-index:-1}
+.decoration-bottom{position:fixed;bottom:-90px;left:0;min-width:1615px;width:100%;height:405px;background:url(../status/assets_maiDecorationBg_baloons.webp) repeat-x;background-size:contain}
+.decoration-bottomLeft{position:fixed;bottom:0;left:0}
+.decoration-bottomLeft .float{position:fixed}
+.decoration-bottomLeft .baloon-w2{bottom:-10px;left:120px}
+.decoration-bottomLeft .box-p{bottom:-20px;left:-10px}
+.decoration-bottomRight{position:fixed;bottom:0;right:0}
+.decoration-bottomRight .float{position:fixed}
+.decoration-bottomRight .box-p{bottom:-10px;right:-20px}
+.decoration-bottomRight .baloon-o{bottom:-35px;right:105px}
+.bgFloating1{animation:bgFloating1 3s cubic-bezier(.33,.04,.68,.94) infinite alternate}
+.bgFloating2{animation:bgFloating2 4s cubic-bezier(.36,.09,.63,.9) infinite alternate}
+}
+@media screen and (max-width:600px){
+.triangle .triangle-under{bottom:6vh;min-width:99.9%;background:url(../status/assets_maiDecorationBg_triangle_under.webp) 0 0 no-repeat}
+.triangle .triangle-top,.triangle .triangle-under{position:fixed;height:30vh;animation:60s linear infinite left}
+.triangle .triangle-top{top:7vh;min-width:99.81%;background:url(../status/assets_maiDecorationBg_triangle_top.webp) 0 100% no-repeat}
+.triangle:nth-child(2) .triangle-under{position:fixed;left:99.8%;bottom:6vh;min-width:99.9%;height:30vh;background:url(../status/assets_maiDecorationBg_triangle_under.webp) 0 0 no-repeat;animation:60s linear infinite left}
+.triangle:nth-child(2) .triangle-top{position:fixed;left:99.8%;top:7vh;min-width:99.81%;height:30vh;background:url(../status/assets_maiDecorationBg_triangle_top.webp) 0 100% no-repeat;animation:60s linear infinite left}
+.silhouette-top{top:80px}
+.silhouette-bottom,.silhouette-top{position:fixed;width:100%;height:10%;background:url(../status/assets_maiDecorationBg_baloon_silhoutte.webp) top no-repeat;background-size:contain}
+.silhouette-bottom{bottom:80px}
+.garland{position:fixed;top:20px;left:-20px;width:614.5px;height:85px;background:url(../status/assets_maiDecorationBg_garland.webp) no-repeat;background-size:cover;animation:swing 10s ease-in-out infinite;transform:rotate(15deg)}
+.fireworks{position:fixed;top:-20px;right:20px;width:215px;height:215px;background:url(../status/assets_maiDecorationBg_fireworks.webp) no-repeat 100%/contain;animation:fireworks ease-out 5s alternate infinite}
+.baloon-y{width:79px;height:79px;background:url(../status/assets_maiDecorationBg_baloon_y.webp) no-repeat;background-size:contain}
+.baloon-b{width:75.5px;height:75.5px;background:url(../status/assets_maiDecorationBg_baloon_b.webp) no-repeat;background-size:contain}
+.baloon-dp{width:88px;height:88px;background:url(../status/assets_maiDecorationBg_baloon_dp.webp) no-repeat;background-size:contain}
+.baloon-p{width:77px;height:77px;background:url(../status/assets_maiDecorationBg_baloon_p.webp) no-repeat;background-size:contain}
+.baloon-w1{width:63.5px;height:63.5px;background:url(../status/assets_maiDecorationBg_baloon_w1.webp) no-repeat;background-size:contain}
+.baloon-w2{width:79.5px;height:79.5px;background:url(../status/assets_maiDecorationBg_baloon_w2.webp) no-repeat;background-size:contain}
+.baloon-o{width:55px;height:55px;background:url(../status/assets_maiDecorationBg_baloon_o.webp) no-repeat;background-size:contain}
+.swirl-h{width:16px;height:121px;background:url(../status/assets_maiDecorationBg_swirl_h.webp) no-repeat;background-size:contain}
+.swirl-o{width:18.5px;height:161.5px;background:url(../status/assets_maiDecorationBg_swirl_o.webp) no-repeat;background-size:contain}
+.swirl-b{width:15px;height:165px;background:url(../status/assets_maiDecorationBg_swirl_b.webp) no-repeat;background-size:contain}
+.box-p{width:59px;height:68px;background:url(../status/assets_maiDecorationBg_box_p.webp) no-repeat;background-size:contain}
+.decoration-topLeft{position:fixed;top:0;left:0}
+.decoration-topLeft .float{position:fixed}
+.decoration-topLeft .baloon-y{top:-20px;left:-15px;z-index:1}
+.decoration-topLeft .baloon-b{top:-30px;left:50px}
+.decoration-topLeft .baloon-dp{top:-25px;left:110px}
+.decoration-topLeft .baloon-p{top:100px;left:-30px}
+.decoration-topLeft .baloon-w1{top:30px;left:80px;z-index:-1}
+.decoration-topLeft .baloon-w2{top:45px;left:-20px}
+.decoration-topLeft .baloon-o{top:35px;left:40px;z-index:-2}
+.decoration-topLeft .swirl-h{top:140px;left:3px;z-index:-1}
+.decoration-topLeft .swirl-o{z-index:-1}
+.decoration-topLeft .swirl-o.type1{top:130px;left:20px;transform:rotateY(180deg)}
+.decoration-topLeft .swirl-o.type2{top:0;left:145px}
+.decoration-topLeft .swirl-o.type3{top:-50px;left:170px}
+.decoration-topRight{position:fixed;top:0;right:0}
+.decoration-topRight .float{position:fixed}
+.decoration-topRight .baloon-b{top:-25px;right:-15px;z-index:1}
+.decoration-topRight .baloon-y{top:10px;right:-45px}
+.decoration-topRight .baloon-w2{top:-50px;right:20px}
+.decoration-topRight .swirl-b{top:60px;right:5px;z-index:-1}
+.decoration-topRight .swirl-o{top:0;right:35px;z-index:-1}
+.decoration-bottom{position:fixed;bottom:-25px;left:-15%;width:150%;height:235.5px;background:url(../status/assets_maiDecorationBg_baloons.webp) repeat-x;background-size:cover}
+.decoration-bottomLeft{position:fixed;bottom:0;left:0}
+.decoration-bottomLeft .float{position:fixed}
+.decoration-bottomLeft .baloon-dp{bottom:-30px;left:30px}
+.decoration-bottomLeft .baloon-y{bottom:-25px;left:95px}
+.decoration-bottomLeft .box-p{bottom:-5px;left:-15px}
+.decoration-bottomRight{position:fixed;bottom:0;right:0}
+.decoration-bottomRight .float{position:fixed}
+.decoration-bottomRight .box-p{bottom:-10px;right:-5px}
+.decoration-bottomRight .baloon-o{bottom:-15px;right:120px}
+.decoration-bottomRight .baloon-w2{bottom:-20px;right:35px}
+.bgFloating1{animation:bgFloating1 2s cubic-bezier(.33,.04,.68,.94) infinite alternate}
+.bgFloating2{animation:bgFloating2 3s cubic-bezier(.36,.09,.63,.9) infinite alternate}
+}
+body{position:relative;font-family:ヒラギノ角ゴ Pro W3,Hiragino Kaku Gothic Pro,メイリオ,Meiryo,sans-serif;font-size:16px;line-height:1.6;color:#000;width:100%;height:100%;margin:0;padding:0;-webkit-overflow-scrolling:touch}
+@media screen and (min-width:601px){
+body{min-width:1250px}
+}
+body::-webkit-scrollbar{width:14px;background-color:#9975fc}
+body::-webkit-scrollbar-thumb{background-color:#fdfa78}
+body:before{background:linear-gradient(#fdfa78 26.3%,#fff 36.3% 63.7%,#d5aeff 73.7% 100%);position:fixed;top:0;left:0;z-index:-1;width:100%;height:100%;-webkit-backface-visibility:hidden;backface-visibility:hidden;background-size:contain;content:""}
+@keyframes left{0%{transform:translateX(0)}to{transform:translateX(-100%)}}
+@keyframes fireworks{20%{opacity:0}40%{-webkit-clip-path:circle(10% at center);clip-path:circle(10% at center);opacity:.5}55%{-webkit-clip-path:circle(50% at center);clip-path:circle(50% at center)}75%{filter:none}80%{-webkit-clip-path:circle(100% at center);clip-path:circle(100% at center);filter:blur(15px) brightness(110%)}}
+@keyframes swing{0%{transform:rotate(3deg)}50%{transform:rotate(0deg)}to{transform:rotate(3deg)}}
+@keyframes bgFloating1{0%{transform:translateZ(0)}to{transform:translate3d(0,6%,0)}}
+@keyframes bgFloating2{0%{transform:translateZ(0)}to{transform:translate3d(0,5%,0)}}
+@keyframes left{0%{transform:translateX(0)}to{transform:translateX(-100%)}}
+@keyframes fireworks{0%{opacity:0}to{opacity:1}}
+@keyframes swing{0%{transform:rotate3d(0 10px 5deg)}50%{transform:rotate(0deg)}to{transform:rotate(0 10px 5deg)}}
+@keyframes bgFloating1{0%{transform:translateZ(0)}to{transform:translate3d(0,9%,0)}}
+@keyframes bgFloating2{0%{transform:translateZ(0)}to{transform:translate3d(0,8%,0)}}
+/* OTOKiT viewport adaptation. Original decoration rules above come from the archived official site. */
+*,*::before,*::after{box-sizing:border-box}
+html,body{width:100%;height:100%;min-width:0!important;min-height:0!important;margin:0;padding:0;overflow:hidden}
+ul,li{list-style:none;margin:0;padding:0}
+.otokit-background{position:fixed;inset:0;isolation:isolate;overflow:hidden;pointer-events:none;user-select:none}
+.otokit-hero{position:absolute;left:50%;top:50%;width:min(661px,60vw);height:64vh;transform:translate(-50%,-50%);z-index:300;animation:otokit-float 3s ease-in-out infinite alternate;display:flex;align-items:center;justify-content:center}
+.otokit-hero img{display:block;max-width:100%;max-height:100%;object-fit:contain}
+@keyframes otokit-float{from{transform:translate(-50%,-50%)}to{transform:translate(-50%,-48%)}}
+@media(max-width:600px){.otokit-hero{width:86vw;height:60vh}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-play-state:paused!important}}

@@ -1,7 +1,29 @@
 package com.otokit.noharayh.ui.theme
 
+import com.otokit.noharayh.ui.theme.chu.ChuLuminousPlusTheme
+import com.otokit.noharayh.ui.theme.chu.ChuLuminousTheme
+import com.otokit.noharayh.ui.theme.chu.ChuMateTheme
+import com.otokit.noharayh.ui.theme.chu.ChuNewPlusTheme
+import com.otokit.noharayh.ui.theme.chu.ChuNewTheme
+import com.otokit.noharayh.ui.theme.chu.ChuSunPlusTheme
+import com.otokit.noharayh.ui.theme.chu.ChuSunTheme
+import com.otokit.noharayh.ui.theme.chu.ChuVerseTheme
+import com.otokit.noharayh.ui.theme.chu.ChuXVerseTheme
 import com.otokit.noharayh.ui.theme.chu.ChuXVerseXTheme
+import com.otokit.noharayh.ui.theme.mai.MaiBuddiesPlusTheme
+import com.otokit.noharayh.ui.theme.mai.MaiBuddiesTheme
 import com.otokit.noharayh.ui.theme.mai.MaiCirclePlusTheme
+import com.otokit.noharayh.ui.theme.mai.MaiCircleTheme
+import com.otokit.noharayh.ui.theme.mai.MaiDxTheme
+import com.otokit.noharayh.ui.theme.mai.MaiFestivalPlusTheme
+import com.otokit.noharayh.ui.theme.mai.MaiFestivalTheme
+import com.otokit.noharayh.ui.theme.mai.MaiMagicalTheme
+import com.otokit.noharayh.ui.theme.mai.MaiPrismPlusTheme
+import com.otokit.noharayh.ui.theme.mai.MaiPrismTheme
+import com.otokit.noharayh.ui.theme.mai.MaiSplashPlusTheme
+import com.otokit.noharayh.ui.theme.mai.MaiSplashTheme
+import com.otokit.noharayh.ui.theme.mai.MaiUniverseTheme
+
 /**
  * 纯主题注册表：唯一登记稳定 ID、展示名、所属音游与主题描述。
  *
@@ -15,10 +37,88 @@ object ThemeRegistry {
 
     private val themes: List<RegisteredTheme> = listOf(
         RegisteredTheme(
-            id = MAI_CIRCLE_PLUS_ID,
+            id = "mai-magical",
+            displayName = "MAGiCAL",
+            gameLine = GameLine.Mai,
+            definition = MaiMagicalTheme.definition,
+        ),
+        RegisteredTheme(
+            id = "mai-circle-plus",
             displayName = "CiRCLE+",
             gameLine = GameLine.Mai,
             definition = MaiCirclePlusTheme.definition,
+        ),
+        RegisteredTheme(
+            id = "mai-circle",
+            displayName = "CiRCLE",
+            gameLine = GameLine.Mai,
+            definition = MaiCircleTheme.definition,
+        ),
+        RegisteredTheme(
+            id = "mai-prism-plus",
+            displayName = "PRiSM+",
+            gameLine = GameLine.Mai,
+            definition = MaiPrismPlusTheme.definition,
+        ),
+        RegisteredTheme(
+            id = "mai-prism",
+            displayName = "PRiSM",
+            gameLine = GameLine.Mai,
+            definition = MaiPrismTheme.definition,
+        ),
+        RegisteredTheme(
+            id = "mai-buddies-plus",
+            displayName = "BUDDiES+",
+            gameLine = GameLine.Mai,
+            definition = MaiBuddiesPlusTheme.definition,
+        ),
+        RegisteredTheme(
+            id = "mai-buddies",
+            displayName = "BUDDiES",
+            gameLine = GameLine.Mai,
+            definition = MaiBuddiesTheme.definition,
+        ),
+        RegisteredTheme(
+            id = "mai-festival-plus",
+            displayName = "FESTiVAL+",
+            gameLine = GameLine.Mai,
+            definition = MaiFestivalPlusTheme.definition,
+        ),
+        RegisteredTheme(
+            id = "mai-festival",
+            displayName = "FESTiVAL",
+            gameLine = GameLine.Mai,
+            definition = MaiFestivalTheme.definition,
+        ),
+        RegisteredTheme(
+            id = "mai-universe",
+            displayName = "UNiVERSE",
+            gameLine = GameLine.Mai,
+            definition = MaiUniverseTheme.definition,
+        ),
+        RegisteredTheme(
+            id = "mai-splash-plus",
+            displayName = "Splash+",
+            gameLine = GameLine.Mai,
+            definition = MaiSplashPlusTheme.definition,
+        ),
+        RegisteredTheme(
+            id = "mai-splash",
+            displayName = "Splash",
+            gameLine = GameLine.Mai,
+            definition = MaiSplashTheme.definition,
+        ),
+        RegisteredTheme(
+            id = "mai-dx",
+            displayName = "DX",
+            gameLine = GameLine.Mai,
+            definition = MaiDxTheme.definition,
+        ),
+        RegisteredTheme(
+            id = "chu-mate",
+            displayName = "Mate",
+            gameLine = GameLine.Chu,
+            definition = ChuMateTheme.definition,
         ),
         RegisteredTheme(
             id = CHU_XVERSEX_ID,
@@ -26,22 +126,54 @@ object ThemeRegistry {
             gameLine = GameLine.Chu,
             definition = ChuXVerseXTheme.definition,
         ),
-        // 占位登记：用于先验证主题选单和滚动，不新增 assets。
-        placeholder("mai-circle", "CiRCLE", GameLine.Mai, 0xFFE91E63.toInt(), 0xFFAD1457.toInt()),
-        placeholder("mai-prism-plus", "Prism+", GameLine.Mai, 0xFF9C27B0.toInt(), 0xFF6A1B9A.toInt()),
-        placeholder("mai-prism", "Prism", GameLine.Mai, 0xFF673AB7.toInt(), 0xFF4527A0.toInt()),
-        placeholder("mai-buddies-plus", "Buddies+", GameLine.Mai, 0xFF3F51B5.toInt(), 0xFF283593.toInt()),
-        placeholder("mai-buddies", "Buddies", GameLine.Mai, 0xFF2196F3.toInt(), 0xFF1565C0.toInt()),
-        placeholder("mai-festival-plus", "Festival+", GameLine.Mai, 0xFF00BCD4.toInt(), 0xFF00838F.toInt()),
-        placeholder("mai-festival", "Festival", GameLine.Mai, 0xFF009688.toInt(), 0xFF00695C.toInt()),
-        placeholder("mai-universe", "Universe", GameLine.Mai, 0xFF8BC34A.toInt(), 0xFF558B2F.toInt()),
-        placeholder("mai-splash-plus", "Splash+", GameLine.Mai, 0xFFFF9800.toInt(), 0xFFE65100.toInt()),
-        placeholder("mai-splash", "Splash", GameLine.Mai, 0xFFFF5722.toInt(), 0xFFBF360C.toInt()),
-        placeholder("mai-dx", "DX", GameLine.Mai, 0xFF795548.toInt(), 0xFF4E342E.toInt()),
-        placeholder("chu-verse", "Verse", GameLine.Chu, 0xFF03A9F4.toInt(), 0xFF0277BD.toInt()),
-        placeholder("chu-luminous", "Luminous", GameLine.Chu, 0xFFFFC107.toInt(), 0xFFFF8F00.toInt()),
-        placeholder("chu-sun", "Sun", GameLine.Chu, 0xFFFFEB3B.toInt(), 0xFFF9A825.toInt()),
-        placeholder("chu-future", "Future", GameLine.Chu, 0xFFCDDC39.toInt(), 0xFF9E9D24.toInt()),
+        RegisteredTheme(
+            id = "chu-xverse",
+            displayName = "X-VERSE",
+            gameLine = GameLine.Chu,
+            definition = ChuXVerseTheme.definition,
+        ),
+        RegisteredTheme(
+            id = "chu-verse",
+            displayName = "VERSE",
+            gameLine = GameLine.Chu,
+            definition = ChuVerseTheme.definition,
+        ),
+        RegisteredTheme(
+            id = "chu-luminous-plus",
+            displayName = "LUMINOUS+",
+            gameLine = GameLine.Chu,
+            definition = ChuLuminousPlusTheme.definition,
+        ),
+        RegisteredTheme(
+            id = "chu-luminous",
+            displayName = "LUMINOUS",
+            gameLine = GameLine.Chu,
+            definition = ChuLuminousTheme.definition,
+        ),
+        RegisteredTheme(
+            id = "chu-sun-plus",
+            displayName = "SUN+",
+            gameLine = GameLine.Chu,
+            definition = ChuSunPlusTheme.definition,
+        ),
+        RegisteredTheme(
+            id = "chu-sun",
+            displayName = "SUN",
+            gameLine = GameLine.Chu,
+            definition = ChuSunTheme.definition,
+        ),
+        RegisteredTheme(
+            id = "chu-new-plus",
+            displayName = "NEW+",
+            gameLine = GameLine.Chu,
+            definition = ChuNewPlusTheme.definition,
+        ),
+        RegisteredTheme(
+            id = "chu-new",
+            displayName = "NEW",
+            gameLine = GameLine.Chu,
+            definition = ChuNewTheme.definition,
+        ),
     )
 
     /** 每个音游的显式默认项，引用已登记的 ID。 */
@@ -79,24 +211,6 @@ object ThemeRegistry {
         return if (found != null && found.gameLine == gameLine) found else defaultFor(gameLine)
     }
 
-    private fun placeholder(
-        id: String,
-        name: String,
-        gameLine: GameLine,
-        basicColor: Int,
-        buttonColor: Int,
-    ): RegisteredTheme = RegisteredTheme(
-        id = id,
-        displayName = name,
-        gameLine = gameLine,
-        definition = ThemeDefinition(
-            htmlAssetPath = when (gameLine) {
-                GameLine.Mai -> MaiCirclePlusTheme.definition.htmlAssetPath
-                GameLine.Chu -> ChuXVerseXTheme.definition.htmlAssetPath
-            },
-            colors = ThemeColors(basicColor, buttonColor),
-        ),
-    )
 }
 
 /**

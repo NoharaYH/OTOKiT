@@ -1,0 +1,49 @@
+*{box-sizing:border-box}
+body,div,html,img,li,ul{margin:0;padding:0;border:0;outline:0;background-color:transparent;color:inherit;font-family:inherit;font-size:100%;font-weight:inherit;font-style:inherit;line-height:inherit;vertical-align:baseline;text-decoration:none;text-align:inherit;text-indent:0;tab-size:4}
+html{-webkit-text-size-adjust:100%;line-height:1.2}
+body,html{min-height:100%}
+ul,ul>li{list-style:none}
+img{max-width:100%;-webkit-user-select:none;-ms-user-select:none;user-select:none}
+img{vertical-align:middle}
+@media screen and (min-width:601px){
+.dots-wrapper{display:block;position:fixed;top:0;width:100vw;height:100vh;overflow:hidden;pointer-events:none}
+.dots .dots-under{bottom:0;min-width:100%;height:45%;background:url(../status/assets_maiDotsBg_dots_under.webp) 0 0}
+.dots .dots-top,.dots .dots-under{position:fixed;animation:30s linear infinite left}
+.dots .dots-top{top:0;min-width:99.8%;height:25%;background:url(../status/assets_maiDotsBg_dots_top.webp) 0 100%}
+.dots:nth-child(2) .dots-under{position:fixed;left:100%;bottom:0;min-width:100%;height:45%;background:url(../status/assets_maiDotsBg_dots_under.webp) 0 0;animation:30s linear infinite left}
+.dots:nth-child(2) .dots-top{position:fixed;left:99.8%;top:0;min-width:99.8%;height:25%;background:url(../status/assets_maiDotsBg_dots_top.webp) 0 100%;animation:30s linear infinite left}
+.deco{position:fixed;top:160px;width:100%;height:621px;background:url(../status/assets_maiDotsBg_deco_center.webp) top}
+.corner-left{position:fixed;top:0;left:0;width:530px;height:530px;background:url(../status/assets_maiDotsBg_corner_left.webp)}
+.corner-right{position:fixed;right:0;bottom:0;width:560px;height:580px;background:url(../status/assets_maiDotsBg_corner_right.webp)}
+}
+@media screen and (max-width:600px){
+.dots-wrapper{display:block;position:fixed;top:0;width:100%;height:100vh;margin:0 auto;padding:0;overflow:hidden;pointer-events:none}
+.dots .dots-under{bottom:0;min-width:100%;height:45%;background-image:url(../status/assets_maiDotsBg_dots_under.webp);background-position:0 0}
+.dots .dots-top,.dots .dots-under{position:fixed;background-size:300%;animation:10s linear infinite left}
+.dots .dots-top{top:0;min-width:99.8%;height:25%;background-image:url(../status/assets_maiDotsBg_dots_top.webp);background-position:0 100%}
+.dots:nth-child(2) .dots-under{left:100%;bottom:0;min-width:100%;height:45%;background-image:url(../status/assets_maiDotsBg_dots_under.webp);background-position:0 0}
+.dots:nth-child(2) .dots-top,.dots:nth-child(2) .dots-under{position:fixed;background-size:300%;animation:10s linear infinite left}
+.dots:nth-child(2) .dots-top{top:0;left:99.8%;min-width:99.8%;height:25%;background-image:url(../status/assets_maiDotsBg_dots_top.webp);background-position:0 100%}
+.deco{position:fixed;top:140px;width:100%;height:50%;background-image:url(../status/assets_maiDotsBg_deco_center.webp);background-size:cover}
+.corner-left{top:0;left:0;width:265px;height:265px;background-image:url(../status/assets_maiDotsBg_corner_left.webp)}
+.corner-left,.corner-right{position:fixed;background-size:100%}
+.corner-right{right:0;bottom:0;width:280px;height:290px;background-image:url(../status/assets_maiDotsBg_corner_right.webp)}
+}
+body{font-family:ヒラギノ角ゴ Pro W3,Hiragino Kaku Gothic Pro,メイリオ,Meiryo,sans-serif;font-size:16px;line-height:1.6;color:#000;width:100%;height:100%;margin:0;padding:0;background:#57c0ff;-webkit-overflow-scrolling:touch}
+@media screen and (min-width:601px){
+body{min-width:1250px}
+}
+body::-webkit-scrollbar{width:14px;background-color:#ffd21f}
+body::-webkit-scrollbar-thumb{background-color:#2b2ea3}
+@keyframes left{0%{transform:translateX(0)}to{transform:translateX(-100%)}}
+@keyframes left{0%{transform:translateX(0)}to{transform:translateX(-100%)}}
+/* OTOKiT viewport adaptation. Original decoration rules above come from the archived official site. */
+*,*::before,*::after{box-sizing:border-box}
+html,body{width:100%;height:100%;min-width:0!important;min-height:0!important;margin:0;padding:0;overflow:hidden}
+ul,li{list-style:none;margin:0;padding:0}
+.otokit-background{position:fixed;inset:0;isolation:isolate;overflow:hidden;pointer-events:none;user-select:none}
+.otokit-hero{position:absolute;left:50%;top:50%;width:min(661px,60vw);height:64vh;transform:translate(-50%,-50%);z-index:300;animation:otokit-float 3s ease-in-out infinite alternate;display:flex;align-items:center;justify-content:center}
+.otokit-hero img{display:block;max-width:100%;max-height:100%;object-fit:contain}
+@keyframes otokit-float{from{transform:translate(-50%,-50%)}to{transform:translate(-50%,-48%)}}
+@media(max-width:600px){.otokit-hero{width:86vw;height:60vh}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-play-state:paused!important}}

@@ -60,6 +60,8 @@ internal class BackgroundPage(
             javaScriptEnabled = true
             loadWithOverviewMode = true
             useWideViewPort = true
+            // LUMINOUS 官网背景使用本地静音视频，播放状态仍由渲染选项统一控制。
+            mediaPlaybackRequiresUserGesture = false
         }
         webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
@@ -106,6 +108,7 @@ internal class BackgroundPage(
     private var visualRequest = 0L
     private var readySent = false
     private var resumed = false
+    private var mediaVisible = false
     private var expectedUrl: String? = null
 
     /** 只切换背景层的绘制路径及 CSS 状态，不重载页面或覆盖 Activity 的硬件设置。 */
@@ -121,8 +124,11 @@ internal class BackgroundPage(
     private fun applyAnimationState(onApplied: () -> Unit = {}) {
         if (!documentReady || loadedHtmlThemeId == null) return
         // 单一样式同时覆盖元素和伪元素；移除覆盖后由原始 CSS 从暂停位置接续。
-        // JS 只在设置改变或文档加载后执行，没有计时器、逐帧回调或原生接口。
+        // JS 只在设置、文档或生命周期变化时执行，没有计时器、逐帧回调或原生接口。
         val disabled = rendering.htmlAnimations
+        // Android WebView 的软件绘制路径不显示视频；使用同一视频的首帧保留背景。
+        val hardwareMedia = rendering.hardwareAccelerated
+        val playMedia = rendering.htmlAnimations && resumed && mediaVisible && hardwareMedia
         webView.evaluateJavascript("""
             (() => {
               let style = document.getElementById('otokit-animation-control');
@@ -133,8 +139,33 @@ internal class BackgroundPage(
                 document.head.appendChild(style);
               }
               style.disabled = $disabled;
+              document.querySelectorAll('video').forEach(video => {
+                video.muted = true;
+                const poster = video.parentElement.querySelector('[data-otokit-video-poster]');
+                if (poster) {
+                  video.hidden = !$hardwareMedia;
+                  poster.hidden = $hardwareMedia;
+                }
+                if ($playMedia) {
+                  video.play().catch(() => {});
+                } else {
+                  video.pause();
+                }
+              });
+              return Array.from(document.querySelectorAll('video'), video => ({
+                paused: video.paused,
+                time: video.currentTime,
+                ready: video.readyState,
+                poster: video.hidden,
+                error: video.error ? video.error.code : null
+              }));
             })()
-        """.trimIndent()) { onApplied() }
+        """.trimIndent()) { mediaState ->
+            if (debugLogging && mediaState != "[]" && mediaState != "null") {
+                Log.d("BackgroundRendering", "$gameLine resumed=$resumed visible=$mediaVisible media=$mediaState")
+            }
+            onApplied()
+        }
     }
 
     private val solidView: View = View(context).apply {
@@ -193,6 +224,9 @@ internal class BackgroundPage(
     }
 
     private fun showSolid(color: Int) {
+        if (documentReady) {
+            webView.evaluateJavascript("document.querySelectorAll('video').forEach(video => video.pause())", null)
+        }
         loadedHtmlThemeId = null
         documentReady = false
         expectedUrl = null
@@ -212,11 +246,22 @@ internal class BackgroundPage(
 
     fun resume() {
         resumed = true
-        if (loadedHtmlThemeId != null) webView.onResume()
+        if (loadedHtmlThemeId != null) {
+            webView.onResume()
+            if (documentReady) applyAnimationState()
+        }
+    }
+
+    /** 由宿主现有的翻页进度确定；淡入淡出期间两页都可播放，隐藏页停止解码。 */
+    fun setMediaVisible(visible: Boolean) {
+        if (mediaVisible == visible) return
+        mediaVisible = visible
+        if (documentReady) applyAnimationState()
     }
 
     fun pause() {
         resumed = false
+        if (documentReady) applyAnimationState()
         webView.onPause()
     }
 

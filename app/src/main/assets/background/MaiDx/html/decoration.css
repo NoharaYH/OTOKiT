@@ -1,0 +1,71 @@
+*{box-sizing:border-box}
+body,div,html,img{margin:0;padding:0;border:0;outline:0;background-color:transparent;color:inherit;font-family:inherit;font-size:100%;font-weight:inherit;font-style:inherit;line-height:inherit;vertical-align:baseline;text-decoration:none;text-align:inherit;text-indent:0;tab-size:4}
+html{-webkit-text-size-adjust:100%;line-height:1.2}
+body,html{min-height:100%}
+img{max-width:100%;-webkit-user-select:none;-ms-user-select:none;user-select:none}
+img{vertical-align:middle}
+body{font-family:ヒラギノ角ゴ Pro W3,Hiragino Kaku Gothic Pro,メイリオ,Meiryo,sans-serif;font-size:16px;line-height:1.6;color:#000;width:100%;height:100%;margin:0;padding:0;background:#00b9ef;-webkit-overflow-scrolling:touch}
+body::-webkit-scrollbar{width:14px;background-color:#ffdc00}
+body::-webkit-scrollbar-thumb{background-color:#ffa02d;border-radius:7px}
+.BgContent{display:block;position:fixed;left:0;right:0;bottom:0;margin:auto;background-image:url(../status/site_assets_earth.webp);background-repeat:no-repeat;background-position:50%;background-size:contain;pointer-events:none;z-index:-1;will-change:transform}
+@media screen and (min-width:601px){
+.BgContent{bottom:-640px;width:1101px;height:1140px}
+}
+@media screen and (max-width:600px){
+.BgContent{bottom:-34vh;width:100%;height:420px}
+}
+html:not(.ie) .BgContent{animation:earth 80s linear infinite}
+.cloud{position:fixed;display:block;top:0;left:0;right:0;margin:auto;height:100%;z-index:-2;will-change:transform;pointer-events:none}
+@media screen and (min-width:601px){
+.cloud{width:1100px}
+}
+@media screen and (max-width:600px){
+.cloud{width:100vw}
+}
+.cloud-1,.cloud-2,.cloud-3,.cloud-4,.cloud-5,.cloud-6,.cloud-7,.cloud-8{position:fixed;display:block;opacity:0;z-index:-2;background-repeat:no-repeat;background-position:50%;background-size:contain}
+@media screen and (min-width:601px){
+.cloud-1,.cloud-2,.cloud-3,.cloud-4,.cloud-5,.cloud-6,.cloud-7,.cloud-8{width:160px;height:160px}
+}
+@media screen and (max-width:600px){
+.cloud-1,.cloud-2,.cloud-3,.cloud-4,.cloud-5,.cloud-6,.cloud-7,.cloud-8{width:110px;height:110px}
+}
+.cloud-1,.cloud-5{background-image:url(../status/site_assets_cloud1.webp);animation:cloud linear 90s 0s infinite both;top:10%}
+@media screen and (max-width:600px){
+.cloud-1,.cloud-5{animation-duration:50s}
+}
+.cloud-2,.cloud-6{background-image:url(../status/site_assets_cloud2.webp);animation:cloud linear 80s reverse -10s infinite both;top:2%}
+@media screen and (max-width:600px){
+.cloud-2,.cloud-6{animation-duration:35s}
+}
+.cloud-3,.cloud-7{background-image:url(../status/site_assets_cloud3.webp);animation:cloud linear 100s alternate infinite -15s both;top:52%}
+@media screen and (max-width:600px){
+.cloud-3,.cloud-7{animation-duration:40s}
+}
+.cloud-4,.cloud-8{background-image:url(../status/site_assets_cloud4.webp);animation:cloud linear 76s reverse alternate infinite -25s both;top:20%}
+@media screen and (max-width:600px){
+.cloud-4,.cloud-8{animation-duration:70s}
+}
+.cloud-5{top:65%;animation-delay:-30s}
+.cloud-6{top:53%;animation-delay:10s}
+.cloud-7{top:18%;animation-delay:30s}
+.cloud-8{top:44%;animation-delay:0s}
+@keyframes earth{0%{transform:rotate(0deg)}to{transform:rotate(1turn)}}
+@keyframes cloud{0%{transform:translateX(-500px);opacity:0}5%{transform:translateX(-400px);opacity:1}95%{transform:translateX(1200px);opacity:1}to{transform:translateX(1300px);opacity:0}}
+@keyframes cloud{0%{transform:translateX(-10vw);opacity:0}5%{transform:translateX(-5vw);opacity:1}95%{transform:translateX(100vw);opacity:1}to{transform:translateX(105vw);opacity:0}}
+/* OTOKiT viewport adaptation. Original decoration rules above come from the archived official site. */
+*,*::before,*::after{box-sizing:border-box}
+html,body{width:100%;height:100%;min-width:0!important;min-height:0!important;margin:0;padding:0;overflow:hidden}
+ul,li{list-style:none;margin:0;padding:0}
+.otokit-background{position:fixed;inset:0;isolation:isolate;overflow:hidden;pointer-events:none;user-select:none}
+.otokit-hero{position:absolute;left:50%;top:50%;width:min(661px,60vw);height:64vh;transform:translate(-50%,-50%);z-index:300;animation:otokit-float 3s ease-in-out infinite alternate;display:flex;align-items:center;justify-content:center}
+.otokit-hero img{display:block;max-width:100%;max-height:100%;object-fit:contain}
+@keyframes otokit-float{from{transform:translate(-50%,-50%)}to{transform:translate(-50%,-48%)}}
+@media(max-width:600px){.otokit-hero{width:86vw;height:60vh}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-play-state:paused!important}}
+
+.BgContent{z-index:-1}.cloud{z-index:-2}.otokit-hero{width:min(800px,90vw);height:min(700px,65vh)}
+.otokit-hero{width:min(504px,65.8vw,66.5vh);height:auto;aspect-ratio:570/461}.otokit-hero img{position:absolute;max-height:none;height:auto}.hero-1{width:56%;left:22%;top:0;z-index:3}.hero-2{left:0;top:42%;width:60%;z-index:2}.hero-3{right:0;top:42%;width:60%;z-index:2}
+@media(max-width:600px){.cloud-6,.cloud-7,.cloud-8{display:none}}
+/* Official header dot layer; keep the original mobile rotation center (134vh - 210px), with the globe top at 60vh. */
+.headdot{position:fixed;top:0;left:0;right:0;margin:auto;width:1269px;height:705px;background:url(../status/site_assets_dot_bg.webp) no-repeat top;pointer-events:none;z-index:-3}
+@media(max-width:600px){.headdot{width:100vw;height:100vh;background-position:center -80px;background-size:auto calc(68vh + 80px)}.BgContent{width:calc(148vh - 420px);height:calc(148vh - 420px);left:calc(50vw - 74vh + 210px);right:auto;top:60vh;bottom:auto;margin:0}}

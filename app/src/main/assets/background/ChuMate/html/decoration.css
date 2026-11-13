@@ -1,0 +1,45 @@
+.main-bg-base{position:fixed;top:0;left:0;z-index:-5;width:100%;height:100%;-webkit-user-select:none;-ms-user-select:none;user-select:none}
+.main-bg-inner{position:relative;width:100%;height:100%;z-index:-4;overflow:hidden}
+html.no-webp .main-bg-inner{background:url("../static/bg-78f8c119.webp") no-repeat center/cover}
+@media screen and (max-width: 601px){
+html.no-webp .main-bg-inner{background:url("../static/bg_sp-e3c5f1cd.webp") no-repeat center/cover}
+}
+.float-01{position:absolute;top:0;left:0;width:100%;height:100%;z-index:-3}
+html.no-webp .float-01{background:url("../static/mate_flot-3-f5ee5d31.webp") no-repeat center/cover}
+@media screen and (max-width: 601px){
+html.no-webp .float-01{background:url("../static/mate_flot-3_sp-7e79055a.webp") no-repeat top/cover}
+}
+.float-02{position:absolute;top:0;left:0;width:100%;height:100%;z-index:-2;animation:float01-scale 8s ease-in-out infinite}
+html.no-webp .float-02{background:url("../static/mate_flot-5-2b77da12.webp") no-repeat center/cover}
+@media screen and (max-width: 601px){
+html.no-webp .float-02{background:url("../static/mate_flot-5_sp-6425d630.webp") no-repeat center/cover}
+}
+.float-03{position:absolute;top:0;left:0;width:100%;height:100%;z-index:-1;animation:float01-scale 5s ease-in-out infinite}
+html.no-webp .float-03{background:url("../static/mate_flot-4-456aaa3a.webp") no-repeat center/cover}
+@media screen and (max-width: 601px){
+html.no-webp .float-03{background:url("../static/mate_flot-4_sp-81fb3da9.webp") no-repeat center/cover}
+}
+.fukisashi{position:absolute;top:45%;left:65%;transform:translate(-50%, -50%);width:40%;height:50%;z-index:-3}
+html.no-webp .fukisashi{background:url("../static/mate_flot-2-a0f4fb06.webp") no-repeat center/contain}
+@media screen and (max-width: 601px){
+.fukisashi{width:270px;height:200px}
+}
+.comment{position:absolute;top:0;left:20%;width:500px;height:100%;z-index:-4;animation:comment-scroll-up 15s linear infinite}
+html.no-webp .comment{background:url("../static/mate_flot-1-1975078c.webp") repeat 0 0/500px 1088px}
+@media screen and (max-width: 601px){
+.comment{width:200px;left:10%}
+html.no-webp .comment{background:url("../static/mate_flot-1-1975078c.webp") repeat 0 0/200px 435px}
+}
+.text-image{position:absolute;background-size:contain;background-position:center;background-repeat:no-repeat;z-index:-3;width:100%;height:10px}
+html.no-webp .text-image{background:url("../static/mate_flot-6-b6c0407d.webp") repeat-x 0 0/cover}
+@media screen and (max-width: 601px){
+.text-image{height:8px}
+}
+.text-image.text-top{top:2px;right:0;animation:comment-scroll-side 60s linear infinite}
+.text-image.text-bottom{bottom:2px;left:0;animation:comment-scroll-side 60s linear reverse infinite}
+@keyframes float01-scale{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+@keyframes comment-scroll-up{0%{background-position:0 0}100%{background-position:0 -1088px}}
+@keyframes comment-scroll-side{0%{background-position:0 0}100%{background-position:-2555px 0}}
+/* OTOKiT: viewport background, independent of official page content. */
+html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:transparent;}
+.otokit-background{position:fixed;inset:0;isolation:isolate;overflow:hidden;pointer-events:none;}

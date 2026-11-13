@@ -56,13 +56,36 @@ class ThemeRegistryTest {
         val maiThemes = ThemeRegistry.themesFor(GameLine.Mai)
         val chuThemes = ThemeRegistry.themesFor(GameLine.Chu)
 
-        assertEquals(12, maiThemes.size)
-        assertEquals(5, chuThemes.size)
+        assertEquals(13, maiThemes.size)
+        assertEquals(10, chuThemes.size)
         assertTrue(maiThemes.all { it.gameLine == GameLine.Mai })
         assertTrue(chuThemes.all { it.gameLine == GameLine.Chu })
 
         val allIds = (maiThemes + chuThemes).map { it.id }
         assertEquals(allIds.size, allIds.toSet().size)
+    }
+
+    /** 每个舞萌版本加载自己的入口，避免选项仍指向占位背景。 */
+    @Test
+    fun maiVersionsHaveDistinctBackgrounds() {
+        val themes = ThemeRegistry.themesFor(GameLine.Mai)
+        assertEquals(themes.size, themes.map { it.definition.htmlAssetPath }.toSet().size)
+        assertNull(ThemeRegistry.findById("mai-dx-plus"))
+        assertSame(ThemeRegistry.defaultFor(GameLine.Mai), ThemeRegistry.resolveForGame(GameLine.Mai, "mai-dx-plus"))
+        assertNotNull(ThemeRegistry.findById("mai-magical"))
+        assertNull(ThemeRegistry.findById("mai-universe-plus"))
+    }
+
+    /** 中二各版使用独立资源；移除的 Future 旧值按现有规则回退。 */
+    @Test
+    fun chuVersionsHaveDistinctBackgroundsAndRejectFuture() {
+        val themes = ThemeRegistry.themesFor(GameLine.Chu)
+        assertEquals(themes.size, themes.map { it.definition.htmlAssetPath }.toSet().size)
+        for (id in listOf("chu-new", "chu-new-plus", "chu-sun-plus", "chu-luminous-plus", "chu-xverse", "chu-mate")) {
+            assertNotNull(ThemeRegistry.findById(id))
+        }
+        assertNull(ThemeRegistry.findById("chu-future"))
+        assertSame(ThemeRegistry.defaultFor(GameLine.Chu), ThemeRegistry.resolveForGame(GameLine.Chu, "chu-future"))
     }
 
     /** 默认项来自显式配置，且归属正确。 */
@@ -96,7 +119,7 @@ class ThemeRegistryTest {
     /** 查询不改变登记项与默认项。 */
     @Test
     fun queriesDoNotMutateRegistry() {
-        val before = ThemeRegistry.themesFor(GameLine.Mai).first()
+        val before = ThemeRegistry.findById("mai-circle-plus")
 
         ThemeRegistry.findById("unknown")
         ThemeRegistry.resolveForGame(GameLine.Chu, "mai-circle-plus")

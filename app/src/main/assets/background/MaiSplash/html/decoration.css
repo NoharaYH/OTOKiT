@@ -1,0 +1,384 @@
+*{box-sizing:border-box}
+body,div,html,img{margin:0;padding:0;border:0;outline:0;background-color:transparent;color:inherit;font-family:inherit;font-size:100%;font-weight:inherit;font-style:inherit;line-height:inherit;vertical-align:baseline;text-decoration:none;text-align:inherit;text-indent:0;tab-size:4}
+html{-webkit-text-size-adjust:100%;line-height:1.2}
+body,html{min-height:100%}
+img{max-width:100%;-webkit-user-select:none;-ms-user-select:none;user-select:none}
+img{vertical-align:middle}
+@media screen and (min-width:601px){
+.wave-wrapper{top:160px;height:150px;margin:0 auto;overflow:hidden;pointer-events:none}
+.gradient-bg,.wave-wrapper{display:block;position:fixed;width:100%;padding:0}
+.gradient-bg{top:286px;height:calc(100% - 286px);z-index:1;background:linear-gradient(#7be0b6,#dcf99c 201px)}
+.gradient-bg:after{display:block;position:absolute;top:-110px;content:"";width:100%;height:860px;opacity:.9;animation:ice 3s infinite linear alternate;transform:translateY(0);will-change:transform;pointer-events:none;background-image:url(../status/assets_maiBubbleBg_pc_ice.webp);background-size:auto;background-position:top;background-repeat:no-repeat}
+.wave{display:flex;width:200%;height:138px;left:-5%;overflow:hidden;vertical-align:top;line-height:1;z-index:-1}
+.wave-bg{height:500px;vertical-align:top;background-size:100%;padding:0;margin-left:-10%;will-change:transform;pointer-events:none}
+.wave-bg,.wave-front{display:block;position:absolute;width:300%}
+.wave-front{top:0;height:100px;top:60px;left:0;background:url(../status/assets_maiBubbleBg_yellow.webp) repeat-x;animation:ice 3s infinite linear alternate;z-index:12}
+.wave-green{top:0;top:47px;left:-262px;animation:loop3 10s 0s infinite linear alternate;background:url(../status/assets_maiBubbleBg_green.webp) repeat-x;z-index:11}
+.wave-green,.wave-orange{display:block;position:absolute;width:300%;height:100px}
+.wave-orange{top:0;top:38px;left:-30px;animation:loop2 10s 0s infinite linear alternate;background:url(../status/assets_maiBubbleBg_orange.webp) repeat-x;z-index:9}
+.wave-white{top:0;top:27px;left:-100px;animation:loop 10s 0s infinite linear alternate;background:url(../status/assets_maiBubbleBg_white.webp) repeat-x;z-index:8}
+.wave-backgreen,.wave-white{display:block;position:absolute;width:300%;height:100px}
+.wave-backgreen{top:0;top:17px;left:-10px;animation:ice 4s 0s infinite linear alternate;background:url(../status/assets_maiBubbleBg_green.webp) repeat-x;z-index:11}
+}
+@media screen and (max-width:600px){
+.wave-wrapper{top:34px;height:150px;margin:0 auto;overflow:hidden;pointer-events:none}
+.gradient-bg,.wave-wrapper{display:block;position:fixed;width:100%;padding:0}
+.gradient-bg{top:180px;height:calc(100% - 180px);z-index:1;background:linear-gradient(#7be0b6,#dcf99c 201px)}
+.gradient-bg:after{display:block;position:absolute;top:-80px;content:"";width:100vw;height:510px;opacity:.9;animation:ice 3s infinite linear alternate;transform:translateY(0);will-change:transform;pointer-events:none;background-image:url(../status/assets_maiBubbleBg_sp_ice.webp);background-size:contain;background-position:top;background-repeat:no-repeat}
+.wave{display:flex;width:200%;height:150px;left:-5%;overflow:hidden;vertical-align:top;line-height:1;z-index:-1}
+.wave-bg{width:200%;height:160px;vertical-align:top;background-size:100%;padding:0;margin-left:-10%;will-change:transform;pointer-events:none}
+.wave-bg,.wave-front{display:block;position:absolute}
+.wave-front{top:0;width:200%;height:100px;width:100%;top:60px;left:0;background:url(../status/assets_maiBubbleBg_yellow.webp) repeat-x;animation:ice 3s infinite linear alternate;z-index:12}
+.wave-green{top:0;top:47px;left:-210px;animation:loop3 8s 0s infinite linear alternate;background:url(../status/assets_maiBubbleBg_green.webp) repeat-x;z-index:11}
+.wave-green,.wave-orange{display:block;position:absolute;width:200%;height:100px}
+.wave-orange{top:0;top:34px;left:-160px;animation:loop2 8s 0s infinite linear alternate;background:url(../status/assets_maiBubbleBg_orange.webp) repeat-x;z-index:9}
+.wave-white{top:0;top:20px;left:-182px;animation:loop 8s 0s infinite linear alternate;background:url(../status/assets_maiBubbleBg_white.webp) repeat-x;z-index:8}
+.wave-backgreen,.wave-white{display:block;position:absolute;width:200%;height:100px}
+.wave-backgreen{top:0;top:17px;left:-10px;animation:ice 4s 0s infinite linear alternate;background:url(../status/assets_maiBubbleBg_green.webp) repeat-x;z-index:11}
+}
+.bubble-wrapper{display:block;position:fixed;width:100%;height:100%;top:0;left:0;z-index:2}
+.bubble{position:absolute;background-size:contain;transform:translateY(0);will-change:transform;pointer-events:none}
+.bubble:nth-child(odd){background-image:url(../status/assets_maiBubbleBg_bubble.webp)}
+.bubble:nth-child(2n){background-image:url(../status/assets_maiBubbleBg_bubble2.webp)}
+@media screen and (min-width:601px){
+.bubble{animation:bubble 20s infinite}
+.bubble:first-child{left:86.72921vw;bottom:-9px;width:8px;height:8px;animation-delay:-5.02907s}
+.bubble:nth-child(2){left:6.08948vw;bottom:-6px;width:9px;height:9px;animation-delay:-13.7915s}
+.bubble:nth-child(3){left:30.05859vw;bottom:-5px;width:23px;height:23px;animation-delay:-19.68746s}
+.bubble:nth-child(4){left:4.97866vw;bottom:-9px;width:9px;height:9px;animation-delay:-7.6931s}
+.bubble:nth-child(5){left:40.85953vw;bottom:-7px;width:8px;height:8px;animation-delay:-10.9825s}
+.bubble:nth-child(6){left:79.13454vw;bottom:-7px;width:26px;height:26px;animation-delay:-.22165s}
+.bubble:nth-child(7){left:51.66549vw;bottom:-6px;width:8px;height:8px;animation-delay:-12.22337s}
+.bubble:nth-child(8){left:71.77597vw;bottom:-6px;width:12px;height:12px;animation-delay:-11.31319s}
+.bubble:nth-child(9){left:37.75927vw;bottom:-5px;width:27px;height:27px;animation-delay:-12.66444s}
+.bubble:nth-child(10){left:2.63661vw;bottom:-8px;width:18px;height:18px;animation-delay:-17.97781s}
+.bubble:nth-child(11){left:89.39613vw;bottom:-6px;width:12px;height:12px;animation-delay:-6.76636s}
+.bubble:nth-child(12){left:2.57801vw;bottom:-8px;width:21px;height:21px;animation-delay:-17.2548s}
+.bubble:nth-child(13){left:73.61922vw;bottom:-7px;width:17px;height:17px;animation-delay:-8.13999s}
+.bubble:nth-child(14){left:99.70763vw;bottom:-9px;width:13px;height:13px;animation-delay:-11.48947s}
+.bubble:nth-child(15){left:97.42886vw;bottom:-9px;width:14px;height:14px;animation-delay:-8.56635s}
+.bubble:nth-child(16){left:21.92811vw;bottom:-7px;width:21px;height:21px;animation-delay:-19.5902s}
+.bubble:nth-child(17){left:55.90612vw;bottom:-5px;width:25px;height:25px;animation-delay:-4.67331s}
+.bubble:nth-child(18){left:85.79056vw;bottom:-6px;width:13px;height:13px;animation-delay:-18.09776s}
+.bubble:nth-child(19){left:44.54098vw;bottom:-8px;width:14px;height:14px;animation-delay:-7.57066s}
+.bubble:nth-child(20){left:49.11368vw;bottom:-8px;width:12px;height:12px;animation-delay:-18.10616s}
+.bubble:nth-child(21){left:23.02346vw;bottom:-6px;width:14px;height:14px;animation-delay:-10.29599s}
+.bubble:nth-child(22){left:31.22109vw;bottom:-8px;width:8px;height:8px;animation-delay:-8.94358s}
+.bubble:nth-child(23){left:10.01594vw;bottom:-5px;width:14px;height:14px;animation-delay:-2.3797s}
+.bubble:nth-child(24){left:66.18273vw;bottom:-9px;width:8px;height:8px;animation-delay:-9.02469s}
+.bubble:nth-child(25){left:52.85857vw;bottom:-8px;width:12px;height:12px;animation-delay:-8.06225s}
+.bubble:nth-child(26){left:7.05433vw;bottom:-6px;width:10px;height:10px;animation-delay:-.46426s}
+.bubble:nth-child(27){left:84.52196vw;bottom:-5px;width:8px;height:8px;animation-delay:-10.89998s}
+.bubble:nth-child(28){left:79.17678vw;bottom:-9px;width:11px;height:11px;animation-delay:-4.06792s}
+.bubble:nth-child(29){left:45.89713vw;bottom:-8px;width:9px;height:9px;animation-delay:-11.00338s}
+.bubble:nth-child(30){left:75.56218vw;bottom:-8px;width:26px;height:26px;animation-delay:-12.89079s}
+.bubble:nth-child(31){left:24.42875vw;bottom:-9px;width:12px;height:12px;animation-delay:-4.7283s}
+.bubble:nth-child(32){left:68.56586vw;bottom:-7px;width:10px;height:10px;animation-delay:-6.6213s}
+.bubble:nth-child(33){left:65.99746vw;bottom:-8px;width:10px;height:10px;animation-delay:-6.11793s}
+.bubble:nth-child(34){left:61.89941vw;bottom:-9px;width:11px;height:11px;animation-delay:-12.8757s}
+.bubble:nth-child(35){left:53.45212vw;bottom:-8px;width:12px;height:12px;animation-delay:-13.90917s}
+.bubble:nth-child(36){left:67.62307vw;bottom:-6px;width:12px;height:12px;animation-delay:-19.78184s}
+.bubble:nth-child(37){left:69.93297vw;bottom:-6px;width:21px;height:21px;animation-delay:-8.48155s}
+.bubble:nth-child(38){left:64.93897vw;bottom:-7px;width:10px;height:10px;animation-delay:-8.57545s}
+.bubble:nth-child(39){left:46.63393vw;bottom:-6px;width:21px;height:21px;animation-delay:-.7294s}
+.bubble:nth-child(40){left:10.27642vw;bottom:-7px;width:14px;height:14px;animation-delay:-9.81568s}
+.bubble:nth-child(41){left:78.44033vw;bottom:-8px;width:12px;height:12px;animation-delay:-12.75497s}
+.bubble:nth-child(42){left:36.45264vw;bottom:-7px;width:8px;height:8px;animation-delay:-8.41462s}
+.bubble:nth-child(43){left:50.03136vw;bottom:-9px;width:24px;height:24px;animation-delay:-9.8478s}
+.bubble:nth-child(44){left:61.11817vw;bottom:-6px;width:17px;height:17px;animation-delay:-18.10005s}
+.bubble:nth-child(45){left:56.32965vw;bottom:-7px;width:14px;height:14px;animation-delay:-1.95127s}
+.bubble:nth-child(46){left:90.66843vw;bottom:-5px;width:12px;height:12px;animation-delay:-9.47128s}
+.bubble:nth-child(47){left:54.46783vw;bottom:-8px;width:13px;height:13px;animation-delay:-4.10521s}
+.bubble:nth-child(48){left:39.82969vw;bottom:-6px;width:8px;height:8px;animation-delay:-14.10017s}
+.bubble:nth-child(49){left:33.54661vw;bottom:-6px;width:11px;height:11px;animation-delay:-18.91627s}
+.bubble:nth-child(50){left:32.77439vw;bottom:-5px;width:10px;height:10px;animation-delay:-10.98116s}
+.bubble:nth-child(51){left:92.13689vw;bottom:-9px;width:8px;height:8px;animation-delay:-9.5512s}
+.bubble:nth-child(52){left:6.71388vw;bottom:-6px;width:8px;height:8px;animation-delay:-6.16901s}
+.bubble:nth-child(53){left:3.21021vw;bottom:-7px;width:9px;height:9px;animation-delay:-19.39975s}
+.bubble:nth-child(54){left:96.92809vw;bottom:-7px;width:9px;height:9px;animation-delay:-18.34281s}
+.bubble:nth-child(55){left:15.00604vw;bottom:-6px;width:17px;height:17px;animation-delay:-2.50229s}
+.bubble:nth-child(56){left:42.44984vw;bottom:-5px;width:28px;height:28px;animation-delay:-13.263s}
+.bubble:nth-child(57){left:22.37034vw;bottom:-5px;width:12px;height:12px;animation-delay:-9.61296s}
+.bubble:nth-child(58){left:92.32038vw;bottom:-6px;width:18px;height:18px;animation-delay:-1.35301s}
+.bubble:nth-child(59){left:27.84178vw;bottom:-8px;width:15px;height:15px;animation-delay:-15.96711s}
+.bubble:nth-child(60){left:43.47277vw;bottom:-8px;width:25px;height:25px;animation-delay:-19.02574s}
+.bubble:nth-child(61){left:48.36189vw;bottom:-8px;width:23px;height:23px;animation-delay:-3.6945s}
+.bubble:nth-child(62){left:17.69338vw;bottom:-9px;width:8px;height:8px;animation-delay:-10.14608s}
+.bubble:nth-child(63){left:25.44758vw;bottom:-5px;width:9px;height:9px;animation-delay:-5.73607s}
+.bubble:nth-child(64){left:90.08994vw;bottom:-9px;width:10px;height:10px;animation-delay:-9.4045s}
+.bubble:nth-child(65){left:.6261vw;bottom:-9px;width:9px;height:9px;animation-delay:-19.96471s}
+.bubble:nth-child(66){left:64.38963vw;bottom:-9px;width:20px;height:20px;animation-delay:-9.88276s}
+.bubble:nth-child(67){left:58.60494vw;bottom:-8px;width:10px;height:10px;animation-delay:-18.37687s}
+.bubble:nth-child(68){left:55.74582vw;bottom:-5px;width:10px;height:10px;animation-delay:-19.80683s}
+.bubble:nth-child(69){left:92.21165vw;bottom:-9px;width:8px;height:8px;animation-delay:-17.38799s}
+.bubble:nth-child(70){left:95.58112vw;bottom:-8px;width:22px;height:22px;animation-delay:-8.60939s}
+.bubble:nth-child(71){left:15.83274vw;bottom:-8px;width:12px;height:12px;animation-delay:-14.73282s}
+.bubble:nth-child(72){left:99.98785vw;bottom:-6px;width:20px;height:20px;animation-delay:-3.12483s}
+.bubble:nth-child(73){left:95.68201vw;bottom:-5px;width:13px;height:13px;animation-delay:-10.14071s}
+.bubble:nth-child(74){left:85.58961vw;bottom:-7px;width:17px;height:17px;animation-delay:-1.73544s}
+.bubble:nth-child(75){left:66.75744vw;bottom:-6px;width:24px;height:24px;animation-delay:-11.44237s}
+.bubble:nth-child(76){left:74.88011vw;bottom:-6px;width:16px;height:16px;animation-delay:-4.81509s}
+.bubble:nth-child(77){left:65.06186vw;bottom:-8px;width:21px;height:21px;animation-delay:-10.05356s}
+.bubble:nth-child(78){left:25.66793vw;bottom:-6px;width:9px;height:9px;animation-delay:-14.17486s}
+.bubble:nth-child(79){left:57.11328vw;bottom:-8px;width:8px;height:8px;animation-delay:-5.66816s}
+.bubble:nth-child(80){left:18.20991vw;bottom:-6px;width:19px;height:19px;animation-delay:-13.05942s}
+.bubble:nth-child(81){left:72.24054vw;bottom:-5px;width:9px;height:9px;animation-delay:-8.79599s}
+.bubble:nth-child(82){left:93.09147vw;bottom:-6px;width:9px;height:9px;animation-delay:-3.32414s}
+.bubble:nth-child(83){left:83.94668vw;bottom:-9px;width:9px;height:9px;animation-delay:-13.56739s}
+.bubble:nth-child(84){left:74.07705vw;bottom:-6px;width:8px;height:8px;animation-delay:-12.93834s}
+.bubble:nth-child(85){left:37.19136vw;bottom:-7px;width:13px;height:13px;animation-delay:-18.60897s}
+.bubble:nth-child(86){left:44.00339vw;bottom:-5px;width:8px;height:8px;animation-delay:-19.26343s}
+.bubble:nth-child(87){left:6.30435vw;bottom:-6px;width:19px;height:19px;animation-delay:-4.98359s}
+.bubble:nth-child(88){left:18.69098vw;bottom:-9px;width:12px;height:12px;animation-delay:-6.51495s}
+.bubble:nth-child(89){left:79.81554vw;bottom:-5px;width:16px;height:16px;animation-delay:-18.76664s}
+.bubble:nth-child(90){left:90.84333vw;bottom:-7px;width:10px;height:10px;animation-delay:-6.68454s}
+.bubble:nth-child(91){left:65.63392vw;bottom:-6px;width:14px;height:14px;animation-delay:-13.33652s}
+.bubble:nth-child(92){left:26.10511vw;bottom:-9px;width:16px;height:16px;animation-delay:-7.97854s}
+.bubble:nth-child(93){left:24.74957vw;bottom:-7px;width:11px;height:11px;animation-delay:-15.6685s}
+.bubble:nth-child(94){left:99.04213vw;bottom:-8px;width:14px;height:14px;animation-delay:-14.51495s}
+.bubble:nth-child(95){left:75.91725vw;bottom:-7px;width:14px;height:14px;animation-delay:-4.29141s}
+.bubble:nth-child(96){left:67.89063vw;bottom:-7px;width:8px;height:8px;animation-delay:-3.10059s}
+.bubble:nth-child(97){left:56.1799vw;bottom:-8px;width:9px;height:9px;animation-delay:-8.07576s}
+.bubble:nth-child(98){left:60.40138vw;bottom:-7px;width:22px;height:22px;animation-delay:-5.48616s}
+.bubble:nth-child(99){left:31.05895vw;bottom:-6px;width:10px;height:10px;animation-delay:-7.41413s}
+.bubble:nth-child(100){left:43.65752vw;bottom:-7px;width:11px;height:11px;animation-delay:-19.7298s}
+.bubble:nth-child(101){left:1.93068vw;bottom:-9px;width:9px;height:9px;animation-delay:-7.25489s}
+.bubble:nth-child(102){left:44.29832vw;bottom:-9px;width:15px;height:15px;animation-delay:-14.88326s}
+.bubble:nth-child(103){left:71.96308vw;bottom:-9px;width:12px;height:12px;animation-delay:-19.14704s}
+.bubble:nth-child(104){left:72.39672vw;bottom:-5px;width:16px;height:16px;animation-delay:-17.9097s}
+.bubble:nth-child(105){left:76.66284vw;bottom:-8px;width:11px;height:11px;animation-delay:-12.22165s}
+.bubble:nth-child(106){left:79.20297vw;bottom:-7px;width:13px;height:13px;animation-delay:-17.77776s}
+.bubble:nth-child(107){left:48.31823vw;bottom:-7px;width:11px;height:11px;animation-delay:-15.10302s}
+.bubble:nth-child(108){left:1.02042vw;bottom:-7px;width:18px;height:18px;animation-delay:-18.09397s}
+.bubble:nth-child(109){left:56.42462vw;bottom:-9px;width:25px;height:25px;animation-delay:-10.66405s}
+.bubble:nth-child(110){left:96.04145vw;bottom:-7px;width:8px;height:8px;animation-delay:-7.59905s}
+.bubble:nth-child(111){left:.75418vw;bottom:-7px;width:18px;height:18px;animation-delay:-7.19942s}
+.bubble:nth-child(112){left:62.91906vw;bottom:-7px;width:17px;height:17px;animation-delay:-6.5762s}
+.bubble:nth-child(113){left:40.222vw;bottom:-8px;width:9px;height:9px;animation-delay:-3.42901s}
+.bubble:nth-child(114){left:63.61562vw;bottom:-9px;width:8px;height:8px;animation-delay:-9.22236s}
+.bubble:nth-child(115){left:7.45515vw;bottom:-9px;width:25px;height:25px;animation-delay:-16.80252s}
+.bubble:nth-child(116){left:9.32746vw;bottom:-9px;width:9px;height:9px;animation-delay:-2.60963s}
+.bubble:nth-child(117){left:38.05003vw;bottom:-7px;width:8px;height:8px;animation-delay:-16.88708s}
+.bubble:nth-child(118){left:32.81893vw;bottom:-5px;width:12px;height:12px;animation-delay:-.58534s}
+.bubble:nth-child(119){left:77.16581vw;bottom:-7px;width:9px;height:9px;animation-delay:-5.86098s}
+.bubble:nth-child(120){left:44.34228vw;bottom:-9px;width:10px;height:10px;animation-delay:-3.21515s}
+.bubble:nth-child(121){left:83.17002vw;bottom:-7px;width:17px;height:17px;animation-delay:-2.23791s}
+.bubble:nth-child(122){left:2.27015vw;bottom:-6px;width:8px;height:8px;animation-delay:-2.98164s}
+.bubble:nth-child(123){left:86.17143vw;bottom:-5px;width:16px;height:16px;animation-delay:-14.06235s}
+.bubble:nth-child(124){left:99.73837vw;bottom:-8px;width:11px;height:11px;animation-delay:-14.86891s}
+.bubble:nth-child(125){left:49.50455vw;bottom:-7px;width:8px;height:8px;animation-delay:-9.5665s}
+.bubble:nth-child(126){left:77.41612vw;bottom:-9px;width:11px;height:11px;animation-delay:-16.48333s}
+.bubble:nth-child(127){left:51.67413vw;bottom:-7px;width:13px;height:13px;animation-delay:-7.53104s}
+.bubble:nth-child(128){left:36.48598vw;bottom:-5px;width:9px;height:9px;animation-delay:-5.06094s}
+.bubble:nth-child(129){left:53.54019vw;bottom:-8px;width:16px;height:16px;animation-delay:-2.52759s}
+.bubble:nth-child(130){left:78.29885vw;bottom:-8px;width:8px;height:8px;animation-delay:-6.72788s}
+.bubble:nth-child(131){left:75.87262vw;bottom:-8px;width:8px;height:8px;animation-delay:-12.42864s}
+.bubble:nth-child(132){left:10.53398vw;bottom:-8px;width:8px;height:8px;animation-delay:-3.4024s}
+.bubble:nth-child(133){left:39.14964vw;bottom:-6px;width:16px;height:16px;animation-delay:-19.07632s}
+.bubble:nth-child(134){left:26.06751vw;bottom:-8px;width:20px;height:20px;animation-delay:-5.25244s}
+.bubble:nth-child(135){left:46.39552vw;bottom:-6px;width:13px;height:13px;animation-delay:-18.04198s}
+.bubble:nth-child(136){left:90.83662vw;bottom:-7px;width:15px;height:15px;animation-delay:-6.51535s}
+.bubble:nth-child(137){left:76.10083vw;bottom:-8px;width:11px;height:11px;animation-delay:-16.55722s}
+.bubble:nth-child(138){left:83.84017vw;bottom:-6px;width:15px;height:15px;animation-delay:-6.79519s}
+.bubble:nth-child(139){left:34.10975vw;bottom:-5px;width:16px;height:16px;animation-delay:-3.93607s}
+.bubble:nth-child(140){left:71.92382vw;bottom:-7px;width:11px;height:11px;animation-delay:-3.72819s}
+.bubble:nth-child(141){left:15.79594vw;bottom:-7px;width:11px;height:11px;animation-delay:-3.58774s}
+.bubble:nth-child(142){left:95.96788vw;bottom:-9px;width:10px;height:10px;animation-delay:-18.22993s}
+.bubble:nth-child(143){left:1.22232vw;bottom:-9px;width:11px;height:11px;animation-delay:-17.0488s}
+.bubble:nth-child(144){left:.87747vw;bottom:-6px;width:12px;height:12px;animation-delay:-6.6725s}
+.bubble:nth-child(145){left:49.22717vw;bottom:-6px;width:13px;height:13px;animation-delay:-1.47612s}
+.bubble:nth-child(146){left:3.67424vw;bottom:-6px;width:12px;height:12px;animation-delay:-18.46595s}
+.bubble:nth-child(147){left:98.14889vw;bottom:-8px;width:15px;height:15px;animation-delay:-8.6023s}
+.bubble:nth-child(148){left:19.61394vw;bottom:-7px;width:22px;height:22px;animation-delay:-7.54174s}
+.bubble:nth-child(149){left:71.2352vw;bottom:-9px;width:8px;height:8px;animation-delay:-12.01338s}
+.bubble:nth-child(150){left:17.19832vw;bottom:-5px;width:12px;height:12px;animation-delay:-15.70361s}
+.bubble:nth-child(151){left:59.1872vw;bottom:-5px;width:10px;height:10px;animation-delay:-13.11381s}
+.bubble:nth-child(152){left:31.17295vw;bottom:-8px;width:13px;height:13px;animation-delay:-19.7292s}
+.bubble:nth-child(153){left:48.73437vw;bottom:-5px;width:15px;height:15px;animation-delay:-2.00847s}
+.bubble:nth-child(154){left:11.87459vw;bottom:-9px;width:17px;height:17px;animation-delay:-5.63076s}
+.bubble:nth-child(155){left:79.29024vw;bottom:-9px;width:26px;height:26px;animation-delay:-12.13275s}
+.bubble:nth-child(156){left:25.10722vw;bottom:-7px;width:10px;height:10px;animation-delay:-4.46305s}
+.bubble:nth-child(157){left:12.80893vw;bottom:-6px;width:22px;height:22px;animation-delay:-17.01585s}
+.bubble:nth-child(158){left:11.75353vw;bottom:-6px;width:13px;height:13px;animation-delay:-4.64323s}
+.bubble:nth-child(159){left:63.53572vw;bottom:-9px;width:12px;height:12px;animation-delay:-3.9833s}
+.bubble:nth-child(160){left:28.54915vw;bottom:-7px;width:27px;height:27px;animation-delay:-1.45003s}
+.bubble:nth-child(161){left:63.407vw;bottom:-5px;width:20px;height:20px;animation-delay:-9.19761s}
+.bubble:nth-child(162){left:17.67463vw;bottom:-5px;width:10px;height:10px;animation-delay:-2.36689s}
+.bubble:nth-child(163){left:33.15301vw;bottom:-5px;width:11px;height:11px;animation-delay:-12.39032s}
+.bubble:nth-child(164){left:71.62965vw;bottom:-5px;width:13px;height:13px;animation-delay:-19.72706s}
+.bubble:nth-child(165){left:14.85982vw;bottom:-7px;width:21px;height:21px;animation-delay:-15.19315s}
+.bubble:nth-child(166){left:49.97266vw;bottom:-9px;width:18px;height:18px;animation-delay:-10.74261s}
+.bubble:nth-child(167){left:1.41846vw;bottom:-5px;width:15px;height:15px;animation-delay:-2.42965s}
+.bubble:nth-child(168){left:14.94279vw;bottom:-7px;width:8px;height:8px;animation-delay:-3.22483s}
+.bubble:nth-child(169){left:12.00094vw;bottom:-8px;width:11px;height:11px;animation-delay:-1.00293s}
+.bubble:nth-child(170){left:37.63896vw;bottom:-6px;width:17px;height:17px;animation-delay:-.36239s}
+.bubble:nth-child(171){left:6.82647vw;bottom:-8px;width:15px;height:15px;animation-delay:-15.94386s}
+.bubble:nth-child(172){left:15.0796vw;bottom:-6px;width:11px;height:11px;animation-delay:-6.76161s}
+.bubble:nth-child(173){left:1.91356vw;bottom:-9px;width:9px;height:9px;animation-delay:-8.92979s}
+.bubble:nth-child(174){left:72.20822vw;bottom:-6px;width:23px;height:23px;animation-delay:-7.4723s}
+.bubble:nth-child(175){left:30.29959vw;bottom:-7px;width:11px;height:11px;animation-delay:-4.93831s}
+.bubble:nth-child(176){left:13.60119vw;bottom:-5px;width:11px;height:11px;animation-delay:-8.89547s}
+.bubble:nth-child(177){left:88.16345vw;bottom:-8px;width:8px;height:8px;animation-delay:-9.29228s}
+.bubble:nth-child(178){left:92.41171vw;bottom:-8px;width:26px;height:26px;animation-delay:-8.36729s}
+.bubble:nth-child(179){left:46.56254vw;bottom:-8px;width:8px;height:8px;animation-delay:-9.88982s}
+.bubble:nth-child(180){left:60.16816vw;bottom:-6px;width:16px;height:16px;animation-delay:-1.25615s}
+.bubble:nth-child(181){left:98.5597vw;bottom:-9px;width:20px;height:20px;animation-delay:-4.54678s}
+.bubble:nth-child(182){left:53.63043vw;bottom:-9px;width:20px;height:20px;animation-delay:-12.8342s}
+.bubble:nth-child(183){left:29.81038vw;bottom:-9px;width:19px;height:19px;animation-delay:-12.57536s}
+.bubble:nth-child(184){left:7.75089vw;bottom:-9px;width:12px;height:12px;animation-delay:-17.35195s}
+.bubble:nth-child(185){left:73.34914vw;bottom:-7px;width:8px;height:8px;animation-delay:-19.66206s}
+.bubble:nth-child(186){left:22.31452vw;bottom:-6px;width:12px;height:12px;animation-delay:-3.6867s}
+.bubble:nth-child(187){left:69.44252vw;bottom:-7px;width:21px;height:21px;animation-delay:-17.69943s}
+.bubble:nth-child(188){left:84.23995vw;bottom:-9px;width:13px;height:13px;animation-delay:-6.71247s}
+.bubble:nth-child(189){left:70.55642vw;bottom:-7px;width:17px;height:17px;animation-delay:-2.16025s}
+.bubble:nth-child(190){left:83.87264vw;bottom:-9px;width:8px;height:8px;animation-delay:-4.64047s}
+.bubble:nth-child(191){left:38.14882vw;bottom:-6px;width:8px;height:8px;animation-delay:-1.46514s}
+.bubble:nth-child(192){left:69.3211vw;bottom:-5px;width:8px;height:8px;animation-delay:-18.67741s}
+.bubble:nth-child(193){left:71.68487vw;bottom:-8px;width:9px;height:9px;animation-delay:-19.61389s}
+.bubble:nth-child(194){left:40.99898vw;bottom:-6px;width:15px;height:15px;animation-delay:-16.59012s}
+.bubble:nth-child(195){left:41.73092vw;bottom:-7px;width:22px;height:22px;animation-delay:-18.92318s}
+.bubble:nth-child(196){left:77.62708vw;bottom:-5px;width:11px;height:11px;animation-delay:-3.3525s}
+.bubble:nth-child(197){left:44.33584vw;bottom:-7px;width:13px;height:13px;animation-delay:-11.39309s}
+.bubble:nth-child(198){left:1.33819vw;bottom:-7px;width:19px;height:19px;animation-delay:-16.7712s}
+.bubble:nth-child(199){left:12.70592vw;bottom:-9px;width:22px;height:22px;animation-delay:-12.01434s}
+}
+@media screen and (max-width:600px){
+.bubble{animation:bubbleSP 20s infinite}
+.bubble:first-child{left:81.62985vw;bottom:-8px;width:8px;height:8px;animation-delay:-16.25622s}
+.bubble:nth-child(2){left:94.95545vw;bottom:-5px;width:27px;height:27px;animation-delay:-2.76581s}
+.bubble:nth-child(3){left:6.87193vw;bottom:-7px;width:16px;height:16px;animation-delay:-6.33956s}
+.bubble:nth-child(4){left:67.2149vw;bottom:-5px;width:13px;height:13px;animation-delay:-8.46848s}
+.bubble:nth-child(5){left:93.52279vw;bottom:-5px;width:38px;height:38px;animation-delay:-1.81364s}
+.bubble:nth-child(6){left:75.93896vw;bottom:-8px;width:10px;height:10px;animation-delay:-5.32708s}
+.bubble:nth-child(7){left:82.74823vw;bottom:-6px;width:53px;height:53px;animation-delay:-2.23279s}
+.bubble:nth-child(8){left:29.76369vw;bottom:-7px;width:10px;height:10px;animation-delay:-18.99376s}
+.bubble:nth-child(9){left:80.2687vw;bottom:-6px;width:29px;height:29px;animation-delay:-18.71s}
+.bubble:nth-child(10){left:76.97028vw;bottom:-9px;width:35px;height:35px;animation-delay:-13.33152s}
+.bubble:nth-child(11){left:12.49314vw;bottom:-6px;width:16px;height:16px;animation-delay:-1.48845s}
+.bubble:nth-child(12){left:30.68886vw;bottom:-6px;width:16px;height:16px;animation-delay:-6.28737s}
+.bubble:nth-child(13){left:29.24652vw;bottom:-5px;width:50px;height:50px;animation-delay:-.28901s}
+.bubble:nth-child(14){left:96.05273vw;bottom:-7px;width:16px;height:16px;animation-delay:-2.68352s}
+.bubble:nth-child(15){left:.49361vw;bottom:-6px;width:20px;height:20px;animation-delay:-4.27723s}
+.bubble:nth-child(16){left:4.24966vw;bottom:-6px;width:21px;height:21px;animation-delay:-.7502s}
+.bubble:nth-child(17){left:52.60266vw;bottom:-9px;width:32px;height:32px;animation-delay:-4.34096s}
+.bubble:nth-child(18){left:65.32743vw;bottom:-8px;width:8px;height:8px;animation-delay:-16.75426s}
+.bubble:nth-child(19){left:92.44249vw;bottom:-9px;width:50px;height:50px;animation-delay:-15.25252s}
+.bubble:nth-child(20){left:24.81819vw;bottom:-5px;width:24px;height:24px;animation-delay:-11.24477s}
+.bubble:nth-child(21){left:8.01369vw;bottom:-5px;width:13px;height:13px;animation-delay:-19.54661s}
+.bubble:nth-child(22){left:70.74805vw;bottom:-9px;width:10px;height:10px;animation-delay:-10.75487s}
+.bubble:nth-child(23){left:13.34831vw;bottom:-7px;width:8px;height:8px;animation-delay:-7.47151s}
+.bubble:nth-child(24){left:89.79847vw;bottom:-7px;width:9px;height:9px;animation-delay:-6.30718s}
+.bubble:nth-child(25){left:55.90019vw;bottom:-5px;width:10px;height:10px;animation-delay:-15.14975s}
+.bubble:nth-child(26){left:20.10606vw;bottom:-9px;width:8px;height:8px;animation-delay:-1.98687s}
+.bubble:nth-child(27){left:19.20068vw;bottom:-7px;width:11px;height:11px;animation-delay:-17.81318s}
+.bubble:nth-child(28){left:26.30918vw;bottom:-9px;width:15px;height:15px;animation-delay:-16.4386s}
+.bubble:nth-child(29){left:39.44831vw;bottom:-7px;width:11px;height:11px;animation-delay:-4.17307s}
+.bubble:nth-child(30){left:86.14189vw;bottom:-7px;width:16px;height:16px;animation-delay:-2.25045s}
+.bubble:nth-child(31){left:8.34632vw;bottom:-9px;width:9px;height:9px;animation-delay:-18.17428s}
+.bubble:nth-child(32){left:3.60938vw;bottom:-9px;width:52px;height:52px;animation-delay:-1.15912s}
+.bubble:nth-child(33){left:83.70527vw;bottom:-7px;width:25px;height:25px;animation-delay:-8.70645s}
+.bubble:nth-child(34){left:59.29376vw;bottom:-6px;width:19px;height:19px;animation-delay:-9.96571s}
+.bubble:nth-child(35){left:20.67311vw;bottom:-5px;width:11px;height:11px;animation-delay:-16.43081s}
+.bubble:nth-child(36){left:16.60842vw;bottom:-7px;width:18px;height:18px;animation-delay:-1.0929s}
+.bubble:nth-child(37){left:26.75571vw;bottom:-9px;width:15px;height:15px;animation-delay:-15.85037s}
+.bubble:nth-child(38){left:55.9389vw;bottom:-6px;width:9px;height:9px;animation-delay:-14.52208s}
+.bubble:nth-child(39){left:89.46519vw;bottom:-7px;width:9px;height:9px;animation-delay:-16.69323s}
+.bubble:nth-child(40){left:13.69048vw;bottom:-9px;width:28px;height:28px;animation-delay:-8.18108s}
+.bubble:nth-child(41){left:53.91061vw;bottom:-8px;width:28px;height:28px;animation-delay:-12.30713s}
+.bubble:nth-child(42){left:20.52159vw;bottom:-5px;width:9px;height:9px;animation-delay:-16.04937s}
+.bubble:nth-child(43){left:45.41078vw;bottom:-7px;width:34px;height:34px;animation-delay:-8.96911s}
+.bubble:nth-child(44){left:27.67849vw;bottom:-6px;width:8px;height:8px;animation-delay:-11.74205s}
+.bubble:nth-child(45){left:6.04659vw;bottom:-9px;width:17px;height:17px;animation-delay:-7.76218s}
+.bubble:nth-child(46){left:90.89168vw;bottom:-5px;width:11px;height:11px;animation-delay:-10.81168s}
+.bubble:nth-child(47){left:76.82811vw;bottom:-9px;width:24px;height:24px;animation-delay:-10.65953s}
+.bubble:nth-child(48){left:79.83648vw;bottom:-7px;width:34px;height:34px;animation-delay:-19.06931s}
+.bubble:nth-child(49){left:36.03156vw;bottom:-9px;width:12px;height:12px;animation-delay:-6.3677s}
+.bubble:nth-child(50){left:35.54297vw;bottom:-8px;width:45px;height:45px;animation-delay:-14.4242s}
+.bubble:nth-child(51){left:80.63568vw;bottom:-9px;width:17px;height:17px;animation-delay:-5.16982s}
+.bubble:nth-child(52){left:50.55067vw;bottom:-9px;width:33px;height:33px;animation-delay:-4.84153s}
+.bubble:nth-child(53){left:30.6201vw;bottom:-5px;width:13px;height:13px;animation-delay:-6.96654s}
+.bubble:nth-child(54){left:45.28815vw;bottom:-8px;width:9px;height:9px;animation-delay:-9.27765s}
+.bubble:nth-child(55){left:78.11424vw;bottom:-6px;width:10px;height:10px;animation-delay:-12.11827s}
+.bubble:nth-child(56){left:24.31714vw;bottom:-9px;width:13px;height:13px;animation-delay:-8.46352s}
+.bubble:nth-child(57){left:28.70462vw;bottom:-7px;width:20px;height:20px;animation-delay:-.45371s}
+.bubble:nth-child(58){left:2.27408vw;bottom:-8px;width:12px;height:12px;animation-delay:-.24413s}
+.bubble:nth-child(59){left:83.1396vw;bottom:-6px;width:23px;height:23px;animation-delay:-16.33261s}
+.bubble:nth-child(60){left:62.78651vw;bottom:-8px;width:17px;height:17px;animation-delay:-19.21756s}
+.bubble:nth-child(61){left:7.12918vw;bottom:-5px;width:20px;height:20px;animation-delay:-7.67091s}
+.bubble:nth-child(62){left:97.45529vw;bottom:-9px;width:24px;height:24px;animation-delay:-18.76116s}
+.bubble:nth-child(63){left:14.74106vw;bottom:-6px;width:10px;height:10px;animation-delay:-17.61423s}
+.bubble:nth-child(64){left:52.73746vw;bottom:-6px;width:19px;height:19px;animation-delay:-19.08609s}
+.bubble:nth-child(65){left:82.54806vw;bottom:-6px;width:8px;height:8px;animation-delay:-6.25464s}
+.bubble:nth-child(66){left:53.82702vw;bottom:-9px;width:8px;height:8px;animation-delay:-8.50612s}
+.bubble:nth-child(67){left:9.03299vw;bottom:-5px;width:16px;height:16px;animation-delay:-19.40412s}
+.bubble:nth-child(68){left:25.83409vw;bottom:-5px;width:33px;height:33px;animation-delay:-6.70042s}
+.bubble:nth-child(69){left:7.36465vw;bottom:-9px;width:39px;height:39px;animation-delay:-13.72035s}
+.bubble:nth-child(70){left:34.01962vw;bottom:-8px;width:15px;height:15px;animation-delay:-17.84108s}
+.bubble:nth-child(71){left:87.0941vw;bottom:-9px;width:16px;height:16px;animation-delay:-15.09725s}
+.bubble:nth-child(72){left:9.30557vw;bottom:-6px;width:28px;height:28px;animation-delay:-11.75265s}
+.bubble:nth-child(73){left:87.1748vw;bottom:-8px;width:9px;height:9px;animation-delay:-16.54878s}
+.bubble:nth-child(74){left:34.73289vw;bottom:-8px;width:19px;height:19px;animation-delay:-3.83448s}
+.bubble:nth-child(75){left:79.57703vw;bottom:-7px;width:8px;height:8px;animation-delay:-5.66966s}
+.bubble:nth-child(76){left:56.36753vw;bottom:-5px;width:18px;height:18px;animation-delay:-11.44593s}
+.bubble:nth-child(77){left:51.83961vw;bottom:-6px;width:15px;height:15px;animation-delay:-10.69908s}
+.bubble:nth-child(78){left:66.25605vw;bottom:-7px;width:15px;height:15px;animation-delay:-7.97258s}
+.bubble:nth-child(79){left:70.07962vw;bottom:-9px;width:10px;height:10px;animation-delay:-8.84135s}
+.bubble:nth-child(80){left:71.75324vw;bottom:-5px;width:36px;height:36px;animation-delay:-18.53727s}
+.bubble:nth-child(81){left:27.95475vw;bottom:-5px;width:9px;height:9px;animation-delay:-19.52828s}
+.bubble:nth-child(82){left:96.84176vw;bottom:-8px;width:9px;height:9px;animation-delay:-14.8808s}
+.bubble:nth-child(83){left:90.0183vw;bottom:-6px;width:42px;height:42px;animation-delay:-6.10198s}
+.bubble:nth-child(84){left:18.10258vw;bottom:-8px;width:14px;height:14px;animation-delay:-1.7146s}
+.bubble:nth-child(85){left:24.78997vw;bottom:-6px;width:9px;height:9px;animation-delay:-10.4873s}
+.bubble:nth-child(86){left:84.5112vw;bottom:-8px;width:10px;height:10px;animation-delay:-15.86796s}
+.bubble:nth-child(87){left:94.27645vw;bottom:-5px;width:13px;height:13px;animation-delay:-17.49096s}
+.bubble:nth-child(88){left:40.56824vw;bottom:-8px;width:8px;height:8px;animation-delay:-11.13955s}
+.bubble:nth-child(89){left:56.49698vw;bottom:-7px;width:10px;height:10px;animation-delay:-8.4032s}
+.bubble:nth-child(90){left:54.51072vw;bottom:-6px;width:10px;height:10px;animation-delay:-10.32894s}
+.bubble:nth-child(91){left:62.50474vw;bottom:-8px;width:26px;height:26px;animation-delay:-7.67612s}
+.bubble:nth-child(92){left:23.07171vw;bottom:-8px;width:8px;height:8px;animation-delay:-15.92199s}
+.bubble:nth-child(93){left:88.86801vw;bottom:-9px;width:19px;height:19px;animation-delay:-8.24788s}
+.bubble:nth-child(94){left:7.12617vw;bottom:-5px;width:8px;height:8px;animation-delay:-7.35552s}
+.bubble:nth-child(95){left:51.3401vw;bottom:-9px;width:10px;height:10px;animation-delay:-3.28144s}
+.bubble:nth-child(96){left:34.48977vw;bottom:-8px;width:16px;height:16px;animation-delay:-.79374s}
+.bubble:nth-child(97){left:56.06391vw;bottom:-8px;width:8px;height:8px;animation-delay:-15.47476s}
+.bubble:nth-child(98){left:24.01434vw;bottom:-8px;width:8px;height:8px;animation-delay:-8.77282s}
+.bubble:nth-child(99){left:29.70038vw;bottom:-5px;width:24px;height:24px;animation-delay:-9.36191s}
+}
+.palm_bg{position:fixed;display:block;width:100%;height:100%;z-index:-1;top:0;pointer-events:none}
+@media screen and (min-width:601px){
+.palm_bg{min-width:1200px;background-image:url(../status/assets_maiBubbleBg_pc_palm_r.webp),url(../status/assets_maiBubbleBg_pc_palm_l.webp),url(../status/assets_maiBubbleBg_pc_main_bg.webp);background-size:auto,auto,auto;background-position:100% 0,0 0,top;background-repeat:no-repeat,no-repeat,repeat-x;background-color:#dcf99c}
+.palm_bg:after{position:absolute;display:block;content:"";width:1400px;height:243px;margin:0 auto;top:0;left:0;right:0;z-index:1;background-image:url(../status/assets_maiBubbleBg_pc_palm_bg.webp);background-size:auto;background-position:top;background-repeat:no-repeat}
+}
+@media screen and (max-width:600px){
+.palm_bg{background-image:url(../status/assets_maiBubbleBg_sp_palm_bg.webp);background-size:contain;background-position:top;background-repeat:no-repeat;background-color:#fff}
+}
+body{font-family:ヒラギノ角ゴ Pro W3,Hiragino Kaku Gothic Pro,メイリオ,Meiryo,sans-serif;font-size:16px;line-height:1.6;color:#000;width:100%;height:100%;margin:0;padding:0;background:#fff;-webkit-overflow-scrolling:touch}
+@media screen and (min-width:601px){
+body{min-width:1200px}
+}
+body::-webkit-scrollbar{width:14px;background-color:#ffdc00}
+body::-webkit-scrollbar-thumb{background-color:#0b3871;border-radius:7px}
+@keyframes loop{0%{transform:translateX(-.5%) translateY(0)}50%{transform:translateX(0) translateY(2px)}to{transform:translateX(.5%) translateY(0)}}
+@keyframes loop2{0%{transform:translateX(-1%) translateY(0)}50%{transform:translateX(0) translateY(0)}to{transform:translateX(1%) translateY(0)}}
+@keyframes loop3{0%{transform:translateX(-1.5%) translateY(0)}50%{transform:translateX(0) translateY(3px)}to{transform:translateX(1.5%) translateY(0)}}
+@keyframes ice{0%{transform:translateY(10px)}to{transform:translateY(0)}}
+@keyframes loop{0%{transform:translateX(-10%) translateY(0)}50%{transform:translateX(-5%) translateY(1px)}to{transform:translateX(0) translateY(0)}}
+@keyframes loop2{0%{transform:translateX(-12%) translateY(0)}50%{transform:translateX(-7%) translateY(2px)}to{transform:translateX(0) translateY(0)}}
+@keyframes loop3{0%{transform:translateX(-12%) translateY(0)}50%{transform:translateX(-3%) translateY(3px)}to{transform:translateX(6%) translateY(0)}}
+@keyframes ice{0%{transform:translateY(10px)}to{transform:translateY(0)}}
+@keyframes bubble{0%{transform:translateY(0) scale(1);opacity:.8}to{transform:translateY(-75vh) scale(0);opacity:0}}
+@keyframes bubbleSP{0%{transform:translateY(0) scale(1);opacity:.7}to{transform:translateY(-80vh) scale(0);opacity:0}}
+/* OTOKiT viewport adaptation. Original decoration rules above come from the archived official site. */
+*,*::before,*::after{box-sizing:border-box}
+html,body{width:100%;height:100%;min-width:0!important;min-height:0!important;margin:0;padding:0;overflow:hidden}
+ul,li{list-style:none;margin:0;padding:0}
+.otokit-background{position:fixed;inset:0;isolation:isolate;overflow:hidden;pointer-events:none;user-select:none}
+.otokit-hero{position:absolute;left:50%;top:50%;width:min(661px,60vw);height:64vh;transform:translate(-50%,-50%);z-index:300;animation:otokit-float 3s ease-in-out infinite alternate;display:flex;align-items:center;justify-content:center}
+.otokit-hero img{display:block;max-width:100%;max-height:100%;object-fit:contain}
+@keyframes otokit-float{from{transform:translate(-50%,-50%)}to{transform:translate(-50%,-48%)}}
+@media(max-width:600px){.otokit-hero{width:86vw;height:60vh}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-play-state:paused!important}}
+
+@media(max-width:600px){.bubble:nth-child(n+101){display:none}}
+/* Scale only the character artwork; preserve its center and floating motion. */
+.otokit-hero img{transform:scale(.805);transform-origin:center}

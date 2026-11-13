@@ -118,6 +118,7 @@ class BackgroundHost(
         attached = true
         committedGame = initialGame
         progress = BackgroundPagerMapping.endpointProgress(initialGame)
+        updateMediaVisibility()
         publisher.publish(BackgroundSnapshot(initialGame, progress, BackgroundPhase.Idle))
 
         try {
@@ -381,8 +382,14 @@ class BackgroundHost(
 
     private fun publishCurrent() {
         if (!disposed && !gate.barrierActive) {
+            updateMediaVisibility()
             publisher.publish(BackgroundSnapshot(committedGame, progress, phase))
         }
+    }
+
+    private fun updateMediaVisibility() {
+        pages.getValue(GameLine.Mai).setMediaVisible(progress < 1f)
+        pages.getValue(GameLine.Chu).setMediaVisible(progress > 0f)
     }
 
     private fun matchParentParams() = FrameLayout.LayoutParams(
