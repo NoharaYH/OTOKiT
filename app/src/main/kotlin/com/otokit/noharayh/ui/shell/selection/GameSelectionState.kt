@@ -1,6 +1,7 @@
 package com.otokit.noharayh.ui.shell.selection
 
 import com.otokit.noharayh.ui.theme.GameLine
+import com.otokit.noharayh.ui.theme.NoneThemePalette
 import com.otokit.noharayh.ui.theme.RegisteredTheme
 import com.otokit.noharayh.ui.theme.ThemeOption
 import com.otokit.noharayh.ui.theme.ThemeOptions
@@ -18,6 +19,8 @@ data class GameSelectionState(
     val chuThemeId: String,
     val themeMode: ThemeSelectionMode = ThemeSelectionMode.Independent,
     val mergedThemeId: String = ThemeOptions.PLACEHOLDER_ID,
+    val noneThemeSeedColor: Int = NoneThemePalette.DEFAULT_SEED_COLOR,
+    val noneThemeTintBackground: Boolean = false,
 ) {
     fun selectedThemeId(gameLine: GameLine = currentGame): String = when (gameLine) {
         GameLine.Mai -> maiThemeId
@@ -37,6 +40,8 @@ data class SelectionSource(
     val chuThemeId: String?,
     val themeMode: String? = null,
     val mergedThemeId: String? = null,
+    val noneThemeSeedColor: Int? = null,
+    val noneThemeTintBackground: Boolean? = null,
 )
 
 /** 稳定字符串编码：音游用 `mai` / `chu`，主题用规范 ID，版本固定为 1。 */
@@ -81,6 +86,8 @@ object GameSelectionFormat {
         chuThemeId = state.chuThemeId,
         themeMode = modeValue(state.themeMode),
         mergedThemeId = state.mergedThemeId,
+        noneThemeSeedColor = state.noneThemeSeedColor,
+        noneThemeTintBackground = state.noneThemeTintBackground,
     )
 
     /** 版本合法才可用；缺失或不支持的版本整份来源失效。 */
@@ -121,6 +128,11 @@ fun restoreGameSelection(
             preferenceFields?.mergedThemeId,
             lookup,
         ),
+        noneThemeSeedColor = savedFields?.noneThemeSeedColor?.takeIf { it ushr 24 == 0xFF }
+            ?: preferenceFields?.noneThemeSeedColor?.takeIf { it ushr 24 == 0xFF }
+            ?: NoneThemePalette.DEFAULT_SEED_COLOR,
+        noneThemeTintBackground = savedFields?.noneThemeTintBackground
+            ?: preferenceFields?.noneThemeTintBackground ?: false,
     )
 }
 

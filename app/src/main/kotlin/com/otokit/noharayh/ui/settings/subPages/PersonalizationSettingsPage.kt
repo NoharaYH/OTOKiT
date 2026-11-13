@@ -2,6 +2,7 @@ package com.otokit.noharayh.ui.settings.subPages
 
 import android.content.Context
 import android.graphics.Canvas
+import android.graphics.drawable.GradientDrawable
 import androidx.core.graphics.withSave
 import android.view.View
 import android.view.MotionEvent
@@ -19,6 +20,9 @@ import com.otokit.noharayh.ui.kit.settings.LabeledDropdownField
 import com.otokit.noharayh.ui.kit.settings.SettingsPageViews.card
 import com.otokit.noharayh.ui.kit.settings.SettingsPageViews.dp
 import com.otokit.noharayh.ui.kit.settings.SettingsSegmentedChoice
+import com.otokit.noharayh.ui.kit.common.toggle.GroupedSwitchRow
+import com.otokit.noharayh.ui.kit.common.PressFrontColumn
+import com.otokit.noharayh.ui.constants.dimensions.GroupedSwitchDimensions
 import com.otokit.noharayh.ui.shell.selection.GameSelectionState
 import com.otokit.noharayh.ui.theme.GameLine
 import com.otokit.noharayh.ui.theme.ThemeOption
@@ -34,6 +38,7 @@ internal class PersonalizationSettingsPage(
     selection: GameSelectionState,
     private val onModeSelected: (ThemeSelectionMode) -> Unit,
     private val onOptionSelected: (ThemeOption, GameLine?) -> Unit,
+    onBackgroundTintSelected: (Boolean) -> Unit,
 ) : ScrollView(context) {
     private var controlsEnabled = true
     private var renderedSelection: GameSelectionState? = null
@@ -45,6 +50,16 @@ internal class PersonalizationSettingsPage(
     private val fields = listOf(firstField, secondField)
     private val rowHeight = dp(context, ThemeSelectionDimensions.FIELD_HEIGHT_DP)
     private val rowGap = dp(context, ThemeSelectionDimensions.FIELD_GAP_DP)
+    private val switchHeight = dp(context, GroupedSwitchDimensions.ROW_HEIGHT_DP)
+    private val backgroundSwitch = GroupedSwitchRow(context,
+        context.getString(R.string.settings_none_theme_tint_background), false, true,
+        selection.noneThemeTintBackground, onBackgroundTintSelected,
+        labelColor = 0xFF323232.toInt())
+    private val noneOptions = FrameLayout(context).apply {
+        clipChildren = false
+        clipToPadding = false
+        addView(backgroundSwitch, FrameLayout.LayoutParams(-1, switchHeight))
+    }
     private val content = object : FrameLayout(context) {
         var clipTransition = false
         init { clipChildren = false; clipToPadding = false }
@@ -68,6 +83,10 @@ internal class PersonalizationSettingsPage(
     private val panels = listOf(firstPanel, secondPanel)
     private var backPanel: ThemeSelectorPanel? = null
     private var scrollbarTouchPanel: ThemeSelectorPanel? = null
+    private val themeCard = card(context, R.drawable.ic_format_paint_24,
+        R.string.settings_theme_selection, content, trailing = segment)
+    private val themeCardShape = themeCard.background as GradientDrawable
+    private val themeCardRadii = FloatArray(8)
 
     init {
         val body = LinearLayout(context).apply {
@@ -105,8 +124,14 @@ internal class PersonalizationSettingsPage(
                 else -> ThemeSelectionMode.None
             })
         }
-        body.addView(card(context, R.drawable.ic_format_paint_24,
-            R.string.settings_theme_selection, content, trailing = segment))
+        val themeGroup = PressFrontColumn(context).apply {
+            addView(themeCard, LinearLayout.LayoutParams(-1, -2))
+            addView(noneOptions, LinearLayout.LayoutParams(-1, 0))
+        }
+        backgroundSwitch.addOnPressStateChangedListener { pressed ->
+            if (pressed) themeGroup.bringVisualToFront(noneOptions)
+        }
+        body.addView(themeGroup, LinearLayout.LayoutParams(-1, -2))
         isFillViewport = true
         clipChildren = false
         clipToPadding = false
@@ -119,6 +144,7 @@ internal class PersonalizationSettingsPage(
         val previous = renderedSelection
         if (previous == selection) return
         renderedSelection = selection
+        backgroundSwitch.isChecked = selection.noneThemeTintBackground
         segment.setSelection(modeIndex(selection.themeMode))
         val title = firstTitle(selection)
         if (previous?.themeMode == selection.themeMode) {
@@ -144,7 +170,7 @@ internal class PersonalizationSettingsPage(
         val target = when (selection.themeMode) {
             ThemeSelectionMode.Independent -> ThemeCardFrame((rowHeight * 2 + rowGap).toFloat(), 1f, 1f, 1f)
             ThemeSelectionMode.Merged -> ThemeCardFrame(rowHeight.toFloat(), 1f, 0f, 0f)
-            ThemeSelectionMode.None -> ThemeCardFrame(prefix = transition.frame.prefix)
+            ThemeSelectionMode.None -> ThemeCardFrame(prefix = transition.frame.prefix, none = 1f)
         }
         transition.play(target, animate = previous != null && isAttachedToWindow, valueChanged = valueChanged)
     }
@@ -184,6 +210,28 @@ internal class PersonalizationSettingsPage(
         }
         firstField.setLabelPrefixProgress(frame.prefix)
         firstField.renderValueTransition(frame.value)
+        noneOptions.visibility = if (frame.none > 0f) View.VISIBLE else View.GONE
+        noneOptions.alpha = frame.none
+        noneOptions.translationY = -rowGap * (1f - frame.none)
+        val noneHeight = (switchHeight * frame.none).roundToInt()
+        val noneMargin = (dp(context, GroupedSwitchDimensions.GAP_DP) * frame.none).roundToInt()
+        (noneOptions.layoutParams as? LinearLayout.LayoutParams)?.let { params ->
+            if (params.height != noneHeight || params.topMargin != noneMargin) {
+                noneOptions.layoutParams = params.apply { height = noneHeight; topMargin = noneMargin }
+            }
+        }
+        // 开关进入分组时，只收小相邻的两边圆角；最外侧始终保留大圆角。
+        val outerRadius = dp(context, GroupedSwitchDimensions.OUTER_RADIUS_DP).toFloat()
+        val innerRadius = GroupedSwitchDimensions.INNER_RADIUS_DP * resources.displayMetrics.density
+        val joinedRadius = outerRadius + (innerRadius - outerRadius) * frame.none
+        themeCardRadii.fill(outerRadius, 0, 4)
+        themeCardRadii.fill(joinedRadius, 4, 8)
+        themeCardShape.cornerRadii = themeCardRadii
+        backgroundSwitch.topCornerRadius = joinedRadius
+        // 父层的透明度/位移不会重录子 View 的绘制，圆角变化需显式刷新底形。
+        backgroundSwitch.invalidate()
+        noneOptions.importantForAccessibility = if (frame.none == 1f && !transition.isRunning)
+            View.IMPORTANT_FOR_ACCESSIBILITY_AUTO else View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
         updateControls()
     }
 
@@ -248,6 +296,7 @@ internal class PersonalizationSettingsPage(
         panels.forEach { it.setControlsEnabled(enabled) }
         firstField.setControlsEnabled(enabled && backPanel == null && transition.frame.first == 1f)
         secondField.setControlsEnabled(enabled && backPanel == null && transition.frame.second == 1f)
+        backgroundSwitch.isEnabled = enabled && backPanel == null && transition.frame.none == 1f
     }
 
     fun setDisabledProgress(progress: Float) {

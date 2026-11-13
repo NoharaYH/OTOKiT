@@ -31,6 +31,7 @@
     <string name="settings_theme_independent">多主题</string>
     <string name="settings_theme_merged">单主题</string>
     <string name="settings_theme_none">无主题</string>
+    <string name="settings_none_theme_tint_background">背景跟随配色</string>
     <string name="settings_theme_mai">舞萌主题选择</string>
     <string name="settings_theme_chu">中二主题选择</string>
     <string name="settings_theme_merged_field">主题选择</string>

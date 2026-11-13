@@ -25,6 +25,8 @@ class SharedPreferencesUiPreferences(context: Context) : UiPreferences {
             mergedThemeId = stored[KEY_MERGED_THEME] as? String,
             backgroundHardwareAcceleration = stored[KEY_BACKGROUND_HARDWARE] as? Boolean,
             backgroundHtmlAnimations = stored[KEY_BACKGROUND_ANIMATIONS] as? Boolean,
+            noneThemeSeedColor = stored[KEY_NONE_SEED] as? Int,
+            noneThemeTintBackground = stored[KEY_NONE_BACKGROUND] as? Boolean,
         )
     }
 
@@ -35,6 +37,8 @@ class SharedPreferencesUiPreferences(context: Context) : UiPreferences {
         chuThemeId: String,
         themeMode: String,
         mergedThemeId: String,
+        noneThemeSeedColor: Int,
+        noneThemeTintBackground: Boolean,
     ) {
         preferences.edit {
             putInt(KEY_VERSION, version)
@@ -43,6 +47,8 @@ class SharedPreferencesUiPreferences(context: Context) : UiPreferences {
             putString(KEY_THEME_CHU, chuThemeId)
             putString(KEY_THEME_MODE, themeMode)
             putString(KEY_MERGED_THEME, mergedThemeId)
+            putInt(KEY_NONE_SEED, noneThemeSeedColor)
+            putBoolean(KEY_NONE_BACKGROUND, noneThemeTintBackground)
         }
     }
 
@@ -63,5 +69,7 @@ class SharedPreferencesUiPreferences(context: Context) : UiPreferences {
         const val KEY_MERGED_THEME: String = "merged_theme"
         const val KEY_BACKGROUND_HARDWARE = "background_hardware_acceleration"
         const val KEY_BACKGROUND_ANIMATIONS = "background_html_animations"
+        const val KEY_NONE_SEED = "none_theme_seed_color"
+        const val KEY_NONE_BACKGROUND = "none_theme_tint_background"
     }
 }

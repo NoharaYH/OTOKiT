@@ -34,6 +34,7 @@ class SettingsAssembly(
     private val selectionProvider: () -> GameSelectionState,
     private val onThemeModeSelected: (ThemeSelectionMode) -> Unit,
     private val onThemeOptionSelected: (ThemeOption, GameLine?) -> Unit,
+    private val onNoneThemeBackgroundSelected: (Boolean) -> Unit,
     private val onTransitionStart: (SettingsSection?, SettingsSection?, Float, Boolean) -> Unit,
     private val onTransitionFrame: (TransitionProgress) -> Unit,
 ) : FrameLayout(context) {
@@ -269,6 +270,10 @@ class SettingsAssembly(
         },
         onThemeOptionSelected = { option, game ->
             onThemeOptionSelected(option, game)
+            renderThemeSelection(selectionProvider())
+        },
+        onNoneThemeBackgroundSelected = {
+            onNoneThemeBackgroundSelected(it)
             renderThemeSelection(selectionProvider())
         },
     ).also {

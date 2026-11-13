@@ -87,6 +87,7 @@ dependencies {
     implementation(libs.androidx.webkit)
     implementation(libs.androidx.viewpager2)
     implementation(libs.androidx.dynamicanimation)
+    implementation(libs.material.color.utilities)
     testImplementation(libs.junit)
 }
 

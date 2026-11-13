@@ -36,6 +36,11 @@ class BackgroundHost(
         pages.values.forEach { it.setRenderingOptions(options) }
     }
 
+    fun setNoneBackgroundColor(color: Int) {
+        if (disposed) return
+        pages.values.forEach { it.setNoneBackgroundColor(color) }
+    }
+
     private var initialVisualReady: (() -> Unit)? = null
     private val sources = BackgroundSourceCoordinator { game, source ->
         pages.getValue(game).show(source)

@@ -105,6 +105,7 @@ internal class BackgroundPage(
 
     private var loadedHtmlThemeId: String? = null
     private var loadedSelectionKey: String? = null
+    private var noneBackgroundColor = BackgroundPalette.NONE_COLOR
     private var visualRequest = 0L
     private var readySent = false
     private var resumed = false
@@ -217,10 +218,17 @@ internal class BackgroundPage(
                 showSolid(BackgroundPalette.PLACEHOLDER_COLOR)
             }
             BackgroundSelection.None -> {
-                showSolid(BackgroundPalette.NONE_COLOR)
+                showSolid(noneBackgroundColor)
             }
         }
         return true
+    }
+
+    /** 同一个无主题来源只换底色，不重启 WebView、首帧回调或背景切换。 */
+    fun setNoneBackgroundColor(color: Int) {
+        if (noneBackgroundColor == color) return
+        noneBackgroundColor = color
+        if (loadedSelectionKey == "none") solidView.setBackgroundColor(color)
     }
 
     private fun showSolid(color: Int) {

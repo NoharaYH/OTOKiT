@@ -14,6 +14,21 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class GameSelectionControllerTest {
+    @Test
+    fun tintOnlyChangesInNoneModeAndSurvivesModeRoundTrip() {
+        val controller = controller()
+        assertFalse(controller.selectNoneThemeBackground(true))
+        controller.selectThemeMode(ThemeSelectionMode.None)
+        assertTrue(controller.selectNoneThemeBackground(true))
+        assertFalse(controller.selectNoneThemeBackground(true))
+        controller.selectThemeMode(ThemeSelectionMode.Merged)
+        assertFalse(controller.selectNoneThemeBackground(false))
+        controller.selectThemeMode(ThemeSelectionMode.None)
+        assertTrue(controller.state.noneThemeTintBackground)
+        assertEquals(initialState().maiThemeId, controller.state.maiThemeId)
+        assertEquals(initialState().chuThemeId, controller.state.chuThemeId)
+    }
+
 
     private val maiA = theme("mai-a", GameLine.Mai)
     private val maiB = theme("mai-b", GameLine.Mai)

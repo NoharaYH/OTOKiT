@@ -5,6 +5,7 @@ import com.otokit.noharayh.storage.preferences.UiPreferences
 import com.otokit.noharayh.ui.shell.background.BackgroundRenderingOptions
 import com.otokit.noharayh.ui.theme.ThemeSelectionMode
 import com.otokit.noharayh.ui.theme.GameLine
+import com.otokit.noharayh.ui.theme.NoneThemePalette
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -33,18 +34,20 @@ class UiPreferencesAdapterTest {
 
         assertEquals(
             UiPreferenceRecord(version = 1, currentGame = "chu", maiThemeId = "mai-a", chuThemeId = "chu-a",
-                themeMode = "independent", mergedThemeId = "placeholder"),
+                themeMode = "independent", mergedThemeId = "placeholder",
+                noneThemeSeedColor = NoneThemePalette.DEFAULT_SEED_COLOR, noneThemeTintBackground = false),
             fake.written,
         )
     }
 
-    /** 每个模式均以一次调用写入六字段；读回保留未使用的各模式选择。 */
+    /** 每个模式均以一次调用写入全部字段；读回保留未使用的各模式选择。 */
     @Test
     fun roundTripsAllModesAsOneCompleteWrite() {
         for (mode in ThemeSelectionMode.entries) {
             val fake = FakePreferences(UiPreferenceRecord(null, null, null, null))
             val adapter = UiPreferencesAdapter(fake)
-            val state = GameSelectionState(GameLine.Mai, "mai-a", "chu-a", mode, "chu-shared")
+            val state = GameSelectionState(GameLine.Mai, "mai-a", "chu-a", mode, "chu-shared",
+                noneThemeSeedColor = 0xFF008577.toInt(), noneThemeTintBackground = true)
             adapter.write(state)
             assertEquals(1, fake.writeCount)
             assertEquals(GameSelectionFormat.encode(state), adapter.read())
@@ -94,10 +97,13 @@ class UiPreferencesAdapterTest {
             chuThemeId: String,
             themeMode: String,
             mergedThemeId: String,
+            noneThemeSeedColor: Int,
+            noneThemeTintBackground: Boolean,
         ) {
             writeCount++
             written = record.copy(version = version, currentGame = currentGame, maiThemeId = maiThemeId,
-                chuThemeId = chuThemeId, themeMode = themeMode, mergedThemeId = mergedThemeId)
+                chuThemeId = chuThemeId, themeMode = themeMode, mergedThemeId = mergedThemeId,
+                noneThemeSeedColor = noneThemeSeedColor, noneThemeTintBackground = noneThemeTintBackground)
             record = requireNotNull(written)
         }
 

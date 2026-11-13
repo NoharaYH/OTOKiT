@@ -10,6 +10,25 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class GameSelectionRestoreTest {
+    @Test
+    fun restoresNonePaletteFieldsIndependentlyAndKeepsOldRecordsUsable() {
+        val preferences = SelectionSource(1, "chu", "mai-a", "chu-a",
+            noneThemeSeedColor = 0xFF008577.toInt(), noneThemeTintBackground = true)
+        val saved = SelectionSource(1, null, null, null,
+            noneThemeSeedColor = 0x006750A4, noneThemeTintBackground = false)
+        val restored = restoreGameSelection(saved, preferences, lookup, defaultFor)
+        assertEquals(0xFF008577.toInt(), restored.noneThemeSeedColor)
+        assertEquals(false, restored.noneThemeTintBackground)
+        assertEquals(GameLine.Chu, restored.currentGame)
+
+        val legacy = restoreGameSelection(SelectionSource(1, "chu", "mai-b", "chu-b"),
+            null, lookup, defaultFor)
+        assertEquals(com.otokit.noharayh.ui.theme.NoneThemePalette.DEFAULT_SEED_COLOR, legacy.noneThemeSeedColor)
+        assertEquals(false, legacy.noneThemeTintBackground)
+        assertEquals("mai-b", legacy.maiThemeId)
+        assertEquals("chu-b", legacy.chuThemeId)
+    }
+
     @org.junit.Test fun restoresMergedAndNoneWithPlaceholderAcrossSavedState() {
         val registry = com.otokit.noharayh.ui.theme.ThemeRegistry
         val initial = GameSelectionState(
@@ -18,6 +37,8 @@ class GameSelectionRestoreTest {
             registry.defaultFor(com.otokit.noharayh.ui.theme.GameLine.Chu).id,
             com.otokit.noharayh.ui.theme.ThemeSelectionMode.None,
             registry.defaultFor(com.otokit.noharayh.ui.theme.GameLine.Mai).id,
+            noneThemeSeedColor = 0xFF006B54.toInt(),
+            noneThemeTintBackground = true,
         )
         org.junit.Assert.assertEquals(initial, restoreGameSelection(
             GameSelectionFormat.encode(initial), null, registry::findById, registry::defaultFor,

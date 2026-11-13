@@ -45,6 +45,8 @@ import com.otokit.noharayh.ui.shell.selection.SelectionSource
 import com.otokit.noharayh.ui.shell.selection.UiPreferencesAdapter
 import com.otokit.noharayh.ui.shell.selection.restoreGameSelection
 import com.otokit.noharayh.ui.theme.BackgroundPalette
+import com.otokit.noharayh.ui.theme.NoneThemePalette
+import com.otokit.noharayh.ui.theme.ThemeColors
 import com.otokit.noharayh.ui.theme.BackgroundSelection
 import com.otokit.noharayh.ui.theme.GameLine
 import com.otokit.noharayh.ui.theme.RegisteredTheme
@@ -94,6 +96,8 @@ class MainShell(
             defaultFor = ThemeRegistry::defaultFor,
         ),
     )
+
+    private val noneThemePalette = NoneThemePalette.fromSeed(selection.state.noneThemeSeedColor)
 
     private val chrome = ChromeAssembly(
         chromeHost = chromeHost,
@@ -175,6 +179,7 @@ class MainShell(
         background = BackgroundHost(backgroundHost, backgroundRendering) { gameLine ->
             onBackgroundSelectionConfirmed(gameLine)
         }.also { host ->
+            host.setNoneBackgroundColor(noneBackgroundColor())
             host.attach(current.currentGame)
             host.renderSelection(
                 currentGame = current.currentGame,
@@ -257,6 +262,7 @@ class MainShell(
             selectionProvider = { selection.state },
             onThemeModeSelected = ::selectThemeMode,
             onThemeOptionSelected = ::selectThemeOption,
+            onNoneThemeBackgroundSelected = ::selectNoneThemeBackground,
             onTransitionStart = chrome::prepareSettingsPageTransition,
             onTransitionFrame = chrome::renderSettingsPageProgress,
         )
@@ -442,6 +448,21 @@ class MainShell(
         applySelection()
     }
 
+    private fun selectNoneThemeBackground(enabled: Boolean) {
+        if (lifecycleState != LifecycleState.Attached || backgroundSwitching) return
+        if (!selection.selectNoneThemeBackground(enabled)) return
+        invalidateBackPreview()
+        background?.setNoneBackgroundColor(noneBackgroundColor())
+        settingsPage?.renderThemeSelection(selection.state)
+        selectionPreferences.write(selection.state)
+    }
+
+    private fun noneBackgroundColor(): Int = if (selection.state.noneThemeTintBackground) {
+        noneThemePalette.backgroundColor
+    } else {
+        BackgroundPalette.NONE_COLOR
+    }
+
     /** 选择变化后只更新颜色、背景页与落盘，不重建页面、不改导航。 */
     private fun applySelection() {
         val current = selection.state
@@ -508,23 +529,17 @@ class MainShell(
 
     private fun placeholderTextColor(): Int {
         val current = selection.state
-        return BackgroundPalette.colorsFor(colorBackgroundFor(current, current.currentGame)).primaryColor
+        return themeColorsFor(current, current.currentGame).primaryColor
     }
 
-    /** 无模式只关闭背景；chrome 仍沿用当前音游已选主题的颜色。 */
-    private fun colorBackgroundFor(
+    /** 无主题共用种子色生成的配色；HTML 和通用主题保留原配色规则。 */
+    private fun themeColorsFor(
         state: GameSelectionState,
         gameLine: GameLine,
-    ): BackgroundSelection = if (state.themeMode == ThemeSelectionMode.None) {
-        val option = ThemeOptions.resolveForGame(gameLine, state.selectedThemeId(gameLine))
-        val fallback = if (option is ThemeOption.Placeholder) {
-            ThemeOption.Html(ThemeRegistry.defaultFor(gameLine))
-        } else {
-            option
-        }
-        BackgroundPalette.fromOption(fallback)
+    ): ThemeColors = if (state.themeMode == ThemeSelectionMode.None) {
+        noneThemePalette.colors
     } else {
-        backgroundFor(state, gameLine)
+        BackgroundPalette.colorsFor(backgroundFor(state, gameLine))
     }
 
     private fun backgroundFor(
@@ -678,9 +693,9 @@ class MainShell(
     private fun chromeDisplay(): ChromeDisplayInput {
         val nav = controller.state
         val current = selection.state
-        val currentColors = BackgroundPalette.colorsFor(colorBackgroundFor(current, current.currentGame))
-        val maiColors = BackgroundPalette.colorsFor(colorBackgroundFor(current, GameLine.Mai))
-        val chuColors = BackgroundPalette.colorsFor(colorBackgroundFor(current, GameLine.Chu))
+        val currentColors = themeColorsFor(current, current.currentGame)
+        val maiColors = themeColorsFor(current, GameLine.Mai)
+        val chuColors = themeColorsFor(current, GameLine.Chu)
         val direction = if (
             lastChromeDestination == null || lastChromeDestination == nav.destination
         ) {
@@ -697,7 +712,7 @@ class MainShell(
             maiTextColor = maiColors.primaryColor,
             chuTextColor = chuColors.primaryColor,
             maiDecorColor = maiColors.primaryColor,
-            chuDecorColor = if (current.themeMode == ThemeSelectionMode.Merged) {
+            chuDecorColor = if (current.themeMode != ThemeSelectionMode.Independent) {
                 currentColors.secondaryColor
             } else {
                 chuColors.primaryColor
@@ -752,8 +767,8 @@ class MainShell(
 
     private fun updatePageThemeColors(content: PageContent) {
         val current = selection.state
-        val maiColor = BackgroundPalette.colorsFor(colorBackgroundFor(current, GameLine.Mai)).primaryColor
-        val chuColor = BackgroundPalette.colorsFor(colorBackgroundFor(current, GameLine.Chu)).primaryColor
+        val maiColor = themeColorsFor(current, GameLine.Mai).primaryColor
+        val chuColor = themeColorsFor(current, GameLine.Chu).primaryColor
         content.updateGameColors(maiColor, chuColor)
     }
 

@@ -13,16 +13,17 @@ internal data class ThemeCardFrame(
     val second: Float = 0f,
     val prefix: Float = 0f,
     val value: Float = 1f,
+    val none: Float = 0f,
 ) {
     fun towards(other: ThemeCardFrame, progress: Float): ThemeCardFrame {
         val t = progress.coerceIn(0f, 1f)
         fun mix(a: Float, b: Float) = a + (b - a) * t
         return ThemeCardFrame(mix(height, other.height), mix(first, other.first),
-            mix(second, other.second), mix(prefix, other.prefix), mix(value, other.value))
+            mix(second, other.second), mix(prefix, other.prefix), mix(value, other.value), mix(none, other.none))
     }
 }
 
-/** 卡片高度、两行进退和标签缺口共享一个非线性进度。 */
+/** 卡片高度、主题行与无主题开关的进退、标签缺口共享一个非线性进度。 */
 internal class ThemeCardTransitionRunner(private val onFrame: (ThemeCardFrame) -> Unit) {
     var frame = ThemeCardFrame()
         private set

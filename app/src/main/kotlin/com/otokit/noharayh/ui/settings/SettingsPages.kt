@@ -26,6 +26,7 @@ internal object SettingsPages {
         selection: GameSelectionState,
         onThemeModeSelected: (ThemeSelectionMode) -> Unit,
         onThemeOptionSelected: (ThemeOption, GameLine?) -> Unit,
+        onNoneThemeBackgroundSelected: (Boolean) -> Unit,
     ) = when (section) {
         SettingsSection.ScoreSync -> ScoreSyncSettingsPage.create(context, margin, split)
         SettingsSection.App -> AppSettingsPage(
@@ -46,6 +47,7 @@ internal object SettingsPages {
             selection = selection,
             onModeSelected = onThemeModeSelected,
             onOptionSelected = onThemeOptionSelected,
+            onBackgroundTintSelected = onNoneThemeBackgroundSelected,
         )
         SettingsSection.About -> AboutSettingsPage.create(context, margin, split, openLink)
     }

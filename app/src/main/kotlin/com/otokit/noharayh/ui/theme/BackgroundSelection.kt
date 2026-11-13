@@ -15,8 +15,8 @@ object BackgroundPalette {
     /** 50% 黑色；占位背景只铺这一层，不创建 HTML。 */
     const val PLACEHOLDER_COLOR: Int = 0x80000000.toInt()
 
-    /** 无主题时的纯灰。 */
-    const val NONE_COLOR: Int = 0xFF808080.toInt()
+    /** 无主题时的浅灰，与纯白前景容器保持明暗层次。 */
+    const val NONE_COLOR: Int = 0xFFE6E6E6.toInt()
 
     fun colorsFor(selection: BackgroundSelection): ThemeColors = when (selection) {
         is BackgroundSelection.Html -> selection.theme.definition.colors
@@ -24,10 +24,7 @@ object BackgroundPalette {
             primaryColor = 0xFF9E9E9E.toInt(),
             secondaryColor = 0xFF757575.toInt(),
         )
-        BackgroundSelection.None -> ThemeColors(
-            primaryColor = NONE_COLOR,
-            secondaryColor = 0xFF616161.toInt(),
-        )
+        BackgroundSelection.None -> NoneThemePalette.default.colors
     }
 
     fun fromOption(option: ThemeOption): BackgroundSelection = when (option) {

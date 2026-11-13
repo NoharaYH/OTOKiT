@@ -30,6 +30,7 @@ class GroupedSwitchRow(
     onCheckedChange: (Boolean) -> Unit,
     labelIconRes: Int? = null,
     labelIconTint: Int = 0xFFE57373.toInt(),
+    labelColor: Int = 0xFF616161.toInt(),
 ) : PressSurface(context), Checkable {
     private var checkedValue = checked
     private val indicator = SwitchIndicator(context, checked)
@@ -51,7 +52,7 @@ class GroupedSwitchRow(
         labelGroup.addView(TextView(context).apply {
             text = label
             textSize = 16f
-            setTextColor(0xFF616161.toInt())
+            setTextColor(labelColor)
             includeFontPadding = false
             AppTypography.applyAppTypeface(this, bold = true)
         }, LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))

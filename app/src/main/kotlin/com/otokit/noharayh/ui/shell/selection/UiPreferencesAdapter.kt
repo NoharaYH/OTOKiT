@@ -29,6 +29,8 @@ class UiPreferencesAdapter(private val preferences: UiPreferences) {
             chuThemeId = state.chuThemeId,
             themeMode = GameSelectionFormat.modeValue(state.themeMode),
             mergedThemeId = state.mergedThemeId,
+            noneThemeSeedColor = state.noneThemeSeedColor,
+            noneThemeTintBackground = state.noneThemeTintBackground,
         )
     }
 }
@@ -40,4 +42,6 @@ private fun UiPreferenceRecord.toSelectionSource(): SelectionSource = SelectionS
     chuThemeId = chuThemeId,
     themeMode = themeMode,
     mergedThemeId = mergedThemeId,
+    noneThemeSeedColor = noneThemeSeedColor,
+    noneThemeTintBackground = noneThemeTintBackground,
 )

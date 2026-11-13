@@ -15,6 +15,8 @@ data class UiPreferenceRecord(
     val mergedThemeId: String? = null,
     val backgroundHardwareAcceleration: Boolean? = null,
     val backgroundHtmlAnimations: Boolean? = null,
+    val noneThemeSeedColor: Int? = null,
+    val noneThemeTintBackground: Boolean? = null,
 )
 
 /** 最小 UI 偏好读写入口：只读写原始字段。 */
@@ -33,5 +35,7 @@ interface UiPreferences {
         chuThemeId: String,
         themeMode: String,
         mergedThemeId: String,
+        noneThemeSeedColor: Int,
+        noneThemeTintBackground: Boolean,
     )
 }

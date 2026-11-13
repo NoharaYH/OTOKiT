@@ -42,6 +42,12 @@ class GameSelectionController(
         return true
     }
 
+    fun selectNoneThemeBackground(enabled: Boolean): Boolean {
+        if (state.themeMode != ThemeSelectionMode.None || state.noneThemeTintBackground == enabled) return false
+        state = state.copy(noneThemeTintBackground = enabled)
+        return true
+    }
+
     /**
      * 统一提交主题选项。
      *
