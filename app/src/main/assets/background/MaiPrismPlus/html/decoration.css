@@ -172,9 +172,9 @@ ul,li{list-style:none;margin:0;padding:0}
  .decoration-container>.rainbow{height:max(399px,calc(100vw * 537 / 781));}
 }
 
-/* Mobile foreground reaches the viewport edges independently of the rounded panel. */
+/* Keep the mobile foreground inside the panel's continuous rounded clip. */
 .mobile-rainbow-layer{display:none;}
 @media(max-width:600px){
  .background-layer>.rainbow,.background-layer>.rainbow-bottom{display:none;}
- .mobile-rainbow-layer{display:block;position:absolute;inset:12px 0;z-index:-98;pointer-events:none;}
+ .mobile-rainbow-layer{display:block;position:absolute;inset:0;z-index:0;pointer-events:none;}
 }
