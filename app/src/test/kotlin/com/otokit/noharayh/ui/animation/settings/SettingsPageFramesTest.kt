@@ -68,20 +68,14 @@ class SettingsPageFramesTest {
         assertEquals(1f, SettingsPageFrames.phoneUnfoldProgress(1f, false), 0f)
     }
 
-    @Test fun phoneBackRetracesPageAndSelectionIncludingTheColorOnlyPhase() {
-        for (step in 0..100) {
-            val p = step / 100f
-            val outward = SettingsPageFrames.phoneUnfoldProgress(p, true)
-            val back = SettingsPageFrames.phoneUnfoldProgress(1f - p, false)
-            for (entering in listOf(true, false)) {
-                val page = SettingsPageFrames.unfoldPage(outward, entering, true, 2.45f)
-                val reverse = SettingsPageFrames.unfoldPage(back, !entering, false, 2.45f)
-                assertEquals(page.alpha, reverse.alpha, 0.00001f)
-                assertEquals(page.translationX, reverse.translationX, 0.0001f)
-            }
-            assertEquals(SettingsPageFrames.phoneSelectionChange(p, true),
-                1f - SettingsPageFrames.phoneSelectionChange(1f - p, false), 0.00001f)
+    @Test fun phoneBackChangesColorsThroughoutThePageExitAndCanReverseForCancellation() {
+        val samples = (0..100).map { it / 100f }
+        for (p in samples + samples.reversed()) {
+            assertEquals(p, SettingsPageFrames.phoneUnfoldProgress(p, false), 0.00001f)
+            assertEquals(p, SettingsPageFrames.phoneSelectionChange(p, false), 0.00001f)
         }
+        assertTrue(SettingsPageFrames.phoneSelectionChange(.1f, false) > 0f)
+        assertTrue(SettingsPageFrames.phoneSelectionChange(.9f, false) < 1f)
     }
 
     @Test fun phoneBackRevealsRootWithoutChangingItsSize() {

@@ -38,4 +38,37 @@ class NoneThemePaletteTest {
 
     @Test(expected = IllegalArgumentException::class)
     fun rejectsTransparentSeed() { NoneThemePalette.fromSeed(0x006750A4) }
+    @Test fun mutedWallpaperDoesNotBecomeVividAndItsGoldAccentIsPreserved() {
+        val seed = 0xFF716F8B.toInt()
+        val gold = 0xFFDDA261.toInt()
+        val palette = NoneThemePalette.fromSeed(seed, gold)
+        val source = Hct.fromInt(seed)
+        val primary = Hct.fromInt(palette.colors.primaryColor)
+        val secondary = Hct.fromInt(palette.colors.secondaryColor)
+        assertEquals(source.chroma, primary.chroma, 2.0)
+        assertEquals(source.hue, primary.hue, 3.0)
+        assertEquals(Hct.fromInt(gold).hue, secondary.hue, 3.0)
+        assertTrue(Hct.fromInt(palette.backgroundColor).chroma < 10.0)
+    }
+
+    @Test fun publicWallpaperCandidatesProvideDistinctAccentsWithoutInventingHues() {
+        val blue = 0xFF162953.toInt()
+        val green = 0xFF50B03B.toInt()
+        assertEquals(green, NoneThemePalette.selectWallpaperSecondary(blue, listOf(green, 0xFF63C586.toInt())))
+        assertNull(NoneThemePalette.selectWallpaperSecondary(blue, listOf(blue, 0xFF808080.toInt(), 0x0000FF00)))
+        assertNull(NoneThemePalette.selectWallpaperSecondary(blue, emptyList()))
+    }
+
+    @Test fun measuredWallpapersHaveReadablePrimaryAndSecondaryColors() {
+        val samples = listOf(0xFF716F8B to 0xFFDDA261, 0xFF162953 to 0xFF50B03B,
+            0xFF512B22 to 0xFFAF7678, 0xFF309A57 to 0xFFF7C52D, 0xFF000000 to 0xFFFFFFFF)
+        for ((primary, secondary) in samples) {
+            val palette = NoneThemePalette.fromSeed(primary.toInt(), secondary.toInt())
+            for (color in listOf(palette.colors.primaryColor, palette.colors.secondaryColor)) {
+                val tone = Hct.fromInt(color).tone
+                assertTrue(Contrast.ratioOfTones(tone, 100.0) >= 4.5)
+                assertTrue(Contrast.ratioOfTones(tone, Hct.fromInt(palette.backgroundColor).tone) >= 3.0)
+            }
+        }
+    }
 }

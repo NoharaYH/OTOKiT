@@ -2,6 +2,10 @@ package com.otokit.noharayh.ui.shell
 
 import com.otokit.noharayh.ui.constants.motion.ColorPickerMotion
 
+import android.animation.ValueAnimator
+import androidx.core.graphics.ColorUtils
+import com.otokit.noharayh.ui.animation.common.MotionInterpolators
+import com.otokit.noharayh.ui.constants.motion.MotionDefaults
 import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Handler
@@ -103,19 +107,20 @@ class MainShell(
     )
 
     private var noneThemePalette = resolveNonePalette()
+    private var noneColorAnimator: ValueAnimator? = null
     private val colorHandler = Handler(Looper.getMainLooper())
     private var colorSavePending = false
     private val saveColors = Runnable {
         colorSavePending = false
         selectionPreferences.write(selection.state)
     }
-    private val wallpaperColors = WallpaperColorSource(contentHost.context) { seed ->
-        if (lifecycleState == LifecycleState.Attached && selection.updateWallpaperSeed(seed)) applyNoneColors()
+    private val wallpaperColors = WallpaperColorSource(contentHost.context) { seed, secondary ->
+        if (lifecycleState == LifecycleState.Attached && selection.updateWallpaperSeed(seed, secondary)) applyNoneColors(animate = selection.state.noneThemeUseWallpaper)
     }
 
     private fun resolveNonePalette(): NoneThemePalette = selection.state.let {
         NoneThemePalette.resolve(it.noneThemeSeedColor, it.noneThemeUseWallpaper,
-            it.noneThemePrimaryColor, it.noneThemeSecondaryColor)
+            it.noneThemePrimaryColor, it.noneThemeSecondaryColor, it.noneThemeWallpaperSecondary)
     }
 
     private val chrome = ChromeAssembly(
@@ -322,6 +327,7 @@ class MainShell(
         if (lifecycleState == LifecycleState.Disposed) return
         flushColorSave()
         wallpaperColors.close()
+        stopNoneColorAnimation()
         val wasAttached = lifecycleState == LifecycleState.Attached
         lifecycleState = LifecycleState.Disposed
         onCanHandleBackChanged = null
@@ -483,7 +489,7 @@ class MainShell(
 
     private fun selectNoneThemeWallpaper(enabled: Boolean) {
         if (lifecycleState != LifecycleState.Attached || backgroundSwitching) return
-        if (selection.selectNoneThemeWallpaper(enabled)) applyNoneColors()
+        if (selection.selectNoneThemeWallpaper(enabled)) applyNoneColors(animate = true)
     }
 
     private fun selectNoneThemeColor(role: NoneThemeColorRole, color: Int) {
@@ -492,20 +498,50 @@ class MainShell(
     }
 
     /** 连续调色不走背景换页/黑幕；保留当前 View 和手势，只刷新颜色。 */
-    private fun applyNoneColors() {
-        noneThemePalette = resolveNonePalette()
+    private fun applyNoneColors(animate: Boolean = false) {
+        stopNoneColorAnimation()
+        val from = noneThemePalette
+        val target = resolveNonePalette()
         invalidateBackPreview()
-        background?.setNoneBackgroundColor(noneBackgroundColor())
         settingsPage?.renderThemeSelection(selection.state)
+        if (animate && resumed && from != target && selection.state.themeMode == ThemeSelectionMode.None && ValueAnimator.areAnimatorsEnabled()) {
+            noneColorAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+                duration = ColorPickerMotion.TRANSITION_MS
+                interpolator = MotionInterpolators.of(MotionDefaults.EMPHASIZED_CURVE)
+                addUpdateListener {
+                    val p = it.animatedValue as Float
+                    noneThemePalette = NoneThemePalette(
+                        ThemeColors(ColorUtils.blendARGB(from.colors.primaryColor, target.colors.primaryColor, p),
+                            ColorUtils.blendARGB(from.colors.secondaryColor, target.colors.secondaryColor, p)),
+                        ColorUtils.blendARGB(from.backgroundColor, target.backgroundColor, p))
+                    renderNoneColors()
+                }
+                start()
+            }
+        } else {
+            noneThemePalette = target
+            renderNoneColors()
+        }
+        colorHandler.removeCallbacks(saveColors)
+        colorSavePending = true
+        colorHandler.postDelayed(saveColors, ColorPickerMotion.SAVE_DELAY_MS)
+    }
+
+    private fun stopNoneColorAnimation() {
+        noneColorAnimator?.removeAllUpdateListeners()
+        noneColorAnimator?.cancel()
+        noneColorAnimator = null
+    }
+
+    /** 所有颜色消费同一插值帧，避免背景、标题和内容各自启动动画。 */
+    private fun renderNoneColors() {
+        background?.setNoneBackgroundColor(noneBackgroundColor())
         if (selection.state.themeMode == ThemeSelectionMode.None) {
             mountedContent?.updateColor(placeholderTextColor())
             settingsContent?.updateColor(placeholderTextColor())
             mountedContent?.let(::updatePageThemeColors)
             chrome.render(chromeDisplay(), animateColors = false)
         }
-        colorHandler.removeCallbacks(saveColors)
-        colorSavePending = true
-        colorHandler.postDelayed(saveColors, ColorPickerMotion.SAVE_DELAY_MS)
     }
 
     private fun flushColorSave() {
@@ -521,6 +557,9 @@ class MainShell(
 
     /** 选择变化后只更新颜色、背景页与落盘，不重建页面、不改导航。 */
     private fun applySelection() {
+        stopNoneColorAnimation()
+        noneThemePalette = resolveNonePalette()
+        background?.setNoneBackgroundColor(noneBackgroundColor())
         val current = selection.state
         settingsPage?.renderThemeSelection(current)
         val color = placeholderTextColor()
@@ -625,7 +664,12 @@ class MainShell(
         if (lifecycleState != LifecycleState.Attached) return
         this.resumed = resumed
         if (resumed) wallpaperColors.refresh() else flushColorSave()
-        if (!resumed) invalidateBackPreview()
+        if (!resumed) {
+            stopNoneColorAnimation()
+            noneThemePalette = resolveNonePalette()
+            renderNoneColors()
+            invalidateBackPreview()
+        }
         chrome.setResumed(resumed)
         background?.setResumed(resumed)
         if (!resumed) settleTransitions()

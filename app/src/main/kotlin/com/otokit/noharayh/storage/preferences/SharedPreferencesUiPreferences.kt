@@ -26,6 +26,7 @@ class SharedPreferencesUiPreferences(context: Context) : UiPreferences {
             backgroundHardwareAcceleration = stored[KEY_BACKGROUND_HARDWARE] as? Boolean,
             backgroundHtmlAnimations = stored[KEY_BACKGROUND_ANIMATIONS] as? Boolean,
             noneThemeSeedColor = stored[KEY_NONE_SEED] as? Int,
+            noneThemeWallpaperSecondary = stored[KEY_NONE_WALLPAPER_SECONDARY] as? Int,
             noneThemeUseWallpaper = stored[KEY_NONE_WALLPAPER] as? Boolean,
             noneThemePrimaryColor = stored[KEY_NONE_PRIMARY] as? Int,
             noneThemeSecondaryColor = stored[KEY_NONE_SECONDARY] as? Int,
@@ -45,6 +46,7 @@ class SharedPreferencesUiPreferences(context: Context) : UiPreferences {
         noneThemeUseWallpaper: Boolean,
         noneThemePrimaryColor: Int?,
         noneThemeSecondaryColor: Int?,
+        noneThemeWallpaperSecondary: Int?,
     ) {
         preferences.edit {
             putInt(KEY_VERSION, version)
@@ -54,6 +56,7 @@ class SharedPreferencesUiPreferences(context: Context) : UiPreferences {
             putString(KEY_THEME_MODE, themeMode)
             putString(KEY_MERGED_THEME, mergedThemeId)
             putInt(KEY_NONE_SEED, noneThemeSeedColor)
+            if (noneThemeWallpaperSecondary == null) remove(KEY_NONE_WALLPAPER_SECONDARY) else putInt(KEY_NONE_WALLPAPER_SECONDARY, noneThemeWallpaperSecondary)
             putBoolean(KEY_NONE_WALLPAPER, noneThemeUseWallpaper)
             if (noneThemePrimaryColor == null) remove(KEY_NONE_PRIMARY) else putInt(KEY_NONE_PRIMARY, noneThemePrimaryColor)
             if (noneThemeSecondaryColor == null) remove(KEY_NONE_SECONDARY) else putInt(KEY_NONE_SECONDARY, noneThemeSecondaryColor)
@@ -78,6 +81,7 @@ class SharedPreferencesUiPreferences(context: Context) : UiPreferences {
         const val KEY_MERGED_THEME: String = "merged_theme"
         const val KEY_BACKGROUND_HARDWARE = "background_hardware_acceleration"
         const val KEY_BACKGROUND_ANIMATIONS = "background_html_animations"
+        const val KEY_NONE_WALLPAPER_SECONDARY = "none_theme_wallpaper_secondary"
         const val KEY_NONE_SEED = "none_theme_seed_color"
         const val KEY_NONE_WALLPAPER = "none_theme_use_wallpaper"
         const val KEY_NONE_PRIMARY = "none_theme_primary_color"

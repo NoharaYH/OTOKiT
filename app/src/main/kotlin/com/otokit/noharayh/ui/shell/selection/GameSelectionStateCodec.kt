@@ -18,6 +18,7 @@ object GameSelectionStateCodec {
     private const val KEY_THEME_CHU = "theme_chu"
     private const val KEY_THEME_MODE = "theme_mode"
     private const val KEY_MERGED_THEME = "merged_theme"
+    private const val KEY_NONE_WALLPAPER_SECONDARY = "none_theme_wallpaper_secondary"
     private const val KEY_NONE_SEED = "none_theme_seed_color"
     private const val KEY_NONE_WALLPAPER = "none_theme_use_wallpaper"
     private const val KEY_NONE_PRIMARY = "none_theme_primary_color"
@@ -39,6 +40,7 @@ object GameSelectionStateCodec {
             themeMode = container?.get(KEY_THEME_MODE) as? String,
             mergedThemeId = container?.get(KEY_MERGED_THEME) as? String,
             noneThemeSeedColor = container?.get(KEY_NONE_SEED) as? Int,
+            noneThemeWallpaperSecondary = container?.get(KEY_NONE_WALLPAPER_SECONDARY) as? Int,
             noneThemeUseWallpaper = container?.get(KEY_NONE_WALLPAPER) as? Boolean,
             noneThemePrimaryColor = container?.get(KEY_NONE_PRIMARY) as? Int,
             noneThemeSecondaryColor = container?.get(KEY_NONE_SECONDARY) as? Int,
@@ -55,6 +57,7 @@ object GameSelectionStateCodec {
             putString(KEY_THEME_MODE, GameSelectionFormat.modeValue(state.themeMode))
             putString(KEY_MERGED_THEME, state.mergedThemeId)
             putInt(KEY_NONE_SEED, state.noneThemeSeedColor)
+            state.noneThemeWallpaperSecondary?.let { putInt(KEY_NONE_WALLPAPER_SECONDARY, it) }
             putBoolean(KEY_NONE_WALLPAPER, state.noneThemeUseWallpaper)
             state.noneThemePrimaryColor?.let { putInt(KEY_NONE_PRIMARY, it) }
             state.noneThemeSecondaryColor?.let { putInt(KEY_NONE_SECONDARY, it) }

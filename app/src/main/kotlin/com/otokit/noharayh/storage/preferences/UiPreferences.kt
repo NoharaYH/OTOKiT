@@ -20,6 +20,7 @@ data class UiPreferenceRecord(
     val noneThemeUseWallpaper: Boolean? = null,
     val noneThemePrimaryColor: Int? = null,
     val noneThemeSecondaryColor: Int? = null,
+    val noneThemeWallpaperSecondary: Int? = null,
 )
 
 /** 最小 UI 偏好读写入口：只读写原始字段。 */
@@ -43,5 +44,6 @@ interface UiPreferences {
         noneThemeUseWallpaper: Boolean,
         noneThemePrimaryColor: Int?,
         noneThemeSecondaryColor: Int?,
+        noneThemeWallpaperSecondary: Int?,
     )
 }

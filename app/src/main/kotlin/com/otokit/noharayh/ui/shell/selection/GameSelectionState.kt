@@ -24,6 +24,7 @@ data class GameSelectionState(
     val noneThemeUseWallpaper: Boolean = true,
     val noneThemePrimaryColor: Int? = null,
     val noneThemeSecondaryColor: Int? = null,
+    val noneThemeWallpaperSecondary: Int? = null,
 ) {
     fun selectedThemeId(gameLine: GameLine = currentGame): String = when (gameLine) {
         GameLine.Mai -> maiThemeId
@@ -48,6 +49,7 @@ data class SelectionSource(
     val noneThemeUseWallpaper: Boolean? = null,
     val noneThemePrimaryColor: Int? = null,
     val noneThemeSecondaryColor: Int? = null,
+    val noneThemeWallpaperSecondary: Int? = null,
 )
 
 /** 稳定字符串编码：音游用 `mai` / `chu`，主题用规范 ID，版本固定为 1。 */
@@ -97,6 +99,7 @@ object GameSelectionFormat {
         noneThemeUseWallpaper = state.noneThemeUseWallpaper,
         noneThemePrimaryColor = state.noneThemePrimaryColor,
         noneThemeSecondaryColor = state.noneThemeSecondaryColor,
+        noneThemeWallpaperSecondary = state.noneThemeWallpaperSecondary,
     )
 
     /** 版本合法才可用；缺失或不支持的版本整份来源失效。 */
@@ -140,6 +143,8 @@ fun restoreGameSelection(
         noneThemeSeedColor = savedFields?.noneThemeSeedColor?.takeIf { it ushr 24 == 0xFF }
             ?: preferenceFields?.noneThemeSeedColor?.takeIf { it ushr 24 == 0xFF }
             ?: NoneThemePalette.DEFAULT_SEED_COLOR,
+        noneThemeWallpaperSecondary = savedFields?.noneThemeWallpaperSecondary?.takeIf { it ushr 24 == 0xFF }
+            ?: preferenceFields?.noneThemeWallpaperSecondary?.takeIf { it ushr 24 == 0xFF },
         noneThemeTintBackground = savedFields?.noneThemeTintBackground
             ?: preferenceFields?.noneThemeTintBackground ?: false,
         noneThemeUseWallpaper = savedFields?.noneThemeUseWallpaper

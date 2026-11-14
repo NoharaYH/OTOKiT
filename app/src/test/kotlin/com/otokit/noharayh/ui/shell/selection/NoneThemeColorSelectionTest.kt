@@ -45,4 +45,20 @@ class NoneThemeColorSelectionTest {
         assertEquals(0xFFABCDEF.toInt(), palette.colors.secondaryColor)
         assertEquals(palette.backgroundColor, other.backgroundColor)
     }
+    @Test fun secondaryOnlyWallpaperUpdatesAndMissingCandidatesClearOldAccent() {
+        val controller = GameSelectionController(state())
+        val primary = 0xFF162953.toInt()
+        val secondary = 0xFF50B03B.toInt()
+        assertTrue(controller.updateWallpaperSeed(primary, secondary))
+        assertFalse(controller.updateWallpaperSeed(primary, secondary))
+        assertTrue(controller.updateWallpaperSeed(primary, 0xFFDDA261.toInt()))
+        val restored = restoreGameSelection(GameSelectionFormat.encode(controller.state), null,
+            ThemeRegistry::findById, ThemeRegistry::defaultFor)
+        assertEquals(controller.state, restored)
+        assertTrue(controller.updateWallpaperSeed(primary))
+        assertNull(controller.state.noneThemeWallpaperSecondary)
+        assertFalse(controller.updateWallpaperSeed(primary, 0x0050B03B))
+        controller.selectNoneThemeWallpaper(false)
+        assertEquals(NoneThemePalette.fromSeed(primary).colors.secondaryColor, controller.state.noneThemeSecondaryColor)
+    }
 }

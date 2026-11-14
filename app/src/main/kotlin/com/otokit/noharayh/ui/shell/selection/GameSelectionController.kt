@@ -52,7 +52,7 @@ class GameSelectionController(
 
     fun selectNoneThemeWallpaper(enabled: Boolean): Boolean {
         if (state.themeMode != ThemeSelectionMode.None || state.noneThemeUseWallpaper == enabled) return false
-        val colors = NoneThemePalette.fromSeed(state.noneThemeSeedColor).colors
+        val colors = NoneThemePalette.fromSeed(state.noneThemeSeedColor, state.noneThemeWallpaperSecondary).colors
         state = state.copy(noneThemeUseWallpaper = enabled,
             noneThemePrimaryColor = state.noneThemePrimaryColor ?: colors.primaryColor,
             noneThemeSecondaryColor = state.noneThemeSecondaryColor ?: colors.secondaryColor)
@@ -70,9 +70,10 @@ class GameSelectionController(
         return true
     }
 
-    fun updateWallpaperSeed(color: Int): Boolean {
-        if (color ushr 24 != 255 || state.noneThemeSeedColor == color) return false
-        state = state.copy(noneThemeSeedColor = color)
+    fun updateWallpaperSeed(color: Int, secondary: Int? = null): Boolean {
+        if (color ushr 24 != 255 || (secondary != null && secondary ushr 24 != 255)) return false
+        if (state.noneThemeSeedColor == color && state.noneThemeWallpaperSecondary == secondary) return false
+        state = state.copy(noneThemeSeedColor = color, noneThemeWallpaperSecondary = secondary)
         return true
     }
 

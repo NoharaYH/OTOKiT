@@ -162,7 +162,7 @@ internal class ThemeSettingsContent(
         backgroundSwitch.isChecked = selection.noneThemeTintBackground
         wallpaperSwitch.isChecked = selection.noneThemeUseWallpaper
         picker.renderColors(NoneThemePalette.resolve(selection.noneThemeSeedColor, false,
-            selection.noneThemePrimaryColor, selection.noneThemeSecondaryColor).colors)
+            selection.noneThemePrimaryColor, selection.noneThemeSecondaryColor, selection.noneThemeWallpaperSecondary).colors)
         if (previous == null || previous.noneThemeUseWallpaper != selection.noneThemeUseWallpaper) {
             picker.resetSelection()
             wallpaperSwitch.setExpanded(!selection.noneThemeUseWallpaper,

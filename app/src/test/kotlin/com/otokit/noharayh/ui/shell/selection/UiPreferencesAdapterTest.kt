@@ -49,7 +49,7 @@ class UiPreferencesAdapterTest {
             val state = GameSelectionState(GameLine.Mai, "mai-a", "chu-a", mode, "chu-shared",
                 noneThemeSeedColor = 0xFF008577.toInt(), noneThemeTintBackground = true,
                 noneThemeUseWallpaper = false, noneThemePrimaryColor = 0xFF112233.toInt(),
-                noneThemeSecondaryColor = 0xFFAABBCC.toInt())
+                noneThemeSecondaryColor = 0xFFAABBCC.toInt(), noneThemeWallpaperSecondary = 0xFF50B03B.toInt())
             adapter.write(state)
             assertEquals(1, fake.writeCount)
             assertEquals(GameSelectionFormat.encode(state), adapter.read())
@@ -104,13 +104,14 @@ class UiPreferencesAdapterTest {
             noneThemeUseWallpaper: Boolean,
             noneThemePrimaryColor: Int?,
             noneThemeSecondaryColor: Int?,
+            noneThemeWallpaperSecondary: Int?,
         ) {
             writeCount++
             written = record.copy(version = version, currentGame = currentGame, maiThemeId = maiThemeId,
                 chuThemeId = chuThemeId, themeMode = themeMode, mergedThemeId = mergedThemeId,
                 noneThemeSeedColor = noneThemeSeedColor, noneThemeTintBackground = noneThemeTintBackground,
                 noneThemeUseWallpaper = noneThemeUseWallpaper, noneThemePrimaryColor = noneThemePrimaryColor,
-                noneThemeSecondaryColor = noneThemeSecondaryColor)
+                noneThemeSecondaryColor = noneThemeSecondaryColor, noneThemeWallpaperSecondary = noneThemeWallpaperSecondary)
             record = requireNotNull(written)
         }
 

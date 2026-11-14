@@ -44,15 +44,14 @@ object SettingsPageFrames {
     fun selectionChange(progress: Float): Float =
         (progress / Spec.SELECTION_WINDOW).coerceIn(0f, 1f)
 
-    /** 手机先在完整、不移动的父页上反色，再展开子页；返回沿同一时间轴逆行。 */
+    /** 手机进入先反色再展开；退出时页面与反色并行，共享完整进度。 */
     fun phoneUnfoldProgress(progress: Float, forward: Boolean): Float {
-        val p = if (forward) progress else 1f - progress
-        val page = window(p, Spec.SELECTION_WINDOW, 1f)
-        return if (forward) page else 1f - page
+        return if (forward) window(progress, Spec.SELECTION_WINDOW, 1f)
+            else progress.coerceIn(0f, 1f)
     }
 
     fun phoneSelectionChange(progress: Float, forward: Boolean): Float =
-        if (forward) selectionChange(progress) else 1f - selectionChange(1f - progress)
+        if (forward) selectionChange(progress) else progress.coerceIn(0f, 1f)
 
     fun page(progress: Float, entering: Boolean, forward: Boolean, split: Boolean, width: Float) =
         if (entering) TransitionFrames.enter(
