@@ -18,12 +18,9 @@ object BackgroundPalette {
     /** 无主题时的浅灰，与纯白前景容器保持明暗层次。 */
     const val NONE_COLOR: Int = 0xFFE6E6E6.toInt()
 
-    fun colorsFor(selection: BackgroundSelection): ThemeColors = when (selection) {
+    fun colorsFor(selection: BackgroundSelection, materkitColors: ThemeColors): ThemeColors = when (selection) {
         is BackgroundSelection.Html -> selection.theme.definition.colors
-        BackgroundSelection.Placeholder -> ThemeColors(
-            primaryColor = 0xFF9E9E9E.toInt(),
-            secondaryColor = 0xFF757575.toInt(),
-        )
+        BackgroundSelection.Placeholder -> materkitColors
         BackgroundSelection.None -> NoneThemePalette.default.colors
     }
 

@@ -24,7 +24,7 @@ object ThemeOptions {
 
     const val PLACEHOLDER_ID: String = "placeholder"
 
-    val placeholder: ThemeOption = ThemeOption.Placeholder(PLACEHOLDER_ID, "通用主题")
+    val placeholder: ThemeOption = ThemeOption.Placeholder(PLACEHOLDER_ID, "Materkit")
 
     /** 独立模式：通用占位在前，随后是该音游登记主题。 */
     fun forGame(gameLine: GameLine): List<ThemeOption> =

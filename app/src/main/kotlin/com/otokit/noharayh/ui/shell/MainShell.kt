@@ -107,6 +107,7 @@ class MainShell(
     )
 
     private var noneThemePalette = resolveNonePalette()
+    private val materkitColors = MaterkitColors.resolve(contentHost.context)
     private var noneColorAnimator: ValueAnimator? = null
     private val colorHandler = Handler(Looper.getMainLooper())
     private var colorSavePending = false
@@ -627,14 +628,14 @@ class MainShell(
         return themeColorsFor(current, current.currentGame).primaryColor
     }
 
-    /** 无主题共用种子色生成的配色；HTML 和通用主题保留原配色规则。 */
+    /** 无主题使用自选配色，Materkit 使用系统动态色，HTML 使用登记配色。 */
     private fun themeColorsFor(
         state: GameSelectionState,
         gameLine: GameLine,
     ): ThemeColors = if (state.themeMode == ThemeSelectionMode.None) {
         noneThemePalette.colors
     } else {
-        BackgroundPalette.colorsFor(backgroundFor(state, gameLine))
+        BackgroundPalette.colorsFor(backgroundFor(state, gameLine), materkitColors)
     }
 
     private fun backgroundFor(
