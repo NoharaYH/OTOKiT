@@ -104,8 +104,8 @@ internal class MistBackgroundDrawable(context: Context, private val dynamicColor
         ellipse("returning", -540f, 820f, floatArrayOf(0f,7f,-5f,-9f,0f), floatArrayOf(0f,-8f,-13f,-5f,0f), floatArrayOf(1f,1.003f,1.005f,1.003f,1f)),
         ellipse("tide", 600f, 1010f, floatArrayOf(0f,-12f,-18f,6f,0f), floatArrayOf(0f,-6f,8f,12f,0f), floatArrayOf(1f,1.006f,1.01f,1.006f,1f)),
         ellipse("foreground", -1050f, -320f, floatArrayOf(0f,12f,18f,-6f,0f), floatArrayOf(0f,4f,-8f,-12f,0f), floatArrayOf(1f,1.005f,1.009f,1.004f,1f)),
-        Layer(Path().apply { addRoundRect(0f,0f,1040f,650f,
-            floatArrayOf(180f,180f,325f,325f,325f,325f,100f,100f), Path.Direction.CW) },
+        Layer(Path().apply { com.otokit.noharayh.ui.animation.common.ContinuousRoundedPath().setCorners(
+            this, android.graphics.RectF(0f, 0f, 1040f, 650f), 180f, 325f, 325f, 100f) },
             -320f,235f,1040f,650f,color("#DEE8E0"),178,
             floatArrayOf(0f,7f,10f,-4f,0f), floatArrayOf(0f,2f,-5f,-7f,0f), floatArrayOf(1f,1.003f,1.005f,1.003f,1f)),
     )

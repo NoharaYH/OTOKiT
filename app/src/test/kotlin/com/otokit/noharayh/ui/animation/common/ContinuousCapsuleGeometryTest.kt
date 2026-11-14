@@ -10,7 +10,7 @@ import kotlin.math.sin
 class ContinuousCapsuleGeometryTest {
     @Test fun bezierJoinsHaveZeroStartCurvatureAndUnitCircleEndCurvature() {
         for (aspect in listOf(1.001, 1.05, 1.2, 1.4, 2.0, 3.4, 10.0)) {
-            val b = capsuleTransition(aspect)
+            val b = cornerTransition(aspect)
             // P0/P1/P2 have y=0, so the start tangent is horizontal and curvature is zero.
             assertTrue(b.control1 + b.extension > 0.0)
             val dx = 3.0 * (b.endX - b.control2)
@@ -29,13 +29,13 @@ class ContinuousCapsuleGeometryTest {
     @Test fun transitionsFitAvailableStraightEdgeAndConvergeToCircle() {
         for (i in 0..1000) {
             val aspect = 1.0 + i / 1000.0
-            val b = capsuleTransition(aspect)
+            val b = cornerTransition(aspect)
             assertTrue(b.extension >= 0.0 && b.extension <= aspect - 1.0 + 1e-12)
             assertTrue(b.control1 <= b.control2 && b.control2 <= b.endX)
         }
-        val circle = capsuleTransition(1.0)
+        val circle = cornerTransition(1.0)
         assertEquals(0.0, circle.extension, 0.0)
         assertEquals(0.0, circle.angle, 0.0)
-        assertTrue(capsuleTransition(1.000001).angle < 0.00001)
+        assertTrue(cornerTransition(1.000001).angle < 0.00001)
     }
 }

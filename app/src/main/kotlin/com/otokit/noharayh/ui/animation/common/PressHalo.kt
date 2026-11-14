@@ -22,9 +22,7 @@ import com.otokit.noharayh.ui.constants.motion.PressHaloSpec as Spec
  * （`clipChildren=false`、`clipToPadding=false`）。本类不修改父级裁剪，调用方负责。
  */
 internal class PressHalo(private val host: View,
-    private val buildPath: (Path, RectF, Float, Float) -> Unit = { path, rect, top, bottom ->
-        ContinuousCorners.setPath(path, rect, top, bottom)
-    },
+    private val buildPath: (Path, RectF, Float, Float) -> Unit = ContinuousRoundedPath()::setPath,
 ) {
     private val density = host.resources.displayMetrics.density
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {

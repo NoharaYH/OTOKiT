@@ -1,7 +1,7 @@
 /*
  * Copyright 2025 Kyant
  * Licensed under Apache-2.0; see assets/licenses/Capsule-LICENSE.txt.
- * Adapted from Kyant0/Capsule's G2Continuity/G2ContinuityProfile via capsuleTransition.
+ * Adapted from Kyant0/Capsule's G2Continuity/G2ContinuityProfile via cornerTransition.
  * Modified for Android Path: independent horizontal/vertical transition room, equal
  * curvature scales, and continuously vanishing transitions at capsule/circle limits.
  */
@@ -25,7 +25,7 @@ internal class ContinuousRoundedPath {
         val r = boundedRadius(radius, bounds)
         if (r == 0f) return 0f
         val room = (if (horizontal) bounds.width() else bounds.height()) / 2f
-        return (r * (1.0 + capsuleTransition(room.toDouble() / r).extension)).toFloat()
+        return (r * (1.0 + cornerTransition(room.toDouble() / r).extension)).toFloat()
     }
 
     /** Append one clockwise quarter: top-right, bottom-right, bottom-left, top-left. */
@@ -34,8 +34,8 @@ internal class ContinuousRoundedPath {
         val x = if (index < 2) bounds.right else bounds.left
         val y = if (index == 0 || index == 3) bounds.top else bounds.bottom
         if (r == 0f) { path.lineTo(x, y); return }
-        val h = capsuleTransition(bounds.width().toDouble() / (2.0 * r))
-        val v = capsuleTransition(bounds.height().toDouble() / (2.0 * r))
+        val h = cornerTransition(bounds.width().toDouble() / (2.0 * r))
+        val v = cornerTransition(bounds.height().toDouble() / (2.0 * r))
         val first = if (index % 2 == 0) h else v
         val second = if (index % 2 == 0) v else h
         fun px(u: Double, w: Double): Float = x + (r * when (index) {
@@ -62,18 +62,23 @@ internal class ContinuousRoundedPath {
         )
     }
 
-    fun setPath(path: Path, bounds: RectF, top: Float, bottom: Float = top) {
+    fun setPath(path: Path, bounds: RectF, top: Float, bottom: Float = top) =
+        setCorners(path, bounds, top, top, bottom, bottom)
+
+    fun setCorners(path: Path, bounds: RectF, topLeft: Float, topRight: Float,
+        bottomRight: Float, bottomLeft: Float,
+    ) {
         path.rewind()
         if (bounds.isEmpty) return
-        path.moveTo(bounds.left + horizontalExtent(top, bounds), bounds.top)
-        path.lineTo(bounds.right - horizontalExtent(top, bounds), bounds.top)
-        corner(path, bounds, top, 0)
-        path.lineTo(bounds.right, bounds.bottom - verticalExtent(bottom, bounds))
-        corner(path, bounds, bottom, 1)
-        path.lineTo(bounds.left + horizontalExtent(bottom, bounds), bounds.bottom)
-        corner(path, bounds, bottom, 2)
-        path.lineTo(bounds.left, bounds.top + verticalExtent(top, bounds))
-        corner(path, bounds, top, 3)
+        path.moveTo(bounds.left + horizontalExtent(topLeft, bounds), bounds.top)
+        path.lineTo(bounds.right - horizontalExtent(topRight, bounds), bounds.top)
+        corner(path, bounds, topRight, 0)
+        path.lineTo(bounds.right, bounds.bottom - verticalExtent(bottomRight, bounds))
+        corner(path, bounds, bottomRight, 1)
+        path.lineTo(bounds.left + horizontalExtent(bottomLeft, bounds), bounds.bottom)
+        corner(path, bounds, bottomLeft, 2)
+        path.lineTo(bounds.left, bounds.top + verticalExtent(topLeft, bounds))
+        corner(path, bounds, topLeft, 3)
         path.close()
     }
 }

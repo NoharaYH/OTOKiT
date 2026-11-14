@@ -80,6 +80,27 @@ class SettingsComponentsTest : UiComponentTestHost() {
         main { assertEquals(16f * density, last.topCornerRadius!!, 1f) }
     }
 
+    @Test fun cardBackgroundUpdatesGroupedCornersWithoutChangingBounds() {
+        lateinit var card: SettingsCard
+        main { card = SettingsCard(activity, R.drawable.ic_format_paint_24, R.string.settings_theme_selection) }
+        mount(card, 800, -2)
+        main {
+            fun cornerAlpha(): Int {
+                val bitmap = android.graphics.Bitmap.createBitmap(card.width, card.height,
+                    android.graphics.Bitmap.Config.ARGB_8888)
+                card.background.draw(android.graphics.Canvas(bitmap))
+                val offset = (3f * activity.resources.displayMetrics.density).toInt()
+                return android.graphics.Color.alpha(bitmap.getPixel(offset, offset)).also { bitmap.recycle() }
+            }
+            card.renderGroupEdges(1f, 1f)
+            assertEquals(0, cornerAlpha())
+            card.renderGroupEdges(0f, 0f)
+            assertEquals(255, cornerAlpha())
+            card.renderGroupEdges(1f, 1f)
+            assertEquals(0, cornerAlpha())
+        }
+    }
+
     private fun awaitState(condition: () -> Boolean) {
         val deadline = SystemClock.uptimeMillis() + 2500
         var ready = false

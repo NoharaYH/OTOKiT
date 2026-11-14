@@ -111,6 +111,8 @@ private class SwitchIndicator(context: Context, checked: Boolean) : View(context
     private val density = resources.displayMetrics.density
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val rect = RectF()
+    private val trackPath = android.graphics.Path()
+    private val corners = com.otokit.noharayh.ui.animation.common.ContinuousRoundedPath()
     private var target = if (checked) 1f else 0f
     private var progress = target
     private val transition = SwitchTransitionRunner { progress = it; invalidate() }
@@ -125,13 +127,14 @@ private class SwitchIndicator(context: Context, checked: Boolean) : View(context
         super.onDraw(canvas)
         val stroke = Dimensions.TRACK_STROKE_DP * density
         rect.set(stroke / 2, stroke / 2, width - stroke / 2, height - stroke / 2)
+        corners.setPath(trackPath, rect, rect.height() / 2f)
         paint.style = Paint.Style.FILL
         paint.color = ColorUtils.blendARGB(Colors.SWITCH_OFF_FILL, Colors.SELECTED, progress)
-        canvas.drawRoundRect(rect, rect.height() / 2, rect.height() / 2, paint)
+        canvas.drawPath(trackPath, paint)
         paint.style = Paint.Style.STROKE
         paint.strokeWidth = stroke
         paint.color = ColorUtils.blendARGB(Colors.SWITCH_OFF_CONTENT, Colors.SELECTED, progress)
-        canvas.drawRoundRect(rect, rect.height() / 2, rect.height() / 2, paint)
+        canvas.drawPath(trackPath, paint)
         paint.style = Paint.Style.FILL
         paint.color = ColorUtils.blendARGB(Colors.SWITCH_OFF_CONTENT, Colors.SURFACE, progress)
         val start = height / 2f

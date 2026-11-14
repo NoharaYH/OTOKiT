@@ -24,6 +24,9 @@ internal class ColorHexField(context: Context) : AppCompatEditText(context) {
     private var binding = false
     private val density = resources.displayMetrics.density
     private val caretPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF323232.toInt() }
+    private val caretPath = android.graphics.Path()
+    private val caretBounds = android.graphics.RectF()
+    private val caretCorners = com.otokit.noharayh.ui.animation.common.ContinuousRoundedPath()
     private var caretAlpha = 1f
     private var cursorMotion: CapsuleCursorRunner? = null
 
@@ -111,6 +114,8 @@ internal class ColorHexField(context: Context) : AppCompatEditText(context) {
         val top = extendedPaddingTop + vertical + textLayout.getLineTop(line) - scrollY
         val bottom = extendedPaddingTop + vertical + textLayout.getLineBottom(line) - scrollY
         caretPaint.alpha = (caretAlpha * 255).roundToInt()
-        canvas.drawRoundRect(x - half, top, x + half, bottom, half, half, caretPaint)
+        caretBounds.set(x - half, top, x + half, bottom)
+        caretCorners.setPath(caretPath, caretBounds, half)
+        canvas.drawPath(caretPath, caretPaint)
     }
 }

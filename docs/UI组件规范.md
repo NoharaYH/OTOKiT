@@ -50,6 +50,16 @@
 - 每个效果记录“功能、参数及单位、参数入口、执行入口、使用及清理约束”；每个组件记录“结构、默认参数、能力组合、状态与分组、接入接口、当前差距”。
 - 通用化应迁移现有实现与参数，保留已确认的视觉行为；不得以尚未存在的文件或方法冒充已完成的接口。
 
+### 6. 原生 UI 连续曲率轮廓（2026-11-14 收拢）
+
+- **标准：** 原生圆角矩形与胶囊统一使用 G2 连续曲率；直线、贝塞尔过渡和圆弧相接时切线、曲率连续。正圆、图标和矢量素材本身保持其语义形状。HTML 背景不在本次收拢范围内。
+- **参数归属：** `constants/dimensions/ContinuousCornerSpec` 定义无量纲轮廓参数：最大过渡延伸比例 `MAX_EXTENSION_RATIO = 0.5286651 × 0.75`、最大过渡角 `MAX_TRANSITION_ANGLE_DEGREES = 45`。接圆弧处的曲率固定为 `1/r`，不是可随意调整的样式强度。组件半径仍归各自 Dimensions；设置分组仍为外侧 16dp、内侧 4dp。
+- **执行入口：** `animation/common/ContinuousCornerGeometry` 计算归一化过渡；`ContinuousRoundedPath` 是唯一原生圆角路径实现，支持上下半径及四角独立半径，输入边界和半径均为 px。`ContinuousCapsulePath` 只把短边一半作为半径传入，不再维护第二套算法。空间不足时按轴缩短过渡，正方形满半径自然成为正圆；空边界返回空路径。
+- **标准组件接入：** `PressSurface` 的填充、内部反馈裁切和 `PressHalo` 外环共用路径入口；`ContinuousCornerDrawable` 提供静态底形及 `setRadii(top, bottom)` 分组更新。`SettingsCard` 接收 `GroupShape` 的半径结果交给该 Drawable，不使用原生 `cornerRadii`。其他按钮、信息框、输入框、开关轨道、滑块和占位面板均消费公共路径；页面不创建曲线或复制系数。
+- **专属描边：** 主题 DMI 的标签与滚动条断口仍归组件；轮廓和横纵切点由 `ContinuousRoundedPath` 提供，填充、描边、按压反馈使用同一曲线。公共算法不读取标签、滚动或业务状态。
+- **覆盖与生命周期：** 各组件可通过已有 px 半径接口覆盖尺寸，不为实例修改共享参数；本轮不新增运行时曲线类型开关。路径构建器及 Path 由消费组件持有复用，不共享可变绘制状态。边界或半径改变时重建；参数表不持有 View、资源或动画状态。
+- **迁移：** 删除原 `ContinuousCorners` 近似算法；禁止新标准容器绕过公共入口使用 `GradientDrawable.cornerRadius/cornerRadii` 或 `drawRoundRect`。HTML 的既有脚本单独保留。验证覆盖曲率连接、极限尺寸、不同上下半径、分组、展开与按压交互。
+
 ## 一、通用交互动效
 
 ### 1. 触觉反馈

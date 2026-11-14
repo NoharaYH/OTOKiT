@@ -66,6 +66,8 @@ ui/
 
 抽屉的打开起手带为应用交互区域物理左侧 22%，手势仲裁归 chrome 的抽屉宿主，不进入 Activity、主题或功能页；背景仍通过公开取消协议归位。汉堡按钮的后续定制与用户已有页面按钮分开，不能跨组件重置按压属性。具体阶段交付以 [迁移总览](UI壳迁移/README.md) 和 [06 细则](迁移具体内容/06-标题栏.md) 为准。
 
+原生圆角基础能力统一使用 G2 连续曲率。无量纲轮廓参数归 `constants/dimensions/ContinuousCornerSpec`，公共几何与路径归 `animation/common/ContinuousCornerGeometry`、`ContinuousRoundedPath`，标准组件通过路径或 `ContinuousCornerDrawable` 消费；组件半径仍归各自 Dimensions，页面不复制曲线系数。正圆及素材形状保留原语义，HTML 背景不在本次收拢范围。接入与覆盖规则见 [UI组件规范](UI组件规范.md)。
+
 全局视觉约束：**取消所有 UI 阴影**。标题、按钮、抽屉、导航胶囊、Rail、卡片、弹窗和后续页面组件均不得保留静态、默认或状态动画产生的投影；系统 elevation/translationZ 投影、兼容阴影、自绘模糊/渐变投影、文字阴影都在范围内。各组件负责关闭自身投影，不让 shell 遍历子 View 或增加全局阴影管理器。层级靠正确挂载顺序与明确覆盖关系保证，保留模态遮罩和触摸隔离。旧参数/资源在对应阶段核对引用后移除，不再为保真迁回阴影。
 
 07 的抽屉具体采用 chrome 共同父容器与公开 ViewDragHelper：原四层在保持窗口原点的内容场景内，抽屉面板与遮罩由 chrome 自己拥有，父容器正常截获使旧目标收到 CANCEL。禁止反射修改 DrawerLayout、Activity 复制触摸事件或捕获背景内部 View。抽屉开合/进度是组件临时呈现，不进入导航状态或 UI 偏好；shell 只组合只读抽屉快照和 settingsOpen，统一决定底层输入、返回与模态焦点隔离。具体交接见 [07 细则](迁移具体内容/07-窄屏抽屉与导航.md)。

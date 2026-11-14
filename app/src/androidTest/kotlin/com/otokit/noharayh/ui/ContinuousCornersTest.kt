@@ -5,7 +5,7 @@ import android.graphics.RectF
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import com.otokit.noharayh.ui.animation.common.ContinuousCorners
+import com.otokit.noharayh.ui.animation.common.ContinuousRoundedPath
 import com.otokit.noharayh.ui.animation.common.ContinuousCapsulePath
 import com.otokit.noharayh.ui.shell.background.AssetBackgroundLoader
 import org.junit.Assert.*
@@ -14,6 +14,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 class ContinuousCornersTest : UiComponentTestHost() {
+    private val corners = ContinuousRoundedPath()
     @Test fun continuousCapsuleFitsOffsetPortraitLandscapeAndPressedBounds() {
         val shape = ContinuousCapsulePath()
         val path = Path()
@@ -77,9 +78,11 @@ class ContinuousCornersTest : UiComponentTestHost() {
         for (width in listOf(1f, 6f, 44f, 300f)) for (height in listOf(1f, 6f, 44f, 400f)) {
             val rect = RectF(7f, 11f, 7f + width, 11f + height)
             for (top in listOf(0f, 4f, 16f, 22f, 200f)) for (bottom in listOf(0f, 3f, 22f, 200f)) {
-                ContinuousCorners.setPath(path, rect, top, bottom)
-                @Suppress("DEPRECATION") // Keep this check usable on the minimum API 26.
-                path.computeBounds(bounds, true)
+                corners.setPath(path, rect, top, bottom)
+                val samples = path.approximate(0.001f)
+                val xs = (1 until samples.size step 3).map { samples[it] }
+                val ys = (2 until samples.size step 3).map { samples[it] }
+                bounds.set(xs.min(), ys.min(), xs.max(), ys.max())
                 assertEquals(rect.left, bounds.left, 0.001f)
                 assertEquals(rect.top, bounds.top, 0.001f)
                 assertEquals(rect.right, bounds.right, 0.001f)
@@ -95,20 +98,6 @@ class ContinuousCornersTest : UiComponentTestHost() {
                     val by = points[i + 5] - points[i + 2]
                     assertTrue("Reversed turn $rect / $top / $bottom", ax * by - ay * bx >= -0.001f)
                 }
-            }
-        }
-    }
-
-    @Test fun fullRadiusCapsuleKeepsCircularEnds() {
-        val path = Path()
-        ContinuousCorners.setPath(path, RectF(0f, 0f, 200f, 44f), 22f)
-        val points = path.approximate(0.02f)
-        for (i in points.indices step 3) {
-            val x = points[i + 1]; val y = points[i + 2]
-            if (x < 22f || x > 178f) {
-                val centerX = if (x < 22f) 22f else 178f
-                val distance = kotlin.math.hypot(x - centerX, y - 22f)
-                assertEquals(22f, distance, 0.025f)
             }
         }
     }

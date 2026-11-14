@@ -1,6 +1,6 @@
 package com.otokit.noharayh.ui.kit.common
 
-import com.otokit.noharayh.ui.animation.common.ContinuousCorners
+import com.otokit.noharayh.ui.animation.common.ContinuousRoundedPath
 import com.otokit.noharayh.ui.constants.dimensions.PressSurfaceDimensions
 import com.otokit.noharayh.ui.constants.colors.PressSurfaceColors
 import android.content.Context
@@ -153,6 +153,7 @@ open class PressSurface @JvmOverloads constructor(
     }
     private val shapeRect = RectF()
     private val shapePath = Path()
+    private val continuousCorners = ContinuousRoundedPath()
 
     private val press = PressProgress { invalidate() }
 
@@ -185,7 +186,7 @@ open class PressSurface @JvmOverloads constructor(
 
     /** 填充、内部反馈和外环使用同一种轮廓；特殊控件可覆盖路径生成。 */
     protected open fun buildSurfacePath(path: Path, bounds: RectF, top: Float, bottom: Float) {
-        ContinuousCorners.setPath(path, bounds, top, bottom)
+        continuousCorners.setPath(path, bounds, top, bottom)
     }
 
     /** 填充与内部反馈相对外形额外内缩的距离，带描边的控件可对齐到描边中心。 */

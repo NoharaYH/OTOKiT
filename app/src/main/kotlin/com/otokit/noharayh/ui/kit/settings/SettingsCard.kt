@@ -4,7 +4,7 @@ import com.otokit.noharayh.ui.kit.common.ViewPrimitives
 import com.otokit.noharayh.ui.constants.dimensions.SettingsGroupDimensions
 import com.otokit.noharayh.ui.constants.motion.SettingsGroupMotion
 import android.content.Context
-import android.graphics.drawable.GradientDrawable
+import com.otokit.noharayh.ui.kit.common.ContinuousCornerDrawable
 import android.view.Gravity
 import android.view.View
 import android.widget.ImageView
@@ -20,17 +20,16 @@ import com.otokit.noharayh.ui.animation.common.GroupShape
 internal class SettingsCard(context: Context, icon: Int, title: Int,
     content: View? = null, trailing: View? = null,
 ) : LinearLayout(context), GroupedSurface {
-    private val shape = GradientDrawable().apply { setColor(Colors.SURFACE) }
+    private val shape = ContinuousCornerDrawable(Colors.SURFACE, 0f)
     private var contentView: View? = null
     private var animatedSlot: ExpandableContent? = null
     private var contentExpanded = true
-    private val radii = FloatArray(8)
     private val groupShape = GroupShape(this,
         SettingsGroupDimensions.INNER_RADIUS_DP * resources.displayMetrics.density,
         SettingsGroupDimensions.OUTER_RADIUS_DP * resources.displayMetrics.density,
         SettingsGroupMotion.SHAPE,
     ) { top, bottom ->
-        radii.fill(top, 0, 4); radii.fill(bottom, 4, 8); shape.cornerRadii = radii
+        shape.setRadii(top, bottom)
     }
     private fun dp(value: Int) = ViewPrimitives.dp(context, value)
 
