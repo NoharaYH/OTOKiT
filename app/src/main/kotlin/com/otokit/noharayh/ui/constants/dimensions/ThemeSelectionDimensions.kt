@@ -10,9 +10,6 @@ internal object ThemeSelectionDimensions {
     const val FIELD_END_INSET_DP = 12
     const val FIELD_ARROW_DP = 20
     const val LABEL_GAP_DP = 4
-    const val CHOICE_HEIGHT_DP = 26
-    const val CHOICE_RADIUS_DP = CHOICE_HEIGHT_DP / 2
-    const val CHOICE_GAP_DP = 4
     const val MENU_ROW_DP = 44
     const val MENU_GAP_DP = 4
     const val MENU_BAR_DP = 6

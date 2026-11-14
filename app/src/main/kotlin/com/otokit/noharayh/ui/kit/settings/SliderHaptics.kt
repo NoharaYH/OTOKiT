@@ -11,7 +11,7 @@ import android.provider.Settings
 import android.view.HapticFeedbackConstants
 import android.view.View
 import com.otokit.noharayh.ui.constants.motion.ColorPickerMotion as Motion
-import com.otokit.noharayh.ui.kit.common.PressSurfaceSpec
+import com.otokit.noharayh.ui.constants.motion.PressSurfaceSpec
 
 /** 滑动用低能量短齿感；按下、松手仍与项目按钮一致，互相留出播放间隔。 */
 internal class SliderHaptics(private val view: View) {

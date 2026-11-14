@@ -8,7 +8,7 @@ package com.otokit.noharayh.ui.animation.chrome
  * 反馈是“黑色弹性外扩 + 圆底内收”；预览按钮是内容区的大按钮，反馈是“大黑圆扩散 + 白闪”。
  * 两者的环数量、触觉节奏和弹簧手感需要各自独立调，共用一份参数会导致改一处影响另一处。
  *
- * 数值目前与 [com.otokit.noharayh.ui.kit.common.PressSurfaceSpec] 接近，是视觉对齐的结果，
+ * 数值目前与 [com.otokit.noharayh.ui.constants.motion.PressSurfaceSpec] 接近，是视觉对齐的结果，
  * 不是契约；两套允许各自演进。侧边栏胶囊后续使用自己的第三份参数。
  */
 internal object TitleButtonPressSpec {

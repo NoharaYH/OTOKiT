@@ -9,7 +9,6 @@ internal object ThemeSelectionMotion {
     const val CARD_DURATION_MS = 300L
     const val FIELD_TRANSLATION_DP = 8f
     const val DISABLED_BLEND = 0.62f
-    const val CHOICE_DURATION_MS = 220L
     const val ARROW_DURATION_MS = 220L
     const val SPRING_DAMPING = 0.82f
     const val SPRING_STIFFNESS = 240f

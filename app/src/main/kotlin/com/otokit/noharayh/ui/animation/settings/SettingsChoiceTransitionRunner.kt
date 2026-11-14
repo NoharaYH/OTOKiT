@@ -6,7 +6,7 @@ import android.animation.ArgbEvaluator
 import android.animation.ValueAnimator
 import com.otokit.noharayh.ui.animation.common.MotionInterpolators
 import com.otokit.noharayh.ui.constants.motion.MotionCurve
-import com.otokit.noharayh.ui.constants.motion.ThemeSelectionMotion
+import com.otokit.noharayh.ui.constants.motion.SettingsChoiceMotion
 
 /** 每个分段按钮只有一个形状/文字动画；不持有按钮或选中状态。 */
 internal class SettingsChoiceTransitionRunner {
@@ -16,8 +16,8 @@ internal class SettingsChoiceTransitionRunner {
         stop(index)
         val evaluator = ArgbEvaluator()
         val animator = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = ThemeSelectionMotion.CHOICE_DURATION_MS
-            interpolator = MotionInterpolators.of(MotionCurve.FastOutSlowIn)
+            duration = SettingsChoiceMotion.DURATION_MS
+            interpolator = MotionInterpolators.of(SettingsChoiceMotion.CURVE)
             addUpdateListener {
                 val t = it.animatedValue as Float
                 onFrame(fromRadius + (toRadius - fromRadius) * t,

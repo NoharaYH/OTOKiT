@@ -1,17 +1,11 @@
-package com.otokit.noharayh.ui.kit.common
+package com.otokit.noharayh.ui.constants.motion
 
-/**
- * 通用按压容器 [PressSurface] 的默认参数。
- *
- * 这是“内容区按钮”这一生态的参数表：大黑圆扩散、白闪覆盖、可配置内收。
- * 标题栏的圆钮有自己的 [com.otokit.noharayh.ui.animation.chrome.TitleButtonPressSpec]，
- * 侧边栏胶囊后续也会有自己的参数——三套互不共享。
- *
- * **为什么允许出现看起来重复的数值：** 不同按钮的尺寸、留白、遮罩关系不同，
- * 视觉上暂时对齐不等于应该共用一份参数；共用会让改一个按钮时误伤另一个。
- * 需要统一调整时，分别改各自的 Spec，而不是抽回公共对象。
- */
+/** 内容按压的共享参数；标题和导航保留各自独立参数。 */
 internal object PressSurfaceSpec {
+    const val FOLLOW_TAU_MS = 30f
+    const val MAX_DIAMETER_DP = 120f
+    const val REST_DIAMETER_DP = 106f
+
     const val WHITE_ALPHA = 0.16f
     const val BLACK_ALPHA = 56
 

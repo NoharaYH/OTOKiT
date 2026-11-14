@@ -9,9 +9,9 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.otokit.noharayh.ui.animation.settings.SettingsChoiceTransitionRunner
-import com.otokit.noharayh.ui.constants.dimensions.ThemeSelectionDimensions as Dimensions
+import com.otokit.noharayh.ui.constants.dimensions.SettingsChoiceDimensions as Dimensions
 import com.otokit.noharayh.ui.constants.dimensions.SettingsCardDimensions
-import com.otokit.noharayh.ui.constants.motion.ThemeSelectionMotion
+import com.otokit.noharayh.ui.constants.motion.SettingsChoiceMotion
 import com.otokit.noharayh.ui.kit.common.AppTypography
 import com.otokit.noharayh.ui.kit.common.PressSurface
 
@@ -54,7 +54,7 @@ internal class SettingsSegmentedChoice(context: Context) : LinearLayout(context)
         labels.forEachIndexed { index, label ->
             val text = TextView(context).apply {
                 text = label
-                textSize = 12f
+                textSize = Dimensions.TEXT_SP
                 maxLines = 1
                 gravity = Gravity.CENTER
                 includeFontPadding = false
@@ -63,7 +63,7 @@ internal class SettingsSegmentedChoice(context: Context) : LinearLayout(context)
                 importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             }
             text.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED)
-            val buttonHeight = dp(Dimensions.CHOICE_HEIGHT_DP)
+            val buttonHeight = dp(Dimensions.HEIGHT_DP)
             val textPadding = ((buttonHeight - text.measuredHeight) / 2).coerceAtLeast(0)
             val buttonWidth = text.measuredWidth + textPadding * 2
             val surface = PressSurface(context).apply {
@@ -86,7 +86,7 @@ internal class SettingsSegmentedChoice(context: Context) : LinearLayout(context)
             addView(
                 surface,
                 LayoutParams(buttonWidth, buttonHeight).apply {
-                    if (index > 0) marginStart = dp(Dimensions.CHOICE_GAP_DP)
+                    if (index > 0) marginStart = dp(Dimensions.GAP_DP)
                 },
             )
         }
@@ -159,10 +159,10 @@ internal class SettingsSegmentedChoice(context: Context) : LinearLayout(context)
 
     private fun displayColor(color: Int): Int =
         ColorUtils.blendARGB(color, android.graphics.Color.WHITE,
-            ThemeSelectionMotion.DISABLED_BLEND * disabledProgress)
+            SettingsChoiceMotion.DISABLED_BLEND * disabledProgress)
 
     private fun radiusFor(capsule: Boolean): Float = dp(
-        if (capsule) Dimensions.CHOICE_RADIUS_DP else SettingsCardDimensions.CONTENT_CORNER_DP,
+        if (capsule) Dimensions.RADIUS_DP else SettingsCardDimensions.CONTENT_CORNER_DP,
     ).toFloat()
 
     private fun dp(value: Int): Int =
