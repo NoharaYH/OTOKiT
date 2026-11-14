@@ -10,6 +10,8 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import com.otokit.noharayh.MainActivity
 import org.junit.After
 import org.junit.Before
@@ -39,7 +41,13 @@ abstract class UiComponentTestHost {
     protected fun main(block: () -> Unit) = instrumentation.runOnMainSync(block)
 
     protected fun mount(view: View, width: Int = 300, height: Int = 180) {
-        main { host.addView(view, FrameLayout.LayoutParams(width, height).apply { leftMargin = 80; topMargin = 80 }) }
+        main {
+            val systemTop = ViewCompat.getRootWindowInsets(host)?.getInsets(WindowInsetsCompat.Type.systemBars())?.top ?: 0
+            host.addView(view, FrameLayout.LayoutParams(width, height).apply {
+                leftMargin = 80
+                topMargin = maxOf(80, systemTop + 40)
+            })
+        }
         instrumentation.waitForIdleSync()
     }
 

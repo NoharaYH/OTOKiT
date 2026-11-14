@@ -20,8 +20,6 @@ import com.otokit.noharayh.ui.constants.motion.PressSurfaceSpec
 import com.otokit.noharayh.ui.animation.common.TouchIndicator
 import com.otokit.noharayh.ui.animation.common.PressProgress
 import com.otokit.noharayh.ui.animation.common.PressGeometry
-import kotlin.math.max
-import kotlin.math.min
 import kotlin.math.roundToInt
 
 /**
@@ -187,9 +185,12 @@ open class PressSurface @JvmOverloads constructor(
     /** 白底可随内容生长，按压圆角与外环的高度仍可固定为原始头行。 */
     protected open val pressFeedbackHeight: Float get() = height.toFloat()
 
+    @android.annotation.SuppressLint("ClickableViewAccessibility") // PressHaptics.click 统一调用本 View 的 performClick。
     override fun onTouchEvent(event: MotionEvent): Boolean {
         // 一次已接受的点击正在完成反馈，不让第二次按下覆盖或重复派发它。
-        if (haptics.deferredClick) return true
+        if (haptics.deferredClick) {
+            return true
+        }
         if (!isEnabled || !isClickable) {
             release()
             return false

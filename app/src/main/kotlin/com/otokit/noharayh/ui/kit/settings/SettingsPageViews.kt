@@ -1,6 +1,7 @@
 package com.otokit.noharayh.ui.kit.settings
 
 import android.content.Context
+import com.otokit.noharayh.R
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.text.TextUtils
@@ -8,11 +9,9 @@ import android.view.Gravity
 import android.view.View
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.FrameLayout
-import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
-import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.constants.dimensions.SettingsCardDimensions
 import com.otokit.noharayh.ui.kit.common.AppTypography
 import com.otokit.noharayh.ui.kit.common.PressSurface

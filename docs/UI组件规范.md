@@ -124,7 +124,7 @@
 - **交互：** 标题行采用交互容器的五项效果；展开内容中的组件独立处理操作，不能因操作子组件而误触标题行。
 - **涟漪：** 复用现有展开状态下的涟漪绘制与层级处理，保留标题行反馈范围以及展开内容边界的衔接。
 - **使用位置：** 个性化 → 主题选择 → 无主题 → 从壁纸取色。
-- **现有复用基础：** `ExpandableColorSwitch` 及其展开内容装配。
+- **现有复用基础：** `ExpandableSettingsRow` 及其展开内容装配。
 
 ### 3. 容器布局规则
 
@@ -145,7 +145,7 @@
 - 标题行右侧存在按钮或开关，不视为下方存在内容组件，不改变上述默认高度。
 - 有下方内容时，容器高度随内容和内边距扩展，不将整个容器限制为 52dp。
 - 52dp 不适用于父级菜单按钮、容器内按钮或下拉菜单选项。
-- 数值依据：当前 `GroupedSwitchDimensions.ROW_HEIGHT_DP` 为 `28 + 12 × 2 = 52dp`。本文固定记录为 52dp，不依赖未来代码表达式的变化。
+- 数值依据：当前 `GroupedSwitchDimensions.ROW_HEIGHT_DP` 固定为 `52`（原先为 `28 + 12 × 2`）。本文固定记录为 52dp，不依赖未来代码表达式的变化。
 
 ### 4. 容器内组件
 
@@ -270,14 +270,14 @@ val unbind = column.bind(nestedButton)
 - **几何入口：** `baseRadius` 为静止圆角；`topCornerRadius`、`bottomCornerRadius` 可分别覆盖，null 表示沿用基础圆角，均为 px。
 - **展开衔接：** `bottomCornerPressFraction` 控制底部按压圆角变化比例，默认 1。组合容器可据展开进度约束该值；普通按钮不要自行修改。
 - **状态胶囊化：** 选中后保持胶囊形由具体选择组件维护，不由按压状态代替。分段按钮已内置；普通操作按钮释放后不会因此保持选中。
-- **待重构边界：** 按压几何已抽离为 `PressGeometry`，与 `PressProgress` 组合使用；尚无独立按压胶囊化开关。标准按钮通过 `PressSurface` 消费，页面不操作进度。
+- **配置边界：** 按压几何已抽离为 `PressGeometry`，与 `PressProgress` 组合使用；尚无独立按压胶囊化开关。标准按钮通过 `PressSurface` 消费，页面不操作进度。
 
 ### 7. 辅助反馈与独立动效边界
 
 - 白色覆盖层通过 `whiteMaxAlpha` 配置，默认 0.16，跟随按压进度；不是第六种按钮类型。
 - 通用开关指示动画由 `animation/common/SwitchTransitionRunner` 执行，`constants/motion/SwitchMotion.DURATION_MS = 200ms`，曲线 `FastOutSlowIn`。成品开关已连接，页面无需直接创建执行器。
 - 曲线解析入口为 `animation/common/MotionInterpolators.of(MotionCurve.FastOutSlowIn)`，`MotionCurve` 位于 `constants/motion`。它只提供插值器，不提供内容过渡的布局和生命周期管理。
-- 通用内容展开、内容替换入退场和分组圆角过渡目前没有完整独立组件入口，均标记待重构。不能以 `ThemeCardTransitionRunner` 或 `ColorPickerTransitionRunner` 充当新容器的通用依赖。
+- 通用内容过渡由 `animation/common/ContentTransition<T>` 执行；标准组件通过 `ExpandableContent` 组合测量、入退场和输入门控。分组圆角由 `GroupShape` 执行。公共时长和曲线来自 `ContainerMotion`；原 `ThemeCardTransitionRunner` 已移除，调色器执行器不作为容器依赖。
 
 ## 四、组件接入规范
 
@@ -289,9 +289,9 @@ val unbind = column.bind(nestedButton)
 - **状态：** `setSelectionProgress(0..1)` 更新填充、图标底、图标与文字的反色程度。该方法仅渲染，不自行启动选中动画，不代表持久化选择。
 - **使用：** 构造时提供内容及强调色，通过 `setOnClickListener` 发出导航意图；宿主更新选中进度并控制布局。
 - **分组与展开：** 不套用子页面成组容器规则，不承担内容展开。
-- **待重构：** 父级按钮尺寸已迁至 `SettingsMenuDimensions`；保留父级独立高度与间距。
+- **参数归属：** 父级按钮尺寸已迁至 `SettingsMenuDimensions`；保留父级独立高度与间距。
 
-### 2. 复合容器〔静态可复用；动态能力待重构〕
+### 2. 复合容器〔可直接复用〕
 
 - **入口：** `kit/settings/SettingsCard(context, icon, title, content = null, trailing = null)`；`SettingsPageViews.card` 为兼容工厂；`icon`、`title` 分别为图标和字符串资源 ID。
 - **组成：** 图标在左、标题在右，尾部组件占标题行剩余空间，下方放内容 View；容器不可点击。
@@ -300,8 +300,8 @@ val unbind = column.bind(nestedButton)
 - **独立状态：** 当前 `card()` 创建四角 16dp 的静态卡片。
 - **成组状态：** 目标为组外 16dp、相邻边 4dp；`SettingsCard.setGroupPosition` 接受分组位置；`SettingsGroup` 按可见直接子项自动维护位置和 4dp 间距。
 - **内容高度：** `content` 可省略，`setContent(null)` 移除内容及其间距，默认标题区为 52dp；`setContent(view)` 安装内容及 12dp 顶部间距。
-- **展开及切换：** 通用接口尚不存在。目标是容器接受展开／内容状态，协调高度、内容透明度与位移；对应执行器、参数组及取消契约待抽离，暂不指定通用时长。
-- **引用规则：** 新静态卡片直接使用工厂；需要动态能力时标记待重构，不从主题卡片复制动画，也不依赖其帧类型。
+- **展开及切换：** `setContentExpanded(expanded, animate)` 控制槽位高度及内容入退场；`replaceContent(view, animate)` 在展开时先退出旧内容再进入最新内容，收起时直接替换且保持收起。`setContent(view)` 直接安装内容，不播放替换动画。
+- **引用规则：** 页面使用 `SettingsCard` 的内容及展开接口；内部引用 `ExpandableContent` 与 `GroupShape`，不从主题卡片复制动画。
 
 ```kotlin
 val card = SettingsPageViews.card(
@@ -313,7 +313,7 @@ val card = SettingsPageViews.card(
 )
 ```
 
-以上变量由宿主提供；`trailingView` 可为 null。示例只获得静态结构，没有隐含的展开和入场动画。
+以上变量由宿主提供；`trailingView` 可为 null。初次创建直接呈现内容，不隐式播放入场。需要动态变化时调用 `card.setContentExpanded(false)` 或 `card.replaceContent(nextContent)`，无需创建动画对象。
 
 ### 3. 交互容器〔可直接复用〕
 
@@ -324,7 +324,7 @@ val card = SettingsPageViews.card(
 - **交互来源：** 继承 `PressSurface` 并开启涟漪；开关指示使用第三节的通用开关动画。
 - **状态契约：** `onCheckedChange` 只报告操作意图；外部确认后调用 `setChecked`。不在点击时自行确认状态，无障碍状态反映确认值。
 - **生命周期：** 内部管理按压与开关动画；外部控制 `isEnabled`，不用同时给右侧指示器再绑定点击。
-- **待重构：** 支持 `setGroupPosition` 原位更新；由 `SettingsGroup` 自动维护可见成员。位置的动画过渡仍待公共动态能力接入，普通开关行不承担展开。
+- **分组更新：** 支持 `setGroupPosition` 原位更新；由 `SettingsGroup` 自动维护可见成员。分组位置通过 `GroupShape` 连续过渡，首次测量直接呈现目标圆角；普通开关行不承担内容展开。
 
 ```kotlin
 val row = GroupedSwitchRow(
@@ -339,13 +339,25 @@ val row = GroupedSwitchRow(
 row.setChecked(newConfirmedValue)
 ```
 
-### 4. 组合容器〔局部效果可复用；完整能力待重构〕
+### 4. 组合容器〔可直接复用〕
 
-- **职责：** 可交互标题行与可展开内容形成连续容器，子内容独立接收操作。
-- **现有底层：** `kit/settings/ExpandableColorSwitch` 继承开关行，限定标题行反馈高度；`renderExpansion(progress)` 约束展开时的底部按压圆角，已处理标题外环与延伸底形的衔接。
-- **已有边界：** 该类不是完整的通用展开容器，不负责创建内容区、设置内容高度、内容入退场或布局兄弟容器。
-- **使用限制：** 暂无可推荐给新业务的完整组合容器调用示例；保留现有使用，不复制颜色编辑器页面装配代码。
-- **待重构：** 抽离内容槽位、展开状态、展开布局和动效协调。待确定通用入口后，标题行引用第三节按压效果，展开引用通用内容过渡；不能由新组件依赖颜色编辑或主题选择动画。
+- **入口：** `kit/settings/ExpandableSettingsRow(context, label, checked, onCheckedChange)`，继承标准交互容器。
+- **内容：** `setContent(view)` 安装内容，`setExpanded(expanded, animate)` 控制展开；开关确认状态仍通过 `setChecked` 更新，是否展开由业务含义决定，不默认与 checked 同向绑定。
+- **自身布局：** 标题行默认 52dp，按实际测量高度布置下方槽位；内容自然高度由 `ExpandableContent` 测量，不接收页面计算的逐帧高度。
+- **交互组合：** 标题行使用五项公共效果；内容独立处理点击，标题空白处不会吞掉内容操作。外环反馈使用标题高度，展开进度约束底部按压圆角，保留已有涟漪衔接。
+- **展开组合：** 使用 `ExpandableContent` 的高度、透明度及位移过渡；状态、取消与卸载规则见第六节。
+- **分组：** 实现 `GroupedSurface`，可直接加入 `SettingsGroup`。单独使用时设置 `GroupPosition.Single`；构造默认两端内圆角，以兼容原组合位置。
+- **禁用：** `isEnabled` 控制标题，`setContentEnabled(enabled)` 控制内容槽位输入。组件组合者可通过 `onExpansionChanged` 同步依赖展开完成的其他状态；页面无需逐帧驱动效果。
+
+```kotlin
+val row = ExpandableSettingsRow(context, label, confirmed, onRequested)
+row.setContent(contentView)
+row.setChecked(confirmed)
+row.setExpanded(showContent, animate = false) // 首次呈现
+// 后续收到确认状态：
+row.setChecked(nextConfirmed)
+row.setExpanded(nextShowContent)
+```
 
 ### 5. 容器内按钮〔现有变体可直接复用〕
 
@@ -382,15 +394,52 @@ choices.setSelection(newConfirmedIndex, animate = true)
 - **DMI：** 当前主题场景可复用已有整套选择框／面板／菜单。内部使用 `ThemeOption`，并需要宿主连接高度、返回预览和滚动条外部热区，不是可直接放入任意数据的通用 Spinner。任意业务数据的 DMI 接口仍待重构；本轮不重新定义其已完成的样式和专属动画。
 - **颜色滑块：** `ColorChannelSlider` 独立维护，通过 `onGrab`、`onRelease`、`onValue` 通知交互，`renderRamp(colors)` 更新渐变。它不是按钮效果入口，本轮不展开调色交互规范。
 
-## 五、待重构清单与接入原则
+## 五、完成状态与剩余边界
 
-1. **动态复合容器：** 可选内容、52dp 空状态、动态分组位置、内容展开和替换入退场尚未形成通用接口。先抽离职责，再补正式调用示例。
-2. **组合容器：** 复用已完成的标题行反馈几何，将内容槽位、状态和展开协调从具体页面分离。
-3. **参数归属〔已完成基础迁移〕：** 分段按钮使用 `SettingsChoiceDimensions/Motion`，父级按钮使用 `SettingsMenuDimensions`，内容按钮使用 `SettingsButtonDimensions`，复合卡片使用 `SettingsCardDimensions`。
-4. **公共效果归属〔已完成〕：** 公共参数位于 `constants/motion/PressSurfaceSpec`、`PressHaloSpec`；执行由 `PressHaptics`、`PressProgress`、`PressGeometry`、`TouchIndicator`、`PressHalo` 分担。`PressSurface` 保留触摸适配、效果组合与绘制职责，接口兼容原有组件。
-5. **单选行更新〔已完成〕：** `SettingsButton.renderSelection` 同步确认语义、选择标记及底形/文字过渡；点击仍只发意图。
-6. **通用 DMI：** 现有实现仍带主题数据和宿主接线约束，不能把已有视觉复用等同于完成业务无关封装。
-7. **分组管理〔静态已完成〕：** `SettingsGroup` 基于可见直接子项维护位置、间距与圆角，已接入应用设置开关组；`PressFrontColumn` 继续只处理绘制顺序。动态分组过渡另行接入。
-8. **动态状态契约：** 展开收起与内容替换分别定义；补齐动画中再次更新、内容测量变化、隐藏内容交互、中断收敛和卸载清理规则。由标准组件承担协调，不把逐帧更新下放页面。
+1. **公共效果职责〔已完成〕：** `constants/motion/PressSurfaceSpec`、`PressHaloSpec` 提供默认参数；`PressHaptics`、`PressProgress`、`PressGeometry`、`TouchIndicator`、`PressHalo` 分担执行职责，`PressSurface` 负责组合和触摸适配。共享按压进度保留，不要求页面分别启动五项效果。
+2. **组件默认参数〔已完成基础归属〕：** `SettingsMenuDimensions` 管理父级按钮，`SettingsButtonDimensions` 管理内部按钮，`SettingsChoiceDimensions/Motion` 管理分段按钮，`SettingsCardDimensions` 管理复合卡片，`GroupedSwitchDimensions` 管理开关，`SettingsGroupDimensions` 管理成组圆角及间距。`SettingsComponentColors` 提供标准内容按钮与卡片配色。
+3. **按钮状态〔已完成〕：** `SettingsButton.renderSelection` 原位更新单选确认状态；分段按钮继续使用 `setSelection`。操作按钮和单选按钮由现有工厂兼容返回标准 `SettingsButton`。
+4. **复合与组合容器〔已完成〕：** `SettingsCard` 支持可选内容、展开与替换；`ExpandableSettingsRow` 封装标题行和展开槽位。具体内容不参与其内部动画执行。
+5. **分组〔已完成〕：** `SettingsGroup` 管理可见直接子项和间距；`GroupShape` 管理上下边圆角过渡。标准组合组件需要跨嵌套结构共享进度时，通过 `GroupedSurface.renderGroupEdges` 应用同一帧，不自行计算圆角。`PressFrontColumn` 只负责绘制层级。
+6. **页面接入〔已迁移〕：** 应用信息和应用设置经兼容工厂消费标准卡片与按钮；应用设置开关组使用 `SettingsGroup`；父级入口消费独立参数；个性化页面只转交业务值与回调，`ThemeSettingsContent` 组合标准组件并保留主题 DMI 接线。它是主题业务组合，不是其他容器的公共效果来源。
+7. **DMI 泛化〔暂缓〕：** 主题数据、菜单预算、返回预览与滚动条热区保留现有契约。本轮不宣称已经提供任意数据的通用 DMI，也不重写颜色滑块。
+8. **独立开关与样式变体〔未扩展〕：** 当前未新增每实例涟漪弹簧参数、独立按压胶囊化开关或全部样式的运行时配置对象；使用已公开参数。没有使用场景时不扩展 API。
 
-新内容优先使用本文标记可复用的成品接口。归一化完成的验收条件是：效果参数和执行职责均有明确公共归属，标准组件组合所需能力并管理自己的默认参数，设置页直接使用组件而不重复接线。需要待重构能力时先建立通用契约，不能从另一个业务组件获取动画。文档中的待重构标记不表示本轮已修改实现。
+## 六、公共内容与分组过渡契约
+
+### 1. 参数来源与职责
+
+- `constants/motion/ContainerMotion`：单阶段时长 300ms，`FastOutSlowIn` 曲线，内容入退场位移 12dp。
+- `animation/common/ContentTransition<T>`：只插值状态；接收初始状态、插值函数与帧回调，不依赖 View、业务或其他组件。再次播放从当前帧继续，系统关闭动画或 animate=false 时直接应用目标。
+- `kit/settings/ExpandableContent`：标准组件内部的可选内容槽位，管理自然高度测量、高度过渡、透明度、位移、裁剪与输入屏蔽。页面使用成品容器 API，不直接驱动该槽位。
+- `animation/common/GroupShape`：消费上下边的外圆角比例，使用 `SettingsGroupDimensions` 中外圆角 16dp、内圆角 4dp；插值采用 `ContentTransition` 的公共时序。
+- `SettingsGroupDimensions.GAP_DP = 4dp` 为组内间距。分组宿主按实际可见直接成员确定 Single/First/Middle/Last；嵌套业务组合由其组件内部协调，不由页面重复实现。
+
+### 2. 内容测量与交互
+
+- 内容按自然高度测量，槽位再按展开进度决定当前高度；不把动画中的高度反向作为内容的测量约束。展开期间子内容请求重新布局时，按新的自然高度计算当前占位。
+- 内容入场由上方 12dp 偏移回到原位、透明度由 0 到 1；退场反向。收起后高度为 0；卡片内容区上间距也随进度归零。
+- 过渡时裁切槽位可见范围，完成后允许内容外溢。DMI 浮动标签的特殊裁剪仍由主题组合组件处理，不作为普通内容槽位默认规则。
+- 进度未达到完整展开或动画仍在运行时，槽位屏蔽内部触摸，并隐藏其无障碍后代；标题行与内容区分别处理交互。
+
+### 3. 更新、中断与卸载
+
+- **展开反向：** 从当前可见进度反向，不先跳回起点。
+- **内容替换：** 展开状态下先用 300ms 退出旧内容，再用 300ms 进入新内容，两阶段不是同时进行；退出期间再次替换只保留最新目标。收起状态直接替换，不自动展开。
+- **展开指令打断替换：** 安装最新目标内容，再按最新展开状态过渡。
+- **卸载：** 取消执行对象与回调，应用最新确认的展开状态；待替换内容安装为最新目标，不残留旧内容的延迟动画。
+- **分组变化：** 已布局的组件从当前圆角向新位置过渡；首次布局直接显示目标形态。跨内容切换的同步过渡由标准组合组件共享帧输入。
+
+### 4. 使用与验证边界
+
+页面应只调用 `setContent`、`setContentExpanded`、`replaceContent`、`setExpanded`、确认状态更新方法及分组宿主。不要同时手动修改内部槽位高度、透明度和位移，否则会与组件的状态管理冲突。
+
+纯几何回归见 `PressGeometryTest`；设备组件回归见 `SettingsComponentsTest`、`SettingsExpansionTest` 及原有按压、无障碍、菜单测试。模拟器验证用于布局、状态、输入与动画执行，真实震动手感仍由实体设备体验确认。
+
+### 5. 本轮验证记录（2026-11-14）
+
+- Debug 应用和测试 APK 构建通过；234 项单元测试通过。
+- API 37 手机和平板模拟器各通过 26 项完整组件回归；随后对空内容、连续替换及内容父关系释放进行针对性复测，通过。
+- Lint 为 0 错误、34 条已有警告。按压点击由 `PressHaptics` 调用宿主 `performClick`，保留无障碍点击入口。
+- 实际页面检查覆盖父级菜单、应用设置、应用信息、主题模式切换、菜单滚动和组合容器展开；截图及 AndroidRuntime 日志检查未发现功能回归。
+- 另用修改前版本在同一平板模拟器执行相同展开／收起操作做帧统计对照。样本未显示明显帧耗时退化，但模拟器仍存在卡顿，不将本轮功能回归通过解释为稳定 60 FPS 或实体设备触觉验收。

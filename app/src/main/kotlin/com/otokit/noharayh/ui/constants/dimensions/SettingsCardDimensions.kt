@@ -7,7 +7,7 @@ internal object SettingsCardDimensions {
     const val HEADER_GAP_DP = 8
     const val TITLE_SP = 16f
     const val TITLE_LETTER_SPACING = 0.07f
-    const val CORNER_DP = 16
+    const val CORNER_DP = SettingsGroupDimensions.OUTER_RADIUS_DP
     const val CONTENT_INSET_DP = 12
     const val CONTENT_CORNER_DP = CORNER_DP - CONTENT_INSET_DP
     const val CONTENT_ROW_HEIGHT_DP = 40

@@ -2,6 +2,7 @@ package com.otokit.noharayh.ui.kit.common.toggle
 
 import com.otokit.noharayh.ui.kit.common.GroupPosition
 import com.otokit.noharayh.ui.kit.common.GroupedSurface
+import com.otokit.noharayh.ui.animation.common.GroupShape
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
@@ -34,14 +35,14 @@ open class GroupedSwitchRow(
     labelIconTint: Int = 0xFFE57373.toInt(),
     labelColor: Int = 0xFF616161.toInt(),
 ) : PressSurface(context), Checkable, GroupedSurface {
+    private val groupShape = GroupShape(this) { top, bottom -> topCornerRadius = top; bottomCornerRadius = bottom }
     private var checkedValue = checked
     private val indicator = SwitchIndicator(context, checked)
 
     init {
         fillColor = Color.WHITE
         outerHaloEnabled = true
-        topCornerRadius = dp(if (groupStart) Dimensions.OUTER_RADIUS_DP.toFloat() else Dimensions.INNER_RADIUS_DP)
-        bottomCornerRadius = dp(if (groupEnd) Dimensions.OUTER_RADIUS_DP.toFloat() else Dimensions.INNER_RADIUS_DP)
+        renderGroupEdges(if (groupStart) 1f else 0f, if (groupEnd) 1f else 0f)
         contentDescription = label
         val row = LinearLayout(context).apply {
             gravity = Gravity.CENTER_VERTICAL
@@ -53,7 +54,7 @@ open class GroupedSwitchRow(
         val labelGroup = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
         labelGroup.addView(TextView(context).apply {
             text = label
-            textSize = 16f
+            textSize = Dimensions.TEXT_SP
             setTextColor(labelColor)
             includeFontPadding = false
             AppTypography.applyAppTypeface(this, bold = true)
@@ -61,8 +62,8 @@ open class GroupedSwitchRow(
         if (labelIconRes != null) labelGroup.addView(ImageView(context).apply {
             setImageResource(labelIconRes)
             setColorFilter(labelIconTint)
-        }, LinearLayout.LayoutParams(dp(18f).roundToInt(), dp(18f).roundToInt()).apply {
-            marginStart = dp(6f).roundToInt()
+        }, LinearLayout.LayoutParams(dp(Dimensions.WARNING_ICON_DP).roundToInt(), dp(Dimensions.WARNING_ICON_DP).roundToInt()).apply {
+            marginStart = dp(Dimensions.WARNING_GAP_DP).roundToInt()
         })
         row.addView(labelGroup, LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply {
             marginEnd = dp(Dimensions.TEXT_INSET_DP.toFloat()).roundToInt()
@@ -74,9 +75,10 @@ open class GroupedSwitchRow(
     }
 
     override fun setGroupPosition(position: GroupPosition) {
-        topCornerRadius = dp(if (position.first) Dimensions.OUTER_RADIUS_DP.toFloat() else Dimensions.INNER_RADIUS_DP)
-        bottomCornerRadius = dp(if (position.last) Dimensions.OUTER_RADIUS_DP.toFloat() else Dimensions.INNER_RADIUS_DP)
+        groupShape.setEdges(if (position.first) 1f else 0f, if (position.last) 1f else 0f)
     }
+    override fun renderGroupEdges(first: Float, last: Float) = groupShape.setEdges(first, last, false)
+    override fun onDetachedFromWindow() { groupShape.finish(); super.onDetachedFromWindow() }
 
     override fun isChecked(): Boolean = checkedValue
     override fun toggle() { performClick() }

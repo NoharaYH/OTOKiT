@@ -1,6 +1,7 @@
 package com.otokit.noharayh.ui
 
 import android.view.View
+import android.os.SystemClock
 import android.widget.LinearLayout
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.otokit.noharayh.R
@@ -61,18 +62,31 @@ class SettingsComponentsTest : UiComponentTestHost() {
         }
         mount(group, 800, -2)
         val density = activity.resources.displayMetrics.density
+        awaitState { first.bottomCornerRadius == 4f * density }
         main {
             assertEquals(4f * density, first.bottomCornerRadius!!, 1f)
             assertEquals(4f * density, last.topCornerRadius!!, 1f)
             last.visibility = View.GONE
         }
         instrumentation.waitForIdleSync()
+        awaitState { first.bottomCornerRadius == 16f * density }
         main {
             assertEquals(16f * density, first.bottomCornerRadius!!, 1f)
             last.visibility = View.VISIBLE
             group.removeView(first)
         }
         instrumentation.waitForIdleSync()
+        awaitState { last.topCornerRadius == 16f * density }
         main { assertEquals(16f * density, last.topCornerRadius!!, 1f) }
+    }
+
+    private fun awaitState(condition: () -> Boolean) {
+        val deadline = SystemClock.uptimeMillis() + 2500
+        var ready = false
+        while (!ready && SystemClock.uptimeMillis() < deadline) {
+            main { ready = condition() }
+            if (!ready) SystemClock.sleep(16)
+        }
+        assertTrue(ready)
     }
 }

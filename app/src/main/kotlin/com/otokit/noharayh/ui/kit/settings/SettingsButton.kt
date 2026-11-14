@@ -15,6 +15,7 @@ import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors as Colo
 import com.otokit.noharayh.ui.kit.common.PressSurface
 
 /** 成品操作/单选按钮；只发意图，由 renderSelection 接收确认状态。 */
+@android.annotation.SuppressLint("ViewConstructor") // 纯代码组件，需要显式内容与回调。
 internal class SettingsButton(context: Context, label: String, private val kind: Kind,
     selected: Boolean = false, external: Boolean = false, onClick: () -> Unit,
 ) : PressSurface(context) {

@@ -10,7 +10,6 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import com.otokit.noharayh.ui.animation.settings.SettingsChoiceTransitionRunner
 import com.otokit.noharayh.ui.constants.dimensions.SettingsChoiceDimensions as Dimensions
-import com.otokit.noharayh.ui.constants.dimensions.SettingsCardDimensions
 import com.otokit.noharayh.ui.constants.motion.SettingsChoiceMotion
 import com.otokit.noharayh.ui.kit.common.AppTypography
 import com.otokit.noharayh.ui.kit.common.PressSurface
@@ -162,7 +161,7 @@ internal class SettingsSegmentedChoice(context: Context) : LinearLayout(context)
             SettingsChoiceMotion.DISABLED_BLEND * disabledProgress)
 
     private fun radiusFor(capsule: Boolean): Float = dp(
-        if (capsule) Dimensions.RADIUS_DP else SettingsCardDimensions.CONTENT_CORNER_DP,
+        if (capsule) Dimensions.RADIUS_DP else Dimensions.UNSELECTED_RADIUS_DP,
     ).toFloat()
 
     private fun dp(value: Int): Int =

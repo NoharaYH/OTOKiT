@@ -7,4 +7,6 @@ enum class GroupPosition(val first: Boolean, val last: Boolean) {
 
 interface GroupedSurface {
     fun setGroupPosition(position: GroupPosition)
+    /** 标准组合组件可共享过渡帧；1 为外圆角，0 为内圆角。 */
+    fun renderGroupEdges(first: Float, last: Float)
 }
