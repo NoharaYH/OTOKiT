@@ -23,6 +23,7 @@ import androidx.appcompat.widget.AppCompatImageView
 import androidx.core.graphics.ColorUtils
 import androidx.interpolator.view.animation.FastOutSlowInInterpolator
 import com.otokit.noharayh.ui.constants.dimensions.ShellDimensions
+import com.otokit.noharayh.ui.animation.common.ContinuousCapsulePath
 import com.otokit.noharayh.ui.constants.dimensions.ShellProportions
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -54,6 +55,7 @@ class NavCapsuleView(context: Context) : FrameLayout(context) {
     private val pillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
     private val pillRect = RectF()
     private val pillPath = Path()
+    private val capsulePath = ContinuousCapsulePath()
     private var pressInsetPx = 0f
     private var pressProgress = 0f
 
@@ -214,16 +216,13 @@ class NavCapsuleView(context: Context) : FrameLayout(context) {
         super.onDraw(canvas)
     }
 
-    /** 白底和 chrome 外环共用标准胶囊轮廓；设置入口仍是真圆。 */
+    /** 白底和 chrome 外环共用 G2 连续胶囊轮廓；设置入口仍是真圆。 */
     internal fun setSurfacePath(path: Path, bounds: RectF) {
         if (circleMode) {
             path.rewind()
             if (!bounds.isEmpty) path.addOval(bounds, Path.Direction.CW)
         } else {
-            path.rewind()
-            if (bounds.isEmpty) return
-            val radius = min(bounds.width(), bounds.height()) / 2f
-            path.addRoundRect(bounds, radius, radius, Path.Direction.CW)
+            capsulePath.setPath(path, bounds)
         }
     }
 

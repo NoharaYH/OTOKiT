@@ -21,7 +21,11 @@ import com.otokit.noharayh.ui.constants.motion.PressHaloSpec as Spec
  * **宿主约束：** 本类会画到 host 边界之外，host 的直接父容器必须允许子 View 外溢
  * （`clipChildren=false`、`clipToPadding=false`）。本类不修改父级裁剪，调用方负责。
  */
-internal class PressHalo(private val host: View) {
+internal class PressHalo(private val host: View,
+    private val buildPath: (Path, RectF, Float, Float) -> Unit = { path, rect, top, bottom ->
+        ContinuousCorners.setPath(path, rect, top, bottom)
+    },
+) {
     private val density = host.resources.displayMetrics.density
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.argb(Spec.ALPHA, 0, 0, 0)
@@ -77,7 +81,7 @@ internal class PressHalo(private val host: View) {
             width - inset + outset,
             height - inset + outset,
         )
-        ContinuousCorners.setPath(path, rect, cornerRadius + outset, bottomCornerRadius + outset)
+        buildPath(path, rect, cornerRadius + outset, bottomCornerRadius + outset)
         canvas.drawPath(path, paint)
     }
 

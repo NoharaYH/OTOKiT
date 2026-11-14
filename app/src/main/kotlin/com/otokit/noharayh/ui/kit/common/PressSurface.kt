@@ -114,7 +114,7 @@ open class PressSurface @JvmOverloads constructor(
             if (field == value) return
             field = value
             if (value) {
-                if (halo == null) halo = PressHalo(this)
+                if (halo == null) halo = PressHalo(this, ::buildSurfacePath)
             } else {
                 halo?.reset()
                 halo = null
@@ -182,6 +182,11 @@ open class PressSurface @JvmOverloads constructor(
 
     /** 与底形共享按压几何的描边，绘制在反馈层之上、文字之下。 */
     protected open fun drawOutline(canvas: Canvas, cornerRadius: Float, inset: Float) = Unit
+
+    /** 填充、内部反馈和外环使用同一种轮廓；特殊控件可覆盖路径生成。 */
+    protected open fun buildSurfacePath(path: Path, bounds: RectF, top: Float, bottom: Float) {
+        ContinuousCorners.setPath(path, bounds, top, bottom)
+    }
 
     /** 填充与内部反馈相对外形额外内缩的距离，带描边的控件可对齐到描边中心。 */
     protected open val surfaceFillInset: Float = 0f
@@ -298,7 +303,7 @@ open class PressSurface @JvmOverloads constructor(
 
         val layer = canvas.saveLayer(0f, 0f, width.toFloat(), height.toFloat(), null)
         shapeRect.inset(fillInset, fillInset)
-        ContinuousCorners.setPath(shapePath, shapeRect,
+        buildSurfacePath(shapePath, shapeRect,
             (top - fillInset).coerceAtLeast(0f), (bottom - fillInset).coerceAtLeast(0f))
         canvas.drawPath(shapePath, fillPaint)
         whitePaint.alpha = (whiteMaxAlpha * boundedProgress * 255f).roundToInt()

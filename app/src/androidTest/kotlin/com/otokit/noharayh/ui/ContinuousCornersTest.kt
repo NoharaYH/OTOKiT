@@ -6,6 +6,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import com.otokit.noharayh.ui.animation.common.ContinuousCorners
+import com.otokit.noharayh.ui.animation.common.ContinuousCapsulePath
 import com.otokit.noharayh.ui.shell.background.AssetBackgroundLoader
 import org.junit.Assert.*
 import org.junit.Test
@@ -13,6 +14,63 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 class ContinuousCornersTest : UiComponentTestHost() {
+    @Test fun continuousCapsuleFitsOffsetPortraitLandscapeAndPressedBounds() {
+        val shape = ContinuousCapsulePath()
+        val path = Path()
+        val actual = RectF()
+        for ((width, height) in listOf(300f to 88f, 88f to 300f, 88f to 88f, 88.01f to 88f)) {
+            for (inset in listOf(-8f, 0f, 3f, 6f)) {
+                val bounds = RectF(13f + inset, 17f + inset, 13f + width - inset, 17f + height - inset)
+                shape.setPath(path, bounds)
+                // computeBounds includes conic control points outside the circular arc.
+                // Measure the rendered contour instead of that control-point hull.
+                val samples = path.approximate(0.001f)
+                val xs = (1 until samples.size step 3).map { samples[it] }
+                val ys = (2 until samples.size step 3).map { samples[it] }
+                actual.set(xs.min(), ys.min(), xs.max(), ys.max())
+                assertEquals(bounds.left, actual.left, 0.001f)
+                assertEquals(bounds.top, actual.top, 0.001f)
+                assertEquals(bounds.right, actual.right, 0.001f)
+                assertEquals(bounds.bottom, actual.bottom, 0.001f)
+                assertTrue(path.approximate(0.05f).all { it.isFinite() })
+                assertTrue(android.graphics.PathMeasure(path, false).isClosed)
+            }
+        }
+    }
+
+    @Test fun dropdownCornersMatchCapsuleAndStayBoundedDuringExpansion() {
+        val rounded = com.otokit.noharayh.ui.animation.common.ContinuousRoundedPath()
+        val capsule = ContinuousCapsulePath()
+        val path = Path()
+        val expected = Path()
+        for (extra in listOf(0f, 0.01f, 1f, 12f, 44f, 300f)) {
+            val bounds = RectF(13f, 17f, 313f, 105f + extra)
+            rounded.setPath(path, bounds, 44f, 44f - extra.coerceAtMost(28f))
+            assertTrue(android.graphics.PathMeasure(path, false).isClosed)
+            val samples = path.approximate(0.001f)
+            for (i in samples.indices step 3) {
+                assertTrue(samples[i + 1] in (bounds.left - 0.001f)..(bounds.right + 0.001f))
+                assertTrue(samples[i + 2] in (bounds.top - 0.001f)..(bounds.bottom + 0.001f))
+            }
+            if (extra == 0f) {
+                capsule.setPath(expected, bounds)
+                // Splitting circular conics at the tip changes pixel rounding in Region.
+                // Compare contour positions rather than integer raster coverage.
+                val actualMeasure = android.graphics.PathMeasure(path, false)
+                val expectedMeasure = android.graphics.PathMeasure(expected, false)
+                val actualPoint = FloatArray(2)
+                val expectedPoint = FloatArray(2)
+                assertEquals(expectedMeasure.length, actualMeasure.length, 0.05f)
+                for (step in 0..200) {
+                    actualMeasure.getPosTan(actualMeasure.length * step / 200, actualPoint, null)
+                    expectedMeasure.getPosTan(expectedMeasure.length * step / 200, expectedPoint, null)
+                    assertEquals(expectedPoint[0], actualPoint[0], 0.05f)
+                    assertEquals(expectedPoint[1], actualPoint[1], 0.05f)
+                }
+            }
+        }
+    }
+
     @Test fun animatedAndUnequalCornersStayConvexAndInsideBounds() {
         val path = Path()
         val bounds = RectF()
