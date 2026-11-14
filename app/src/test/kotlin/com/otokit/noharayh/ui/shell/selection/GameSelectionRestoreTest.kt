@@ -11,6 +11,21 @@ import org.junit.Test
 
 class GameSelectionRestoreTest {
     @Test
+    fun freshInstallUsesMaterkitInSingleThemeModeAndKeepsSavedMode() {
+        val restored = restoreGameSelection(null, null, lookup, defaultFor)
+        assertEquals(com.otokit.noharayh.ui.theme.ThemeSelectionMode.Merged, restored.themeMode)
+        assertEquals(com.otokit.noharayh.ui.theme.ThemeOptions.PLACEHOLDER_ID, restored.mergedThemeId)
+
+        val existing = restored.copy(
+            themeMode = com.otokit.noharayh.ui.theme.ThemeSelectionMode.Independent,
+            mergedThemeId = "mai-b",
+        )
+        assertEquals(existing, restoreGameSelection(
+            null, GameSelectionFormat.encode(existing), lookup, defaultFor,
+        ))
+    }
+
+    @Test
     fun restoresNonePaletteFieldsIndependentlyAndKeepsOldRecordsUsable() {
         val preferences = SelectionSource(1, "chu", "mai-a", "chu-a",
             noneThemeSeedColor = 0xFF008577.toInt(), noneThemeTintBackground = true)

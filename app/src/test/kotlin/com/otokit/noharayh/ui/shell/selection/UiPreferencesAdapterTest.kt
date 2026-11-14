@@ -34,7 +34,7 @@ class UiPreferencesAdapterTest {
 
         assertEquals(
             UiPreferenceRecord(version = 1, currentGame = "chu", maiThemeId = "mai-a", chuThemeId = "chu-a",
-                themeMode = "independent", mergedThemeId = "placeholder",
+                themeMode = "merged", mergedThemeId = "placeholder",
                 noneThemeSeedColor = NoneThemePalette.DEFAULT_SEED_COLOR, noneThemeTintBackground = false, noneThemeUseWallpaper = true),
             fake.written,
         )

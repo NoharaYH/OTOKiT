@@ -17,7 +17,7 @@ data class GameSelectionState(
     val currentGame: GameLine,
     val maiThemeId: String,
     val chuThemeId: String,
-    val themeMode: ThemeSelectionMode = ThemeSelectionMode.Independent,
+    val themeMode: ThemeSelectionMode = ThemeSelectionMode.Merged,
     val mergedThemeId: String = ThemeOptions.PLACEHOLDER_ID,
     val noneThemeSeedColor: Int = NoneThemePalette.DEFAULT_SEED_COLOR,
     val noneThemeTintBackground: Boolean = false,
@@ -128,7 +128,7 @@ fun restoreGameSelection(
 
     val themeMode = GameSelectionFormat.parseMode(savedFields?.themeMode)
         ?: GameSelectionFormat.parseMode(preferenceFields?.themeMode)
-        ?: ThemeSelectionMode.Independent
+        ?: ThemeSelectionMode.Merged
 
     return GameSelectionState(
         currentGame = currentGame,

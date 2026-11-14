@@ -37,7 +37,8 @@ class GameSelectionControllerTest {
     private val registeredThemes = listOf(maiA, maiB, chuA, chuB)
 
     private fun initialState(): GameSelectionState =
-        GameSelectionState(currentGame = GameLine.Mai, maiThemeId = "mai-a", chuThemeId = "chu-a")
+        GameSelectionState(currentGame = GameLine.Mai, maiThemeId = "mai-a", chuThemeId = "chu-a",
+            themeMode = ThemeSelectionMode.Independent)
 
     private fun controller(): GameSelectionController = GameSelectionController(
         initialState = initialState(),
