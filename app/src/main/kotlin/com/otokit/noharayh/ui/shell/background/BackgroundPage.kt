@@ -16,7 +16,7 @@ import com.otokit.noharayh.ui.theme.BackgroundSelection
 import com.otokit.noharayh.ui.theme.GameLine
 
 /**
- * 单个音游页的 WebView 与已加载入口。
+ * 单个音游页的原生背景与按需创建的 WebView。
  *
  * 对外只暴露触摸容器；WebView 是渲染缓存，不是已选主题的另一份写入口。
  * 同入口重绑、切换音游与尺寸变化都不重新 loadUrl。
@@ -40,8 +40,11 @@ internal class BackgroundPage(
     private var documentReady = false
     private val debugLogging = context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
 
+    private val webViewDelegate = lazy { createWebView(context) }
+    private val webView: WebView get() = webViewDelegate.value
+
     @android.annotation.SuppressLint("SetJavaScriptEnabled") // 仅操作本地背景的 CSS 状态，不暴露 Java bridge。
-    private val webView: WebView = object : WebView(context) {
+    private fun createWebView(context: Context): WebView = object : WebView(context) {
         private var lastDrawHardware: Boolean? = null
         override fun onDraw(canvas: Canvas) {
             if (debugLogging && lastDrawHardware != canvas.isHardwareAccelerated) {
@@ -115,7 +118,9 @@ internal class BackgroundPage(
     /** 只切换背景层的绘制路径及 CSS 状态，不重载页面或覆盖 Activity 的硬件设置。 */
     fun setRenderingOptions(options: BackgroundRenderingOptions) {
         rendering = options
+        updateNativePlayback()
         val layer = if (options.hardwareAccelerated) View.LAYER_TYPE_NONE else View.LAYER_TYPE_SOFTWARE
+        if (!webViewDelegate.isInitialized()) return
         if (webView.layerType != layer) webView.setLayerType(layer, null)
         if (documentReady) applyAnimationState()
         if (debugLogging) Log.d("BackgroundRendering", "$gameLine hardware=${options.hardwareAccelerated} " +
@@ -169,6 +174,18 @@ internal class BackgroundPage(
         }
     }
 
+    private val nativeBackgroundDelegate = lazy { MistBackgroundDrawable(context) }
+    private val nativeBackground get() = nativeBackgroundDelegate.value
+
+    private fun updateNativePlayback() {
+        if (!nativeBackgroundDelegate.isInitialized()) return
+        if (loadedSelectionKey == "placeholder" && resumed && mediaVisible && rendering.htmlAnimations) {
+            nativeBackground.start()
+        } else {
+            nativeBackground.stop()
+        }
+    }
+
     private val solidView: View = View(context).apply {
         isClickable = false
         isFocusable = false
@@ -177,13 +194,6 @@ internal class BackgroundPage(
     }
 
     init {
-        (view as ViewGroup).addView(
-            webView,
-            ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT,
-            ),
-        )
         (view as ViewGroup).addView(
             solidView,
             ViewGroup.LayoutParams(
@@ -202,11 +212,17 @@ internal class BackgroundPage(
         }
         if (key == loadedSelectionKey) return false
         loadedSelectionKey = key
+        updateNativePlayback()
         visualRequest++
         readySent = false
         documentReady = false
         when (selection) {
             is BackgroundSelection.Html -> {
+                if (webView.parent == null) {
+                    (view as ViewGroup).addView(webView, 0, ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+                }
+                setRenderingOptions(rendering)
                 loadedHtmlThemeId = selection.theme.id
                 expectedUrl = AssetBackgroundLoader.BASE_URL + selection.theme.definition.htmlAssetPath
                 if (resumed) webView.onResume() else webView.onPause()
@@ -215,12 +231,13 @@ internal class BackgroundPage(
                 loader.load(webView, selection.theme.definition.htmlAssetPath)
             }
             BackgroundSelection.Placeholder -> {
-                showSolid(BackgroundPalette.PLACEHOLDER_COLOR)
+                showSolid(BackgroundPalette.PLACEHOLDER_COLOR, nativeBackground)
             }
             BackgroundSelection.None -> {
                 showSolid(noneBackgroundColor)
             }
         }
+        updateNativePlayback()
         return true
     }
 
@@ -231,17 +248,19 @@ internal class BackgroundPage(
         if (loadedSelectionKey == "none") solidView.setBackgroundColor(color)
     }
 
-    private fun showSolid(color: Int) {
+    private fun showSolid(color: Int, drawable: android.graphics.drawable.Drawable? = null) {
         if (documentReady) {
             webView.evaluateJavascript("document.querySelectorAll('video').forEach(video => video.pause())", null)
         }
         loadedHtmlThemeId = null
         documentReady = false
         expectedUrl = null
-        webView.onPause()
-        webView.stopLoading()
-        webView.visibility = View.GONE
-        solidView.setBackgroundColor(color)
+        if (webViewDelegate.isInitialized()) {
+            webView.onPause()
+            webView.stopLoading()
+            webView.visibility = View.GONE
+        }
+        if (drawable != null) solidView.background = drawable else solidView.setBackgroundColor(color)
         solidView.visibility = View.VISIBLE
         val key = loadedSelectionKey
         solidView.post {
@@ -254,6 +273,7 @@ internal class BackgroundPage(
 
     fun resume() {
         resumed = true
+        updateNativePlayback()
         if (loadedHtmlThemeId != null) {
             webView.onResume()
             if (documentReady) applyAnimationState()
@@ -264,25 +284,30 @@ internal class BackgroundPage(
     fun setMediaVisible(visible: Boolean) {
         if (mediaVisible == visible) return
         mediaVisible = visible
+        updateNativePlayback()
         if (documentReady) applyAnimationState()
     }
 
     fun pause() {
         resumed = false
+        updateNativePlayback()
         if (documentReady) applyAnimationState()
-        webView.onPause()
+        if (webViewDelegate.isInitialized()) webView.onPause()
     }
 
     fun destroy() {
+        if (nativeBackgroundDelegate.isInitialized()) nativeBackground.release()
         documentReady = false
         visualRequest++
         loadedHtmlThemeId = null
         loadedSelectionKey = null
-        webView.stopLoading()
-        webView.webViewClient = WebViewClient()
-        (webView.parent as? ViewGroup)?.removeView(webView)
+        if (webViewDelegate.isInitialized()) {
+            webView.stopLoading()
+            webView.webViewClient = WebViewClient()
+            (webView.parent as? ViewGroup)?.removeView(webView)
+            webView.destroy()
+        }
         (solidView.parent as? ViewGroup)?.removeView(solidView)
-        webView.destroy()
         (view as ViewGroup).removeAllViews()
     }
 }
