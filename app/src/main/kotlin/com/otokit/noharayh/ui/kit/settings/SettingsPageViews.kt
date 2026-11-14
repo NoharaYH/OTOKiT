@@ -32,28 +32,8 @@ internal object SettingsPageViews {
         addView(body, FrameLayout.LayoutParams(-1, -2))
     }
 
-    fun card(context: Context, icon: Int, title: Int, content: View, trailing: View? = null) = LinearLayout(context).apply {
-        clipChildren = false
-        clipToPadding = false
-        orientation = LinearLayout.VERTICAL
-        background = shape(context, Color.WHITE, SettingsCardDimensions.CORNER_DP)
-        val pad = dp(context, SettingsCardDimensions.CONTENT_INSET_DP)
-        setPadding(pad, pad, pad, pad)
-        val header = LinearLayout(context).apply {
-            gravity = Gravity.CENTER_VERTICAL
-            minimumHeight = dp(context, 28)
-            clipChildren = false
-            clipToPadding = false
-        }
-        header.addView(ImageView(context).apply { setImageResource(icon); setColorFilter(0xFF616161.toInt()) }, LinearLayout.LayoutParams(dp(context, 22), dp(context, 22)))
-        header.addView(text(context, context.getString(title), 16f, 0xFF323232.toInt(), true).apply { letterSpacing = 0.07f },
-            LinearLayout.LayoutParams(-2, -2).apply { marginStart = dp(context, 8) })
-        if (trailing != null) {
-            header.addView(trailing, LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(context, 8) })
-        }
-        addView(header, LinearLayout.LayoutParams(-1, -2))
-        addView(content, LinearLayout.LayoutParams(-1, -2).apply { topMargin = pad })
-    }
+    fun card(context: Context, icon: Int, title: Int, content: View? = null, trailing: View? = null) =
+        SettingsCard(context, icon, title, content, trailing)
 
     fun info(context: Context, label: String, value: String) = LinearLayout(context).apply {
         gravity = Gravity.CENTER_VERTICAL
@@ -64,69 +44,11 @@ internal object SettingsPageViews {
         addView(text(context, value, 14f, 0xFF323232.toInt(), true).apply { gravity = Gravity.CENTER_VERTICAL }, LinearLayout.LayoutParams(-2, -1))
     }
 
-    fun action(context: Context, label: String, external: Boolean = false, onClick: () -> Unit) = PressSurface(context).apply {
-        outerHaloEnabled = true
-        deferClickUntilReleaseFeedback = external
-        fillColor = 0xFFF5F5F5.toInt()
-        baseRadius = dp(context, SettingsCardDimensions.CONTENT_CORNER_DP).toFloat()
-        contentDescription = label
-        val row = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(context, 16), 0, dp(context, 16), 0)
-            addView(rowText(context, label), LinearLayout.LayoutParams(0, -1, 1f))
-            addView(ImageView(context).apply {
-                setImageResource(if (external) R.drawable.ic_open_in_new_24 else R.drawable.ic_chevron_right_24)
-                setColorFilter(0xFFBDBDBD.toInt())
-            }, LinearLayout.LayoutParams(dp(context, 20), dp(context, 20)).apply { marginStart = dp(context, 4) })
-        }
-        addView(row, FrameLayout.LayoutParams(-1, dp(context, SettingsCardDimensions.CONTENT_ROW_HEIGHT_DP)))
-        setOnClickListener { onClick() }
-    }
+    fun action(context: Context, label: String, external: Boolean = false, onClick: () -> Unit) =
+        SettingsButton(context, label, SettingsButton.Kind.Action, false, external, onClick)
 
-    /** 单选行：与 action 行同一按压容器，右侧为圆形选择指示。 */
-    fun choice(context: Context, label: String, selected: Boolean, onClick: () -> Unit) = PressSurface(context).apply {
-        configureSingleChoiceSemantics(selected)
-        outerHaloEnabled = true
-        fillColor = 0xFFF5F5F5.toInt()
-        baseRadius = dp(
-            context,
-            if (selected) {
-                SettingsCardDimensions.CONTENT_SELECTED_CORNER_DP
-            } else {
-                SettingsCardDimensions.CONTENT_CORNER_DP
-            },
-        ).toFloat()
-        contentDescription = label
-        val row = LinearLayout(context).apply {
-            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(context, 16), 0, dp(context, 16), 0)
-            addView(rowText(context, label).apply {
-                setTextColor(if (selected) 0xFF2196F3.toInt() else 0xFF616161.toInt())
-            }, LinearLayout.LayoutParams(0, -1, 1f))
-            addView(radioIndicator(context, selected), LinearLayout.LayoutParams(dp(context, 20), dp(context, 20)))
-        }
-        addView(row, FrameLayout.LayoutParams(-1, dp(context, SettingsCardDimensions.CONTENT_ROW_HEIGHT_DP)))
-        setOnClickListener { onClick() }
-    }
-
-    private fun radioIndicator(context: Context, selected: Boolean) = FrameLayout(context).apply {
-        background = GradientDrawable().apply {
-            shape = GradientDrawable.OVAL
-            setColor(Color.TRANSPARENT)
-            setStroke(dp(context, 2), if (selected) 0xFF2196F3.toInt() else 0xFFBDBDBD.toInt())
-        }
-        if (selected) {
-            addView(View(context).apply {
-                background = GradientDrawable().apply {
-                    shape = GradientDrawable.OVAL
-                    setColor(0xFF2196F3.toInt())
-                }
-            }, FrameLayout.LayoutParams(dp(context, 10), dp(context, 10), Gravity.CENTER))
-        }
-    }
+    fun choice(context: Context, label: String, selected: Boolean, onClick: () -> Unit) =
+        SettingsButton(context, label, SettingsButton.Kind.Choice, selected, false, onClick)
 
     private fun rowText(context: Context, value: String) = text(context, value, 14f, 0xFF616161.toInt()).apply {
         gravity = Gravity.CENTER_VERTICAL

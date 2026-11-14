@@ -1,5 +1,6 @@
 package com.otokit.noharayh.ui.settings.subPages
 
+import com.otokit.noharayh.ui.kit.settings.SettingsGroup
 import android.content.Context
 import android.text.Annotation
 import android.text.SpannableString
@@ -90,7 +91,7 @@ internal class AppSettingsPage(
         }
         body.addView(card(context, R.drawable.ic_aspect_ratio_24,
             R.string.settings_display_scale, choices, trailing = warning))
-        val switches = PressFrontColumn(context).apply {
+        val switches = SettingsGroup(context).apply {
             addView(hardwareSwitch, LinearLayout.LayoutParams(-1, -2))
             addView(animationSwitch, LinearLayout.LayoutParams(-1, -2).apply {
                 topMargin = dp(context, GroupedSwitchDimensions.GAP_DP)

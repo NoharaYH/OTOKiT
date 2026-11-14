@@ -1,5 +1,6 @@
 package com.otokit.noharayh.ui.settings
 
+import com.otokit.noharayh.ui.constants.dimensions.SettingsMenuDimensions
 import android.content.Context
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -23,7 +24,7 @@ internal class SettingsHome(context: Context, onOpenSection: (SettingsSection) -
         body.clipToPadding = false
         options.values.forEachIndexed { index, option ->
             body.addView(option, LinearLayout.LayoutParams(-1, -2).apply {
-                if (index < options.size - 1) bottomMargin = (12 * resources.displayMetrics.density + 0.5f).toInt()
+                if (index < options.size - 1) bottomMargin = (SettingsMenuDimensions.GAP_DP * resources.displayMetrics.density + 0.5f).toInt()
             })
         }
         addView(body, android.widget.FrameLayout.LayoutParams(-1, -2))

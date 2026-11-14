@@ -289,17 +289,17 @@ val unbind = column.bind(nestedButton)
 - **状态：** `setSelectionProgress(0..1)` 更新填充、图标底、图标与文字的反色程度。该方法仅渲染，不自行启动选中动画，不代表持久化选择。
 - **使用：** 构造时提供内容及强调色，通过 `setOnClickListener` 发出导航意图；宿主更新选中进度并控制布局。
 - **分组与展开：** 不套用子页面成组容器规则，不承担内容展开。
-- **待重构：** 尺寸和配色部分仍是类内字面量；若需要集中调整父级按钮样式，再提取独立参数，不与内容按钮强行合并。
+- **待重构：** 父级按钮尺寸已迁至 `SettingsMenuDimensions`；保留父级独立高度与间距。
 
 ### 2. 复合容器〔静态可复用；动态能力待重构〕
 
-- **入口：** `kit/settings/SettingsPageViews.card(context, icon, title, content, trailing = null)`；`icon`、`title` 分别为图标和字符串资源 ID。
+- **入口：** `kit/settings/SettingsCard(context, icon, title, content = null, trailing = null)`；`SettingsPageViews.card` 为兼容工厂；`icon`、`title` 分别为图标和字符串资源 ID。
 - **组成：** 图标在左、标题在右，尾部组件占标题行剩余空间，下方放内容 View；容器不可点击。
-- **参数来源：** `constants/dimensions/SettingsCardDimensions` 提供白底容器的 16dp 圆角、12dp 内边距。28dp 标题行最小高度、22dp 图标、8dp 图文间距、16sp 粗体标题仍写在 `card()` 内。
+- **参数来源：** `constants/dimensions/SettingsCardDimensions` 提供白底容器的 16dp 圆角、12dp 内边距。28dp 标题行最小高度、22dp 图标、8dp 图文间距、16sp 粗体标题亦已归入该参数定义。
 - **交互来源：** 容器不使用五项按压效果，子组件按自身契约使用。卡片已关闭自身子项裁剪，外层祖先仍需允许外溢。
 - **独立状态：** 当前 `card()` 创建四角 16dp 的静态卡片。
-- **成组状态：** 目标为组外 16dp、相邻边 4dp；当前工厂不接受分组位置，不会自动更新圆角，通用接入待重构。
-- **内容高度：** 当前 `content` 必填，工厂默认添加 12dp 顶部间距。目标“空内容时仅保留 52dp 标题区”尚无可选内容接口，不能声称传空即可使用。
+- **成组状态：** 目标为组外 16dp、相邻边 4dp；`SettingsCard.setGroupPosition` 接受分组位置；`SettingsGroup` 按可见直接子项自动维护位置和 4dp 间距。
+- **内容高度：** `content` 可省略，`setContent(null)` 移除内容及其间距，默认标题区为 52dp；`setContent(view)` 安装内容及 12dp 顶部间距。
 - **展开及切换：** 通用接口尚不存在。目标是容器接受展开／内容状态，协调高度、内容透明度与位移；对应执行器、参数组及取消契约待抽离，暂不指定通用时长。
 - **引用规则：** 新静态卡片直接使用工厂；需要动态能力时标记待重构，不从主题卡片复制动画，也不依赖其帧类型。
 
@@ -324,7 +324,7 @@ val card = SettingsPageViews.card(
 - **交互来源：** 继承 `PressSurface` 并开启涟漪；开关指示使用第三节的通用开关动画。
 - **状态契约：** `onCheckedChange` 只报告操作意图；外部确认后调用 `setChecked`。不在点击时自行确认状态，无障碍状态反映确认值。
 - **生命周期：** 内部管理按压与开关动画；外部控制 `isEnabled`，不用同时给右侧指示器再绑定点击。
-- **待重构：** 构造时支持分组位置，但没有通用的动态分组位置过渡接口。普通开关行本身不支持展开。
+- **待重构：** 支持 `setGroupPosition` 原位更新；由 `SettingsGroup` 自动维护可见成员。位置的动画过渡仍待公共动态能力接入，普通开关行不承担展开。
 
 ```kotlin
 val row = GroupedSwitchRow(
@@ -351,7 +351,7 @@ row.setChecked(newConfirmedValue)
 
 **操作行：** `SettingsPageViews.action(context, label, external = false, onClick)`。40dp 内容行、4dp 静止圆角、文字与右侧箭头／外链图标，内置五项按压效果；`external=true` 同时选择外链图标并启用释放反馈后执行。若操作会重建或交出窗口，也可在返回的 `PressSurface` 上单独设置 `deferClickUntilReleaseFeedback=true`。当前布尔参数同时控制图标与执行时机，解耦属于后续重构，不必为既有使用先重写。
 
-**单选行：** `SettingsPageViews.choice(context, label, selected, onClick)`。40dp 行高，未选中 4dp、选中 20dp 圆角，右侧选择标记；单选语义在创建时配置。当前工厂没有原位更新全部选中外观的接口，不能只改 `isSelected` 就认为标记和底形已更新。需要频繁原位更新时，统一的单选行状态接口待重构。
+**单选行：** `SettingsPageViews.choice(context, label, selected, onClick)`。40dp 行高，未选中 4dp、选中 20dp 圆角，右侧选择标记；单选语义在创建时配置。工厂返回 `SettingsButton`，通过 `renderSelection(selected, animate)` 更新确认状态、标记、文字与圆角；不能只改 `isSelected`。
 
 **分段选择：** `kit/settings/SettingsSegmentedChoice`。26dp 高、4dp 间距、12sp 文字，按文字计算宽度；未选中圆角 4dp、选中 13dp。五项按压效果由内部 `PressSurface` 提供，选中形态由组件自身维护。
 
@@ -386,11 +386,11 @@ choices.setSelection(newConfirmedIndex, animate = true)
 
 1. **动态复合容器：** 可选内容、52dp 空状态、动态分组位置、内容展开和替换入退场尚未形成通用接口。先抽离职责，再补正式调用示例。
 2. **组合容器：** 复用已完成的标题行反馈几何，将内容槽位、状态和展开协调从具体页面分离。
-3. **参数归属：** 分段按钮参数已独立；静态卡片和父级按钮的类内尺寸仍待迁移。
+3. **参数归属〔已完成基础迁移〕：** 分段按钮使用 `SettingsChoiceDimensions/Motion`，父级按钮使用 `SettingsMenuDimensions`，内容按钮使用 `SettingsButtonDimensions`，复合卡片使用 `SettingsCardDimensions`。
 4. **公共效果归属〔已完成〕：** 公共参数位于 `constants/motion/PressSurfaceSpec`、`PressHaloSpec`；执行由 `PressHaptics`、`PressProgress`、`PressGeometry`、`TouchIndicator`、`PressHalo` 分担。`PressSurface` 保留触摸适配、效果组合与绘制职责，接口兼容原有组件。
-5. **单选行更新：** 工厂式单选行缺少统一状态更新入口；分段按钮已有确认状态 API，不应混用两者的更新方式。
+5. **单选行更新〔已完成〕：** `SettingsButton.renderSelection` 同步确认语义、选择标记及底形/文字过渡；点击仍只发意图。
 6. **通用 DMI：** 现有实现仍带主题数据和宿主接线约束，不能把已有视觉复用等同于完成业务无关封装。
-7. **分组管理：** 明确由标准分组宿主维护可见成员的位置、间距和相邻圆角，由组件呈现分组状态。`PressFrontColumn` 目前只管理按压绘制顺序，不能作为已完成的分组布局 API。
+7. **分组管理〔静态已完成〕：** `SettingsGroup` 基于可见直接子项维护位置、间距与圆角，已接入应用设置开关组；`PressFrontColumn` 继续只处理绘制顺序。动态分组过渡另行接入。
 8. **动态状态契约：** 展开收起与内容替换分别定义；补齐动画中再次更新、内容测量变化、隐藏内容交互、中断收敛和卸载清理规则。由标准组件承担协调，不把逐帧更新下放页面。
 
 新内容优先使用本文标记可复用的成品接口。归一化完成的验收条件是：效果参数和执行职责均有明确公共归属，标准组件组合所需能力并管理自己的默认参数，设置页直接使用组件而不重复接线。需要待重构能力时先建立通用契约，不能从另一个业务组件获取动画。文档中的待重构标记不表示本轮已修改实现。

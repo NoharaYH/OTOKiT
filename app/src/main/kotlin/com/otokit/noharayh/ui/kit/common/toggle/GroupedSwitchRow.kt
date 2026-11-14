@@ -1,5 +1,7 @@
 package com.otokit.noharayh.ui.kit.common.toggle
 
+import com.otokit.noharayh.ui.kit.common.GroupPosition
+import com.otokit.noharayh.ui.kit.common.GroupedSurface
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
@@ -31,7 +33,7 @@ open class GroupedSwitchRow(
     labelIconRes: Int? = null,
     labelIconTint: Int = 0xFFE57373.toInt(),
     labelColor: Int = 0xFF616161.toInt(),
-) : PressSurface(context), Checkable {
+) : PressSurface(context), Checkable, GroupedSurface {
     private var checkedValue = checked
     private val indicator = SwitchIndicator(context, checked)
 
@@ -69,6 +71,11 @@ open class GroupedSwitchRow(
             dp(Dimensions.TRACK_WIDTH_DP).roundToInt(), dp(Dimensions.TRACK_HEIGHT_DP).roundToInt()))
         addView(row, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
         setOnClickListener { onCheckedChange(!checkedValue) }
+    }
+
+    override fun setGroupPosition(position: GroupPosition) {
+        topCornerRadius = dp(if (position.first) Dimensions.OUTER_RADIUS_DP.toFloat() else Dimensions.INNER_RADIUS_DP)
+        bottomCornerRadius = dp(if (position.last) Dimensions.OUTER_RADIUS_DP.toFloat() else Dimensions.INNER_RADIUS_DP)
     }
 
     override fun isChecked(): Boolean = checkedValue

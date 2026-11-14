@@ -1,5 +1,6 @@
 package com.otokit.noharayh.ui.kit.settings
 
+import com.otokit.noharayh.ui.constants.dimensions.SettingsMenuDimensions as Dimensions
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
@@ -27,23 +28,23 @@ class SettingsOptionView(context: Context, title: CharSequence, icon: Int, priva
         val row = LinearLayout(context).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(12), dp(12), dp(16), dp(12))
-            minimumHeight = dp(64)
+            setPadding(dp(Dimensions.INSET_DP), dp(Dimensions.INSET_DP), dp(Dimensions.END_INSET_DP), dp(Dimensions.INSET_DP))
+            minimumHeight = dp(Dimensions.HEIGHT_DP)
             isClickable = false
         }
         val circle = FrameLayout(context).apply { background = badge }
         image.setImageResource(icon)
-        circle.addView(image, FrameLayout.LayoutParams(dp(24), dp(24), Gravity.CENTER))
-        row.addView(circle, LinearLayout.LayoutParams(dp(40), dp(40)))
+        circle.addView(image, FrameLayout.LayoutParams(dp(Dimensions.ICON_DP), dp(Dimensions.ICON_DP), Gravity.CENTER))
+        row.addView(circle, LinearLayout.LayoutParams(dp(Dimensions.BADGE_DP), dp(Dimensions.BADGE_DP)))
         label.apply {
             text = title
-            textSize = 17f
+            textSize = Dimensions.TEXT_SP
             includeFontPadding = false
             gravity = Gravity.CENTER_VERTICAL
             AppTypography.applyAppTypeface(this, bold = true)
         }
         row.addView(label, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
-            marginStart = dp(16)
+            marginStart = dp(Dimensions.TEXT_GAP_DP)
         })
         addView(row, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
         setSelectionProgress(0f)
