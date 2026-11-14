@@ -2,7 +2,7 @@ package com.otokit.noharayh.ui.settings.subPages
 
 import android.content.Context
 import android.widget.FrameLayout
-import com.otokit.noharayh.ui.kit.settings.ThemeSettingsContent
+import com.otokit.noharayh.ui.settings.components.ThemeSettingsContent
 import com.otokit.noharayh.ui.shell.selection.GameSelectionState
 import com.otokit.noharayh.ui.theme.GameLine
 import com.otokit.noharayh.ui.theme.ThemeOption

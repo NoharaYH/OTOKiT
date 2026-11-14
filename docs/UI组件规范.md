@@ -188,7 +188,7 @@
 - **入口：** `kit/common/PressSurface`，继承 `FrameLayout`，可直接承载文字、图标或布局。
 - **单位：** 实例属性的半径、直径与内缩量均为 px；调用方负责 dp 换算。时长为 ms，进度和白色层透明度为 0..1，颜色为 ARGB。
 - **线程：** 在 UI 线程更新属性。绘制属性自动刷新，不负责调整布局尺寸。
-- **配置层级：** 实例属性用于已有的组件差异；`PressSurfaceSpec` 和 `constants/motion/PressHaloSpec` 是共享默认参数。修改共享参数会影响所有消费者。
+- **配置层级：** 实例属性用于已有的组件差异；`PressDeformationSpec`、`PressHapticSpec`、`PressClickSpec`、`TouchIndicatorSpec`、`PressOverlaySpec`、`PressHaloSpec` 分别提供效果或交互协调的默认参数。修改共享参数会影响所有消费者。
 - **生命周期：** 触摸、释放与反馈清理由 `PressSurface` 接线，页面只绑定点击意图，不重复播放相同震动或动画。
 
 ```kotlin
@@ -207,20 +207,20 @@ val button = PressSurface(context).apply {
 ### 2. 震动〔可直接复用〕
 
 - **职责：** 确认按下和有效点击释放；不表达业务成功与失败。
-- **执行位置：** `animation/common/PressHaptics`；由 `PressSurface` 连接触摸与点击。
-- **参数位置：** `constants/motion/PressSurfaceSpec`。
+- **执行位置：** `animation/common/PressHaptics` 只调用系统触觉并报告是否受理；`kit/common/PressInteraction` 维护手势序号、等待间隔、窗口交付和点击调度；`PressSurface` 连接触摸与生命周期。
+- **参数位置：** `constants/motion/PressHapticSpec.MIN_HAPTIC_GAP_MS = 120ms`；反馈受理后的点击等待属于协调策略，引用 `PressClickSpec.RELEASE_FEEDBACK_SETTLE_MS = 60ms`。
 - **按下反馈：** `VIRTUAL_KEY`。
 - **释放反馈：** Android 30 及以上使用 `GESTURE_END`，较早版本回退到 `CLOCK_TICK`。
 - **最小按下／释放间隔：** `MIN_HAPTIC_GAP_MS = 120ms`，快速点击补足间隔。
 - **实例入口：** `releaseHapticEnabled` 默认 true；设为 false 只关闭释放反馈。系统触觉开关仍由 View 与系统设置约束。
-- **执行顺序：** `deferClickUntilReleaseFeedback` 默认 false。需要交出窗口时可设为 true，在释放反馈后额外留出 `RELEASE_FEEDBACK_SETTLE_MS = 60ms` 再执行点击；这不是所有点击的统一延迟。
+- **执行顺序：** `deferClickUntilReleaseFeedback` 默认 false。需要交出窗口时可设为 true，系统受理释放反馈后额外留出 `RELEASE_FEEDBACK_SETTLE_MS = 60ms` 再执行点击；反馈被拒绝时直接执行，不增加这段等待。该策略不是所有点击的统一延迟。
 - **使用要求：** 取消手势不能当作有效点击；不要在点击回调里再次补发同一触觉。
 
 ### 3. 内缩〔可直接复用〕
 
 - **职责：** 改变可见底形，不改变布局和触摸区域。
 - **实例入口：** `pressInset`，默认每边 `3dp` 换算成 px；设为 0 可去掉内缩量，但不会关闭其他效果。
-- **参数位置：** `PressSurfaceSpec.INSET_DP`、`PRESS_DAMPING = 0.85`、`PRESS_STIFFNESS = 1000`、`MIN_VISIBLE_CHANGE = 0.002`。
+- **参数位置：** `PressDeformationSpec.INSET_DP`、`PRESS_DAMPING = 0.85`、`PRESS_STIFFNESS = 1000`、`MIN_VISIBLE_CHANGE = 0.002`。
 - **执行位置：** `animation/common/PressProgress` 提供共享进度，`PressGeometry` 计算内缩及圆角，`PressSurface` 使用结果绘制。
 - **时序：** 按下目标进度为 1，释放回到 0；由弹簧收敛决定结束时间，没有固定总时长。
 - **耦合边界：** 内缩、按压胶囊化和白色反馈层使用同一按压进度。参数与执行已分离至公共层；标准组件通过 `PressSurface` 组合，不由页面分别启动。
@@ -256,10 +256,10 @@ val unbind = column.bind(nestedButton)
 
 - **职责：** 在组件内部指示触点；裁切在当前底形内，不代表选中状态。
 - **入口：** `PressSurface.innerRippleEnabled` 默认 true。关闭后不影响内缩、触觉和点击。
-- **颜色：** 黑色，`PressSurfaceSpec.BLACK_ALPHA = 56`，即 56/255 不透明度。
+- **颜色：** 黑色，`TouchIndicatorSpec.BLACK_ALPHA = 56`，即 56/255 不透明度。
 - **尺寸：** `rippleMaxDiameter` 默认 120dp，`rippleRestDiameter` 默认 106dp，实例赋值使用 px。小按钮会裁切圆形，不需要将按钮放大到该直径。
-- **尺寸动画：** 扩张弹簧 0.8/1600，回落 0.9/300，释放 1.0/700；数值依次为阻尼比／刚度，来源为 `PressSurfaceSpec`。
-- **阶段时间：** `rippleExpandMs` 默认 120ms；不是固定总动画时长。
+- **尺寸动画：** 扩张弹簧 0.8/1600，回落 0.9/300，释放 1.0/700；数值依次为阻尼比／刚度，来源为 `TouchIndicatorSpec`。
+- **阶段时间：** `rippleExpandMs` 默认 120ms；不是固定总动画时长。尺寸弹簧的收敛阈值为 `TouchIndicatorSpec.MIN_VISIBLE_CHANGE = 0.002`。
 - **位置跟随：** `followTauMs` 默认 30ms 且应大于 0，采用 `1 - exp(-Δt / τ)` 指数平滑。位置本身不是弹簧运动，弹性来自尺寸变化。
 - **数量：** `maxRipples` 默认 8，限制内部反馈实例数量。
 - **执行位置：** `animation/common/TouchIndicator` 管理尺寸弹簧、位置跟随和清理；`PressSurface` 连接手势并绘制。修改最大直径、阶段时间或数量配置不会重启已有动画。
@@ -274,10 +274,10 @@ val unbind = column.bind(nestedButton)
 
 ### 7. 辅助反馈与独立动效边界
 
-- 白色覆盖层通过 `whiteMaxAlpha` 配置，默认 0.16，跟随按压进度；不是第六种按钮类型。
+- 白色覆盖层通过 `whiteMaxAlpha` 配置，默认值来源为 `PressOverlaySpec.WHITE_ALPHA = 0.16`，跟随按压进度；不是第六种按钮类型。
 - 通用开关指示动画由 `animation/common/SwitchTransitionRunner` 执行，`constants/motion/SwitchMotion.DURATION_MS = 200ms`，曲线 `FastOutSlowIn`。成品开关已连接，页面无需直接创建执行器。
 - 曲线解析入口为 `animation/common/MotionInterpolators.of(MotionCurve.FastOutSlowIn)`，`MotionCurve` 位于 `constants/motion`。它只提供插值器，不提供内容过渡的布局和生命周期管理。
-- 通用内容过渡由 `animation/common/ContentTransition<T>` 执行；标准组件通过 `ExpandableContent` 组合测量、入退场和输入门控。分组圆角由 `GroupShape` 执行。公共时长和曲线来自 `ContainerMotion`；原 `ThemeCardTransitionRunner` 已移除，调色器执行器不作为容器依赖。
+- 通用内容过渡由 `animation/common/ContentTransition<T>` 执行；标准组件通过 `ExpandableContent` 组合测量、入退场和输入门控。分组圆角由 `GroupShape` 执行。公共执行器接收 `TransitionTiming`；内容槽位选用 `ContainerMotion.CONTENT`，分组圆角选用 `SettingsGroupMotion.SHAPE`，主题卡片组合选用 `ThemeSelectionMotion.CARD_TRANSITION`；原 `ThemeCardTransitionRunner` 已移除，调色器执行器不作为容器依赖。
 
 ## 四、组件接入规范
 
@@ -295,7 +295,7 @@ val unbind = column.bind(nestedButton)
 
 - **入口：** `kit/settings/SettingsCard(context, icon, title, content = null, trailing = null)`；`SettingsPageViews.card` 为兼容工厂；`icon`、`title` 分别为图标和字符串资源 ID。
 - **组成：** 图标在左、标题在右，尾部组件占标题行剩余空间，下方放内容 View；容器不可点击。
-- **参数来源：** `constants/dimensions/SettingsCardDimensions` 提供白底容器的 16dp 圆角、12dp 内边距。28dp 标题行最小高度、22dp 图标、8dp 图文间距、16sp 粗体标题亦已归入该参数定义。
+- **参数来源：** `constants/dimensions/SettingsGroupDimensions` 提供 16dp 外圆角、4dp 内圆角；`SettingsCardDimensions` 提供 12dp 内边距。28dp 标题行最小高度、22dp 图标、8dp 图文间距、16sp 粗体标题亦已归入该参数定义。
 - **交互来源：** 容器不使用五项按压效果，子组件按自身契约使用。卡片已关闭自身子项裁剪，外层祖先仍需允许外溢。
 - **独立状态：** 当前 `card()` 创建四角 16dp 的静态卡片。
 - **成组状态：** 目标为组外 16dp、相邻边 4dp；`SettingsCard.setGroupPosition` 接受分组位置；`SettingsGroup` 按可见直接子项自动维护位置和 4dp 间距。
@@ -361,7 +361,7 @@ row.setExpanded(nextShowContent)
 
 ### 5. 容器内按钮〔现有变体可直接复用〕
 
-**操作行：** `SettingsPageViews.action(context, label, external = false, onClick)`。40dp 内容行、4dp 静止圆角、文字与右侧箭头／外链图标，内置五项按压效果；`external=true` 同时选择外链图标并启用释放反馈后执行。若操作会重建或交出窗口，也可在返回的 `PressSurface` 上单独设置 `deferClickUntilReleaseFeedback=true`。当前布尔参数同时控制图标与执行时机，解耦属于后续重构，不必为既有使用先重写。
+**操作行：** `SettingsPageViews.action(context, label, icon = SettingsButton.ActionIcon.Next, deferClick = false, onClick)`。40dp 内容行、4dp 静止圆角、文字与右侧箭头／外链图标，内置五项按压效果。`icon` 只选择图标（`Next`／`ExternalLink`），`deferClick` 只选择是否等待释放反馈；两者独立。页面依据操作是否会重建或交出窗口选择时序，不通过图标推断行为。也可在返回组件上设置 `deferClickUntilReleaseFeedback`。
 
 **单选行：** `SettingsPageViews.choice(context, label, selected, onClick)`。40dp 行高，未选中 4dp、选中 20dp 圆角，右侧选择标记；单选语义在创建时配置。工厂返回 `SettingsButton`，通过 `renderSelection(selected, animate)` 更新确认状态、标记、文字与圆角；不能只改 `isSelected`。
 
@@ -377,15 +377,15 @@ choices.setSelection(newConfirmedIndex, animate = true)
 ```
 
 - **分段状态动效：** 内部 `SettingsChoiceTransitionRunner` 将静止圆角和文字颜色过渡到确认状态；220ms、`FastOutSlowIn`。调用方只用 `setSelection`，无需引用该执行器。
-- **当前参数归属：** 尺寸来自 `SettingsChoiceDimensions`，时长、禁用配色比例与曲线来自 `SettingsChoiceMotion`，已脱离主题参数。
+- **当前参数归属：** 尺寸来自 `SettingsChoiceDimensions`，时长与曲线来自 `SettingsChoiceMotion`；选中、未选中、填充、禁用填充及禁用文字混色比例来自 `SettingsComponentColors`，已脱离主题参数。
 - **禁用：** `setControlsEnabled` 控制实际操作，`setDisabledProgress` 仅控制视觉淡化，不能相互代替。
 - **卸载：** 内部停止动画并恢复到确认状态；调用方不保留动画对象。
 - **尺寸边界：** 26dp 和 40dp 是视觉尺寸，当前不代表所有入口已经提供 48dp 热区；不在文档整理时擅自修改布局。
 
 ### 6. 纯信息框〔可直接复用〕
 
-- **入口：** `SettingsPageViews.info(context, label, value)`。
-- **结构：** 左侧名称、右侧值，浅灰底，静止圆角 4dp，水平内边距 16dp，最小高度 40dp，来自 `SettingsCardDimensions.CONTENT_ROW_HEIGHT_DP`；最小高度不等于固定高度。
+- **入口：** `kit/settings/SettingsInfoRow(context, label, value)`；`SettingsPageViews.info` 只作兼容工厂。
+- **结构：** 左侧名称、右侧值，浅灰底，静止圆角 4dp，水平内边距 16dp，最小高度 40dp，统一来自 `SettingsInfoDimensions`（`MIN_HEIGHT_DP`、`RADIUS_DP`、`INSET_DP`、`TEXT_SP`），颜色来自 `SettingsComponentColors`；最小高度不等于固定高度，不借用卡片参数。
 - **状态与动效：** 只读，不使用五项反馈，不支持选择或展开；内容变更当前通过重新创建或外部持有的视图装配处理，没有专用 `setValue` 接口。
 - **引用：** 将返回 View 作为 `card()` 的内容；无需创建动画执行器或点击回调。
 
@@ -396,12 +396,12 @@ choices.setSelection(newConfirmedIndex, animate = true)
 
 ## 五、完成状态与剩余边界
 
-1. **公共效果职责〔已完成〕：** `constants/motion/PressSurfaceSpec`、`PressHaloSpec` 提供默认参数；`PressHaptics`、`PressProgress`、`PressGeometry`、`TouchIndicator`、`PressHalo` 分担执行职责，`PressSurface` 负责组合和触摸适配。共享按压进度保留，不要求页面分别启动五项效果。
-2. **组件默认参数〔已完成基础归属〕：** `SettingsMenuDimensions` 管理父级按钮，`SettingsButtonDimensions` 管理内部按钮，`SettingsChoiceDimensions/Motion` 管理分段按钮，`SettingsCardDimensions` 管理复合卡片，`GroupedSwitchDimensions` 管理开关，`SettingsGroupDimensions` 管理成组圆角及间距。`SettingsComponentColors` 提供标准内容按钮与卡片配色。
+1. **公共效果职责〔已拆分〕：** 参数按效果归入 `PressDeformationSpec`、`PressHapticSpec`、`TouchIndicatorSpec`、`PressOverlaySpec`、`PressHaloSpec`；点击等待策略归入 `PressClickSpec`。`PressHaptics` 只执行反馈，`PressInteraction` 协调点击，`PressProgress`／`PressGeometry` 计算共享按压进度与轮廓。`PressSurface` 组合这些能力，不要求页面分别启动五项效果。
+2. **组件默认参数〔已整理本轮范围〕：** `SettingsMenuDimensions` 管理父级按钮（含独立 16dp 圆角），`SettingsButtonDimensions` 管理内部按钮，`SettingsChoiceDimensions/Motion` 管理分段选择，`SettingsInfoDimensions` 管理信息行，`SettingsCardDimensions` 管理卡片，`GroupedSwitchDimensions` 管理开关，`SettingsGroupDimensions` 管理分组几何。`SettingsComponentColors` 提供这些标准组件的语义配色。基础表面的后备样式归 `PressSurfaceDimensions`／`PressSurfaceColors`，不是菜单按钮的样式来源。
 3. **按钮状态〔已完成〕：** `SettingsButton.renderSelection` 原位更新单选确认状态；分段按钮继续使用 `setSelection`。操作按钮和单选按钮由现有工厂兼容返回标准 `SettingsButton`。
 4. **复合与组合容器〔已完成〕：** `SettingsCard` 支持可选内容、展开与替换；`ExpandableSettingsRow` 封装标题行和展开槽位。具体内容不参与其内部动画执行。
 5. **分组〔已完成〕：** `SettingsGroup` 管理可见直接子项和间距；`GroupShape` 管理上下边圆角过渡。标准组合组件需要跨嵌套结构共享进度时，通过 `GroupedSurface.renderGroupEdges` 应用同一帧，不自行计算圆角。`PressFrontColumn` 只负责绘制层级。
-6. **页面接入〔已迁移〕：** 应用信息和应用设置经兼容工厂消费标准卡片与按钮；应用设置开关组使用 `SettingsGroup`；父级入口消费独立参数；个性化页面只转交业务值与回调，`ThemeSettingsContent` 组合标准组件并保留主题 DMI 接线。它是主题业务组合，不是其他容器的公共效果来源。
+6. **页面接入〔已迁移〕：** 应用信息和应用设置经兼容工厂消费标准卡片与按钮；应用设置开关组使用 `SettingsGroup`；父级入口消费独立参数；个性化页面只转交业务值与回调，`settings/components/ThemeSettingsContent` 组合标准组件并保留主题 DMI 接线。它是主题业务组合，不是其他容器的公共效果来源。
 7. **DMI 泛化〔暂缓〕：** 主题数据、菜单预算、返回预览与滚动条热区保留现有契约。本轮不宣称已经提供任意数据的通用 DMI，也不重写颜色滑块。
 8. **独立开关与样式变体〔未扩展〕：** 当前未新增每实例涟漪弹簧参数、独立按压胶囊化开关或全部样式的运行时配置对象；使用已公开参数。没有使用场景时不扩展 API。
 
@@ -409,10 +409,10 @@ choices.setSelection(newConfirmedIndex, animate = true)
 
 ### 1. 参数来源与职责
 
-- `constants/motion/ContainerMotion`：单阶段时长 300ms，`FastOutSlowIn` 曲线，内容入退场位移 12dp。
-- `animation/common/ContentTransition<T>`：只插值状态；接收初始状态、插值函数与帧回调，不依赖 View、业务或其他组件。再次播放从当前帧继续，系统关闭动画或 animate=false 时直接应用目标。
+- `constants/motion/ContainerMotion.CONTENT`：内容槽位的单阶段时序为 `TransitionTiming(300L, MotionCurve.FastOutSlowIn)`；`ContainerMotion.CONTENT_SHIFT_DP = 12f` 为入退场位移。
+- `animation/common/ContentTransition<T>`：只插值状态；接收初始状态、必填的 `TransitionTiming`、插值函数与帧回调，不依赖 View、业务或组件默认参数。再次播放从当前帧继续，系统关闭动画或 animate=false 时直接应用目标。
 - `kit/settings/ExpandableContent`：标准组件内部的可选内容槽位，管理自然高度测量、高度过渡、透明度、位移、裁剪与输入屏蔽。页面使用成品容器 API，不直接驱动该槽位。
-- `animation/common/GroupShape`：消费上下边的外圆角比例，使用 `SettingsGroupDimensions` 中外圆角 16dp、内圆角 4dp；插值采用 `ContentTransition` 的公共时序。
+- `animation/common/GroupShape`：消费上下边的外圆角比例；构造时由组件传入内外圆角（px）和 `TransitionTiming`，执行器不读取设置参数。设置卡片与开关行将 `SettingsGroupDimensions` 的 4dp／16dp 换算成 px，并注入 `SettingsGroupMotion.SHAPE`（300ms、`FastOutSlowIn`）。
 - `SettingsGroupDimensions.GAP_DP = 4dp` 为组内间距。分组宿主按实际可见直接成员确定 Single/First/Middle/Last；嵌套业务组合由其组件内部协调，不由页面重复实现。
 
 ### 2. 内容测量与交互
@@ -436,12 +436,65 @@ choices.setSelection(newConfirmedIndex, animate = true)
 
 纯几何回归见 `PressGeometryTest`；设备组件回归见 `SettingsComponentsTest`、`SettingsExpansionTest` 及原有按压、无障碍、菜单测试。模拟器验证用于布局、状态、输入与动画执行，真实震动手感仍由实体设备体验确认。
 
-### 5. 本轮验证记录（2026-11-14）
+### 5. 前轮功能修复验证记录（2026-11-14）
 
 - Debug 应用和测试 APK 构建通过；234 项单元测试通过。
 - API 37 手机和平板模拟器各通过 29 项完整组件回归；包含内容复用后的样式恢复、非默认透明度与位移归还、禁用时的键盘焦点及无障碍树、进行中手势取消与重新启用后的操作恢复。
-- Lint 为 0 错误、34 条已有警告。按压点击由 `PressHaptics` 调用宿主 `performClick`，保留无障碍点击入口。
+- Lint 为 0 错误、34 条已有警告。按压点击由 `PressInteraction` 调用宿主 `performClick`，保留无障碍点击入口。
 - 实际页面检查覆盖父级菜单、应用设置、应用信息、主题模式切换、菜单滚动和组合容器展开；截图及 AndroidRuntime 日志检查未发现功能回归。
 - 另用修改前版本在同一平板模拟器执行相同展开／收起操作做帧统计对照。样本未显示明显帧耗时退化，但模拟器仍存在卡顿，不将本轮功能回归通过解释为稳定 60 FPS 或实体设备触觉验收。
 - 复审修复了内容移除后残留透明度／位移，以及禁用门控只覆盖触摸的问题；新增及加强的回归在修复前出现 4 项失败，修复后完整回归通过。再次检查公共槽位、容器接入和文档契约，未发现新的功能性阻塞问题。
 - 本次补测在同一平板连续执行 12 次展开／收起：修复版首次 P50/P90/P99 为 65/109/129ms，修改前留存 APK 为 61/97/150ms，恢复修复版后为 61/89/109ms。三次卡顿率分别为 98.06%、89.17%、83.44%；新旧版本均明显卡顿且样本波动较大，不能据此宣称性能达标。最终已恢复修复版，AndroidRuntime 日志未见崩溃。
+
+
+### 6. 本轮职责拆分验证记录（2026-11-14）
+
+- Debug 应用、测试 APK、234 项单元测试及 Lint 通过；Lint 为 0 错误、34 条已有警告。
+- API 37 手机和平板各通过 35 项完整设备回归。本轮新增 6 项，覆盖触觉受理／拒绝后的点击顺序、取消延迟点击、源视图移除后的窗口反馈、自定义过渡时序与像素圆角，以及图标与点击策略独立配置。
+- 源码复审确认：通用按压及内容／分组执行器不读取设置业务或容器默认配置；标准容器不反向引用 `SettingsPageViews`；分组间距和圆角统一引用 `SettingsGroupDimensions`，移除卡片／开关中的转发别名。
+- 最终 APK 实际页面检查覆盖父级菜单、应用信息及纯信息行、应用设置按钮和开关组、无主题组合容器展开／收起；截图未见布局回归，AndroidRuntime 日志未见崩溃。模拟器不验证实体震动手感。
+- 同一平板、相同 12 次展开／收起对照：本轮修改前 APK 为 154 帧、P50/P90/P99 61/97/125ms、卡顿率 90.26%；拆分后为 155 帧、57/85/109ms、卡顿率 92.90%。两版均明显卡顿，指标各有波动，本轮不据此认定性能改善或达标。检查结束保留拆分后版本。
+- 本轮完成的是已列标准按钮／容器的参数、执行器、组件装配和业务组合边界；主题 DMI 泛化及颜色滑块内部重构仍为暂缓项，不将其标记为完成。
+
+
+## 七、职责引用索引与装配规则
+
+### 1. 基础能力与工厂
+
+- `kit/common/ViewPrimitives` 提供 `dp`、`text`、`shape`；依赖 Android 与公共字体能力，不引用设置工厂或业务状态。
+- `kit/common/SingleChoiceSemantics.kt` 提供 `PressSurface.configureSingleChoiceSemantics`，只把组件确认状态映射为无障碍单选语义。
+- `SettingsCard`、`SettingsButton`、`SettingsInfoRow` 直接引用这些基础能力。`SettingsPageViews` 负责兼容创建和页面占位／间距装配；组件不得反向调用它。
+- 公共颜色相同才引用共同的语义角色。组件自身尺寸由该组件的 Dimensions 管理；数值恰好相同不意味着必须依赖另一个组件。确认框尺寸和调色面板内距已解除对设置卡片的借用。
+
+### 2. 交互协调与反馈执行
+
+- `PressFeedback.press()` 执行按下反馈；`release(target)` 执行释放反馈并返回系统受理结果。默认实现为 `PressHaptics`，没有点击回调、延迟任务或业务依赖。
+- `PressInteraction.press()` 开始手势；`click(defer, releaseEnabled)` 按策略交付释放反馈并调用宿主点击；`cancelDeferredClick()` 取消尚未交付的延迟点击。
+- 窗口仍有效时，已接受的立即点击允许源视图因导航被移除，释放反馈仍由窗口完成；尚未交付的延迟点击在卸载或失焦时取消。`PressSurface` 负责接入这些生命周期事件，页面不持有协调器。
+- 内缩与按压胶囊化保留同一进度和轮廓，这是同步要求；效果参数已分开，不为追求文件数量而复制手势状态。
+
+### 3. 公共过渡与组件策略
+
+`TransitionTiming(durationMs, curve)` 是不可变输入，不携带组件默认值。公共执行器消费它；标准组件选用自己的默认配置；页面调用标准组件的状态接口。
+
+```kotlin
+// 标准组件内部装配；普通设置页面不需要创建执行器。
+val transition = ContentTransition(
+    initial = 0f,
+    timing = ContainerMotion.CONTENT,
+    interpolate = { from, to, progress -> from + (to - from) * progress },
+    onFrame = ::renderContentProgress,
+)
+val shape = GroupShape(
+    host = this,
+    innerRadius = SettingsGroupDimensions.INNER_RADIUS_DP * resources.displayMetrics.density,
+    outerRadius = SettingsGroupDimensions.OUTER_RADIUS_DP * resources.displayMetrics.density,
+    timing = SettingsGroupMotion.SHAPE,
+) { top, bottom -> applyCorners(top, bottom) }
+```
+
+上例的 `renderContentProgress`、`applyCorners` 为组件实现提供的回调。内容展开、分组形变、主题卡片切换目前数值均为 300ms，但配置分别归 `ContainerMotion.CONTENT`、`SettingsGroupMotion.SHAPE`、`ThemeSelectionMotion.CARD_TRANSITION`，修改其中一项不会隐式改变另两项。
+
+### 4. 业务组合边界
+
+`settings/components/ThemeSettingsContent` 负责将主题模式和业务确认状态转换为标准组件状态，并连接主题 DMI 的专属布局与返回预览。它属于设置业务组合层，不是公共组件或其他页面的效果来源。主题 DMI 泛化与颜色滑块内部重构继续保持原定暂缓范围；本次不宣称整个项目所有 UI 职责均已拆分。

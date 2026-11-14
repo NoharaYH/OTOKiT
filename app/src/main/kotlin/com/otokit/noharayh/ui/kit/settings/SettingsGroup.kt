@@ -1,8 +1,9 @@
 package com.otokit.noharayh.ui.kit.settings
 
+import com.otokit.noharayh.ui.kit.common.ViewPrimitives
 import android.content.Context
 import android.view.View
-import com.otokit.noharayh.ui.constants.dimensions.GroupedSwitchDimensions
+import com.otokit.noharayh.ui.constants.dimensions.SettingsGroupDimensions
 import com.otokit.noharayh.ui.kit.common.GroupedSurface
 import com.otokit.noharayh.ui.kit.common.GroupPosition
 import com.otokit.noharayh.ui.kit.common.PressFrontColumn
@@ -20,7 +21,7 @@ internal class SettingsGroup(context: Context) : PressFrontColumn(context) {
             }
             (child as? GroupedSurface)?.setGroupPosition(position)
             (child.layoutParams as? LayoutParams)?.let {
-                it.topMargin = if (index == 0) 0 else SettingsPageViews.dp(context, GroupedSwitchDimensions.GAP_DP)
+                it.topMargin = if (index == 0) 0 else ViewPrimitives.dp(context, SettingsGroupDimensions.GAP_DP)
             }
         }
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)

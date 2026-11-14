@@ -1,5 +1,9 @@
-package com.otokit.noharayh.ui.kit.settings
+package com.otokit.noharayh.ui.settings.components
 
+import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors as Colors
+import com.otokit.noharayh.ui.kit.settings.SettingsCard
+import com.otokit.noharayh.ui.kit.settings.ExpandableContent
+import com.otokit.noharayh.ui.kit.settings.ExpandableSettingsRow
 import android.content.Context
 import android.graphics.Canvas
 import androidx.core.graphics.withSave
@@ -15,11 +19,11 @@ import com.otokit.noharayh.ui.constants.dimensions.SettingsCardDimensions
 import com.otokit.noharayh.ui.constants.motion.ThemeSelectionMotion
 import com.otokit.noharayh.ui.kit.settings.ThemeSelectorPanel
 import com.otokit.noharayh.ui.kit.settings.LabeledDropdownField
-import com.otokit.noharayh.ui.kit.settings.SettingsPageViews.card
-import com.otokit.noharayh.ui.kit.settings.SettingsPageViews.dp
+import com.otokit.noharayh.ui.kit.common.ViewPrimitives.dp
 import com.otokit.noharayh.ui.kit.settings.SettingsSegmentedChoice
 import com.otokit.noharayh.ui.kit.common.toggle.GroupedSwitchRow
 import com.otokit.noharayh.ui.kit.common.PressFrontColumn
+import com.otokit.noharayh.ui.constants.dimensions.SettingsGroupDimensions
 import com.otokit.noharayh.ui.constants.dimensions.GroupedSwitchDimensions
 import com.otokit.noharayh.ui.shell.selection.GameSelectionState
 import com.otokit.noharayh.ui.theme.NoneThemePalette
@@ -57,7 +61,7 @@ internal class ThemeSettingsContent(
     private val backgroundSwitch = GroupedSwitchRow(context,
         context.getString(R.string.settings_none_theme_tint_background), false, true,
         selection.noneThemeTintBackground, onBackgroundTintSelected,
-        labelColor = 0xFF323232.toInt())
+        labelColor = Colors.TITLE)
     private val wallpaperSwitch = ExpandableSettingsRow(context,
         context.getString(R.string.settings_none_theme_wallpaper), selection.noneThemeUseWallpaper, onWallpaperSelected)
     private val picker = NoneThemeColorPicker(context, onColorSelected)
@@ -70,7 +74,7 @@ internal class ThemeSettingsContent(
         wallpaperSwitch.onExpansionChanged = { pickerProgress = it; updateControls() }
         addView(wallpaperSwitch, LinearLayout.LayoutParams(-1, -2))
         addView(backgroundSwitch, LinearLayout.LayoutParams(-1, -2).apply {
-            topMargin = dp(context, GroupedSwitchDimensions.GAP_DP)
+            topMargin = dp(context, SettingsGroupDimensions.GAP_DP)
         })
     }
     private val noneOptions = ExpandableContent(context).apply { setContent(noneRows) }
@@ -91,13 +95,13 @@ internal class ThemeSettingsContent(
             }
         }
     }
-    private val transition = ContentTransition(ThemeCardFrame(), { a, b, t -> a.towards(b, t) }, ::renderFrame)
+    private val transition = ContentTransition(ThemeCardFrame(), ThemeSelectionMotion.CARD_TRANSITION, { a, b, t -> a.towards(b, t) }, ::renderFrame)
     private val firstPanel = ThemeSelectorPanel(context, firstField, ::layoutContent)
     private val secondPanel = ThemeSelectorPanel(context, secondField, ::layoutContent)
     private val panels = listOf(firstPanel, secondPanel)
     private var backPanel: ThemeSelectorPanel? = null
     private var scrollbarTouchPanel: ThemeSelectorPanel? = null
-    private val themeCard = card(context, R.drawable.ic_format_paint_24,
+    private val themeCard = SettingsCard(context, R.drawable.ic_format_paint_24,
         R.string.settings_theme_selection, content, trailing = segment)
 
     init {
@@ -234,7 +238,7 @@ internal class ThemeSettingsContent(
         firstField.renderValueTransition(frame.value)
         noneOptions.renderProgress(frame.none)
         (noneOptions.layoutParams as? LinearLayout.LayoutParams)?.topMargin =
-            (dp(context, GroupedSwitchDimensions.GAP_DP) * frame.none).roundToInt()
+            (dp(context, SettingsGroupDimensions.GAP_DP) * frame.none).roundToInt()
         themeCard.renderGroupEdges(1f, 1f - frame.none)
         backgroundSwitch.renderGroupEdges(1f - frame.none, 1f)
         noneOptions.importantForAccessibility = if (frame.none == 1f && !transition.isRunning)

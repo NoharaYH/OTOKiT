@@ -1,5 +1,6 @@
 package com.otokit.noharayh.ui.kit.settings
 
+import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors as Colors
 import android.content.Context
 import android.view.MotionEvent
 import android.view.View
@@ -10,7 +11,7 @@ import com.otokit.noharayh.ui.kit.common.toggle.GroupedSwitchRow
 @android.annotation.SuppressLint("ViewConstructor") // 纯代码组件，需要显式内容与回调。
 internal class ExpandableSettingsRow(context: Context, label: CharSequence, checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
-) : GroupedSwitchRow(context, label, false, false, checked, onCheckedChange, labelColor = 0xFF323232.toInt()) {
+) : GroupedSwitchRow(context, label, false, false, checked, onCheckedChange, labelColor = Colors.TITLE) {
     private var headerHeight = (GroupedSwitchDimensions.ROW_HEIGHT_DP * resources.displayMetrics.density).toInt()
     private val contentSlot = ExpandableContent(context)
     private var hasContent = false

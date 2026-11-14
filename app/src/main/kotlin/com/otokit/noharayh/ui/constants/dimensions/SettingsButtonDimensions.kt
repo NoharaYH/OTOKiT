@@ -13,6 +13,7 @@ internal object SettingsButtonDimensions {
 }
 
 internal object SettingsMenuDimensions {
+    const val RADIUS_DP = 16
     const val HEIGHT_DP = 64
     const val GAP_DP = 12
     const val INSET_DP = 12

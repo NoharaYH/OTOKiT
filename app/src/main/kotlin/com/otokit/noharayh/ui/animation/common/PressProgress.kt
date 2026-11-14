@@ -3,7 +3,7 @@ package com.otokit.noharayh.ui.animation.common
 import androidx.dynamicanimation.animation.FloatValueHolder
 import androidx.dynamicanimation.animation.SpringAnimation
 import androidx.dynamicanimation.animation.SpringForce
-import com.otokit.noharayh.ui.constants.motion.PressSurfaceSpec as Spec
+import com.otokit.noharayh.ui.constants.motion.PressDeformationSpec as Spec
 
 /** 内缩、胶囊化和白色反馈共享的按压进度；调用者负责在卸载时 reset。 */
 internal class PressProgress(onFrame: () -> Unit) {

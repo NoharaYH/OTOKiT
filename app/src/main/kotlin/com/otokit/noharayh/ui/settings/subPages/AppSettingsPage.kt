@@ -17,12 +17,12 @@ import com.otokit.noharayh.ui.constants.display.DisplayScaleOption
 import com.otokit.noharayh.ui.kit.common.PressFrontColumn
 import com.otokit.noharayh.ui.kit.common.toggle.GroupedSwitchRow
 import com.otokit.noharayh.ui.kit.common.dialog.ConfirmationDialog
-import com.otokit.noharayh.ui.constants.dimensions.GroupedSwitchDimensions
+import com.otokit.noharayh.ui.constants.dimensions.SettingsGroupDimensions
 import com.otokit.noharayh.ui.shell.background.BackgroundRenderingOptions
 import com.otokit.noharayh.ui.kit.settings.SettingsPageViews.card
 import com.otokit.noharayh.ui.kit.settings.SettingsPageViews.choice
-import com.otokit.noharayh.ui.kit.settings.SettingsPageViews.dp
-import com.otokit.noharayh.ui.kit.settings.SettingsPageViews.text
+import com.otokit.noharayh.ui.kit.common.ViewPrimitives.dp
+import com.otokit.noharayh.ui.kit.common.ViewPrimitives.text
 
 
 @android.annotation.SuppressLint("ViewConstructor")
@@ -94,7 +94,7 @@ internal class AppSettingsPage(
         val switches = SettingsGroup(context).apply {
             addView(hardwareSwitch, LinearLayout.LayoutParams(-1, -2))
             addView(animationSwitch, LinearLayout.LayoutParams(-1, -2).apply {
-                topMargin = dp(context, GroupedSwitchDimensions.GAP_DP)
+                topMargin = dp(context, SettingsGroupDimensions.GAP_DP)
             })
         }
         body.addView(switches, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(context, 12) })

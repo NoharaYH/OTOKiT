@@ -3,6 +3,9 @@ package com.otokit.noharayh.ui.kit.common.toggle
 import com.otokit.noharayh.ui.kit.common.GroupPosition
 import com.otokit.noharayh.ui.kit.common.GroupedSurface
 import com.otokit.noharayh.ui.animation.common.GroupShape
+import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors as Colors
+import com.otokit.noharayh.ui.constants.dimensions.SettingsGroupDimensions
+import com.otokit.noharayh.ui.constants.motion.SettingsGroupMotion
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
@@ -32,15 +35,19 @@ open class GroupedSwitchRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     labelIconRes: Int? = null,
-    labelIconTint: Int = 0xFFE57373.toInt(),
-    labelColor: Int = 0xFF616161.toInt(),
+    labelIconTint: Int = Colors.WARNING,
+    labelColor: Int = Colors.TEXT,
 ) : PressSurface(context), Checkable, GroupedSurface {
-    private val groupShape = GroupShape(this) { top, bottom -> topCornerRadius = top; bottomCornerRadius = bottom }
+    private val groupShape = GroupShape(this,
+        SettingsGroupDimensions.INNER_RADIUS_DP * resources.displayMetrics.density,
+        SettingsGroupDimensions.OUTER_RADIUS_DP * resources.displayMetrics.density,
+        SettingsGroupMotion.SHAPE,
+    ) { top, bottom -> topCornerRadius = top; bottomCornerRadius = bottom }
     private var checkedValue = checked
     private val indicator = SwitchIndicator(context, checked)
 
     init {
-        fillColor = Color.WHITE
+        fillColor = Colors.SURFACE
         outerHaloEnabled = true
         renderGroupEdges(if (groupStart) 1f else 0f, if (groupEnd) 1f else 0f)
         contentDescription = label
@@ -119,14 +126,14 @@ private class SwitchIndicator(context: Context, checked: Boolean) : View(context
         val stroke = Dimensions.TRACK_STROKE_DP * density
         rect.set(stroke / 2, stroke / 2, width - stroke / 2, height - stroke / 2)
         paint.style = Paint.Style.FILL
-        paint.color = ColorUtils.blendARGB(0xFFE0E0E0.toInt(), 0xFF2196F3.toInt(), progress)
+        paint.color = ColorUtils.blendARGB(Colors.SWITCH_OFF_FILL, Colors.SELECTED, progress)
         canvas.drawRoundRect(rect, rect.height() / 2, rect.height() / 2, paint)
         paint.style = Paint.Style.STROKE
         paint.strokeWidth = stroke
-        paint.color = ColorUtils.blendARGB(0xFF797979.toInt(), 0xFF2196F3.toInt(), progress)
+        paint.color = ColorUtils.blendARGB(Colors.SWITCH_OFF_CONTENT, Colors.SELECTED, progress)
         canvas.drawRoundRect(rect, rect.height() / 2, rect.height() / 2, paint)
         paint.style = Paint.Style.FILL
-        paint.color = ColorUtils.blendARGB(0xFF797979.toInt(), Color.WHITE, progress)
+        paint.color = ColorUtils.blendARGB(Colors.SWITCH_OFF_CONTENT, Colors.SURFACE, progress)
         val start = height / 2f
         val end = width - start
         val x = if (layoutDirection == LAYOUT_DIRECTION_RTL) end + (start - end) * progress

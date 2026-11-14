@@ -1,5 +1,7 @@
 package com.otokit.noharayh.ui.kit.settings
 
+import com.otokit.noharayh.ui.kit.common.ViewPrimitives
+import com.otokit.noharayh.ui.kit.common.configureSingleChoiceSemantics
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
@@ -17,10 +19,11 @@ import com.otokit.noharayh.ui.kit.common.PressSurface
 /** 成品操作/单选按钮；只发意图，由 renderSelection 接收确认状态。 */
 @android.annotation.SuppressLint("ViewConstructor") // 纯代码组件，需要显式内容与回调。
 internal class SettingsButton(context: Context, label: String, private val kind: Kind,
-    selected: Boolean = false, external: Boolean = false, onClick: () -> Unit,
+    selected: Boolean = false, trailingIcon: ActionIcon = ActionIcon.Next, onClick: () -> Unit,
 ) : PressSurface(context) {
+    enum class ActionIcon { Next, ExternalLink }
     enum class Kind { Action, Choice }
-    private val labelView = SettingsPageViews.text(context, label, Dimensions.TEXT_SP, Colors.TEXT).apply {
+    private val labelView = ViewPrimitives.text(context, label, Dimensions.TEXT_SP, Colors.TEXT).apply {
         gravity = Gravity.CENTER_VERTICAL
         maxLines = 1
         ellipsize = android.text.TextUtils.TruncateAt.END
@@ -28,11 +31,10 @@ internal class SettingsButton(context: Context, label: String, private val kind:
     private val indicator = FrameLayout(context)
     private val transition = SettingsChoiceTransitionRunner()
     private var confirmed = selected
-    private fun dp(value: Int) = SettingsPageViews.dp(context, value)
+    private fun dp(value: Int) = ViewPrimitives.dp(context, value)
 
     init {
         outerHaloEnabled = true
-        deferClickUntilReleaseFeedback = external
         fillColor = Colors.CONTENT
         contentDescription = label
         val row = LinearLayout(context).apply {
@@ -42,7 +44,7 @@ internal class SettingsButton(context: Context, label: String, private val kind:
             addView(labelView, LinearLayout.LayoutParams(0, -1, 1f))
             if (kind == Kind.Choice) addView(indicator, LinearLayout.LayoutParams(dp(Dimensions.ICON_DP), dp(Dimensions.ICON_DP)))
             else addView(ImageView(context).apply {
-                setImageResource(if (external) R.drawable.ic_open_in_new_24 else R.drawable.ic_chevron_right_24)
+                setImageResource(if (trailingIcon == ActionIcon.ExternalLink) R.drawable.ic_open_in_new_24 else R.drawable.ic_chevron_right_24)
                 setColorFilter(Colors.MUTED)
             }, LinearLayout.LayoutParams(dp(Dimensions.ICON_DP), dp(Dimensions.ICON_DP)).apply { marginStart = dp(Dimensions.ICON_GAP_DP) })
         }

@@ -2,6 +2,7 @@ package com.otokit.noharayh.ui.constants.motion
 
 /** 主题选择的固定节奏和运动参数，不持有执行对象。 */
 internal object ThemeSelectionMotion {
+    val CARD_TRANSITION = TransitionTiming(300L, MotionCurve.FastOutSlowIn)
     const val PANEL_DURATION_MS = 420L
     const val PANEL_EXTENSION_END = 0.65f
     const val PANEL_MENU_START = 0.6f

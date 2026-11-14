@@ -11,7 +11,7 @@ import android.provider.Settings
 import android.view.HapticFeedbackConstants
 import android.view.View
 import com.otokit.noharayh.ui.constants.motion.ColorPickerMotion as Motion
-import com.otokit.noharayh.ui.constants.motion.PressSurfaceSpec
+import com.otokit.noharayh.ui.constants.motion.PressHapticSpec
 
 /** 滑动用低能量短齿感；按下、松手仍与项目按钮一致，互相留出播放间隔。 */
 internal class SliderHaptics(private val view: View) {
@@ -45,7 +45,7 @@ internal class SliderHaptics(private val view: View) {
 
     fun tick() {
         val now = SystemClock.uptimeMillis()
-        if (!canPlay() || now - pressedAt < PressSurfaceSpec.MIN_HAPTIC_GAP_MS) return
+        if (!canPlay() || now - pressedAt < PressHapticSpec.MIN_HAPTIC_GAP_MS) return
         val effect = tickEffect ?: return
         val motor = vibrator ?: return
         if (Build.VERSION.SDK_INT >= 33) {
@@ -59,7 +59,7 @@ internal class SliderHaptics(private val view: View) {
 
     fun release() {
         view.removeCallbacks(releaseFeedback)
-        val readyAt = maxOf(pressedAt + PressSurfaceSpec.MIN_HAPTIC_GAP_MS,
+        val readyAt = maxOf(pressedAt + PressHapticSpec.MIN_HAPTIC_GAP_MS,
             lastTickAt + Motion.DRAG_TICK_INTERVAL_MS)
         view.postDelayed(releaseFeedback, (readyAt - SystemClock.uptimeMillis()).coerceAtLeast(0L))
     }

@@ -6,9 +6,6 @@ internal object GroupedSwitchDimensions {
     const val WARNING_ICON_DP = 18f
     const val WARNING_GAP_DP = 6f
     const val TEXT_INSET_DP = 20
-    const val GAP_DP = SettingsGroupDimensions.GAP_DP
-    const val OUTER_RADIUS_DP = SettingsGroupDimensions.OUTER_RADIUS_DP
-    val INNER_RADIUS_DP = SettingsGroupDimensions.INNER_RADIUS_DP.toFloat()
     const val TRACK_WIDTH_DP = 52f
     const val TRACK_HEIGHT_DP = 32f
     const val TRACK_STROKE_DP = 2f

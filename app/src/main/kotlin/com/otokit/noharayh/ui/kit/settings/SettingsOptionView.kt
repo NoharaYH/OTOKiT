@@ -1,6 +1,7 @@
 package com.otokit.noharayh.ui.kit.settings
 
 import com.otokit.noharayh.ui.constants.dimensions.SettingsMenuDimensions as Dimensions
+import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors as Colors
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
@@ -23,6 +24,7 @@ class SettingsOptionView(context: Context, title: CharSequence, icon: Int, priva
     private val label = TextView(context)
 
     init {
+        baseRadius = Dimensions.RADIUS_DP * resources.displayMetrics.density
         outerHaloEnabled = true
         contentDescription = title
         val row = LinearLayout(context).apply {
@@ -52,10 +54,10 @@ class SettingsOptionView(context: Context, title: CharSequence, icon: Int, priva
 
     fun setSelectionProgress(value: Float) {
         val p = value.coerceIn(0f, 1f)
-        fillColor = ColorUtils.blendARGB(Color.WHITE, accent, p)
-        badge.setColor(ColorUtils.blendARGB(accent, Color.WHITE, p))
-        image.setColorFilter(ColorUtils.blendARGB(Color.WHITE, accent, p))
-        label.setTextColor(ColorUtils.blendARGB(accent, Color.WHITE, p))
+        fillColor = ColorUtils.blendARGB(Colors.SURFACE, accent, p)
+        badge.setColor(ColorUtils.blendARGB(accent, Colors.SURFACE, p))
+        image.setColorFilter(ColorUtils.blendARGB(Colors.SURFACE, accent, p))
+        label.setTextColor(ColorUtils.blendARGB(accent, Colors.SURFACE, p))
     }
     private fun dp(value: Int) = (value * resources.displayMetrics.density + 0.5f).toInt()
 }

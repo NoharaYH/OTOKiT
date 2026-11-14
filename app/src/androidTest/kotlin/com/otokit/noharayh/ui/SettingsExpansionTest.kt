@@ -13,7 +13,7 @@ import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.kit.settings.ExpandableContent
 import com.otokit.noharayh.ui.kit.settings.ExpandableSettingsRow
 import com.otokit.noharayh.ui.kit.settings.SettingsCard
-import com.otokit.noharayh.ui.kit.settings.ThemeSettingsContent
+import com.otokit.noharayh.ui.settings.components.ThemeSettingsContent
 import com.otokit.noharayh.ui.shell.selection.GameSelectionState
 import com.otokit.noharayh.ui.theme.GameLine
 import com.otokit.noharayh.ui.theme.ThemeOptions

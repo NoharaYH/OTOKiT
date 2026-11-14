@@ -5,7 +5,7 @@ internal object ColorPickerDimensions {
     const val CHANNEL_HEIGHT_DP = 52
     const val MODEL_HEIGHT_DP = 28
     const val MODEL_GAP_DP = 4
-    const val INSET_DP = SettingsCardDimensions.CONTENT_INSET_DP
+    const val INSET_DP = 12
     const val PANEL_HEIGHT_DP = PALETTE_HEIGHT_DP + CHANNEL_HEIGHT_DP * 3 + MODEL_GAP_DP + MODEL_HEIGHT_DP + INSET_DP
     const val THUMB_WIDTH_DP = 4
     const val THUMB_HEIGHT_DP = 44

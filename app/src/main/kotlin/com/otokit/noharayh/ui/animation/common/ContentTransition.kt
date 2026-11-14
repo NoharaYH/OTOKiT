@@ -3,10 +3,10 @@ package com.otokit.noharayh.ui.animation.common
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
-import com.otokit.noharayh.ui.constants.motion.ContainerMotion
+import com.otokit.noharayh.ui.constants.motion.TransitionTiming
 
 /** 通用状态插值：调用方提供数据与插值，不接触业务、View 或布局。 */
-internal class ContentTransition<T>(initial: T, private val interpolate: (T, T, Float) -> T,
+internal class ContentTransition<T>(initial: T, private val timing: TransitionTiming, private val interpolate: (T, T, Float) -> T,
     private val onFrame: (T) -> Unit,
 ) {
     var frame: T = initial
@@ -23,8 +23,8 @@ internal class ContentTransition<T>(initial: T, private val interpolate: (T, T, 
         isRunning = true
         emit(from)
         val next = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = ContainerMotion.DURATION_MS
-            interpolator = MotionInterpolators.of(ContainerMotion.CURVE)
+            duration = timing.durationMs
+            interpolator = MotionInterpolators.of(timing.curve)
             addUpdateListener { emit(interpolate(from, to, it.animatedValue as Float)) }
             addListener(object : AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: Animator) {

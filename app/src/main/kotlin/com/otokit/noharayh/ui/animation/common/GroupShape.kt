@@ -1,12 +1,14 @@
 package com.otokit.noharayh.ui.animation.common
 
 import android.view.View
-import com.otokit.noharayh.ui.constants.dimensions.SettingsGroupDimensions
+import com.otokit.noharayh.ui.constants.motion.TransitionTiming
 
-/** 上下边的外圆角比例，执行器不依赖分组容器或业务组件。 */
-internal class GroupShape(private val host: View, private val onCorners: (Float, Float) -> Unit) {
+/** 插值上下边圆角；半径为 px，尺寸与时序由消费组件注入。 */
+internal class GroupShape(private val host: View, private val innerRadius: Float, private val outerRadius: Float,
+    timing: TransitionTiming, private val onCorners: (Float, Float) -> Unit,
+) {
     private var target = 1f to 1f
-    private val transition = ContentTransition(target, { a, b, t ->
+    private val transition = ContentTransition(target, timing, { a, b, t ->
         (a.first + (b.first - a.first) * t) to (a.second + (b.second - a.second) * t)
     }, ::render)
 
@@ -18,9 +20,7 @@ internal class GroupShape(private val host: View, private val onCorners: (Float,
     }
     fun finish() = transition.finish()
     private fun render(edges: Pair<Float, Float>) {
-        val density = host.resources.displayMetrics.density
-        val inner = SettingsGroupDimensions.INNER_RADIUS_DP * density
-        val delta = (SettingsGroupDimensions.OUTER_RADIUS_DP - SettingsGroupDimensions.INNER_RADIUS_DP) * density
-        onCorners(inner + delta * edges.first, inner + delta * edges.second)
+        val delta = outerRadius - innerRadius
+        onCorners(innerRadius + delta * edges.first, innerRadius + delta * edges.second)
     }
 }

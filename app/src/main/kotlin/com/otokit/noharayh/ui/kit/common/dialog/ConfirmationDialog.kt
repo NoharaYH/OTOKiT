@@ -14,7 +14,6 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import com.otokit.noharayh.ui.constants.dimensions.ConfirmationDialogDimensions as Dimensions
-import com.otokit.noharayh.ui.constants.dimensions.SettingsCardDimensions
 import com.otokit.noharayh.ui.kit.common.AppTypography
 import com.otokit.noharayh.ui.kit.common.PressFrontColumn
 import com.otokit.noharayh.ui.kit.common.PressSurface
@@ -42,7 +41,7 @@ internal class ConfirmationDialog(
             setPadding(inset, inset, inset, inset)
             background = GradientDrawable().apply {
                 setColor(Color.WHITE)
-                cornerRadius = dp(SettingsCardDimensions.CORNER_DP).toFloat()
+                cornerRadius = dp(Dimensions.CORNER_DP).toFloat()
             }
         }
         body.addView(ImageView(context).apply {
@@ -89,7 +88,7 @@ internal class ConfirmationDialog(
         outerHaloEnabled = true
         deferClickUntilReleaseFeedback = true
         fillColor = 0xFFF5F5F5.toInt()
-        baseRadius = dp(SettingsCardDimensions.CONTENT_CORNER_DP).toFloat()
+        baseRadius = dp(Dimensions.BUTTON_RADIUS_DP).toFloat()
         contentDescription = label
         addView(TextView(context).apply {
             text = label
@@ -99,7 +98,7 @@ internal class ConfirmationDialog(
             includeFontPadding = false
             AppTypography.applyAppTypeface(this, bold = true)
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-        }, FrameLayout.LayoutParams(-1, dp(SettingsCardDimensions.CONTENT_ROW_HEIGHT_DP)))
+        }, FrameLayout.LayoutParams(-1, dp(Dimensions.BUTTON_HEIGHT_DP)))
         setOnClickListener { onClick() }
     }
 

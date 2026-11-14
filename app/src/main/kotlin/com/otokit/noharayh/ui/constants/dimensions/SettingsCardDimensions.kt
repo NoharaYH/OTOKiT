@@ -1,17 +1,11 @@
 package com.otokit.noharayh.ui.constants.dimensions
 
-/** 内框与外卡片共用边距和圆心；内圆角随外圆角和内距派生。 */
+/** 复合容器自身的标题与内容布局；分组圆角由 SettingsGroupDimensions 管理。 */
 internal object SettingsCardDimensions {
     const val HEADER_HEIGHT_DP = 28
     const val ICON_DP = 22
     const val HEADER_GAP_DP = 8
     const val TITLE_SP = 16f
     const val TITLE_LETTER_SPACING = 0.07f
-    const val CORNER_DP = SettingsGroupDimensions.OUTER_RADIUS_DP
     const val CONTENT_INSET_DP = 12
-    const val CONTENT_CORNER_DP = CORNER_DP - CONTENT_INSET_DP
-    const val CONTENT_ROW_HEIGHT_DP = 40
-
-    /** 选中项使用完全圆角，按行高取半圆。 */
-    const val CONTENT_SELECTED_CORNER_DP = CONTENT_ROW_HEIGHT_DP / 2
 }

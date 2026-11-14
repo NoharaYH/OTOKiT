@@ -29,7 +29,7 @@ internal class ExpandableContent(context: Context) : FrameLayout(context) {
     private var inputAllowed = true
     private var touchActive = false
     private var expanded = true
-    private val transition = ContentTransition(1f, { a, b, t -> a + (b - a) * t }, ::render)
+    private val transition = ContentTransition(1f, ContainerMotion.CONTENT, { a, b, t -> a + (b - a) * t }, ::render)
     private var pendingContent: View? = null
     private var replacing = false
 

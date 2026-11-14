@@ -1,5 +1,6 @@
 package com.otokit.noharayh.ui.settings.subPages
 
+import com.otokit.noharayh.ui.kit.settings.SettingsButton.ActionIcon
 import android.content.Context
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -21,9 +22,9 @@ internal object AboutSettingsPage {
         body.addView(card(context, R.drawable.ic_update_24, R.string.about_card_update,
             action(context, context.getString(R.string.about_check_update)) { openLink("https://github.com/NoharaYH/OTOKiT/releases") }), gap(context))
         body.addView(card(context, R.drawable.ic_code_24, R.string.about_card_repo,
-            action(context, context.getString(R.string.about_repo_url), external = true) { openLink("https://github.com/NoharaYH/OTOKiT") }), gap(context))
+            action(context, context.getString(R.string.about_repo_url), icon = ActionIcon.ExternalLink, deferClick = true) { openLink("https://github.com/NoharaYH/OTOKiT") }), gap(context))
         body.addView(card(context, R.drawable.ic_feedback_24, R.string.about_card_feedback,
-            action(context, context.getString(R.string.about_feedback_subtitle), external = true) { openLink("https://github.com/NoharaYH/OTOKiT/issues") }), gap(context))
+            action(context, context.getString(R.string.about_feedback_subtitle), icon = ActionIcon.ExternalLink, deferClick = true) { openLink("https://github.com/NoharaYH/OTOKiT/issues") }), gap(context))
 
         return ScrollView(context).apply {
             isFillViewport = true

@@ -1,5 +1,7 @@
 package com.otokit.noharayh.ui.kit.common
 
+import com.otokit.noharayh.ui.constants.dimensions.PressSurfaceDimensions
+import com.otokit.noharayh.ui.constants.colors.PressSurfaceColors
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
@@ -14,9 +16,10 @@ import android.view.View
 import android.view.animation.AnimationUtils
 import android.widget.Button
 import android.widget.FrameLayout
-import com.otokit.noharayh.ui.animation.common.PressHaptics
 import com.otokit.noharayh.ui.animation.common.PressHalo
-import com.otokit.noharayh.ui.constants.motion.PressSurfaceSpec
+import com.otokit.noharayh.ui.constants.motion.PressDeformationSpec
+import com.otokit.noharayh.ui.constants.motion.PressOverlaySpec
+import com.otokit.noharayh.ui.constants.motion.TouchIndicatorSpec
 import com.otokit.noharayh.ui.animation.common.TouchIndicator
 import com.otokit.noharayh.ui.animation.common.PressProgress
 import com.otokit.noharayh.ui.animation.common.PressGeometry
@@ -55,14 +58,14 @@ open class PressSurface @JvmOverloads constructor(
 
     private val dp = resources.displayMetrics.density
 
-    var fillColor: Int = 0xFF6750A4.toInt()
+    var fillColor: Int = PressSurfaceColors.FILL
         set(value) {
             field = value
             fillPaint.color = value
             invalidate()
         }
     /** 静止圆角半径（px），绘制时按当前可用尺寸约束。 */
-    var baseRadius = 16f * dp
+    var baseRadius = PressSurfaceDimensions.RADIUS_DP * dp
         set(value) { if (field != value) { field = value; invalidate() } }
     /** 上下圆角半径（px）；为空时沿用 baseRadius。 */
     var topCornerRadius: Float? = null
@@ -70,7 +73,7 @@ open class PressSurface @JvmOverloads constructor(
     var bottomCornerRadius: Float? = null
         set(value) { if (field != value) { field = value; invalidate() } }
     /** 每边按压内收量（px）。 */
-    var pressInset = PressSurfaceSpec.INSET_DP * dp
+    var pressInset = PressDeformationSpec.INSET_DP * dp
         set(value) { if (field != value) { field = value; invalidate() } }
     /** 可生长容器的底端形状由展开进度约束；外环仍使用头行的按压几何。 */
     var bottomCornerPressFraction = 1f
@@ -79,12 +82,12 @@ open class PressSurface @JvmOverloads constructor(
     var innerRippleEnabled = true
         set(value) { if (field != value) { field = value; invalidate() } }
     /** 白色反馈层的峰值不透明度（0..1）。 */
-    var whiteMaxAlpha = PressSurfaceSpec.WHITE_ALPHA
+    var whiteMaxAlpha = PressOverlaySpec.WHITE_ALPHA
         set(value) { if (field != value) { field = value; invalidate() } }
     /** 涟漪跟随时间常数（ms），应大于零。 */
-    var followTauMs = PressSurfaceSpec.FOLLOW_TAU_MS
+    var followTauMs = TouchIndicatorSpec.FOLLOW_TAU_MS
         set(value) { if (field != value) { field = value; invalidate() } }
-    var maxRipples = PressSurfaceSpec.MAX_RIPPLES
+    var maxRipples = TouchIndicatorSpec.MAX_RIPPLES
 
     /** 离开窗口的动作可等待释放反馈；不含外链或页面等业务语义。 */
     var deferClickUntilReleaseFeedback = false
@@ -126,14 +129,14 @@ open class PressSurface @JvmOverloads constructor(
      * 120dp ≈ 19mm，略大于指腹遮挡宽度；与按钮宽度无关，
      * 由按钮圆角裁切，因此按钮本身要足够大才能完整容纳。
      */
-    var rippleMaxDiameter = PressSurfaceSpec.MAX_DIAMETER_DP * dp
+    var rippleMaxDiameter = TouchIndicatorSpec.MAX_DIAMETER_DP * dp
 
     /** 回落后保持的直径（106dp ≈ 16.8mm），约为峰值的 88%。 */
-    var rippleRestDiameter = PressSurfaceSpec.REST_DIAMETER_DP * dp
+    var rippleRestDiameter = TouchIndicatorSpec.REST_DIAMETER_DP * dp
         set(value) { if (field != value) { field = value; invalidate() } }
 
     /** 扩张到最大直径后回落到静止直径的时间；点按要快，不能等。 */
-    var rippleExpandMs = PressSurfaceSpec.EXPAND_DURATION_MS
+    var rippleExpandMs = TouchIndicatorSpec.EXPAND_DURATION_MS
 
     private val rippleMaxScale: Float
         get() = rippleMaxDiameter / rippleRestDiameter.coerceAtLeast(1f)
@@ -144,7 +147,7 @@ open class PressSurface @JvmOverloads constructor(
         xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP)
     }
     private val ripplePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.argb(PressSurfaceSpec.BLACK_ALPHA, 0, 0, 0)
+        color = Color.argb(TouchIndicatorSpec.BLACK_ALPHA, 0, 0, 0)
         xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP)
     }
     private val shapeRect = RectF()
@@ -158,7 +161,7 @@ open class PressSurface @JvmOverloads constructor(
     private var lastFrame = 0L
     private var activePointerId = MotionEvent.INVALID_POINTER_ID
 
-    private val haptics = PressHaptics(this)
+    private val interaction = PressInteraction(this)
 
     init {
         setWillNotDraw(false)
@@ -185,10 +188,10 @@ open class PressSurface @JvmOverloads constructor(
     /** 白底可随内容生长，按压圆角与外环的高度仍可固定为原始头行。 */
     protected open val pressFeedbackHeight: Float get() = height.toFloat()
 
-    @android.annotation.SuppressLint("ClickableViewAccessibility") // PressHaptics.click 统一调用本 View 的 performClick。
+    @android.annotation.SuppressLint("ClickableViewAccessibility") // PressInteraction.click 统一调用本 View 的 performClick。
     override fun onTouchEvent(event: MotionEvent): Boolean {
         // 一次已接受的点击正在完成反馈，不让第二次按下覆盖或重复派发它。
-        if (haptics.deferredClick) {
+        if (interaction.deferredClick) {
             return true
         }
         if (!isEnabled || !isClickable) {
@@ -212,7 +215,7 @@ open class PressSurface @JvmOverloads constructor(
                 onPressStateChanged(true)
                 press.animateTo(1f)
                 ripple.start()
-                haptics.press()
+                interaction.press()
                 invalidate()
             }
             MotionEvent.ACTION_MOVE -> {
@@ -240,7 +243,7 @@ open class PressSurface @JvmOverloads constructor(
                 val clicked = ripple != null && inside(event.x, event.y)
                 release()
                 if (clicked) {
-                    haptics.click(deferClickUntilReleaseFeedback, releaseHapticEnabled)
+                    interaction.click(deferClickUntilReleaseFeedback, releaseHapticEnabled)
                 }
             }
             MotionEvent.ACTION_CANCEL -> release()
@@ -315,7 +318,7 @@ open class PressSurface @JvmOverloads constructor(
     }
 
     override fun onDetachedFromWindow() {
-        haptics.cancelDeferredClick()
+        interaction.cancelDeferredClick()
         halo?.reset()
         press.reset()
         ripples.forEach { it.cancel() }
@@ -329,6 +332,6 @@ open class PressSurface @JvmOverloads constructor(
 
     override fun onWindowFocusChanged(hasWindowFocus: Boolean) {
         super.onWindowFocusChanged(hasWindowFocus)
-        if (!hasWindowFocus && haptics.deferredClick) haptics.cancelDeferredClick()
+        if (!hasWindowFocus && interaction.deferredClick) interaction.cancelDeferredClick()
     }
 }
