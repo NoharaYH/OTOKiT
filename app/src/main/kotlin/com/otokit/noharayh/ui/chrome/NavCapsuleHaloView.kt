@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.RectF
 import android.view.HapticFeedbackConstants
 import android.view.View
@@ -12,7 +13,6 @@ import androidx.dynamicanimation.animation.FloatValueHolder
 import androidx.dynamicanimation.animation.SpringAnimation
 import androidx.dynamicanimation.animation.SpringForce
 import com.otokit.noharayh.ui.kit.common.NavCapsuleView
-import kotlin.math.max
 
 /**
  * 抽屉胶囊的黑色外环与内收驱动。
@@ -27,6 +27,7 @@ internal class NavCapsuleHaloView(context: Context) : View(context) {
         color = Color.argb(NavCapsulePressSpec.HALO_ALPHA, 0, 0, 0)
     }
     private val rect = RectF()
+    private val path = Path()
     private val ownLocation = IntArray(2)
     private val targetLocation = IntArray(2)
 
@@ -161,7 +162,7 @@ internal class NavCapsuleHaloView(context: Context) : View(context) {
         val outset = restOutset * expansion.value
 
         rect.set(left - outset, top - outset, left + host.width + outset, top + host.height + outset)
-        val radius = max(rect.height() / 2f, 0f)
-        canvas.drawRoundRect(rect, radius, radius, black)
+        host.setSurfacePath(path, rect)
+        canvas.drawPath(path, black)
     }
 }

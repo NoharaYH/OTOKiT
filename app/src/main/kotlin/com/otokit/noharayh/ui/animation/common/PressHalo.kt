@@ -28,7 +28,6 @@ internal class PressHalo(private val host: View) {
     }
     private val rect = RectF()
     private val path = Path()
-    private val corners = FloatArray(8)
     private val expansion = FloatValueHolder(0f)
     private val spring = SpringAnimation(expansion).apply {
         setSpring(SpringForce(0f))
@@ -78,10 +77,7 @@ internal class PressHalo(private val host: View) {
             width - inset + outset,
             height - inset + outset,
         )
-        corners.fill((cornerRadius + outset).coerceAtMost(rect.height() / 2f), 0, 4)
-        corners.fill((bottomCornerRadius + outset).coerceAtMost(rect.height() / 2f), 4, 8)
-        path.reset()
-        path.addRoundRect(rect, corners, Path.Direction.CW)
+        ContinuousCorners.setPath(path, rect, cornerRadius + outset, bottomCornerRadius + outset)
         canvas.drawPath(path, paint)
     }
 

@@ -3,6 +3,7 @@ package com.otokit.noharayh.ui.kit.settings
 import com.otokit.noharayh.ui.constants.motion.ColorPickerMotion
 
 import com.otokit.noharayh.ui.constants.dimensions.ColorPickerDimensions as Dimensions
+import com.otokit.noharayh.ui.animation.common.ContinuousCorners
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Canvas
@@ -44,7 +45,6 @@ internal class ColorChannelSlider(context: Context) : Slider(ContextThemeWrapper
     private val stopPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val trackPath = Path()
     private val trackRect = RectF()
-    private val trackCorners = FloatArray(8)
     private var paintedThumbColor: Int? = null
 
     init {
@@ -106,13 +106,7 @@ internal class ColorChannelSlider(context: Context) : Slider(ContextThemeWrapper
         if (right <= left) return
         val half = trackHeight / 2f
         trackRect.set(left, height / 2f - half, right, height / 2f + half)
-        val limit = (right - left) / 2f
-        trackCorners[0] = leftRadius.coerceAtMost(limit); trackCorners[1] = leftRadius
-        trackCorners[2] = rightRadius.coerceAtMost(limit); trackCorners[3] = rightRadius
-        trackCorners[4] = rightRadius.coerceAtMost(limit); trackCorners[5] = rightRadius
-        trackCorners[6] = leftRadius.coerceAtMost(limit); trackCorners[7] = leftRadius
-        trackPath.reset()
-        trackPath.addRoundRect(trackRect, trackCorners, Path.Direction.CW)
+        ContinuousCorners.setCorners(trackPath, trackRect, leftRadius, rightRadius, rightRadius, leftRadius)
         canvas.drawPath(trackPath, paint)
     }
 

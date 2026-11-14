@@ -1,5 +1,6 @@
 package com.otokit.noharayh.ui.kit.common
 
+import com.otokit.noharayh.ui.animation.common.ContinuousCorners
 import com.otokit.noharayh.ui.constants.dimensions.PressSurfaceDimensions
 import com.otokit.noharayh.ui.constants.colors.PressSurfaceColors
 import android.content.Context
@@ -152,7 +153,6 @@ open class PressSurface @JvmOverloads constructor(
     }
     private val shapeRect = RectF()
     private val shapePath = Path()
-    private val shapeCorners = FloatArray(8)
 
     private val press = PressProgress { invalidate() }
 
@@ -298,10 +298,8 @@ open class PressSurface @JvmOverloads constructor(
 
         val layer = canvas.saveLayer(0f, 0f, width.toFloat(), height.toFloat(), null)
         shapeRect.inset(fillInset, fillInset)
-        shapeCorners.fill((top - fillInset).coerceAtLeast(0f), 0, 4)
-        shapeCorners.fill((bottom - fillInset).coerceAtLeast(0f), 4, 8)
-        shapePath.reset()
-        shapePath.addRoundRect(shapeRect, shapeCorners, Path.Direction.CW)
+        ContinuousCorners.setPath(shapePath, shapeRect,
+            (top - fillInset).coerceAtLeast(0f), (bottom - fillInset).coerceAtLeast(0f))
         canvas.drawPath(shapePath, fillPaint)
         whitePaint.alpha = (whiteMaxAlpha * boundedProgress * 255f).roundToInt()
         if (whitePaint.alpha > 0) canvas.drawRect(shapeRect, whitePaint)

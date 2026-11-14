@@ -7,6 +7,7 @@ import android.content.res.Resources
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.drawable.GradientDrawable
 import android.text.TextUtils
@@ -52,6 +53,7 @@ class NavCapsuleView(context: Context) : FrameLayout(context) {
     private val iconCircleDrawable = GradientDrawable().apply { shape = GradientDrawable.OVAL }
     private val pillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
     private val pillRect = RectF()
+    private val pillPath = Path()
     private var pressInsetPx = 0f
     private var pressProgress = 0f
 
@@ -196,7 +198,6 @@ class NavCapsuleView(context: Context) : FrameLayout(context) {
 
     override fun onDraw(canvas: Canvas) {
         val inset = pressInsetPx * pressProgress
-        val radius: Float
         if (circleMode) {
             val diameter = min(width, height).toFloat()
             pillRect.set(
@@ -205,13 +206,25 @@ class NavCapsuleView(context: Context) : FrameLayout(context) {
                 (width + diameter) / 2f - inset,
                 (height + diameter) / 2f - inset,
             )
-            radius = (diameter / 2f - inset).coerceAtLeast(0f)
         } else {
             pillRect.set(inset, inset, width - inset, height - inset)
-            radius = ((height - 2f * inset) / 2f).coerceAtLeast(0f)
         }
-        if (radius > 0f) canvas.drawRoundRect(pillRect, radius, radius, pillPaint)
+        setSurfacePath(pillPath, pillRect)
+        canvas.drawPath(pillPath, pillPaint)
         super.onDraw(canvas)
+    }
+
+    /** 白底和 chrome 外环共用标准胶囊轮廓；设置入口仍是真圆。 */
+    internal fun setSurfacePath(path: Path, bounds: RectF) {
+        if (circleMode) {
+            path.rewind()
+            if (!bounds.isEmpty) path.addOval(bounds, Path.Direction.CW)
+        } else {
+            path.rewind()
+            if (bounds.isEmpty) return
+            val radius = min(bounds.width(), bounds.height()) / 2f
+            path.addRoundRect(bounds, radius, radius, Path.Direction.CW)
+        }
     }
 
     override fun performClick(): Boolean = super.performClick()

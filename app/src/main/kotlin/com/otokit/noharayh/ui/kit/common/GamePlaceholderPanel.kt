@@ -1,5 +1,6 @@
 package com.otokit.noharayh.ui.kit.common
 
+import com.otokit.noharayh.ui.animation.common.ContinuousCorners
 import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
@@ -105,10 +106,13 @@ class GamePlaceholderPanel(
         button.layout(buttonLeft, buttonTop, buttonLeft + buttonWidth, buttonTop + buttonHeight)
     }
 
+    private val panelPath = android.graphics.Path()
+
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         val rect = panelRectFor(width, height)
-        canvas.drawRoundRect(rect, 24f * density, 24f * density, fillPaint)
+        ContinuousCorners.setPath(panelPath, rect, 24f * density)
+        canvas.drawPath(panelPath, fillPaint)
     }
 
     private fun panelRectFor(width: Int, height: Int): RectF {

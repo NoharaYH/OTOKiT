@@ -1,9 +1,9 @@
 package com.otokit.noharayh.ui.kit.settings
 
+import com.otokit.noharayh.ui.kit.common.ContinuousCornerDrawable
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
-import android.graphics.drawable.GradientDrawable
 import android.text.InputFilter
 import android.text.InputType
 import android.view.Gravity
@@ -38,7 +38,7 @@ internal class ColorHexField(context: Context) : AppCompatEditText(context) {
         imeOptions = EditorInfo.IME_ACTION_DONE or EditorInfo.IME_FLAG_NO_EXTRACT_UI
         filters = arrayOf(InputFilter.LengthFilter(7))
         setPadding((4 * density).roundToInt(), 0, (4 * density).roundToInt(), 0)
-        background = GradientDrawable().apply { setColor(0xFFF5F5F5.toInt()); cornerRadius = 4 * density }
+        background = ContinuousCornerDrawable(0xFFF5F5F5.toInt(), 4 * density)
         isCursorVisible = false
         AppTypography.applyAppTypeface(this, bold = true)
         doAfterTextChanged { value ->

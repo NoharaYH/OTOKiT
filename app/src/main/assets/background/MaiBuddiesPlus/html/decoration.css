@@ -13,10 +13,10 @@ img{vertical-align:middle}
 }
 .dec-bg{display:block;position:fixed;top:50%;left:50%;transform:translate3d(-50%,-50%,0);overflow:hidden;pointer-events:none}
 @media screen and (min-width:601px){
-.dec-bg{min-width:1250px;border-radius:24px;width:calc(100% - 40px);height:calc(100% - 40px)}
+.dec-bg{min-width:1250px;border-radius:24px;--continuous-radius:24px;width:calc(100% - 40px);height:calc(100% - 40px)}
 }
 @media screen and (max-width:600px){
-.dec-bg{border-radius:17px;width:calc(100% - 20px);height:calc(100% - 20px)}
+.dec-bg{border-radius:17px;--continuous-radius:17px;width:calc(100% - 20px);height:calc(100% - 20px)}
 }
 .linear-image{background-size:contain;background-repeat:no-repeat;position:absolute;margin-left:-5px;top:var(--linearImageTop);left:var(--linearDegree);filter:hue-rotate(90deg);-webkit-backface-visibility:hidden;backface-visibility:hidden;image-rendering:-webkit-optimize-contrast;scale:.4;animation:lightning 10s var(--linearDelay) infinite both cubic-bezier(.65,0,.35,1)}
 .linear-image.thunder_blue{transform:rotate(-20deg);background-image:url(../status/assets_maiDecorationBg_thunder_blue.webp)}
@@ -132,7 +132,7 @@ ul,li{list-style:none;margin:0;padding:0}
 .pattern-bg{background-position:0 0;animation:otokit-pattern 16.8s steps(21,end) .8s infinite}@keyframes otokit-pattern{from{background-position:5% 0}to{background-position:110% 0}}
 @media(min-width:601px){[data-layout="sp"]{display:none}}@media(max-width:600px){[data-layout="pc"]{display:none}}
 /* User requested the same frame radius as CiRCLE+. */
-.dec-bg{border-radius:40px}
+.dec-bg{border-radius:40px;--continuous-radius:40px}
 
 /* Center the character bodies (551,336 in the 830x695 artwork), excluding the left prop. */
 .otokit-hero{width:min(664px,60.48vw);height:64.26vh}

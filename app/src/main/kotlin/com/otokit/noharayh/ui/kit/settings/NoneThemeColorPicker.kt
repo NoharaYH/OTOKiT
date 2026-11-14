@@ -1,8 +1,8 @@
 package com.otokit.noharayh.ui.kit.settings
 
+import com.otokit.noharayh.ui.kit.common.ContinuousCornerDrawable
 import com.otokit.noharayh.ui.constants.dimensions.ColorPickerDimensions as Dimensions
 import android.content.Context
-import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.widget.FrameLayout
 import android.widget.LinearLayout
@@ -117,7 +117,7 @@ internal class NoneThemeColorPicker(context: Context, private val onColor: (None
             }
             val number = text(14f).apply { alpha = 0f }
             val numberBox = FrameLayout(context).apply {
-                background = GradientDrawable().apply { setColor(0xFFF5F5F5.toInt()); cornerRadius = dp(4).toFloat() }
+                background = ContinuousCornerDrawable(0xFFF5F5F5.toInt(), dp(4).toFloat())
                 addView(number, FrameLayout.LayoutParams(-1, -1))
             }
             channelLabels += label

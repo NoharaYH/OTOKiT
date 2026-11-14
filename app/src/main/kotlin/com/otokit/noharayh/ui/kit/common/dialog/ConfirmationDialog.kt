@@ -1,10 +1,10 @@
 package com.otokit.noharayh.ui.kit.common.dialog
 
+import com.otokit.noharayh.ui.kit.common.ContinuousCornerDrawable
 import android.app.Dialog
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
-import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
 import android.view.Window
@@ -39,10 +39,7 @@ internal class ConfirmationDialog(
             clipToPadding = false
             val inset = dp(Dimensions.CONTENT_INSET_DP)
             setPadding(inset, inset, inset, inset)
-            background = GradientDrawable().apply {
-                setColor(Color.WHITE)
-                cornerRadius = dp(Dimensions.CORNER_DP).toFloat()
-            }
+            background = ContinuousCornerDrawable(Color.WHITE, dp(Dimensions.CORNER_DP).toFloat())
         }
         body.addView(ImageView(context).apply {
             setImageResource(iconRes)

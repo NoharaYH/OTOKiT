@@ -1,5 +1,6 @@
 package com.otokit.noharayh.ui.kit.settings
 
+import com.otokit.noharayh.ui.animation.common.ContinuousCorners
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
@@ -31,10 +32,8 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
     }
     private val outline = RectF()
     private val outlinePath = Path()
-    private val arc = RectF()
     private val panelFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
     private val panelFillPath = Path()
-    private val panelCorners = FloatArray(8)
     private var outlineBottomRadius = 0f
     private var outlineMaximumBottomRadius = 0f
     override val surfaceFillInset: Float
@@ -167,10 +166,12 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
     }
 
     /** 与描边共用断口；下端以最大圆角的切点为界，不随最后一项的压缩状态漂移。 */
+    private fun topCornerLimit() = minOf(outline.width(), height - outline.top * 2f).coerceAtLeast(0f) / 2f
+
     private fun sideGap(radius: Float): Pair<Float, Float> {
         val haloBottom = height + (PressHaloSpec.PEAK_OUTSET_DP + Dimensions.FIELD_STROKE_DP) * resources.displayMetrics.density
-        return themePanelSideGap(outline.top + radius, outline.bottom,
-            outlineMaximumBottomRadius, haloBottom, panelGap,
+        return themePanelSideGap(outline.top + ContinuousCorners.extent(radius, topCornerLimit()), outline.bottom,
+            ContinuousCorners.extent(outlineMaximumBottomRadius, minOf(outline.width(), outline.height()) / 2f), haloBottom, panelGap,
             (Dimensions.FIELD_HEIGHT_DP + Dimensions.SCROLLBAR_END_GAP_DP * 2f) * resources.displayMetrics.density)
     }
 
@@ -179,10 +180,7 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
     override fun drawUnderlay(canvas: Canvas, cornerRadius: Float, inset: Float) {
         if (panelHeight <= 0f) return
         val radius = updateOutlineGeometry(cornerRadius, inset)
-        panelCorners.fill(radius, 0, 4)
-        panelCorners.fill(outlineBottomRadius, 4, 8)
-        panelFillPath.rewind()
-        panelFillPath.addRoundRect(outline, panelCorners, Path.Direction.CW)
+        ContinuousCorners.setPath(panelFillPath, outline, radius, outlineBottomRadius, topCornerLimit())
         // 位于外环之上、标题内部涟漪之下；白底随描边延展，盖住原胶囊的下半圈。
         canvas.drawPath(panelFillPath, panelFill)
     }
@@ -190,29 +188,29 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
     override fun drawOutline(canvas: Canvas, cornerRadius: Float, inset: Float) {
         val radius = updateOutlineGeometry(cornerRadius, inset)
         val bottomRadius = outlineBottomRadius
-        val gapStart = (labelView.left - dp(Dimensions.LABEL_GAP_DP)).toFloat().coerceIn(outline.left + radius, outline.right - radius)
-        val gapEnd = (labelView.right + labelView.translationX + dp(Dimensions.LABEL_GAP_DP)).coerceIn(gapStart, outline.right - radius)
+        val limit = minOf(outline.width(), outline.height()) / 2f
+        val topLimit = topCornerLimit()
+        val topExtent = ContinuousCorners.extent(radius, topLimit)
+        val bottomExtent = ContinuousCorners.extent(bottomRadius, limit)
+        val gapStart = (labelView.left - dp(Dimensions.LABEL_GAP_DP)).toFloat().coerceIn(outline.left + topExtent, outline.right - topExtent)
+        val gapEnd = (labelView.right + labelView.translationX + dp(Dimensions.LABEL_GAP_DP)).coerceIn(gapStart, outline.right - topExtent)
         labelView.translationY = outline.top - labelView.height / 2f
         prefixView.translationY = outline.top - prefixView.height / 2f
         // 描边在标签两侧主动断开，圆形笔帽收尾；文字不再用白色矩形覆盖描边。
         outlinePath.rewind()
         outlinePath.moveTo(gapEnd, outline.top)
-        outlinePath.lineTo(outline.right - radius, outline.top)
-        arc.set(outline.right - radius * 2, outline.top, outline.right, outline.top + radius * 2)
-        outlinePath.arcTo(arc, -90f, 90f)
+        outlinePath.lineTo(outline.right - topExtent, outline.top)
+        ContinuousCorners.corner(outlinePath, outline.right, outline.top, radius, topLimit, 0)
         // 上段越过标题外环的峰值范围，断口不与黑圈下缘相交。
         val (upperEnd, lowerStart) = sideGap(radius)
         outlinePath.lineTo(outline.right, upperEnd)
         if (lowerStart > upperEnd) outlinePath.moveTo(outline.right, lowerStart)
-        outlinePath.lineTo(outline.right, outline.bottom - bottomRadius)
-        arc.set(outline.right - bottomRadius * 2, outline.bottom - bottomRadius * 2, outline.right, outline.bottom)
-        outlinePath.arcTo(arc, 0f, 90f)
-        outlinePath.lineTo(outline.left + bottomRadius, outline.bottom)
-        arc.set(outline.left, outline.bottom - bottomRadius * 2, outline.left + bottomRadius * 2, outline.bottom)
-        outlinePath.arcTo(arc, 90f, 90f)
-        outlinePath.lineTo(outline.left, outline.top + radius)
-        arc.set(outline.left, outline.top, outline.left + radius * 2, outline.top + radius * 2)
-        outlinePath.arcTo(arc, 180f, 90f)
+        outlinePath.lineTo(outline.right, outline.bottom - bottomExtent)
+        ContinuousCorners.corner(outlinePath, outline.right, outline.bottom, bottomRadius, limit, 1)
+        outlinePath.lineTo(outline.left + bottomExtent, outline.bottom)
+        ContinuousCorners.corner(outlinePath, outline.left, outline.bottom, bottomRadius, limit, 2)
+        outlinePath.lineTo(outline.left, outline.top + topExtent)
+        ContinuousCorners.corner(outlinePath, outline.left, outline.top, radius, topLimit, 3)
         outlinePath.lineTo(gapStart, outline.top)
         canvas.drawPath(outlinePath, stroke)
     }
