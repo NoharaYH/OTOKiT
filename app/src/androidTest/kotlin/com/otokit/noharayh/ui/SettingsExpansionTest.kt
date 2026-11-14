@@ -1,9 +1,13 @@
 package com.otokit.noharayh.ui
 
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.os.SystemClock
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.accessibility.AccessibilityNodeInfo
+import android.widget.Button
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.kit.settings.ExpandableContent
@@ -131,7 +135,118 @@ class SettingsExpansionTest : UiComponentTestHost() {
         main {
             card.setContent(firstReplacement)
             assertNull(finalBody.parent) // 卸下的内容必须释放父关系，允许调用方再次复用。
+            assertEquals(1f, firstReplacement.alpha, 0f)
+            assertEquals(0f, firstReplacement.translationY, 0f)
         }
+    }
+
+    @Test fun removingCollapsedContentRestoresItsOriginalPresentation() {
+        main {
+            val body = View(activity).apply { alpha = 0.7f; translationY = 9f }
+            val slot = ExpandableContent(activity)
+            slot.setContent(body)
+            assertEquals(0.7f, body.alpha, 0f)
+            assertEquals(9f, body.translationY, 0f)
+            slot.setExpanded(false, false)
+            assertEquals(0f, body.alpha, 0f)
+            slot.setContent(null)
+            assertNull(body.parent)
+            assertEquals(0.7f, body.alpha, 0f)
+            assertEquals(9f, body.translationY, 0f)
+        }
+    }
+
+    @Test fun disabledAndCollapsedContentBlocksKeyboardAndAccessibilityThenRecovers() {
+        lateinit var slot: ExpandableContent
+        lateinit var button: Button
+        var clicks = 0
+        main {
+            button = Button(activity).apply {
+                text = "Content gate regression"
+                isAllCaps = false
+                isFocusableInTouchMode = true
+                setOnClickListener { clicks++ }
+            }
+            slot = ExpandableContent(activity).apply { setContent(button) }
+        }
+        mount(slot, 600, -2)
+        val automation = instrumentation.uiAutomation
+        // UiAutomation 可请求隐藏节点；这里按普通无障碍服务的可见树验收。
+        val originalFlags = automation.serviceInfo.flags
+        automation.serviceInfo = automation.serviceInfo.apply {
+            flags = flags and AccessibilityServiceInfo.FLAG_INCLUDE_NOT_IMPORTANT_VIEWS.inv()
+        }
+        // 文本搜索会遍历 View 树；从 child 链路验证服务实际可导航的无障碍树。
+        fun containsTarget(node: AccessibilityNodeInfo): Boolean =
+            node.text?.toString() == "Content gate regression" ||
+                (0 until node.childCount).any { index -> node.getChild(index)?.let(::containsTarget) == true }
+        fun accessible() = automation.rootInActiveWindow?.let(::containsTarget) == true
+        fun awaitAccessible(expected: Boolean) {
+            val deadline = SystemClock.uptimeMillis() + 3000
+            while (accessible() != expected && SystemClock.uptimeMillis() < deadline) SystemClock.sleep(50)
+            fun describe(node: AccessibilityNodeInfo): String =
+                "${node.className}:${node.text}(${node.childCount}) " +
+                    (0 until node.childCount).joinToString { node.getChild(it)?.let(::describe).orEmpty() }
+            assertEquals(automation.rootInActiveWindow?.let(::describe), expected, accessible())
+        }
+        try {
+            awaitAccessible(true)
+            main {
+                assertTrue(button.requestFocus())
+                slot.controlsEnabled = false
+                assertFalse(button.hasFocus())
+                assertFalse(button.requestFocus())
+                assertTrue(button.isEnabled) // 门控不覆盖业务自己持有的 enabled 状态。
+            }
+            instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_ENTER)
+            instrumentation.waitForIdleSync()
+            awaitAccessible(false)
+            main {
+                assertEquals(0, clicks)
+                slot.controlsEnabled = true
+                slot.setExpanded(false, false)
+                assertFalse(button.requestFocus())
+                slot.setExpanded(true, false)
+                assertTrue(button.requestFocus())
+            }
+            instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_ENTER)
+            instrumentation.waitForIdleSync()
+            main { assertEquals(1, clicks) }
+            awaitAccessible(true)
+        } finally {
+            automation.serviceInfo = automation.serviceInfo.apply { flags = originalFlags }
+        }
+    }
+
+    @Test fun disablingDuringTouchCancelsChildGestureBeforeReenabling() {
+        lateinit var slot: ExpandableContent
+        lateinit var button: Button
+        var cancels = 0
+        var clicks = 0
+        main {
+            button = Button(activity).apply {
+                minimumHeight = 180
+                setOnClickListener { clicks++ }
+                setOnTouchListener { _, event ->
+                    if (event.actionMasked == MotionEvent.ACTION_CANCEL) cancels++
+                    false
+                }
+            }
+            slot = ExpandableContent(activity).apply { setContent(button) }
+        }
+        mount(slot, 600, -2)
+        touch(button, MotionEvent.ACTION_DOWN, Triple(0, 100f, 60f))
+        main {
+            slot.controlsEnabled = false
+            assertEquals(1, cancels)
+            assertFalse(button.isPressed)
+            slot.controlsEnabled = true
+        }
+        touch(button, MotionEvent.ACTION_UP, Triple(0, 100f, 60f))
+        main { assertEquals(0, clicks) }
+        touch(button, MotionEvent.ACTION_DOWN, Triple(0, 100f, 60f))
+        touch(button, MotionEvent.ACTION_UP, Triple(0, 100f, 60f))
+        main { assertEquals(1, clicks) }
     }
 
     @Test fun themeCompositionPreservesNoThemeHeaderAndExpandableBodyAcrossModeChanges() {
