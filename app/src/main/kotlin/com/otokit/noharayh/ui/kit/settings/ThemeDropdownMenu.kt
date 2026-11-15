@@ -118,8 +118,7 @@ private class MenuViewport(
         if (previews[index].images === value) return
         previews[index].images = value
         if (value != null) {
-            val order = (0 until index).count { geometry.expansion(it, offset) > 0f }
-            previewFrames.ready(index, order)
+            previewFrames.ready(index)
             previewRunner.request()
         }
         renderPreview(index)
@@ -260,6 +259,7 @@ private class MenuViewport(
     private fun layoutRows() {
         val pad = geometry.padding.roundToInt()
         val overscroll = (offset - offset.coerceIn(0f, geometry.maximum)) * Spec.OVERSCROLL_SHIFT_FACTOR
+        var enteringOrder = 0
         for (index in 0 until childCount) {
             val child = getChildAt(index) as SettingsButton
             val (top, bottom) = geometry.bounds(index, offset)
@@ -279,7 +279,9 @@ private class MenuViewport(
                 MeasureSpec.makeMeasureSpec(h.roundToInt(), MeasureSpec.EXACTLY))
             child.layout(pad, (top + overscroll).roundToInt(), width - pad,
                 (top + overscroll).roundToInt() + h.roundToInt())
-            previewFrames.geometry(index, geometry.expansion(index, offset))
+            if (previewFrames.geometry(index, geometry.expansion(index, offset), enteringOrder) && descriptions[index] != null) {
+                enteringOrder++
+            }
             previews[index].render(geometry.expansion(index, offset), child.isSelected)
             previews[index].setTextExtent(child.textExtent, child.width.toFloat())
             renderPreview(index)

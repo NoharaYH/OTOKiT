@@ -2,24 +2,30 @@ package com.otokit.noharayh.ui.animation.settings
 
 import com.otokit.noharayh.ui.constants.motion.ThemePreviewMotion as Spec
 
-/** 单菜单逐行采样；方向改变仅换目标，从当前值继续，绝不重置帧。 */
+/** 单菜单逐行入场只向前完成；行高控制渐隐，完全折叠才释放本轮播放状态。 */
 internal class ThemePreviewFrames(count: Int) {
     val progress = FloatArray(count)
     private val targets = FloatArray(count)
-    private val previous = FloatArray(count)
     private val ready = BooleanArray(count)
     private val delay = FloatArray(count)
 
-    fun geometry(index: Int, expansion: Float) {
-        if (expansion > previous[index]) targets[index] = 1f
-        if (expansion < previous[index]) targets[index] = 0f
-        previous[index] = expansion
-        // 完全折叠后没有图像，立即停止不可见行的尾部刷新。
-        if (expansion == 0f) progress[index] = 0f
+    /** 返回本轮是否刚展开；错峰仅按同一批新展开项计数，不按整列位置计数。 */
+    fun geometry(index: Int, expansion: Float, order: Int = 0): Boolean {
+        val entering = expansion > 0f && targets[index] == 0f
+        if (expansion == 0f) {
+            targets[index] = 0f
+            progress[index] = 0f
+            ready[index] = false
+            delay[index] = 0f
+        } else {
+            if (entering) delay[index] = order * Spec.STAGGER_MS
+            targets[index] = 1f
+        }
+        return entering
     }
 
-    fun ready(index: Int, order: Int = 0) {
-        if (!ready[index]) delay[index] = order * Spec.STAGGER_MS
+    fun ready(index: Int) {
+        if (targets[index] == 0f) return
         ready[index] = true
     }
 
@@ -30,8 +36,7 @@ internal class ThemePreviewFrames(count: Int) {
             val available = (milliseconds - delay[index]).coerceAtLeast(0f)
             delay[index] = (delay[index] - milliseconds).coerceAtLeast(0f)
             val step = available / Spec.DURATION_MS
-            progress[index] = if (progress[index] < targets[index]) (progress[index] + step).coerceAtMost(targets[index])
-                else (progress[index] - step).coerceAtLeast(targets[index])
+            progress[index] = (progress[index] + step).coerceAtMost(targets[index])
             if (targets[index] != progress[index]) active = true
         }
         return active

@@ -40,7 +40,11 @@ internal class ThemeMenuPreview(primaryColor: Int, private val density: Float) {
     val contentColor: Int get() = previewColorBetween(if (selected) com.otokit.noharayh.ui.constants.settings.SettingsComponentColors.TITLE else com.otokit.noharayh.ui.constants.settings.SettingsComponentColors.TEXT, android.graphics.Color.WHITE,
         if (images == null) 0f else expansion * ThemePreviewFrames.layer(progress, 0f, backgroundEnd))
 
-    fun render(expansion: Float, selected: Boolean) { this.expansion = expansion; this.selected = selected }
+    fun render(expansion: Float, selected: Boolean) {
+        // 行高独立控制渐隐；切入进度只向前，不能在收缩时冻结未完成的人物。
+        this.expansion = expansion
+        this.selected = selected
+    }
     fun motion(value: Float) { progress = value }
     fun setPrimaryColor(color: Int) { if (palette.primary != color) palette = ThemeMenuPreviewPalette.fromPrimary(color) }
 

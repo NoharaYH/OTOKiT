@@ -14,6 +14,39 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class ThemePreviewBackgroundTest {
+    @Test fun shrinkingFadesTheCompletedSceneWithoutMovingItAndFullCollapseClearsIt() {
+        val background = Bitmap.createBitmap(1440, 160, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.BLUE) }
+        val flat = Bitmap.createBitmap(300, 44, Bitmap.Config.ARGB_8888).apply { eraseColor(Color.BLUE) }
+        for (composite in listOf(null, flat)) {
+            val preview = ThemeMenuPreview(Color.RED, 1f)
+            preview.images = ThemePreviewBitmaps(background, null, composite)
+            preview.setTextExtent(80f, 300f)
+            preview.render(1f, false)
+            preview.motion(1f)
+            val frame = Bitmap.createBitmap(300, 44, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(frame)
+            for (expansion in listOf(1f, 0.5f, 0.1f, 0.8f, 0f)) {
+                frame.eraseColor(Color.WHITE)
+                preview.render(expansion, false)
+                val halfHeight = (4f + 40f * expansion) / 2f
+                val bounds = RectF(0f, 22f - halfHeight, 300f, 22f + halfHeight)
+                val path = Path().apply { addRect(bounds, Path.Direction.CW) }
+                canvas.save()
+                canvas.clipPath(path)
+                preview.draw(canvas, bounds, path)
+                canvas.restore()
+                val pixel = frame.getPixel(299, 22)
+                // 不同 Android/Skia 的 8 位 alpha 混合取整可相差一个色阶。
+                assertEquals((255 - (255 * expansion).toInt()).toDouble(), Color.red(pixel).toDouble(), 1.0)
+                assertEquals(255, Color.blue(pixel))
+                if (expansion < 0.8f) assertEquals(Color.WHITE, frame.getPixel(299, 1))
+            }
+            frame.recycle()
+        }
+        flat.recycle()
+        background.recycle()
+    }
+
     @Test fun backgroundCropCoversTheRowFromRightAlignedStartToLeftAlignedFinish() {
         val source = Rect()
         val destination = RectF()
