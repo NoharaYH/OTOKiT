@@ -1,7 +1,6 @@
 package com.otokit.noharayh.ui.theme.chu
 
 import com.otokit.noharayh.ui.theme.ThemeColors
-import com.otokit.noharayh.ui.theme.ThemePreviewCrop
 import com.otokit.noharayh.ui.theme.ThemePreviewDescription
 import com.otokit.noharayh.ui.theme.ThemeDefinition
 
@@ -11,7 +10,7 @@ object ChuNewTheme {
 
     val definition: ThemeDefinition = ThemeDefinition(
         htmlAssetPath = HTML_ASSET_PATH,
-        preview = ThemePreviewDescription("theme-preview/ChuNew", hasEyes = false, decorationFromRight = true, decorationCrop = ThemePreviewCrop(1152, 160, 0, 0, 240, 160)),
+        preview = ThemePreviewDescription("theme-preview/ChuNew", hasEyes = false),
         colors = ThemeColors(
             primaryColor = 0xFFF3A607.toInt(),
             secondaryColor = 0xFFFED032.toInt(),

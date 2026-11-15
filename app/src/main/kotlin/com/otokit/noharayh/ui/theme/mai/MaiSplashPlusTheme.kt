@@ -10,7 +10,7 @@ object MaiSplashPlusTheme {
 
     val definition: ThemeDefinition = ThemeDefinition(
         htmlAssetPath = HTML_ASSET_PATH,
-        preview = ThemePreviewDescription("theme-preview/MaiSplashPlus", hasEyes = true, decorationFromRight = false),
+        preview = ThemePreviewDescription("theme-preview/MaiSplashPlus", hasEyes = true),
         colors = ThemeColors(
             primaryColor = 0xFF454EB9.toInt(),
             secondaryColor = 0xFFFFE253.toInt(),

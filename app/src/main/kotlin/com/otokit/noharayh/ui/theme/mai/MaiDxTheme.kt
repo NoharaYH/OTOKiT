@@ -1,7 +1,6 @@
 package com.otokit.noharayh.ui.theme.mai
 
 import com.otokit.noharayh.ui.theme.ThemeColors
-import com.otokit.noharayh.ui.theme.ThemePreviewCrop
 import com.otokit.noharayh.ui.theme.ThemePreviewDescription
 import com.otokit.noharayh.ui.theme.ThemeDefinition
 
@@ -11,7 +10,7 @@ object MaiDxTheme {
 
     val definition: ThemeDefinition = ThemeDefinition(
         htmlAssetPath = HTML_ASSET_PATH,
-        preview = ThemePreviewDescription("theme-preview/MaiDx", hasEyes = true, decorationFromRight = false, decorationCrop = ThemePreviewCrop(1152, 160, 247, 50, 322, 110)),
+        preview = ThemePreviewDescription("theme-preview/MaiDx", hasEyes = true),
         colors = ThemeColors(
             primaryColor = 0xFF00B9EF.toInt(),
             secondaryColor = 0xFFE74846.toInt(),

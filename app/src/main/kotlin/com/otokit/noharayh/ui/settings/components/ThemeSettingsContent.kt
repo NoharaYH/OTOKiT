@@ -284,8 +284,16 @@ internal class ThemeSettingsContent(
         if (panel.isOpen) { panel.close(); return }
         panels.filterNot { it === panel }.forEach { it.close() }
         // 预算只依赖视口，不随本次展开后的卡片高度变化，避免测量反馈循环。
-        val budget = (height - rowHeight * 2 - rowGap * 4).coerceAtLeast(rowHeight + rowGap * 2)
+        val budget = menuBudget(height)
         panel.open(options, budget, selectedId, onSelected)
+    }
+
+    private fun menuBudget(viewportHeight: Int) =
+        (viewportHeight - rowHeight * 2 - rowGap * 4).coerceAtLeast(rowHeight + rowGap * 2)
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        if (h > 0 && h != oldh) panels.forEach { it.updateHeightBudget(menuBudget(h)) }
     }
 
     fun closeThemePanel(): Boolean {

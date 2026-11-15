@@ -87,6 +87,19 @@ internal class ThemeSelectorPanel(
         runner.play(1f)
     }
 
+    fun updateHeightBudget(availableHeight: Int) {
+        val current = menu ?: return
+        if (menuHeightBudget == availableHeight) return
+        menuHeightBudget = availableHeight
+        current.updateHeightBudget(availableHeight)
+        val params = current.layoutParams
+        if (params.height != current.contentHeight) {
+            params.height = current.contentHeight
+            current.layoutParams = params
+        }
+        render(runner.progress)
+    }
+
     fun renderSelection(selectedId: String?) { menu?.renderSelection(selectedId) }
 
     fun renderMaterkitColors(colors: ThemeColors) {

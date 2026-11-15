@@ -20,14 +20,10 @@ internal object ThemeSelectionDimensions {
     const val MENU_INNER_RADIUS_DP = 4f
     const val MENU_MIN_VISIBLE_DP = 2
     const val MENU_SELECTED_STROKE_DP = 2f
-    const val PREVIEW_SPLIT_POSITION = 0.58f
-    const val PREVIEW_SPLIT_SLOPE = 0.55f
-    const val PREVIEW_BRANCH_SLOPE = 1.2f
     const val PREVIEW_TRAVEL_MAX_DP = 56f
     const val PREVIEW_SCRIM_MAX_FRACTION = 0.65f
     const val PREVIEW_SCRIM_MAX_DP = 240f
     const val PREVIEW_SCRIM_PADDING_DP = 48f
-    const val PREVIEW_EYES_MAX_FRACTION = 0.62f
     const val PREVIEW_BITMAP_MAX_WIDTH_PX = 1024
     const val PREVIEW_BITMAP_MAX_HEIGHT_PX = 144
     const val PREVIEW_CACHE_BYTES = 16 * 1024 * 1024

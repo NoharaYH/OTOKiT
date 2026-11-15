@@ -10,7 +10,7 @@ object ChuSunTheme {
 
     val definition: ThemeDefinition = ThemeDefinition(
         htmlAssetPath = HTML_ASSET_PATH,
-        preview = ThemePreviewDescription("theme-preview/ChuSun", hasEyes = false, decorationFromRight = true),
+        preview = ThemePreviewDescription("theme-preview/ChuSun", hasEyes = false),
         colors = ThemeColors(
             primaryColor = 0xFF1964DC.toInt(),
             secondaryColor = 0xFFA7CCD6.toInt(),

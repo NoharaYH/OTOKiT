@@ -12,7 +12,7 @@ object ChuXVerseXTheme {
 
     val definition: ThemeDefinition = ThemeDefinition(
         htmlAssetPath = HTML_ASSET_PATH,
-        preview = ThemePreviewDescription("theme-preview/ChuXVerseX", hasEyes = false, decorationFromRight = true),
+        preview = ThemePreviewDescription("theme-preview/ChuXVerseX", hasEyes = false),
         colors = ThemeColors(
             primaryColor = 0xFF6F8CFF.toInt(),
             secondaryColor = 0xFFB4CBF6.toInt(),

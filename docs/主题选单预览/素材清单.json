@@ -4,158 +4,80 @@
     "source": "D:\\CodeProject\\OTOKiT背景\\完成背景\\ChuLuminous\\html\\index.html",
     "viewport": [
       600,
-      900
+      240
     ],
     "animation_time_ms": 1000,
     "hidden_hero": ".otokit-hero,.chara.topChara",
-    "decoration": ".mv-particle",
     "layers": [
-      "background",
-      "decoration"
+      "background"
     ],
     "direction": [
-      "left",
-      "right"
+      "left"
     ],
-    "bytes": 9390,
+    "bytes": 4928,
     "video_policy": "Use original HTML poster.webp; hide video, keep CSS particles frozen at 1000ms",
     "exports": {
       "background": {
+        "asset": "theme-preview/ChuLuminous/background.webp",
         "size": [
-          960,
-          160
+          600,
+          100
         ],
-        "sha256": "d7d8efba463585a363c72c301bf3f14fd7faf8a1a962b0865e8bf61b2346a126",
-        "bytes": 5136
-      },
-      "decoration": {
-        "size": [
-          960,
-          160
-        ],
-        "sha256": "907697423acc49e3289f464c74f449fc089fe0d80db999687d2134dcd5b0b9b6",
-        "bytes": 4254
+        "sha256": "300910a1a87172e2017bab7ce52267a6efc99db07315694cbbcb408506ebd0ab",
+        "bytes": 4928
       }
     },
     "background_crop": [
       0,
-      350,
+      70,
       600,
-      450
+      170
     ],
     "export_canvas": [
-      960,
-      160
+      600,
+      100
     ],
-    "decoration_fragments": [
-      {
-        "source": [
-          0,
-          0,
-          190,
-          190
-        ],
-        "destination": [
-          0,
-          0,
-          160,
-          160
-        ]
-      },
-      {
-        "source": [
-          410,
-          710,
-          600,
-          900
-        ],
-        "destination": [
-          800,
-          0,
-          960,
-          160
-        ]
-      }
-    ]
+    "background_policy": "Normal HTML with only hero hidden; scene ornaments baked into background; shared phone/tablet source, runtime centered W+D crop"
   },
   {
     "theme": "ChuLuminousPlus",
     "source": "D:\\CodeProject\\OTOKiT背景\\完成背景\\ChuLuminousPlus\\html\\index.html",
     "viewport": [
       600,
-      900
+      240
     ],
     "animation_time_ms": 1000,
     "hidden_hero": ".otokit-hero,.chara.topChara",
-    "decoration": ".mv-particle",
     "layers": [
-      "background",
-      "decoration"
+      "background"
     ],
     "direction": [
-      "left",
-      "right"
+      "left"
     ],
-    "bytes": 11076,
+    "bytes": 6208,
     "video_policy": "Use original HTML poster.webp; hide video, keep CSS particles frozen at 1000ms",
     "exports": {
       "background": {
+        "asset": "theme-preview/ChuLuminousPlus/background.webp",
         "size": [
-          960,
-          160
+          600,
+          100
         ],
-        "sha256": "ffcd8d76e009d661655b02e0b56979dadc7ba083d0e545c17953f6ec6ccb0bc7",
-        "bytes": 4760
-      },
-      "decoration": {
-        "size": [
-          960,
-          160
-        ],
-        "sha256": "399121906c94b528f86c1afd2b0962a4abf1b38feb4e44001d621cbe6d9243ed",
-        "bytes": 6316
+        "sha256": "a6c0f962770a101db5d8696b99587de65096e5097eee06cf19ef0fd4ab43ceb2",
+        "bytes": 6208
       }
     },
     "background_crop": [
       0,
-      350,
+      70,
       600,
-      450
+      170
     ],
     "export_canvas": [
-      960,
-      160
+      600,
+      100
     ],
-    "decoration_fragments": [
-      {
-        "source": [
-          0,
-          0,
-          190,
-          190
-        ],
-        "destination": [
-          0,
-          0,
-          160,
-          160
-        ]
-      },
-      {
-        "source": [
-          410,
-          710,
-          600,
-          900
-        ],
-        "destination": [
-          800,
-          0,
-          960,
-          160
-        ]
-      }
-    ]
+    "background_policy": "Normal HTML with only hero hidden; scene ornaments baked into background; shared phone/tablet source, runtime centered W+D crop"
   },
   {
     "theme": "ChuMate",
@@ -166,44 +88,35 @@
     ],
     "animation_time_ms": 1000,
     "hidden_hero": ".otokit-hero,.chara.topChara",
-    "decoration": ".float-01,.float-02,.float-03,.fukisashi,.text-image",
     "layers": [
-      "background",
-      "decoration"
+      "background"
     ],
     "direction": [
-      "left",
-      "right"
+      "left"
     ],
-    "bytes": 31884,
+    "bytes": 32640,
     "exports": {
       "background": {
+        "asset": "theme-preview/ChuMate/background.webp",
         "size": [
-          1152,
+          1440,
           160
         ],
-        "sha256": "1f6b10394bf52c69f17fb4e2201dda1dab80b9d8efeba1884a7621cbb1127fda",
-        "bytes": 3660
-      },
-      "decoration": {
-        "size": [
-          1152,
-          160
-        ],
-        "sha256": "291dd6fee4b3bedce1faddf6eb30ba2a7c3185e4788d4a53579ece91529394ed",
-        "bytes": 28224
+        "sha256": "acec00295467bf819b5660ccff93bc9da663d6b63f62baad7835dc9dc413b594",
+        "bytes": 32640
       }
     },
     "background_crop": [
       0,
-      650,
+      680,
       1440,
-      850
+      840
     ],
     "export_canvas": [
-      1152,
+      1440,
       160
-    ]
+    ],
+    "background_policy": "Normal HTML with only hero hidden; scene ornaments baked into background; shared phone/tablet source, runtime centered W+D crop"
   },
   {
     "theme": "ChuNew",
@@ -214,56 +127,35 @@
     ],
     "animation_time_ms": 1000,
     "hidden_hero": ".otokit-hero,.chara.topChara",
-    "decoration": ".effectBox-triangWrapper,.shape",
     "layers": [
-      "background",
-      "decoration"
+      "background"
     ],
     "direction": [
-      "left",
-      "right"
+      "left"
     ],
-    "bytes": 10776,
+    "bytes": 6322,
     "exports": {
       "background": {
+        "asset": "theme-preview/ChuNew/background.webp",
         "size": [
-          1152,
+          1440,
           160
         ],
-        "sha256": "e34cfbd850300e3b8d4e0912328a3914bb9ac0f1ab3ba2d033affca33948ba52",
-        "bytes": 3162
-      },
-      "decoration": {
-        "size": [
-          240,
-          160
-        ],
-        "sha256": "c57ef08be4c4228cc91a9a19ce92789133f021640a17f52ac4b102d70614b77d",
-        "bytes": 7614
+        "sha256": "685f46d8085a06277500b3df6e96da03b3df1a1d1f084202ad4348d366533e6b",
+        "bytes": 6322
       }
     },
     "background_crop": [
       0,
-      0,
+      50,
       1440,
-      200
+      210
     ],
     "export_canvas": [
-      1152,
+      1440,
       160
     ],
-    "decoration_crop": {
-      "canvas": [
-        1152,
-        160
-      ],
-      "box": [
-        0,
-        0,
-        240,
-        160
-      ]
-    }
+    "background_policy": "Normal HTML with only hero hidden; scene ornaments baked into background; shared phone/tablet source, runtime centered W+D crop"
   },
   {
     "theme": "ChuNewPlus",
@@ -274,272 +166,191 @@
     ],
     "animation_time_ms": 1000,
     "hidden_hero": ".otokit-hero,.chara.topChara",
-    "decoration": ".effectBox-triangWrapper,.shape",
     "layers": [
-      "background",
-      "decoration"
+      "background"
     ],
     "direction": [
-      "left",
-      "right"
+      "left"
     ],
-    "bytes": 15328,
+    "bytes": 9978,
     "exports": {
       "background": {
+        "asset": "theme-preview/ChuNewPlus/background.webp",
         "size": [
-          1152,
+          1440,
           160
         ],
-        "sha256": "ee67422796377f00d691705601b5184e882d9752de0a71b2d98bf2fcfae67a50",
-        "bytes": 5262
-      },
-      "decoration": {
-        "size": [
-          240,
-          160
-        ],
-        "sha256": "d47399dd17b970afb8c18e39b1a310018052800a110d0f3290a1f079171a5b54",
-        "bytes": 10066
+        "sha256": "738f9edca90bd6508c6f47a0904351ee7b67e71d0cd91fb683df8bb916f33045",
+        "bytes": 9978
       }
     },
     "background_crop": [
       0,
-      0,
+      50,
       1440,
-      200
+      210
     ],
     "export_canvas": [
-      1152,
+      1440,
       160
     ],
-    "decoration_crop": {
-      "canvas": [
-        1152,
-        160
-      ],
-      "box": [
-        0,
-        0,
-        240,
-        160
-      ]
-    }
+    "background_policy": "Normal HTML with only hero hidden; scene ornaments baked into background; shared phone/tablet source, runtime centered W+D crop"
   },
   {
     "theme": "ChuSun",
     "source": "D:\\CodeProject\\OTOKiT背景\\完成背景\\ChuSun\\html\\index.html",
     "viewport": [
       1440,
-      900
+      600
     ],
     "animation_time_ms": 1000,
     "hidden_hero": ".otokit-hero,.chara.topChara",
-    "decoration": ".mountain,.cloud-wrapper",
     "layers": [
-      "background",
-      "decoration"
+      "background"
     ],
     "direction": [
-      "left",
-      "right"
+      "left"
     ],
-    "bytes": 59300,
+    "bytes": 51636,
     "exports": {
       "background": {
+        "asset": "theme-preview/ChuSun/background.webp",
         "size": [
-          1152,
+          1440,
           160
         ],
-        "sha256": "e810e2b6b15267e15cd98f8f2fb19befe123491f11732933c7250d1111d1201d",
-        "bytes": 7164
-      },
-      "decoration": {
-        "size": [
-          1152,
-          160
-        ],
-        "sha256": "873e6e984557cdc38ffd3ee99cae6bb4b62425b333c6785ea91c5e2f4d4a7965",
-        "bytes": 52136
+        "sha256": "3a5cb9873b202abf29b676c8d5832f9897aea1e1747ce5c6e223a5be269df5d6",
+        "bytes": 51636
       }
     },
     "background_crop": [
       0,
-      680,
+      420,
       1440,
-      880
+      580
     ],
     "export_canvas": [
-      1152,
+      1440,
       160
-    ]
+    ],
+    "background_policy": "Normal HTML with only hero hidden; scene ornaments baked into background; shared phone/tablet source, runtime centered W+D crop"
   },
   {
     "theme": "ChuSunPlus",
     "source": "D:\\CodeProject\\OTOKiT背景\\完成背景\\ChuSunPlus\\html\\index.html",
     "viewport": [
       1440,
-      900
+      600
     ],
     "animation_time_ms": 1000,
     "hidden_hero": ".otokit-hero,.chara.topChara",
-    "decoration": ".mountain,.cloud-wrapper,.reflect-wrapper",
     "layers": [
-      "background",
-      "decoration"
+      "background"
     ],
     "direction": [
-      "left",
-      "right"
+      "left"
     ],
-    "bytes": 88834,
+    "bytes": 50272,
     "exports": {
       "background": {
+        "asset": "theme-preview/ChuSunPlus/background.webp",
         "size": [
-          1152,
+          1440,
           160
         ],
-        "sha256": "96eec8d0301792c3a2421c3fa987bd8d278e92bc722292040583bef4e886082b",
-        "bytes": 3970
-      },
-      "decoration": {
-        "size": [
-          1152,
-          160
-        ],
-        "sha256": "6b171acde306eb6e165ce4414a25cb0421a384cbcd9af8e41e4efb53c39d30e7",
-        "bytes": 84864
+        "sha256": "ad210987f79ddc0fc53061ec13b811ae7aaefdc9f5c61a717d2b62a75cf143b8",
+        "bytes": 50272
       }
     },
     "background_crop": [
       0,
-      600,
+      420,
       1440,
-      800
+      580
     ],
     "export_canvas": [
-      1152,
+      1440,
       160
-    ]
+    ],
+    "background_policy": "Normal HTML with only hero hidden; scene ornaments baked into background; shared phone/tablet source, runtime centered W+D crop"
   },
   {
     "theme": "ChuVerse",
     "source": "D:\\CodeProject\\OTOKiT背景\\完成背景\\ChuVerse\\html\\index.html",
     "viewport": [
       1440,
-      900
+      320
     ],
     "animation_time_ms": 1000,
     "hidden_hero": ".otokit-hero,.chara.topChara",
-    "decoration": ".globe,.frame,.corner-text",
     "layers": [
-      "background",
-      "decoration"
+      "background"
     ],
     "direction": [
-      "left",
-      "right"
+      "left"
     ],
-    "bytes": 43848,
+    "bytes": 28378,
     "exports": {
       "background": {
+        "asset": "theme-preview/ChuVerse/background.webp",
         "size": [
-          1152,
+          1440,
           160
         ],
-        "sha256": "80321e7502b86933c137568a5aa1fe6177085e4c78a5633ba9cf682fcf3e881d",
-        "bytes": 3984
-      },
-      "decoration": {
-        "size": [
-          478,
-          160
-        ],
-        "sha256": "cf1a3c4ec692712d87e8690268b1d14997f1e1b42f501953e0a3c576c3f71e7a",
-        "bytes": 39864
+        "sha256": "4b3bfe30d749fa2b6a10e07a2a082991ca7111ff6ebd4d3780dcd40581e8a380",
+        "bytes": 28378
       }
     },
     "background_crop": [
       0,
-      350,
+      80,
       1440,
-      550
+      240
     ],
     "export_canvas": [
-      1152,
+      1440,
       160
     ],
-    "decoration_crop": {
-      "canvas": [
-        1152,
-        160
-      ],
-      "box": [
-        337,
-        0,
-        815,
-        160
-      ]
-    }
+    "background_policy": "Normal HTML with only hero hidden; scene ornaments baked into background; shared phone/tablet source, runtime centered W+D crop"
   },
   {
     "theme": "ChuXVerse",
     "source": "D:\\CodeProject\\OTOKiT背景\\完成背景\\ChuXVerse\\html\\index.html",
     "viewport": [
       1440,
-      900
+      320
     ],
     "animation_time_ms": 1000,
     "hidden_hero": ".otokit-hero,.chara.topChara",
-    "decoration": ".globe,.frame,.corner-text",
     "layers": [
-      "background",
-      "decoration"
+      "background"
     ],
     "direction": [
-      "left",
-      "right"
+      "left"
     ],
-    "bytes": 45124,
+    "bytes": 29648,
     "exports": {
       "background": {
+        "asset": "theme-preview/ChuXVerse/background.webp",
         "size": [
-          1152,
+          1440,
           160
         ],
-        "sha256": "30cb462477429ba5df83fc31ea3ca346d81dc05c03fbd320a3216fb761932b1f",
-        "bytes": 5260
-      },
-      "decoration": {
-        "size": [
-          478,
-          160
-        ],
-        "sha256": "cf1a3c4ec692712d87e8690268b1d14997f1e1b42f501953e0a3c576c3f71e7a",
-        "bytes": 39864
+        "sha256": "2eb701c395d60607b6ea3686a183a338af7df6fab101511bdd1aaead7613f9b9",
+        "bytes": 29648
       }
     },
     "background_crop": [
       0,
-      350,
+      80,
       1440,
-      550
+      240
     ],
     "export_canvas": [
-      1152,
+      1440,
       160
     ],
-    "decoration_crop": {
-      "canvas": [
-        1152,
-        160
-      ],
-      "box": [
-        337,
-        0,
-        815,
-        160
-      ]
-    }
+    "background_policy": "Normal HTML with only hero hidden; scene ornaments baked into background; shared phone/tablet source, runtime centered W+D crop"
   },
   {
     "theme": "ChuXVerseX",
@@ -550,44 +361,35 @@
     ],
     "animation_time_ms": 1000,
     "hidden_hero": ".otokit-hero,.chara.topChara",
-    "decoration": ".globe,.verse-town,.frame,.corner-text",
     "layers": [
-      "background",
-      "decoration"
+      "background"
     ],
     "direction": [
-      "left",
-      "right"
+      "left"
     ],
-    "bytes": 112318,
+    "bytes": 48384,
     "exports": {
       "background": {
+        "asset": "theme-preview/ChuXVerseX/background.webp",
         "size": [
-          1152,
+          1440,
           160
         ],
-        "sha256": "82717bf16b84cef071f9b9d7e062333f7f6c69b40bc02c54793e225c180c9d99",
-        "bytes": 3748
-      },
-      "decoration": {
-        "size": [
-          1152,
-          160
-        ],
-        "sha256": "74cba6490fe41d5a3a1b59719fbb6c8ddbe86feedf439284ed3727c22bad410d",
-        "bytes": 108570
+        "sha256": "1e36292cc14dfa1591f3de4837569110c7491c9c423323813c4860ad1bdbc4e4",
+        "bytes": 48384
       }
     },
     "background_crop": [
       0,
       400,
       1440,
-      600
+      560
     ],
     "export_canvas": [
-      1152,
+      1440,
       160
-    ]
+    ],
+    "background_policy": "Normal HTML with only hero hidden; scene ornaments baked into background; shared phone/tablet source, runtime centered W+D crop"
   },
   {
     "theme": "MaiBuddies",
@@ -598,77 +400,48 @@
     ],
     "animation_time_ms": 1000,
     "hidden_hero": ".otokit-hero,.chara.topChara",
-    "decoration": ".linear,.speaker,.mirrorball",
     "layers": [
       "background",
-      "decoration",
       "eyes"
     ],
     "direction": [
       "left",
-      "left",
       "right"
     ],
-    "eyes_source": "D:\\CodeProject\\OTOKiT背景\\完成背景\\MaiBuddies\\status\\storage_root_chara.webp",
-    "eyes_crop": [
-      0,
-      150,
-      497,
-      287
-    ],
-    "eyes_size": [
-      580,
-      160
-    ],
-    "bytes": 67966,
+    "eyes_source": "D:\\CodeProject\\OTOKiT背景\\人物\\7.png",
+    "bytes": 118938,
     "exports": {
       "background": {
+        "asset": "theme-preview/MaiBuddies/background.webp",
         "size": [
-          1152,
+          1440,
           160
         ],
-        "sha256": "fbe47f208d8b91fdc54ef9610a7484729d952795306130b0e304b577a809ce52",
-        "bytes": 20918
-      },
-      "decoration": {
-        "size": [
-          1152,
-          153
-        ],
-        "sha256": "d5f761fae43ff7b76e3716eb1da4aa595d2668bdec7a3a3dba52e247c590f39c",
-        "bytes": 15504
+        "sha256": "b1849c3d16aba777f1a6280f335cb0c660866dceb57509132ccf77691165b1a2",
+        "bytes": 20022
       },
       "eyes": {
         "size": [
-          580,
+          1440,
           160
         ],
-        "sha256": "10b89d0f5f5b933621811d3e2033d5143caab0ea69fa3af54c748c3f31332c81",
-        "bytes": 31544
+        "sha256": "debd9061decf683b24ccec5e93dbb8277cb0f06ff80320a182980f0366124c9d",
+        "bytes": 98916
       }
     },
     "background_crop": [
       0,
-      650,
+      640,
       1440,
-      850
+      800
     ],
     "export_canvas": [
-      1152,
+      1440,
       160
     ],
-    "decoration_crop": {
-      "canvas": [
-        1152,
-        160
-      ],
-      "box": [
-        0,
-        0,
-        1152,
-        153
-      ]
-    }
+    "eyes_source_sha256": "03c4a9f4742f9986613665c1af277a6d2da7c3842a739cd32a2848512b30d7d7",
+    "eyes_framing": "User supplied 1440x160 transparent canvas, DX to MAGiCAL order; preserve canvas, placement, colors and alpha without crop, resize or feather; lossless WebP",
+    "background_policy": "Normal HTML with only hero hidden; scene ornaments baked into background; shared phone/tablet source, runtime centered W+D crop"
   },
   {
     "theme": "MaiBuddiesPlus",
@@ -679,77 +452,48 @@
     ],
     "animation_time_ms": 1000,
     "hidden_hero": ".otokit-hero,.chara.topChara",
-    "decoration": ".linear,.speaker,.mirrorball",
     "layers": [
       "background",
-      "decoration",
       "eyes"
     ],
     "direction": [
       "left",
-      "left",
       "right"
     ],
-    "eyes_source": "D:\\CodeProject\\OTOKiT背景\\完成背景\\MaiBuddiesPlus\\status\\storage_root_chara.webp",
-    "eyes_crop": [
-      290,
-      125,
-      772,
-      299
-    ],
-    "eyes_size": [
-      443,
-      160
-    ],
-    "bytes": 75898,
+    "eyes_source": "D:\\CodeProject\\OTOKiT背景\\人物\\8.png",
+    "bytes": 140862,
     "exports": {
       "background": {
+        "asset": "theme-preview/MaiBuddiesPlus/background.webp",
         "size": [
-          1152,
+          1440,
           160
         ],
-        "sha256": "edd085e2b2dfd17e0d1049848477659888a7041ad6e2933dfbd05a405cd1fd9c",
-        "bytes": 19818
-      },
-      "decoration": {
-        "size": [
-          1122,
-          146
-        ],
-        "sha256": "30de56c4b1d9a83e6d52678886c5f2962c392b563ce4799b97912fda339e14ce",
-        "bytes": 24896
+        "sha256": "3658d0d814804a0cb6827cf0424cbf2ad81275e93f476f4ceb31b15cdc74984c",
+        "bytes": 41504
       },
       "eyes": {
         "size": [
-          443,
+          1440,
           160
         ],
-        "sha256": "c4d47c85b29b191b75aa39a08c4c371e29a29115c88867cfe36c095c4379ad82",
-        "bytes": 31184
+        "sha256": "416406714ec3cdccd2eb2252fb83cc99cee49ee1da441d0c84a61917eb2c69fc",
+        "bytes": 99358
       }
     },
     "background_crop": [
       0,
-      650,
+      640,
       1440,
-      850
+      800
     ],
     "export_canvas": [
-      1152,
+      1440,
       160
     ],
-    "decoration_crop": {
-      "canvas": [
-        1152,
-        160
-      ],
-      "box": [
-        15,
-        0,
-        1137,
-        146
-      ]
-    }
+    "eyes_source_sha256": "41a0e155384a18d25834d33f3e0e6946c42dcb49a58ed522e1b59d6343447000",
+    "eyes_framing": "User supplied 1440x160 transparent canvas, DX to MAGiCAL order; preserve canvas, placement, colors and alpha without crop, resize or feather; lossless WebP",
+    "background_policy": "Normal HTML with only hero hidden; scene ornaments baked into background; shared phone/tablet source, runtime centered W+D crop"
   },
   {
     "theme": "MaiCircle",
@@ -760,77 +504,48 @@
     ],
     "animation_time_ms": 1000,
     "hidden_hero": ".otokit-hero,.chara.topChara",
-    "decoration": ".rotation-wrapper",
     "layers": [
       "background",
-      "decoration",
       "eyes"
     ],
     "direction": [
       "left",
-      "left",
       "right"
     ],
-    "eyes_source": "D:\\CodeProject\\OTOKiT背景\\完成背景\\MaiCircle\\status\\storage_root_chara.webp",
-    "eyes_crop": [
-      0,
-      84,
-      500,
-      259
-    ],
-    "eyes_size": [
-      457,
-      160
-    ],
-    "bytes": 60634,
+    "eyes_source": "D:\\CodeProject\\OTOKiT背景\\人物\\11.png",
+    "bytes": 136464,
     "exports": {
       "background": {
+        "asset": "theme-preview/MaiCircle/background.webp",
         "size": [
-          1152,
+          1440,
           160
         ],
-        "sha256": "ad63d36f0bc8b5b7ae0a2f1436760be50514dfdf8182e06b81f7e1b98cf839c6",
-        "bytes": 16220
-      },
-      "decoration": {
-        "size": [
-          97,
-          81
-        ],
-        "sha256": "f07d00498437c6c39546b691d5c46564cfa2dca0f7a887818cf38fdc6c016edf",
-        "bytes": 3352
+        "sha256": "656dc9d7ba485d166627f68ae1114ea16e12fb4e82d65854f60f08201db51f2f",
+        "bytes": 22826
       },
       "eyes": {
         "size": [
-          457,
+          1440,
           160
         ],
-        "sha256": "4a49032cac2e721ca50a135930cbfcab53c1d4e2202fd120cfe14600934cd3f4",
-        "bytes": 41062
+        "sha256": "8fb5fb76a00c22f977e2bfc55e9d69d78a4d85907a5fd55fb5ab1e03166e4a68",
+        "bytes": 113638
       }
     },
     "background_crop": [
       0,
       350,
       1440,
-      550
+      510
     ],
     "export_canvas": [
-      1152,
+      1440,
       160
     ],
-    "decoration_crop": {
-      "canvas": [
-        1152,
-        160
-      ],
-      "box": [
-        977,
-        79,
-        1074,
-        160
-      ]
-    }
+    "eyes_source_sha256": "ba1208f8e5bd90324616e4399c14a6d6ff14fc91669cae2a4b9c70b7f9c847ac",
+    "eyes_framing": "User supplied 1440x160 transparent canvas, DX to MAGiCAL order; preserve canvas, placement, colors and alpha without crop, resize or feather; lossless WebP",
+    "background_policy": "Normal HTML with only hero hidden; scene ornaments baked into background; shared phone/tablet source, runtime centered W+D crop"
   },
   {
     "theme": "MaiCirclePlus",
@@ -841,77 +556,48 @@
     ],
     "animation_time_ms": 1000,
     "hidden_hero": ".otokit-hero,.chara.topChara",
-    "decoration": ".rotation-wrapper",
     "layers": [
       "background",
-      "decoration",
       "eyes"
     ],
     "direction": [
       "left",
-      "left",
       "right"
     ],
-    "eyes_source": "D:\\CodeProject\\OTOKiT背景\\完成背景\\MaiCirclePlus\\status\\chara.webp",
-    "eyes_crop": [
-      0,
-      88,
-      805,
-      221
-    ],
-    "eyes_size": [
-      968,
-      160
-    ],
-    "bytes": 86992,
+    "eyes_source": "D:\\CodeProject\\OTOKiT背景\\人物\\12.png",
+    "bytes": 190360,
     "exports": {
       "background": {
+        "asset": "theme-preview/MaiCirclePlus/background.webp",
         "size": [
-          1152,
+          1440,
           160
         ],
-        "sha256": "5ab1b97946cfabf0799cdecbff4eb2a8a60c5958daa91536c24eeb01c6af01c5",
-        "bytes": 19320
-      },
-      "decoration": {
-        "size": [
-          887,
-          63
-        ],
-        "sha256": "c8b3fa703a8d1d1b6073250deb224e562fd1746a1374830f8e284ea924b8587d",
-        "bytes": 5836
+        "sha256": "7cbf1069df074ebbc07cb594acd988d7c66a60063793ea6eec4113c1fe41ab9e",
+        "bytes": 25240
       },
       "eyes": {
         "size": [
-          968,
+          1440,
           160
         ],
-        "sha256": "8fc24517ad8b4cf9c3230196ea8ca594fe867b2bb07152a87ca168a95058c93b",
-        "bytes": 61836
+        "sha256": "afc030b3103744187d1509656501b5d0d6a0bc83ffa8bd7996169996e1d49356",
+        "bytes": 165120
       }
     },
     "background_crop": [
       0,
       350,
       1440,
-      550
+      510
     ],
     "export_canvas": [
-      1152,
+      1440,
       160
     ],
-    "decoration_crop": {
-      "canvas": [
-        1152,
-        160
-      ],
-      "box": [
-        166,
-        97,
-        1053,
-        160
-      ]
-    }
+    "eyes_source_sha256": "4005972842abde85134a530b8f96f849beb9406bba66ecee47cd8b289d22406b",
+    "eyes_framing": "User supplied 1440x160 transparent canvas, DX to MAGiCAL order; preserve canvas, placement, colors and alpha without crop, resize or feather; lossless WebP",
+    "background_policy": "Normal HTML with only hero hidden; scene ornaments baked into background; shared phone/tablet source, runtime centered W+D crop"
   },
   {
     "theme": "MaiDx",
@@ -922,77 +608,48 @@
     ],
     "animation_time_ms": 1000,
     "hidden_hero": ".otokit-hero,.chara.topChara",
-    "decoration": ".cloud",
     "layers": [
       "background",
-      "decoration",
       "eyes"
     ],
     "direction": [
       "left",
-      "left",
       "right"
     ],
-    "eyes_source": "D:\\CodeProject\\OTOKiT背景\\完成背景\\MaiDx\\status\\storage_root_dxkuma.webp",
-    "eyes_crop": [
-      84,
-      233,
-      408,
-      386
-    ],
-    "eyes_size": [
-      339,
-      160
-    ],
-    "bytes": 25908,
+    "eyes_source": "D:\\CodeProject\\OTOKiT背景\\人物\\1.png",
+    "bytes": 48694,
     "exports": {
       "background": {
+        "asset": "theme-preview/MaiDx/background.webp",
         "size": [
-          1152,
+          1440,
           160
         ],
-        "sha256": "18156213906511016f00dab4a3409d7fc720d136dca0443abc00ae21d5bf206a",
-        "bytes": 21158
-      },
-      "decoration": {
-        "size": [
-          322,
-          110
-        ],
-        "sha256": "06d3652c581be6ec33f7c70acace31bc7e36ecf1840227b0ab8d2c0d71c0a35c",
-        "bytes": 1626
+        "sha256": "26af0259730ca702e44dba717d0d5a92b17330615cd354b85fda8321ceea1dad",
+        "bytes": 25248
       },
       "eyes": {
         "size": [
-          339,
+          1440,
           160
         ],
-        "sha256": "b30f7b6680b364df2e0694264051f47991763daf1da467669dbd297d08f261bf",
-        "bytes": 3124
+        "sha256": "27e04f43c21d2eedf3f1ceb8aa913ac17cff6c578aa60cd8ca31686c568e132e",
+        "bytes": 23446
       }
     },
     "background_crop": [
       0,
-      450,
+      400,
       1440,
-      650
+      560
     ],
     "export_canvas": [
-      1152,
+      1440,
       160
     ],
-    "decoration_crop": {
-      "canvas": [
-        1152,
-        160
-      ],
-      "box": [
-        247,
-        50,
-        569,
-        160
-      ]
-    }
+    "eyes_source_sha256": "950bbe55678b170980e57acc361bba9929a1de4d6027cfefe21925b58bf27c45",
+    "eyes_framing": "User supplied 1440x160 transparent canvas, DX to MAGiCAL order; preserve canvas, placement, colors and alpha without crop, resize or feather; lossless WebP",
+    "background_policy": "Normal HTML with only hero hidden; scene ornaments baked into background; shared phone/tablet source, runtime centered W+D crop"
   },
   {
     "theme": "MaiFestival",
@@ -1003,65 +660,48 @@
     ],
     "animation_time_ms": 1000,
     "hidden_hero": ".otokit-hero,.chara.topChara",
-    "decoration": ".decoration-topLeft,.decoration-topRight,.decoration-bottomLeft,.decoration-bottomRight,.decoration-bottom",
     "layers": [
       "background",
-      "decoration",
       "eyes"
     ],
     "direction": [
       "left",
-      "left",
       "right"
     ],
-    "eyes_source": "D:\\CodeProject\\OTOKiT背景\\完成背景\\MaiFestival\\status\\storage_root_chara.webp",
-    "eyes_crop": [
-      0,
-      123,
-      723,
-      240
-    ],
-    "eyes_size": [
-      989,
-      160
-    ],
-    "bytes": 81558,
+    "eyes_source": "D:\\CodeProject\\OTOKiT背景\\人物\\5.png",
+    "bytes": 190768,
     "exports": {
       "background": {
+        "asset": "theme-preview/MaiFestival/background.webp",
         "size": [
-          1152,
-          160
+          1440,
+          180
         ],
-        "sha256": "85816e9b524cb8a81a167919d76fcfef527a4c12fd531edd864e5572e7d8e75b",
-        "bytes": 5634
-      },
-      "decoration": {
-        "size": [
-          1152,
-          160
-        ],
-        "sha256": "7cda3f399c166646595590e477e888d612bfbcbd43e403218d23327214381d6b",
-        "bytes": 17852
+        "sha256": "40964ce26b165b9e0af22e8f3586e2a5e7186988a2602c5d47198ac174ec15f2",
+        "bytes": 23708
       },
       "eyes": {
         "size": [
-          989,
+          1440,
           160
         ],
-        "sha256": "cb19d2a71deb5543cacebf6bc72a6a4b30828a52117c2379fac72016ba7c5a28",
-        "bytes": 58072
+        "sha256": "9534529030c8254c34505fc1ee7e8bd99376babb417a1a2f1fccab26e0c45a17",
+        "bytes": 167060
       }
     },
     "background_crop": [
       0,
-      0,
+      90,
       1440,
-      200
+      270
     ],
     "export_canvas": [
-      1152,
-      160
-    ]
+      1440,
+      180
+    ],
+    "eyes_source_sha256": "f56914050182eddc7e1f143d5d149817cf7e97f74a61ce18631f67ce2d6e0d27",
+    "eyes_framing": "User supplied 1440x160 transparent canvas, DX to MAGiCAL order; preserve canvas, placement, colors and alpha without crop, resize or feather; lossless WebP",
+    "background_policy": "Normal HTML with only hero hidden; scene ornaments baked into background; shared phone/tablet source, runtime centered W+D crop"
   },
   {
     "theme": "MaiFestivalPlus",
@@ -1072,65 +712,48 @@
     ],
     "animation_time_ms": 1000,
     "hidden_hero": ".otokit-hero,.chara.topChara",
-    "decoration": ".decoration-topLeft,.decoration-topRight,.decoration-bottomLeft,.decoration-bottomRight,.decoration-bottom",
     "layers": [
       "background",
-      "decoration",
       "eyes"
     ],
     "direction": [
       "left",
-      "left",
       "right"
     ],
-    "eyes_source": "D:\\CodeProject\\OTOKiT背景\\完成背景\\MaiFestivalPlus\\status\\storage_root_chara.webp",
-    "eyes_crop": [
-      0,
-      122,
-      711,
-      222
-    ],
-    "eyes_size": [
-      1138,
-      160
-    ],
-    "bytes": 85738,
+    "eyes_source": "D:\\CodeProject\\OTOKiT背景\\人物\\6.png",
+    "bytes": 198998,
     "exports": {
       "background": {
+        "asset": "theme-preview/MaiFestivalPlus/background.webp",
         "size": [
-          1152,
-          160
+          1440,
+          180
         ],
-        "sha256": "bcfa47441fc6b97aee3f5525104e32ec57e444638e057637544f72cf27ce3e02",
-        "bytes": 4224
-      },
-      "decoration": {
-        "size": [
-          1152,
-          160
-        ],
-        "sha256": "7cda3f399c166646595590e477e888d612bfbcbd43e403218d23327214381d6b",
-        "bytes": 17852
+        "sha256": "701c202a7507919bccd69fcfdec86f037915abfa69ffd25bdfdb374dd72cd57d",
+        "bytes": 19350
       },
       "eyes": {
         "size": [
-          1138,
+          1440,
           160
         ],
-        "sha256": "4eaf9f336571faffe140d112f867e42d0c0a78d7450c31c702d58d3970856650",
-        "bytes": 63662
+        "sha256": "64f9a7571ec405b0e96858cfc730638690efb6848cf73afbc15b504957c586b0",
+        "bytes": 179648
       }
     },
     "background_crop": [
       0,
-      0,
+      90,
       1440,
-      200
+      270
     ],
     "export_canvas": [
-      1152,
-      160
-    ]
+      1440,
+      180
+    ],
+    "eyes_source_sha256": "992673bae4a9f68c16b9837ec360682a9c6567edd5fbc9d292d51b5d4ca23719",
+    "eyes_framing": "User supplied 1440x160 transparent canvas, DX to MAGiCAL order; preserve canvas, placement, colors and alpha without crop, resize or feather; lossless WebP",
+    "background_policy": "Normal HTML with only hero hidden; scene ornaments baked into background; shared phone/tablet source, runtime centered W+D crop"
   },
   {
     "theme": "MaiMagical",
@@ -1141,77 +764,48 @@
     ],
     "animation_time_ms": 1000,
     "hidden_hero": ".otokit-hero,.chara.topChara",
-    "decoration": ".front,.note_01,.note_02",
     "layers": [
       "background",
-      "decoration",
       "eyes"
     ],
     "direction": [
       "left",
-      "left",
       "right"
     ],
-    "eyes_source": "D:\\CodeProject\\OTOKiT背景\\完成背景\\MaiMagical\\status\\storage_root_chara.webp",
-    "eyes_crop": [
-      0,
-      61,
-      337,
-      196
-    ],
-    "eyes_size": [
-      399,
-      160
-    ],
-    "bytes": 59980,
+    "eyes_source": "D:\\CodeProject\\OTOKiT背景\\人物\\13.png",
+    "bytes": 122872,
     "exports": {
       "background": {
+        "asset": "theme-preview/MaiMagical/background.webp",
         "size": [
-          1152,
+          1440,
           160
         ],
-        "sha256": "15b4c70a4b358fabe82fe3a1770cd391e6cb4f7d538aa11481b81509446124fc",
-        "bytes": 32626
-      },
-      "decoration": {
-        "size": [
-          133,
-          69
-        ],
-        "sha256": "cc7da7c677b9ca24cfc4378f497bc78c4eeb4b98e2cc18893aaf5559eafbb6f3",
-        "bytes": 3376
+        "sha256": "b3e18632db889f6e95c4d226e8b5b5963e1abddb5c43b2eee762f10059c6a6cb",
+        "bytes": 32216
       },
       "eyes": {
         "size": [
-          399,
+          1440,
           160
         ],
-        "sha256": "ee5a39111ee28991c2d91a2a907aea977deefd3d0f7496822a41903de5867da2",
-        "bytes": 23978
+        "sha256": "72813da4f20505cbd5ae27fecec5c7403e553f957bf818d675dd450c7797b028",
+        "bytes": 90656
       }
     },
     "background_crop": [
       0,
-      350,
+      200,
       1440,
-      550
+      360
     ],
     "export_canvas": [
-      1152,
+      1440,
       160
     ],
-    "decoration_crop": {
-      "canvas": [
-        1152,
-        160
-      ],
-      "box": [
-        20,
-        56,
-        153,
-        125
-      ]
-    }
+    "eyes_source_sha256": "93943d38d0138d03bdd4056db2248920ee3426d8a27f9999e0e1397bc1c88d2f",
+    "eyes_framing": "User supplied 1440x160 transparent canvas, DX to MAGiCAL order; preserve canvas, placement, colors and alpha without crop, resize or feather; lossless WebP",
+    "background_policy": "Normal HTML with only hero hidden; scene ornaments baked into background; shared phone/tablet source, runtime centered W+D crop"
   },
   {
     "theme": "MaiPrism",
@@ -1222,77 +816,48 @@
     ],
     "animation_time_ms": 1000,
     "hidden_hero": ".otokit-hero,.chara.topChara",
-    "decoration": ".auroras,.shines-layer,.moon",
     "layers": [
       "background",
-      "decoration",
       "eyes"
     ],
     "direction": [
       "left",
-      "left",
       "right"
     ],
-    "eyes_source": "D:\\CodeProject\\OTOKiT背景\\完成背景\\MaiPrism\\status\\storage_root_chara.webp",
-    "eyes_crop": [
-      59,
-      115,
-      530,
-      231
-    ],
-    "eyes_size": [
-      650,
-      160
-    ],
-    "bytes": 110262,
+    "eyes_source": "D:\\CodeProject\\OTOKiT背景\\人物\\9.png",
+    "bytes": 186626,
     "exports": {
       "background": {
+        "asset": "theme-preview/MaiPrism/background.webp",
         "size": [
-          1152,
+          1440,
           160
         ],
-        "sha256": "01fa592f81a75946e4b8cf3a4e7d53dd15944e649569015841daa65aa15f139d",
-        "bytes": 19900
-      },
-      "decoration": {
-        "size": [
-          1137,
-          160
-        ],
-        "sha256": "2818096dd5070577d82c75306edcb0936096c5a3f8fcc9b05572dfcaa4fe2f43",
-        "bytes": 36062
+        "sha256": "effd632cc332454c7917e22c7d6388790c7f963db905d8424cbfb261d0f9ee9e",
+        "bytes": 25020
       },
       "eyes": {
         "size": [
-          650,
+          1440,
           160
         ],
-        "sha256": "a5ee304efb6c98cd23d811f7e814c5fcf7a09cc13a4a049158fe3994f39afb1d",
-        "bytes": 54300
+        "sha256": "4fb38c56ea42492422c720f53aa3f01cb631baf6cc90dfeaf0835a3bf1c96776",
+        "bytes": 161606
       }
     },
     "background_crop": [
       0,
-      40,
+      20,
       1440,
-      240
+      180
     ],
     "export_canvas": [
-      1152,
+      1440,
       160
     ],
-    "decoration_crop": {
-      "canvas": [
-        1152,
-        160
-      ],
-      "box": [
-        0,
-        0,
-        1137,
-        160
-      ]
-    }
+    "eyes_source_sha256": "2edf8fd3993fa50237052e9ce3b8e3a31b793ff1ea7de56775d90ffea0c26129",
+    "eyes_framing": "User supplied 1440x160 transparent canvas, DX to MAGiCAL order; preserve canvas, placement, colors and alpha without crop, resize or feather; lossless WebP",
+    "background_policy": "Normal HTML with only hero hidden; scene ornaments baked into background; shared phone/tablet source, runtime centered W+D crop"
   },
   {
     "theme": "MaiPrismPlus",
@@ -1303,77 +868,48 @@
     ],
     "animation_time_ms": 1000,
     "hidden_hero": ".otokit-hero,.chara.topChara",
-    "decoration": ".auroras,.shines-layer,.moon",
     "layers": [
       "background",
-      "decoration",
       "eyes"
     ],
     "direction": [
       "left",
-      "left",
       "right"
     ],
-    "eyes_source": "D:\\CodeProject\\OTOKiT背景\\完成背景\\MaiPrismPlus\\status\\storage_root_chara.webp",
-    "eyes_crop": [
-      38,
-      112,
-      509,
-      229
-    ],
-    "eyes_size": [
-      644,
-      160
-    ],
-    "bytes": 97550,
+    "eyes_source": "D:\\CodeProject\\OTOKiT背景\\人物\\10.png",
+    "bytes": 165700,
     "exports": {
       "background": {
+        "asset": "theme-preview/MaiPrismPlus/background.webp",
         "size": [
-          1152,
+          1440,
           160
         ],
-        "sha256": "f3ab610f41dd8611a802e87a154df571ddd18c7df204f8d97447112034b4d02c",
-        "bytes": 16878
-      },
-      "decoration": {
-        "size": [
-          1149,
-          160
-        ],
-        "sha256": "49134df612b9f8770af3fc1f826e26ffe77abd820e29470219a55f3ad95f4e93",
-        "bytes": 39488
+        "sha256": "c24673f441510f923be8cbb8bff5ee450c25d773e1a61dc8672795cbbe343a19",
+        "bytes": 20056
       },
       "eyes": {
         "size": [
-          644,
+          1440,
           160
         ],
-        "sha256": "2994f342ee216c5106d25358f155438a3146d2a0ea1c4eefd382abe7d5a1bdb5",
-        "bytes": 41184
+        "sha256": "6292c22ddbe8d692a7a4597bdfa464bc0ddcd16823165c029813bbfb8dc87d0c",
+        "bytes": 145644
       }
     },
     "background_crop": [
       0,
-      40,
+      20,
       1440,
-      240
+      180
     ],
     "export_canvas": [
-      1152,
+      1440,
       160
     ],
-    "decoration_crop": {
-      "canvas": [
-        1152,
-        160
-      ],
-      "box": [
-        3,
-        0,
-        1152,
-        160
-      ]
-    }
+    "eyes_source_sha256": "274ae0eed09edfd0ce8ae8d8a76b5427de5281d2ae60f04d172bff814ebce045",
+    "eyes_framing": "User supplied 1440x160 transparent canvas, DX to MAGiCAL order; preserve canvas, placement, colors and alpha without crop, resize or feather; lossless WebP",
+    "background_policy": "Normal HTML with only hero hidden; scene ornaments baked into background; shared phone/tablet source, runtime centered W+D crop"
   },
   {
     "theme": "MaiSplash",
@@ -1384,78 +920,49 @@
     ],
     "animation_time_ms": 1000,
     "hidden_hero": ".otokit-hero,.chara.topChara",
-    "decoration": ".wave-wrapper",
     "layers": [
       "background",
-      "decoration",
       "eyes"
     ],
     "direction": [
       "left",
-      "left",
       "right"
     ],
-    "eyes_source": "D:\\CodeProject\\OTOKiT背景\\完成背景\\MaiSplash\\status\\storage_root_otohime_splash.webp",
-    "eyes_crop": [
-      81,
-      69,
-      358,
-      172
-    ],
-    "eyes_size": [
-      430,
-      160
-    ],
-    "bytes": 52736,
+    "eyes_source": "D:\\CodeProject\\OTOKiT背景\\人物\\2.png",
+    "bytes": 122528,
     "capture_override": ".wave-wrapper top:30px; height:130px; avoids strip falling below viewport",
     "exports": {
       "background": {
+        "asset": "theme-preview/MaiSplash/background.webp",
         "size": [
-          1152,
-          160
+          1440,
+          180
         ],
-        "sha256": "4cc1afc3750a0c4982ea32d1aab6fbcfa39c8ab7988542797411a89e0523f58a",
-        "bytes": 12150
-      },
-      "decoration": {
-        "size": [
-          1152,
-          104
-        ],
-        "sha256": "045566ac1e5449375ac2dba797d87e5af10773074b2946e022b069dcffe9e90f",
-        "bytes": 13406
+        "sha256": "4e76a5cf7158569892004de81d95c8232fe3f48e65b3a933fa38199d7fc26ddb",
+        "bytes": 32288
       },
       "eyes": {
         "size": [
-          430,
+          1440,
           160
         ],
-        "sha256": "4d65902abaf8a37dc1e71493ead2c30dd2197920212c4443aa3c8fbb6407e855",
-        "bytes": 27180
+        "sha256": "eeee9055ffdb298e3d376ec1f27810b9d49ceae370b344ec13c2b7521d99ee7e",
+        "bytes": 90240
       }
     },
     "background_crop": [
       0,
-      120,
+      60,
       1440,
-      320
+      240
     ],
     "export_canvas": [
-      1152,
-      160
+      1440,
+      180
     ],
-    "decoration_crop": {
-      "canvas": [
-        1152,
-        160
-      ],
-      "box": [
-        0,
-        49,
-        1152,
-        153
-      ]
-    }
+    "eyes_source_sha256": "4c276418485d0a80cd69c507536be2e70f6924e09bb67559eadbe89b3d54cb85",
+    "eyes_framing": "User supplied 1440x160 transparent canvas, DX to MAGiCAL order; preserve canvas, placement, colors and alpha without crop, resize or feather; lossless WebP",
+    "background_policy": "Normal HTML with only hero hidden; scene ornaments baked into background; shared phone/tablet source, runtime centered W+D crop"
   },
   {
     "theme": "MaiSplashPlus",
@@ -1466,146 +973,100 @@
     ],
     "animation_time_ms": 1000,
     "hidden_hero": ".otokit-hero,.chara.topChara",
-    "decoration": ".wave-wrapper",
     "layers": [
       "background",
-      "decoration",
       "eyes"
     ],
     "direction": [
       "left",
-      "left",
       "right"
     ],
-    "eyes_source": "D:\\CodeProject\\OTOKiT背景\\完成背景\\MaiSplashPlus\\status\\storage_root_chara.webp",
-    "eyes_crop": [
-      140,
-      82,
-      632,
-      233
-    ],
-    "eyes_size": [
-      521,
-      160
-    ],
-    "bytes": 55618,
+    "eyes_source": "D:\\CodeProject\\OTOKiT背景\\人物\\3.png",
+    "bytes": 127138,
     "capture_override": ".wave-wrapper top:30px; height:130px; avoids strip falling below viewport",
     "exports": {
       "background": {
+        "asset": "theme-preview/MaiSplashPlus/background.webp",
         "size": [
-          1152,
+          1440,
           160
         ],
-        "sha256": "4b0efdedfa3bb7c94180a1f18bf7844480c3e940ca0179aa028fcc9a3d53dcd5",
-        "bytes": 412
-      },
-      "decoration": {
-        "size": [
-          1152,
-          160
-        ],
-        "sha256": "66aae0fc01e266f85a37d83416b97fc8cbd2bdf5216168c0e8a4a40c3a072aec",
-        "bytes": 26524
+        "sha256": "93188bdd77da8f6ea7c5fef86ca26f30b1c1f7e9b26367c02edce0c4be7f6025",
+        "bytes": 31916
       },
       "eyes": {
         "size": [
-          521,
+          1440,
           160
         ],
-        "sha256": "a3247398b3391ae5822ee1b7e4c8e3074b759d4b018e867f3dde2e9651698ba4",
-        "bytes": 28682
+        "sha256": "e73a32af57581fdd16a1a1bb55560549d364c96680b05255493219c162f1c7d8",
+        "bytes": 95222
       }
     },
     "background_crop": [
       0,
-      570,
+      290,
       1440,
-      770
+      450
     ],
     "export_canvas": [
-      1152,
+      1440,
       160
-    ]
+    ],
+    "eyes_source_sha256": "70d490df4bdc6aa2dc9a0bab6be19c2ef6a4e91c6de562f8690311ade76b0824",
+    "eyes_framing": "User supplied 1440x160 transparent canvas, DX to MAGiCAL order; preserve canvas, placement, colors and alpha without crop, resize or feather; lossless WebP",
+    "background_policy": "Normal HTML with only hero hidden; scene ornaments baked into background; shared phone/tablet source, runtime centered W+D crop"
   },
   {
     "theme": "MaiUniverse",
     "source": "D:\\CodeProject\\OTOKiT背景\\完成背景\\MaiUniverse\\html\\index.html",
     "viewport": [
       1440,
-      900
+      600
     ],
     "animation_time_ms": 1000,
     "hidden_hero": ".otokit-hero,.chara.topChara",
-    "decoration": ".deco,.corner",
     "layers": [
       "background",
-      "decoration",
       "eyes"
     ],
     "direction": [
       "left",
-      "left",
       "right"
     ],
-    "eyes_source": "D:\\CodeProject\\OTOKiT背景\\完成背景\\MaiUniverse\\status\\storage_root_chara.webp",
-    "eyes_crop": [
-      0,
-      77,
-      478,
-      213
-    ],
-    "eyes_size": [
-      562,
-      160
-    ],
-    "bytes": 83774,
+    "eyes_source": "D:\\CodeProject\\OTOKiT背景\\人物\\4.png",
+    "bytes": 167354,
     "exports": {
       "background": {
+        "asset": "theme-preview/MaiUniverse/background.webp",
         "size": [
-          1152,
+          1440,
           160
         ],
-        "sha256": "abdafd00b5f04fcba4c6dd6ebf0a66e8fb3b569be847bc371f2402289c09cbd7",
-        "bytes": 3906
-      },
-      "decoration": {
-        "size": [
-          1145,
-          160
-        ],
-        "sha256": "0b88be6b879b941c078713a19555708152e72748297e2932daed7e3e93b19d13",
-        "bytes": 35402
+        "sha256": "1e98b8e8f6f0393c969fb227b478ba56a05b7456e35a29327f75232c8f7f906b",
+        "bytes": 15494
       },
       "eyes": {
         "size": [
-          562,
+          1440,
           160
         ],
-        "sha256": "ea8a7717c5c1b4ccf563478d0a5ac6f0983f70b865524648b79a50260fe6c4db",
-        "bytes": 44466
+        "sha256": "55524c378032806c2c8277f6fadbcfd321ed05d5e729b2886d9dc70887124c5c",
+        "bytes": 151860
       }
     },
     "background_crop": [
       0,
-      80,
+      220,
       1440,
-      280
+      380
     ],
     "export_canvas": [
-      1152,
+      1440,
       160
     ],
-    "decoration_crop": {
-      "canvas": [
-        1152,
-        160
-      ],
-      "box": [
-        0,
-        0,
-        1145,
-        160
-      ]
-    }
+    "eyes_source_sha256": "2083161aa885e06fe72f491747291b6e582089153e8990be57ce654157b64ba3",
+    "eyes_framing": "User supplied 1440x160 transparent canvas, DX to MAGiCAL order; preserve canvas, placement, colors and alpha without crop, resize or feather; lossless WebP",
+    "background_policy": "Normal HTML with only hero hidden; scene ornaments baked into background; shared phone/tablet source, runtime centered W+D crop"
   }
 ]

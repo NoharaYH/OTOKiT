@@ -26,7 +26,7 @@ import kotlin.math.roundToInt
 @android.annotation.SuppressLint("ViewConstructor") // 由面板提供选项和视口预算，不参与 XML inflate。
 internal class ThemeDropdownMenu(
     context: Context,
-    options: List<ThemeOption>,
+    private val options: List<ThemeOption>,
     selectedId: String?,
     availableHeight: Int,
     onBottomRadiusChanged: () -> Unit,
@@ -36,17 +36,26 @@ internal class ThemeDropdownMenu(
 ) : FrameLayout(context) {
     private fun dp(value: Int) = (value * resources.displayMetrics.density + 0.5f).toInt()
     private val rowHeight = dp(Dimensions.MENU_ROW_DP).toFloat()
-    private val space = availableHeight.coerceAtLeast(dp(Dimensions.MENU_ROW_DP + Dimensions.MENU_PADDING_DP * 2))
-    private val previewScale = ((space - dp(Dimensions.MENU_PADDING_DP * 2) - rowHeight) /
-        ((options.size - 1).coerceAtLeast(1) * dp(Dimensions.MENU_BAR_DP + Dimensions.MENU_GAP_DP).toFloat())).coerceIn(0f, 1f)
-    private val gap = dp(Dimensions.MENU_GAP_DP) * previewScale
-    private val collapsedHeight = dp(Dimensions.MENU_BAR_DP) * previewScale
-    private val slots = ((space - dp(Dimensions.MENU_PADDING_DP * 2) - options.size * collapsedHeight -
-        (options.size - 1) * gap) / (rowHeight - collapsedHeight))
-        .toInt().coerceIn(1, options.size.coerceAtLeast(1)).coerceAtMost(Dimensions.MENU_MAX_SLOTS)
-    private val geometry = ThemeMenuGeometry(options.size, slots, rowHeight, gap,
-        collapsedHeight, dp(Dimensions.MENU_PADDING_DP).toFloat())
-    val contentHeight = geometry.height.roundToInt()
+    private fun geometryFor(availableHeight: Int): ThemeMenuGeometry {
+        val padding = dp(Dimensions.MENU_PADDING_DP).toFloat()
+        val space = availableHeight.toFloat().coerceAtLeast(rowHeight + padding * 2)
+        val scale = ((space - padding * 2 - rowHeight) /
+            ((options.size - 1).coerceAtLeast(1) * (dp(Dimensions.MENU_BAR_DP) + dp(Dimensions.MENU_GAP_DP)).toFloat())).coerceIn(0f, 1f)
+        val gap = dp(Dimensions.MENU_GAP_DP) * scale
+        val collapsed = dp(Dimensions.MENU_BAR_DP) * scale
+        val slots = ((space - padding * 2 - options.size * collapsed -
+            (options.size - 1) * gap) / (rowHeight - collapsed)).toInt()
+            .coerceIn(1, options.size.coerceAtLeast(1)).coerceAtMost(Dimensions.MENU_MAX_SLOTS)
+        return ThemeMenuGeometry(options.size, slots, rowHeight, gap, collapsed, padding)
+    }
+    private var geometry = geometryFor(availableHeight)
+    val contentHeight: Int get() = geometry.height.roundToInt()
+    fun updateHeightBudget(availableHeight: Int) {
+        val next = geometryFor(availableHeight)
+        if (geometry.slots == next.slots && geometry.gap == next.gap && geometry.collapsedHeight == next.collapsedHeight) return
+        geometry = next
+        viewport.updateGeometry(next)
+    }
     private val viewport = MenuViewport(context, options, selectedId, geometry, onBottomRadiusChanged, onScrollChanged, materkitColors, onSelected)
     val bottomCornerRadius: Float get() = viewport.bottomCornerRadius
     val canScroll: Boolean get() = geometry.maximum > 0f
@@ -75,7 +84,7 @@ private class MenuViewport(
     context: Context,
     private val options: List<ThemeOption>,
     selectedId: String?,
-    private val geometry: ThemeMenuGeometry,
+    private var geometry: ThemeMenuGeometry,
     private val onBottomRadiusChanged: () -> Unit,
     private val onScrollChanged: () -> Unit,
     materkitColors: ThemeColors,
@@ -86,7 +95,7 @@ private class MenuViewport(
     private val descriptions = options.map { (it as? ThemeOption.Html)?.theme?.definition?.preview }
     private val previews = options.map { option ->
         ThemeMenuPreview(if (option is ThemeOption.Html) option.theme.definition.colors.primaryColor
-            else materkitColors.primaryColor, density, (option as? ThemeOption.Html)?.theme?.definition?.preview?.decorationFromRight == true)
+            else materkitColors.primaryColor, density)
     }
     private val previewContents = previews.map { it::draw }
     private val previewFrames = ThemePreviewFrames(options.size)
@@ -100,7 +109,7 @@ private class MenuViewport(
 
     fun setPreviewActive(active: Boolean) {
         previewActive = active
-        val visible = active && isAttachedToWindow && isShown && hasWindowFocus()
+        val visible = active && isAttachedToWindow && windowVisibility == VISIBLE && isShown && hasWindowFocus()
         images?.setActive(visible)
         previewRunner.setActive(visible)
     }
@@ -156,10 +165,21 @@ private class MenuViewport(
     private var lastY = 0f
     private var pointerId = -1
     private var tracker: VelocityTracker? = null
-    private val expansionFeedback = ThemeMenuExpansionFeedback(geometry)
+    private var expansionFeedback = ThemeMenuExpansionFeedback(geometry)
     private var frontIndex = -1
-    private val motion = ThemeMenuMotionRunner(density, geometry.stride, geometry.maximum,
+    private fun createMotion() = ThemeMenuMotionRunner(density, geometry.stride, geometry.maximum,
         geometry::snap, ::updatePosition, ::layoutRows)
+    private var motion = createMotion()
+
+    fun updateGeometry(next: ThemeMenuGeometry) {
+        val fraction = scrollFraction
+        stopMotion()
+        geometry = next
+        offset = fraction * next.maximum
+        expansionFeedback = ThemeMenuExpansionFeedback(next)
+        motion = createMotion()
+        if (width > 0) layoutRows()
+    }
 
     init {
         clipChildren = false
@@ -411,6 +431,22 @@ private class MenuViewport(
         images?.close(); images = null
         stopMotion()
         super.onDetachedFromWindow()
+    }
+
+    override fun onWindowVisibilityChanged(visibility: Int) {
+        super.onWindowVisibilityChanged(visibility)
+        if (isAttachedToWindow) {
+            setPreviewActive(previewActive)
+            if (visibility != VISIBLE) stopMotion()
+        }
+    }
+
+    override fun onVisibilityAggregated(isVisible: Boolean) {
+        super.onVisibilityAggregated(isVisible)
+        if (isAttachedToWindow) {
+            setPreviewActive(previewActive)
+            if (!isVisible) stopMotion()
+        }
     }
 
     override fun onWindowFocusChanged(hasWindowFocus: Boolean) {

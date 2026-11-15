@@ -10,7 +10,7 @@ object MaiFestivalPlusTheme {
 
     val definition: ThemeDefinition = ThemeDefinition(
         htmlAssetPath = HTML_ASSET_PATH,
-        preview = ThemePreviewDescription("theme-preview/MaiFestivalPlus", hasEyes = true, decorationFromRight = false),
+        preview = ThemePreviewDescription("theme-preview/MaiFestivalPlus", hasEyes = true),
         colors = ThemeColors(
             primaryColor = 0xFFD6AEFF.toInt(),
             secondaryColor = 0xFFFDFA78.toInt(),

@@ -6,7 +6,4 @@ internal object ThemeMenuPreviewColors {
     const val SELECTED = 0xFFE0E0E0.toInt()
     const val SELECTED_STROKE = 0x66323232
     const val UNDERPAINT_PRIMARY_FRACTION = 0.12f
-    const val LIGHT_TONE = 65.0
-    const val DARK_TONE = 35.0
-    const val TONE_STEP = 12.0
 }

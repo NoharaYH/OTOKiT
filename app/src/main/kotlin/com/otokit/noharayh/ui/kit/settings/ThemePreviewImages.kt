@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.Rect
 import android.graphics.RectF
 import androidx.core.graphics.scale
 import androidx.core.graphics.createBitmap
@@ -14,16 +15,14 @@ import android.util.Log
 import com.otokit.noharayh.ui.constants.dimensions.ThemeSelectionDimensions as Dimensions
 import kotlin.math.min
 import com.otokit.noharayh.ui.theme.ThemePreviewDescription
-import com.otokit.noharayh.ui.theme.ThemePreviewCrop
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
 import java.util.concurrent.ThreadPoolExecutor
 import kotlin.math.max
 import kotlin.math.roundToInt
 
-internal data class ThemePreviewBitmaps(val background: Bitmap, val decoration: Bitmap, val eyes: Bitmap?, val flat: Bitmap,
-    val decorationCrop: ThemePreviewCrop? = null) {
-    val bytes: Int get() = background.allocationByteCount + decoration.allocationByteCount + (eyes?.allocationByteCount ?: 0) + flat.allocationByteCount
+internal data class ThemePreviewBitmaps(val background: Bitmap, val eyes: Bitmap?, val flat: Bitmap?) {
+    val bytes: Int get() = background.allocationByteCount + (eyes?.allocationByteCount ?: 0) + (flat?.allocationByteCount ?: 0)
 }
 
 /** 菜单局部、有界缓存；完整一组解码后交接，过期代次绝不回写。 */
@@ -36,6 +35,8 @@ internal class ThemePreviewImages(
     private val handler = Handler(Looper.getMainLooper())
     private val cache = LinkedHashMap<Int, ThemePreviewBitmaps>(8, 0.75f, true)
     private val pending = HashMap<Int, Future<*>>()
+    private val cacheSizes = HashMap<Int, Int>()
+    private var sizeGeneration = 0
     private val failed = HashSet<Int>()
     private val tickets = IntArray(descriptions.size)
     private var visible = emptySet<Int>()
@@ -59,8 +60,8 @@ internal class ThemePreviewImages(
         if (closed || targetWidth <= 0 || targetHeight <= 0) return
         if (width != targetWidth || height != targetHeight) {
             cancelRequests()
-            cache.clear(); failed.clear(); cachedBytes = 0
-            for (index in descriptions.indices) publish(index, null)
+            sizeGeneration++; failed.clear()
+            // 新尺寸整组就绪之前保留旧画面，按新边界裁切，不清空到浅底。
             width = targetWidth; height = targetHeight
         }
         for (index in visible - indices) publish(index, null)
@@ -70,22 +71,23 @@ internal class ThemePreviewImages(
         executor.purge()
         if (!active) return
         val currentGeneration = generation
+        val currentSize = sizeGeneration
         for (index in visible.sorted()) {
             val description = descriptions[index] ?: continue
             val cached = cache[index]
-            if (cached != null) { publish(index, cached); continue }
+            if (cached != null) {
+                publish(index, cached)
+                if (cacheSizes[index] == currentSize) continue
+            }
             if (index in pending || index in failed) continue
             val ticket = ++tickets[index]
             pending[index] = executor.submit {
                 val images = try {
-                    val background = decode(description.background, targetWidth, targetHeight, cover = true)
-                    val crop = description.decorationCrop
-                    val decorationHeight = if (crop == null) targetHeight else
-                        (targetHeight.toFloat() * crop.height / crop.canvasHeight).roundToInt().coerceAtLeast(1)
-                    val decoration = decode(description.decoration, targetWidth, decorationHeight)
+                    val backgroundWidth = (targetWidth + themePreviewTravel(targetWidth.toFloat(), targetHeight.toFloat())).roundToInt()
+                    val background = decode(description.background, backgroundWidth, targetHeight, cover = true)
                     val eyes = description.eyes?.let { decode(it, targetWidth, targetHeight) }
-                    val flat = compose(background, decoration, eyes, targetWidth, targetHeight, crop)
-                    ThemePreviewBitmaps(background, decoration, eyes, flat, crop)
+                    val flat = compose(background, eyes, targetWidth, targetHeight)
+                    ThemePreviewBitmaps(background, eyes, flat)
                 } catch (error: Exception) {
                     if (!Thread.currentThread().isInterrupted) Log.w("ThemePreview", "Cannot decode ${description.assetFolder}", error)
                     null
@@ -97,6 +99,7 @@ internal class ThemePreviewImages(
                     if (images == null) { failed.add(index); return@post }
                     cache.put(index, images)?.let { cachedBytes -= it.bytes }
                     cachedBytes += images.bytes
+                    cacheSizes[index] = currentSize
                     trim()
                     if (index in visible && active) publish(index, images)
                 }
@@ -126,8 +129,10 @@ internal class ThemePreviewImages(
         }
     }
 
-    private fun compose(background: Bitmap, decoration: Bitmap, eyes: Bitmap?, width: Int, height: Int, crop: ThemePreviewCrop?): Bitmap {
+    private fun compose(background: Bitmap, eyes: Bitmap?, width: Int, height: Int): Bitmap? {
         check(!Thread.currentThread().isInterrupted)
+        // 宽平板若把整行压成 1024px，会连人物高度一起降采样；静止时保留分层绘制即可。
+        if (width > Dimensions.PREVIEW_BITMAP_MAX_WIDTH_PX) return null
         val scale = min(1f, min(Dimensions.PREVIEW_BITMAP_MAX_WIDTH_PX.toFloat() / width,
             Dimensions.PREVIEW_BITMAP_MAX_HEIGHT_PX.toFloat() / height))
         val flat = createBitmap((width * scale).roundToInt().coerceAtLeast(1),
@@ -137,13 +142,13 @@ internal class ThemePreviewImages(
         val bounds = RectF(0f, 0f, width.toFloat(), height.toFloat())
         val destination = RectF()
         val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
-        fun layer(bitmap: Bitmap, cover: Boolean, layerCrop: ThemePreviewCrop? = null) {
-            themePreviewLayerBounds(bitmap.width, bitmap.height, bounds, height.toFloat(), cover, destination, layerCrop)
-            canvas.drawBitmap(bitmap, null, destination, paint)
+        val source = Rect()
+        themePreviewBackgroundBounds(background.width, background.height, bounds, height.toFloat(), 1f, source, destination)
+        canvas.drawBitmap(background, source, destination, paint)
+        eyes?.let {
+            themePreviewCharacterBounds(it.width, it.height, bounds, height.toFloat(), destination)
+            canvas.drawBitmap(it, null, destination, paint)
         }
-        layer(background, true)
-        layer(decoration, false, layerCrop = crop)
-        eyes?.let { layer(it, false) }
         return flat
     }
 
@@ -166,7 +171,7 @@ internal class ThemePreviewImages(
     fun close() {
         if (closed) return
         closed = true; cancelRequests(); executor.shutdownNow()
-        visible = emptySet(); cache.clear(); failed.clear(); cachedBytes = 0
+        visible = emptySet(); cache.clear(); cacheSizes.clear(); failed.clear(); cachedBytes = 0
         for (index in descriptions.indices) publish(index, null)
     }
 

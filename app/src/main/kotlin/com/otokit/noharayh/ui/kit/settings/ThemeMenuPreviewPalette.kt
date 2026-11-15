@@ -1,24 +1,13 @@
 package com.otokit.noharayh.ui.kit.settings
 
-import com.materialkolor.hct.Hct
 import com.otokit.noharayh.ui.constants.settings.ThemeMenuPreviewColors as Colors
 import kotlin.math.roundToInt
 
-/** 原主色不重新定调；另外两块只改变同一颜色的明度。 */
-internal data class ThemeMenuPreviewPalette(val primary: Int, val variant: Int, val accent: Int, val underpaint: Int) {
+/** 只混合现有主色与菜单底色，不重新定调或计算已取消的几何色块。 */
+internal data class ThemeMenuPreviewPalette(val primary: Int, val underpaint: Int) {
     companion object {
-        fun fromPrimary(primary: Int): ThemeMenuPreviewPalette {
-            val hct = Hct.fromInt(primary)
-            val step = Colors.TONE_STEP
-            val (first, second) = when {
-                hct.tone >= Colors.LIGHT_TONE -> -step to -step * 2
-                hct.tone <= Colors.DARK_TONE -> step to step * 2
-                else -> -step to step
-            }
-            fun shade(delta: Double) = Hct.from(hct.hue, hct.chroma, (hct.tone + delta).coerceIn(0.0, 100.0)).toInt()
-            return ThemeMenuPreviewPalette(primary, shade(first), shade(second),
-                previewColorBetween(Colors.BASE, primary, Colors.UNDERPAINT_PRIMARY_FRACTION))
-        }
+        fun fromPrimary(primary: Int) = ThemeMenuPreviewPalette(primary,
+            previewColorBetween(Colors.BASE, primary, Colors.UNDERPAINT_PRIMARY_FRACTION))
     }
 }
 

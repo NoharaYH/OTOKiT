@@ -143,4 +143,80 @@ class ThemePreviewRenderingTest : UiComponentTestHost() {
         main { panel.reset(); assertEquals(0, current.previewBitmapBytes); assertFalse(current.previewHasPendingWork) }
     }
 
+    @Test fun liveViewportChangesKeepTheMenuAndResumeAnInterruptedEntranceWithoutOldResults() {
+        lateinit var panel: ThemeSelectorPanel
+        val all = options() + (1..17).map { ThemeOption.Placeholder("extra-$it", "Extra $it") }
+        main { panel = ThemeSelectorPanel(activity, LabeledDropdownField(activity, "Resize")) {} }
+        mount(panel, 700, 1500)
+        main { panel.open(all, 1200) {} }
+        val original = awaitSettled(panel, 3)
+        val originalHeight = original.contentHeight
+        main {
+            panel.updateHeightBudget(200)
+            assertSame(original, menu(panel))
+            assertTrue(original.contentHeight < originalHeight)
+            assertTrue(original.contentHeight <= 201)
+            panel.layoutParams = panel.layoutParams.apply { width = 900 }
+        }
+        awaitSettled(panel, 1)
+        main {
+            assertSame(original, menu(panel))
+            assertTrue(original.previewBitmapBytes <= ThemePreviewImages.BYTE_BUDGET)
+            panel.updateHeightBudget(1200)
+        }
+        awaitSettled(panel, 3)
+        main { panel.reset(); panel.open(options(), 400) {} }
+        val entering = menuOnMain(panel)
+        val deadline = SystemClock.uptimeMillis() + 3000
+        var started = false
+        while (!started && SystemClock.uptimeMillis() < deadline) {
+            main { started = entering.previewImageCount > 0 && entering.previewHasPendingWork }
+            if (!started) SystemClock.sleep(10)
+        }
+        assertTrue(started)
+        main { host.visibility = android.view.View.INVISIBLE }
+        instrumentation.waitForIdleSync()
+        main { assertFalse(entering.previewHasPendingWork) }
+        SystemClock.sleep(150)
+        main { assertFalse(entering.previewHasPendingWork); host.visibility = android.view.View.VISIBLE }
+        instrumentation.waitForIdleSync()
+        main {
+            assertTrue(panel.beginBackPreview())
+            panel.previewBack(0.4f)
+            assertFalse(entering.previewHasPendingWork)
+        }
+        SystemClock.sleep(150)
+        main { assertFalse(entering.previewHasPendingWork); panel.cancelBackPreview() }
+        assertSame(entering, awaitSettled(panel, 3))
+        main { assertTrue(panel.beginBackPreview()); panel.previewBack(0.6f); panel.finishBackPreview() }
+        var released = false
+        val releaseDeadline = SystemClock.uptimeMillis() + 3000
+        while (!released && SystemClock.uptimeMillis() < releaseDeadline) {
+            main { released = panel.childCount == 2 && entering.previewBitmapBytes == 0 && !entering.previewHasPendingWork }
+            if (!released) SystemClock.sleep(30)
+        }
+        assertTrue("确认返回后卸载菜单和图像", released)
+    }
+
+    private fun menuOnMain(panel: ThemeSelectorPanel): ThemeDropdownMenu {
+        lateinit var result: ThemeDropdownMenu
+        main { result = menu(panel) }
+        return result
+    }
+
+    @Test fun fractionalDensitiesKeepMenuInsideItsHeightBudget() {
+        main {
+            val choices = (0 until 24).map { ThemeOption.Placeholder("budget-$it", "Budget $it") }
+            for (dpi in listOf(208, 420, 536)) {
+                val context = activity.createConfigurationContext(android.content.res.Configuration().apply { densityDpi = dpi })
+                for (budget in listOf(240, 360, 480)) {
+                    val current = ThemeDropdownMenu(context, choices, null, budget, {}, {}) {}
+                    assertTrue("density=$dpi budget=$budget actual=${current.contentHeight}", current.contentHeight <= budget)
+                    current.updateHeightBudget(budget + 19)
+                    assertTrue(current.contentHeight <= budget + 19)
+                }
+            }
+        }
+    }
+
 }

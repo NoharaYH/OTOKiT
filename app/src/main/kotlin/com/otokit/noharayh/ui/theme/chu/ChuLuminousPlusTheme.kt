@@ -10,7 +10,7 @@ object ChuLuminousPlusTheme {
 
     val definition: ThemeDefinition = ThemeDefinition(
         htmlAssetPath = HTML_ASSET_PATH,
-        preview = ThemePreviewDescription("theme-preview/ChuLuminousPlus", hasEyes = false, decorationFromRight = true),
+        preview = ThemePreviewDescription("theme-preview/ChuLuminousPlus", hasEyes = false),
         colors = ThemeColors(
             primaryColor = 0xFF70B8FF.toInt(),
             secondaryColor = 0xFFFF98F6.toInt(),

@@ -6,19 +6,6 @@ import org.junit.Test
 class ThemeMenuGeometryTest {
     private val menu = ThemeMenuGeometry(17, 5, 44f, 4f, 6f, 8f)
 
-    @Test fun foldedRowsShareOneOriginOnEachSideAndDoNotJumpAtWholeRowBoundaries() {
-        val offset = 3.5f * menu.stride
-        for (index in 0..3) assertEquals(menu.foldedRegionCenter(0, offset), menu.foldedRegionCenter(index, offset), 0f)
-        for (index in 8 until menu.count) assertEquals(menu.foldedRegionCenter(16, offset), menu.foldedRegionCenter(index, offset), 0f)
-        for (step in 1 until menu.count - menu.slots) {
-            val before = step * menu.stride - 0.001f
-            val after = step * menu.stride + 0.001f
-            for (index in listOf(0, menu.count - 1)) {
-                assertEquals(menu.foldedRegionCenter(index, before), menu.foldedRegionCenter(index, after), 0.01f)
-            }
-        }
-    }
-
     @Test fun releaseSnapsToWholeRowsAndClampsBothEnds() {
         assertEquals(0f, menu.snap(-30f), 0f)
         assertEquals(0f, menu.snap(23f), 0f)
