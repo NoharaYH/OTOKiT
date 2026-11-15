@@ -18,7 +18,6 @@ internal object ThemeSelectionDimensions {
     const val MENU_LARGE_RADIUS_DP = 22f
     const val MENU_BAR_RADIUS_DP = 3f
     const val MENU_INNER_RADIUS_DP = 4f
-    const val MENU_TEXT_INSET_DP = 16
     const val MENU_MIN_VISIBLE_DP = 2
     const val MENU_OVERSCROLL_DP = 32
     const val MENU_TRANSLATION_DP = 8

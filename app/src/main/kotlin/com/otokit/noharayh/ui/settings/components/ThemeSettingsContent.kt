@@ -118,12 +118,13 @@ internal class ThemeSettingsContent(
             val game = if (state.themeMode == ThemeSelectionMode.Merged) null else GameLine.Mai
             val id = if (game == null) state.mergedThemeId else state.maiThemeId
             val options = if (game == null) ThemeOptions.merged() else ThemeOptions.forGame(game)
-            togglePanel(firstPanel, options.filterNot { it.id == id }) { onOptionSelected(it, game) }
+            togglePanel(firstPanel, options, id) { onOptionSelected(it, game) }
         }
         secondField.setOnClickListener {
             val state = renderedSelection ?: return@setOnClickListener
-            togglePanel(secondPanel, ThemeOptions.forGame(GameLine.Chu)
-                .filterNot { it.id == state.chuThemeId }) { onOptionSelected(it, GameLine.Chu) }
+            togglePanel(secondPanel, ThemeOptions.forGame(GameLine.Chu), state.chuThemeId) {
+                onOptionSelected(it, GameLine.Chu)
+            }
         }
         content.addView(firstPanel, FrameLayout.LayoutParams(-1, rowHeight))
         content.addView(secondPanel, FrameLayout.LayoutParams(-1, rowHeight).apply {
@@ -171,6 +172,9 @@ internal class ThemeSettingsContent(
         if (previous?.themeMode != selection.themeMode) picker.resetSelection()
         segment.setSelection(modeIndex(selection.themeMode))
         val title = firstTitle(selection)
+        firstPanel.renderSelection(if (selection.themeMode == ThemeSelectionMode.Merged)
+            selection.mergedThemeId else selection.maiThemeId)
+        secondPanel.renderSelection(selection.chuThemeId)
         if (previous?.themeMode == selection.themeMode) {
             if (!transition.isRunning) {
                 firstField.setValue(title)
@@ -267,12 +271,14 @@ internal class ThemeSettingsContent(
         }
     }
 
-    private fun togglePanel(panel: ThemeSelectorPanel, options: List<ThemeOption>, onSelected: (ThemeOption) -> Unit) {
+    private fun togglePanel(panel: ThemeSelectorPanel, options: List<ThemeOption>, selectedId: String,
+        onSelected: (ThemeOption) -> Unit,
+    ) {
         if (panel.isOpen) { panel.close(); return }
         panels.filterNot { it === panel }.forEach { it.close() }
         // 预算只依赖视口，不随本次展开后的卡片高度变化，避免测量反馈循环。
         val budget = (height - rowHeight * 2 - rowGap * 4).coerceAtLeast(rowHeight + rowGap * 2)
-        panel.open(options, budget, onSelected)
+        panel.open(options, budget, selectedId, onSelected)
     }
 
     fun closeThemePanel(): Boolean {

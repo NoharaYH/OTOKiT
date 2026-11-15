@@ -1,13 +1,21 @@
 package com.otokit.noharayh.ui
 
 import android.os.SystemClock
+import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.otokit.noharayh.ui.kit.settings.LabeledDropdownField
+import com.otokit.noharayh.ui.kit.settings.SettingsButton
 import com.otokit.noharayh.ui.kit.settings.ThemeDropdownMenu
 import com.otokit.noharayh.ui.kit.settings.ThemeSelectorPanel
+import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors
+import com.otokit.noharayh.ui.settings.components.ThemeSettingsContent
+import com.otokit.noharayh.ui.shell.selection.GameSelectionState
+import com.otokit.noharayh.ui.theme.GameLine
 import com.otokit.noharayh.ui.theme.ThemeOption
+import com.otokit.noharayh.ui.theme.ThemeOptions
+import com.otokit.noharayh.ui.theme.ThemeSelectionMode
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -40,12 +48,12 @@ class ThemeSelectorPanelTest : UiComponentTestHost() {
         }
     }
 
-    private fun awaitInteractive(panel: ThemeSelectorPanel) {
+    private fun awaitInteractive(panel: ThemeSelectorPanel, rowIndex: Int = 0) {
         // 等待真实展开到可交互态，不强行结束内部 runner。
         val timeout = SystemClock.uptimeMillis() + 2500
         var enabled = false
         while (!enabled && SystemClock.uptimeMillis() < timeout) {
-            main { enabled = (menu(panel)!!.getChildAt(0) as ViewGroup).getChildAt(0).isEnabled }
+            main { enabled = (menu(panel)!!.getChildAt(0) as ViewGroup).getChildAt(rowIndex).isEnabled }
             if (!enabled) SystemClock.sleep(16)
         }
         assertTrue(enabled)
@@ -63,7 +71,7 @@ class ThemeSelectorPanelTest : UiComponentTestHost() {
             val renamed = menu(panel)!!
             assertNotSame(compact, renamed)
             val row = (renamed.getChildAt(0) as ViewGroup).getChildAt(0) as ViewGroup
-            assertEquals("New 1", (row.getChildAt(0) as TextView).text)
+            assertEquals("New 1", label(row).text)
             panel.open(options.map { it.copy(title = "New ${it.id}") }, 800) {}
             assertTrue(menu(panel)!!.contentHeight > renamed.contentHeight)
         }
@@ -80,5 +88,108 @@ class ThemeSelectorPanelTest : UiComponentTestHost() {
             assertNull(menu(panel))
             assertEquals(0f, panel.extraHeight, 0f)
         }
+    }
+
+    @Test fun confirmedChoiceUpdatesInPlaceAndFoldsWithoutLeakingItsContent() {
+        lateinit var panel: ThemeSelectorPanel
+        val options = (1..8).map { ThemeOption.Placeholder("$it", "Choice $it") }
+        main { panel = ThemeSelectorPanel(activity, LabeledDropdownField(activity, "Choices")) {} }
+        mount(panel, 600, 1000)
+        main { panel.open(options, 800, selectedId = options.first().id) {} }
+        awaitInteractive(panel)
+        main {
+            val original = menu(panel)!!
+            val rows = original.getChildAt(0) as ViewGroup
+            val first = rows.getChildAt(0) as SettingsButton
+            val last = rows.getChildAt(options.lastIndex) as SettingsButton
+            assertChoice(first, true)
+            panel.renderSelection(options.last().id)
+            assertSame(original, menu(panel))
+            assertChoice(first, false)
+            assertChoice(last, true)
+            assertEquals(0f, last.getChildAt(0).alpha, 0f)
+            assertFalse(last.isEnabled)
+            panel.open(options, 800, selectedId = options.last().id) {}
+            assertSame(original, menu(panel))
+            original.beginScrollbarDrag()
+            original.dragScrollbarTo(1f)
+            original.endScrollbarDrag()
+        }
+        awaitInteractive(panel, options.lastIndex)
+        main {
+            val row = (menu(panel)!!.getChildAt(0) as ViewGroup).getChildAt(options.lastIndex) as SettingsButton
+            assertChoice(row, true)
+            assertEquals(1f, row.getChildAt(0).alpha, 0f)
+            assertEquals(row.height, row.getChildAt(0).height)
+            assertEquals(row.height / 2f, row.topCornerRadius!!, 1f)
+            assertEquals(row.height / 2f, row.bottomCornerRadius!!, 1f)
+        }
+    }
+
+    @Test fun settingsKeepConfirmedThemeInMergedAndBothIndependentMenus() {
+        for (mode in listOf(ThemeSelectionMode.Merged, ThemeSelectionMode.Independent)) {
+            lateinit var content: ThemeSettingsContent
+            lateinit var panels: List<ThemeSelectorPanel>
+            val state = GameSelectionState(currentGame = GameLine.Mai,
+                maiThemeId = ThemeOptions.resolveForGame(GameLine.Mai, null).id,
+                chuThemeId = ThemeOptions.resolveForGame(GameLine.Chu, null).id, themeMode = mode)
+            main {
+                host.removeAllViews()
+                content = ThemeSettingsContent(activity, 12, false, state, {}, { _, _ -> }, {}, {}, { _, _ -> })
+                panels = descendants(content).filterIsInstance<ThemeSelectorPanel>().toList()
+            }
+            mount(content, 600, 1000)
+            val expected = if (mode == ThemeSelectionMode.Merged) listOf(ThemeOptions.merged() to state.mergedThemeId)
+                else listOf(ThemeOptions.forGame(GameLine.Mai) to state.maiThemeId,
+                    ThemeOptions.forGame(GameLine.Chu) to state.chuThemeId)
+            expected.forEachIndexed { index, (options, selectedId) ->
+                val panel = panels[index]
+                main { panel.getChildAt(0).performClick() }
+                awaitInteractive(panel)
+                val selectedIndex = options.indexOfFirst { it.id == selectedId }
+                main {
+                    val current = menu(panel)!!
+                    val rows = current.getChildAt(0) as ViewGroup
+                    if (!rows.getChildAt(selectedIndex).isEnabled) {
+                        val slots = (0 until rows.childCount).count { rows.getChildAt(it).isEnabled }
+                        current.beginScrollbarDrag()
+                        current.dragScrollbarTo((selectedIndex - slots + 1).toFloat() / (rows.childCount - slots))
+                        current.endScrollbarDrag()
+                    }
+                }
+                awaitInteractive(panel, selectedIndex)
+                main {
+                    val rows = menu(panel)!!.getChildAt(0) as ViewGroup
+                    assertEquals(options.size, rows.childCount)
+                    val selectedRows = (0 until rows.childCount).map(rows::getChildAt).filter { it.isSelected }
+                    assertEquals(1, selectedRows.size)
+                    val row = selectedRows.single() as SettingsButton
+                    assertEquals(ThemeOptions.find(selectedId)!!.title, row.contentDescription)
+                    assertChoice(row, true)
+                    assertEquals(row.height / 2f, row.topCornerRadius!!, 1f)
+                    assertEquals(row.height / 2f, row.bottomCornerRadius!!, 1f)
+                    row.performClick()
+                    assertFalse(panel.isOpen)
+                }
+            }
+        }
+    }
+
+    private fun descendants(view: View): Sequence<View> = sequence {
+        yield(view)
+        if (view is ViewGroup) for (index in 0 until view.childCount) yieldAll(descendants(view.getChildAt(index)))
+    }
+
+    private fun label(row: ViewGroup): TextView = (row.getChildAt(0) as ViewGroup).getChildAt(0) as TextView
+
+    private fun assertChoice(row: SettingsButton, selected: Boolean) {
+        val node = row.createAccessibilityNodeInfo()
+        assertEquals("android.widget.RadioButton", node.className)
+        assertTrue(node.isCheckable)
+        assertEquals(selected, node.isChecked)
+        assertEquals(selected, node.isSelected)
+        assertEquals(if (selected) SettingsComponentColors.SELECTED else SettingsComponentColors.TEXT, label(row).currentTextColor)
+        val indicator = (row.getChildAt(0) as ViewGroup).getChildAt(1) as ViewGroup
+        assertEquals(if (selected) 1 else 0, indicator.childCount)
     }
 }

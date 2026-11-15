@@ -1,7 +1,6 @@
 package com.otokit.noharayh.ui.kit.settings
 
 import android.content.Context
-import android.view.Gravity
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.VelocityTracker
@@ -10,12 +9,9 @@ import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.FrameLayout
-import android.widget.TextView
 import com.otokit.noharayh.ui.animation.settings.ThemeMenuMotionRunner
 import com.otokit.noharayh.ui.constants.dimensions.ThemeSelectionDimensions as Dimensions
 import com.otokit.noharayh.ui.constants.motion.ThemeSelectionMotion as Spec
-import com.otokit.noharayh.ui.kit.common.AppTypography
-import com.otokit.noharayh.ui.kit.common.PressSurface
 import com.otokit.noharayh.ui.theme.ThemeOption
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -25,6 +21,7 @@ import kotlin.math.roundToInt
 internal class ThemeDropdownMenu(
     context: Context,
     options: List<ThemeOption>,
+    selectedId: String?,
     availableHeight: Int,
     onBottomRadiusChanged: () -> Unit,
     onScrollChanged: () -> Unit,
@@ -43,7 +40,7 @@ internal class ThemeDropdownMenu(
     private val geometry = ThemeMenuGeometry(options.size, slots, rowHeight, gap,
         collapsedHeight, dp(Dimensions.MENU_PADDING_DP).toFloat())
     val contentHeight = geometry.height.roundToInt()
-    private val viewport = MenuViewport(context, options, geometry, onBottomRadiusChanged, onScrollChanged, onSelected)
+    private val viewport = MenuViewport(context, options, selectedId, geometry, onBottomRadiusChanged, onScrollChanged, onSelected)
     val bottomCornerRadius: Float get() = viewport.bottomCornerRadius
     val canScroll: Boolean get() = geometry.maximum > 0f
     val scrollFraction: Float get() = viewport.scrollFraction
@@ -56,6 +53,7 @@ internal class ThemeDropdownMenu(
         addView(viewport, LayoutParams(-1, -1))
     }
     fun setInteractionEnabled(enabled: Boolean) = viewport.setInteractionEnabled(enabled)
+    fun renderSelection(selectedId: String?) = viewport.renderSelection(selectedId)
     fun stopMotion() = viewport.stopMotion()
 }
 
@@ -63,7 +61,8 @@ internal class ThemeDropdownMenu(
 @android.annotation.SuppressLint("ViewConstructor") // 菜单只从选项及几何创建，不参与 XML inflate。
 private class MenuViewport(
     context: Context,
-    options: List<ThemeOption>,
+    private val options: List<ThemeOption>,
+    selectedId: String?,
     private val geometry: ThemeMenuGeometry,
     private val onBottomRadiusChanged: () -> Unit,
     private val onScrollChanged: () -> Unit,
@@ -92,7 +91,6 @@ private class MenuViewport(
     private var tracker: VelocityTracker? = null
     private val expansionFeedback = ThemeMenuExpansionFeedback(geometry)
     private var frontIndex = -1
-    private val labels = mutableListOf<TextView>()
     private val motion = ThemeMenuMotionRunner(density, geometry.stride, geometry.maximum,
         geometry::snap, ::updatePosition, ::layoutRows)
 
@@ -102,31 +100,25 @@ private class MenuViewport(
         isChildrenDrawingOrderEnabled = true
         isFocusable = true
         options.forEachIndexed { index, option ->
-            val label = TextView(context).apply {
-                text = option.title
-                textSize = 14f
-                includeFontPadding = false
-                gravity = Gravity.CENTER_VERTICAL
-                maxLines = 1
-                ellipsize = android.text.TextUtils.TruncateAt.END
-                setTextColor(0xFF323232.toInt())
-                AppTypography.applyAppTypeface(this)
-            }
-            labels += label
-            addView(PressSurface(context).apply {
+            addView(SettingsButton(context, option.title, SettingsButton.Kind.Choice,
+                selected = option.id == selectedId, contentHeight = LayoutParams.MATCH_PARENT,
+                onClick = { if (!motion.isRunning && !dragging) onSelected(option) }).apply {
                 fillColor = 0xFFF2F2F2.toInt()
-                baseRadius = Dimensions.MENU_INNER_RADIUS_DP * density
-                outerHaloEnabled = true
                 deferClickUntilReleaseFeedback = true
-                contentDescription = option.title
-                setPadding((Dimensions.MENU_TEXT_INSET_DP * density).roundToInt(), 0, (Dimensions.MENU_TEXT_INSET_DP * density).roundToInt(), 0)
-                addView(label, FrameLayout.LayoutParams(-1, -1))
                 addOnPressStateChangedListener { pressed ->
                     if (pressed) { frontIndex = index; invalidate() }
                 }
-                setOnClickListener { if (!motion.isRunning && !dragging) onSelected(option) }
             })
         }
+    }
+
+    fun renderSelection(selectedId: String?) {
+        options.forEachIndexed { index, option ->
+            val row = getChildAt(index) as SettingsButton
+            val selected = option.id == selectedId
+            if (row.isSelected != selected) row.renderSelection(selected, animate = false)
+        }
+        if (width > 0) layoutRows()
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -171,18 +163,20 @@ private class MenuViewport(
         val pad = geometry.padding.roundToInt()
         val overscroll = (offset - offset.coerceIn(0f, geometry.maximum)) * Spec.OVERSCROLL_SHIFT_FACTOR
         for (index in 0 until childCount) {
-            val child = getChildAt(index) as PressSurface
+            val child = getChildAt(index) as SettingsButton
             val (top, bottom) = geometry.bounds(index, offset)
             val h = (bottom - top).coerceAtLeast(0f)
             child.visibility = if (h < Dimensions.MENU_MIN_VISIBLE_DP * density) INVISIBLE else VISIBLE
             child.isEnabled = interactionEnabled && h >= geometry.rowHeight - density && !motion.isRunning && !dragging
             child.isFocusable = child.isEnabled
             child.importantForAccessibility = if (child.isEnabled) IMPORTANT_FOR_ACCESSIBILITY_YES else IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
-            labels[index].alpha = ((h / geometry.rowHeight - Spec.LABEL_FADE_START) / (1f - Spec.LABEL_FADE_START)).coerceIn(0f, 1f)
+            child.setContentAlpha(((h / geometry.rowHeight - Spec.LABEL_FADE_START) / (1f - Spec.LABEL_FADE_START)).coerceIn(0f, 1f))
             val outerRadius = (Dimensions.MENU_BAR_RADIUS_DP + (Dimensions.MENU_LARGE_RADIUS_DP -
                 Dimensions.MENU_BAR_RADIUS_DP) * geometry.expansion(index, offset)) * density
-            child.topCornerRadius = if (edges[index].top) outerRadius else Dimensions.MENU_INNER_RADIUS_DP * density
-            child.bottomCornerRadius = if (edges[index].bottom) outerRadius else Dimensions.MENU_INNER_RADIUS_DP * density
+            child.topCornerRadius = if (child.isSelected) h / 2f
+                else if (edges[index].top) outerRadius else Dimensions.MENU_INNER_RADIUS_DP * density
+            child.bottomCornerRadius = if (child.isSelected) h / 2f
+                else if (edges[index].bottom) outerRadius else Dimensions.MENU_INNER_RADIUS_DP * density
             child.measure(MeasureSpec.makeMeasureSpec((width - 2 * pad).coerceAtLeast(0), MeasureSpec.EXACTLY),
                 MeasureSpec.makeMeasureSpec(h.roundToInt(), MeasureSpec.EXACTLY))
             child.layout(pad, (top + overscroll).roundToInt(), width - pad,

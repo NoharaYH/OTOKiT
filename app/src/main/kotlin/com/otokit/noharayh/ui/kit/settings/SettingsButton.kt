@@ -19,7 +19,8 @@ import com.otokit.noharayh.ui.kit.common.PressSurface
 /** 成品操作/单选按钮；只发意图，由 renderSelection 接收确认状态。 */
 @android.annotation.SuppressLint("ViewConstructor") // 纯代码组件，需要显式内容与回调。
 internal class SettingsButton(context: Context, label: String, private val kind: Kind,
-    selected: Boolean = false, trailingIcon: ActionIcon = ActionIcon.Next, onClick: () -> Unit,
+    selected: Boolean = false, trailingIcon: ActionIcon = ActionIcon.Next,
+    contentHeight: Int = ViewPrimitives.dp(context, Dimensions.HEIGHT_DP), onClick: () -> Unit,
 ) : PressSurface(context) {
     enum class ActionIcon { Next, ExternalLink }
     enum class Kind { Action, Choice }
@@ -29,6 +30,7 @@ internal class SettingsButton(context: Context, label: String, private val kind:
         ellipsize = android.text.TextUtils.TruncateAt.END
     }
     private val indicator = FrameLayout(context)
+    private val content = LinearLayout(context)
     private val transition = SettingsChoiceTransitionRunner()
     private var confirmed = selected
     private fun dp(value: Int) = ViewPrimitives.dp(context, value)
@@ -37,7 +39,7 @@ internal class SettingsButton(context: Context, label: String, private val kind:
         outerHaloEnabled = true
         fillColor = Colors.CONTENT
         contentDescription = label
-        val row = LinearLayout(context).apply {
+        content.apply {
             gravity = Gravity.CENTER_VERTICAL
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
             setPadding(dp(Dimensions.INSET_DP), 0, dp(Dimensions.INSET_DP), 0)
@@ -48,11 +50,14 @@ internal class SettingsButton(context: Context, label: String, private val kind:
                 setColorFilter(Colors.MUTED)
             }, LinearLayout.LayoutParams(dp(Dimensions.ICON_DP), dp(Dimensions.ICON_DP)).apply { marginStart = dp(Dimensions.ICON_GAP_DP) })
         }
-        addView(row, LayoutParams(-1, dp(Dimensions.HEIGHT_DP)))
+        addView(content, LayoutParams(-1, contentHeight))
         if (kind == Kind.Choice) configureSingleChoiceSemantics(selected)
         renderSelection(selected, animate = false)
         setOnClickListener { onClick() }
     }
+
+    /** 菜单折叠时只隐藏图文，保留表面及其按压反馈。 */
+    fun setContentAlpha(value: Float) { content.alpha = value.coerceIn(0f, 1f) }
 
     fun renderSelection(selected: Boolean, animate: Boolean = true) {
         confirmed = selected && kind == Kind.Choice

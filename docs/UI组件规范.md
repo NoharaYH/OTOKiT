@@ -375,6 +375,8 @@ row.setExpanded(nextShowContent)
 
 **单选行：** `SettingsPageViews.choice(context, label, selected, onClick)`。40dp 行高，未选中 4dp、选中 20dp 圆角，右侧选择标记；单选语义在创建时配置。工厂返回 `SettingsButton`，通过 `renderSelection(selected, animate)` 更新确认状态、标记、文字与圆角；不能只改 `isSelected`。
 
+主题菜单同样使用 `SettingsButton` 的单选内容与语义，当前主题保留在原有列表位置，以蓝色文字、选中标记和胶囊轮廓呈现。菜单仍使用自己的 44dp 完整行、薄条及分组几何：通过 `contentHeight = MATCH_PARENT` 让内容跟随行高，`setContentAlpha` 同步隐藏折叠行的文字和标记，选中行圆角为当前高度的一半。选择状态只从确认快照回传；点击当前项仍收起菜单，不重复切换背景。
+
 **分段选择：** `kit/settings/SettingsSegmentedChoice`。26dp 高、4dp 间距、12sp 文字，按文字计算宽度；未选中圆角 4dp、选中 13dp。五项按压效果由内部 `PressSurface` 提供，选中形态由组件自身维护。
 
 ```kotlin

@@ -47,11 +47,14 @@ internal class ThemeSelectorPanel(
         })
     }
 
-    fun open(options: List<ThemeOption>, availableHeight: Int, onSelected: (ThemeOption) -> Unit) {
+    fun open(options: List<ThemeOption>, availableHeight: Int, selectedId: String? = null,
+        onSelected: (ThemeOption) -> Unit,
+    ) {
         if (options.isEmpty()) { reset(); return }
         if (menu != null && menuOptions == options && menuHeightBudget == availableHeight) {
             // 相同内容保留当前展开/滚动状态，但事件接收者始终使用本次绑定。
             onOptionSelected = onSelected
+            menu?.renderSelection(selectedId)
             opening = true
             previewStart = null
             header.setExpanded(true)
@@ -63,7 +66,7 @@ internal class ThemeSelectorPanel(
         menuOptions = options.toList()
         menuHeightBudget = availableHeight
         onOptionSelected = onSelected
-        val content = ThemeDropdownMenu(context, options, availableHeight,
+        val content = ThemeDropdownMenu(context, options, selectedId, availableHeight,
             onBottomRadiusChanged = { render(runner.progress, notifyHeight = false) },
             onScrollChanged = { renderScrollbar() }) { option ->
             if (opening && previewStart == null && controlsEnabled) {
@@ -80,6 +83,8 @@ internal class ThemeSelectorPanel(
         render(0f)
         runner.play(1f)
     }
+
+    fun renderSelection(selectedId: String?) { menu?.renderSelection(selectedId) }
 
     fun close() {
         if (menu == null || (!opening && previewStart == null)) return
