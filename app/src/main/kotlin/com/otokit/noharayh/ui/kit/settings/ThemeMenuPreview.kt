@@ -13,8 +13,8 @@ import com.otokit.noharayh.ui.animation.settings.ThemePreviewFrames
 import com.otokit.noharayh.ui.constants.motion.ThemePreviewMotion as Spec
 import com.otokit.noharayh.ui.constants.dimensions.ThemeSelectionDimensions as Dimensions
 import com.otokit.noharayh.ui.constants.settings.ThemeMenuPreviewColors as Colors
-import kotlin.math.max
 import kotlin.math.min
+import com.otokit.noharayh.ui.theme.ThemePreviewCrop
 
 /** 一行静态 WebP 的轻量绘制；按压裁剪、覆盖和涟漪仍由 PressSurface 拥有。 */
 internal class ThemeMenuPreview(primaryColor: Int, private val density: Float, private val decorationFromRight: Boolean = false) {
@@ -59,10 +59,14 @@ internal class ThemeMenuPreview(primaryColor: Int, private val density: Float, p
             val decoration = ThemePreviewFrames.layer(progress, Spec.DECORATION_START, if (scene.eyes == null) 1f else Spec.DECORATION_END)
             val eyes = ThemePreviewFrames.layer(progress, Spec.EYES_START, 1f)
             val travel = min(bounds.width() * 0.25f, Dimensions.PREVIEW_TRAVEL_MAX_DP * density)
-            drawLayer(canvas, scene.background, bounds, -travel * (1f - background), background, true)
-            drawLayer(canvas, scene.decoration, bounds,
-                travel * (if (decorationFromRight) 1f else -1f) * (1f - decoration), decoration, false)
-            scene.eyes?.let { drawLayer(canvas, it, bounds, travel * (1f - eyes), eyes, false, eyes = true) }
+            if (progress == 1f) {
+                drawLayer(canvas, scene.flat, bounds, 0f, 1f, true)
+            } else {
+                drawLayer(canvas, scene.background, bounds, -travel * (1f - background), background, true)
+                drawLayer(canvas, scene.decoration, bounds,
+                    travel * (if (decorationFromRight) 1f else -1f) * (1f - decoration), decoration, false, crop = scene.decorationCrop)
+                scene.eyes?.let { drawLayer(canvas, it, bounds, travel * (1f - eyes), eyes, false) }
+            }
             // 局部图像遮罩，右侧无暗层；不是组件/文字投影。
             scrim.alpha = (255 * expansion * background).toInt()
             canvas.drawRect(bounds.left, bounds.top, min(bounds.right, bounds.left + scrimWidth), bounds.bottom, scrim)
@@ -73,14 +77,10 @@ internal class ThemeMenuPreview(primaryColor: Int, private val density: Float, p
         }
     }
 
-    private fun drawLayer(canvas: Canvas, bitmap: Bitmap, bounds: RectF, dx: Float, alpha: Float, cover: Boolean, eyes: Boolean = false) {
-        val fullHeight = Dimensions.MENU_ROW_DP * density
-        var scale = if (cover) max(bounds.width() / bitmap.width, fullHeight / bitmap.height) else fullHeight / bitmap.height
-        if (eyes) scale = min(scale, bounds.width() * Dimensions.PREVIEW_EYES_MAX_FRACTION / bitmap.width)
-        val w = bitmap.width * scale
-        val h = bitmap.height * scale
-        val x = if (cover) bounds.centerX() - w / 2f else bounds.right - w
-        destination.set(x + dx, bounds.centerY() - h / 2f, x + dx + w, bounds.centerY() + h / 2f)
+    private fun drawLayer(canvas: Canvas, bitmap: Bitmap, bounds: RectF, dx: Float, alpha: Float, cover: Boolean, crop: ThemePreviewCrop? = null) {
+        val fullHeight = (Dimensions.MENU_ROW_DP * density + 0.5f).toInt().toFloat()
+        themePreviewLayerBounds(bitmap.width, bitmap.height, bounds, fullHeight, cover, destination, crop)
+        destination.offset(dx, 0f)
         imagePaint.alpha = (255 * alpha * expansion).toInt().coerceIn(0, 255)
         canvas.drawBitmap(bitmap, null, destination, imagePaint)
     }

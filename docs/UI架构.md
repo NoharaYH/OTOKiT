@@ -124,8 +124,8 @@ shell 缓存当前有效窗口快照和应用 chrome 占用，窗口变化与标
 
 ### 原生主题菜单预览
 
-`ThemeDefinition.preview` 可提供 `ThemePreviewDescription`，只声明相对资源目录、是否有眼睛层及装饰方向，不含 Context/Bitmap/加载器。各主题自行提供值，Registry 保持唯一登记入口。素材来源和裁切见 [素材清单](主题选单预览/素材清单.json)。
+`ThemeDefinition.preview` 可提供 `ThemePreviewDescription`，只声明相对资源目录、是否有眼睛层、装饰方向及透明裁剪在原画布中的位置，不含 Context/Bitmap/加载器。各主题自行提供值，Registry 保持唯一登记入口。素材来源和裁切见 [素材清单](主题选单预览/素材清单.json)。
 
-`ThemeDropdownMenu` 消费实际行宽/展开程度，拥有每行静态画面、菜单局部 `ThemePreviewImages` 和 16MiB 字节预算缓存。仅加载实际展开/交换中的行；后台单线程整组解码，尺寸代次与请求编号共同拒绝过期回调。关闭/卸载取消请求，卸载清空 Bitmap 引用，不回收 UI 仍持有的图像。预览不创建 WebView，不修改 HTML 背景宿主。
+`ThemeDropdownMenu` 消费实际行宽/展开程度，拥有每行静态画面、菜单局部 `ThemePreviewImages` 和 16MiB 字节预算缓存。仅加载实际展开/交换中的行；后台单线程整组解码，并使用同一构图函数合成完成态静帧；图层和静帧一起计入字节预算，切入期间分层绘制、完成后只画静帧。尺寸代次与请求编号共同拒绝过期回调。关闭/卸载取消请求，卸载清空 Bitmap 引用，不回收 UI 仍持有的图像。预览不创建 WebView，不修改 HTML 背景宿主。
 
 `animation/settings/ThemePreviewRunner` 为一条按需短时钟，`ThemePreviewFrames` 只处理逐行延迟、图层进度与反向采样；不拥有菜单组件、图片或稳定选择。图像、短时钟随面板显露启停，预测返回冻结、取消从当前帧继续，系统关闭动画立即到目标。行高/滚动仍只由 `ThemeMenuGeometry`/`ThemeMenuMotionRunner` 决定。图片完毕停止预览自身刷新；折叠态为浅主题底，不绘制几何分割。

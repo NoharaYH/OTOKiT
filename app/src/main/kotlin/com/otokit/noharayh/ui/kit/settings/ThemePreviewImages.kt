@@ -3,21 +3,27 @@ package com.otokit.noharayh.ui.kit.settings
 import android.content.res.AssetManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.RectF
 import androidx.core.graphics.scale
+import androidx.core.graphics.createBitmap
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.otokit.noharayh.ui.constants.dimensions.ThemeSelectionDimensions as Dimensions
 import kotlin.math.min
 import com.otokit.noharayh.ui.theme.ThemePreviewDescription
+import com.otokit.noharayh.ui.theme.ThemePreviewCrop
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
 import java.util.concurrent.ThreadPoolExecutor
 import kotlin.math.max
 import kotlin.math.roundToInt
 
-internal data class ThemePreviewBitmaps(val background: Bitmap, val decoration: Bitmap, val eyes: Bitmap?) {
-    val bytes: Int get() = background.allocationByteCount + decoration.allocationByteCount + (eyes?.allocationByteCount ?: 0)
+internal data class ThemePreviewBitmaps(val background: Bitmap, val decoration: Bitmap, val eyes: Bitmap?, val flat: Bitmap,
+    val decorationCrop: ThemePreviewCrop? = null) {
+    val bytes: Int get() = background.allocationByteCount + decoration.allocationByteCount + (eyes?.allocationByteCount ?: 0) + flat.allocationByteCount
 }
 
 /** 菜单局部、有界缓存；完整一组解码后交接，过期代次绝不回写。 */
@@ -72,10 +78,14 @@ internal class ThemePreviewImages(
             val ticket = ++tickets[index]
             pending[index] = executor.submit {
                 val images = try {
-                    val background = decode(description.background, targetWidth, targetHeight)
-                    val decoration = decode(description.decoration, targetWidth, targetHeight)
+                    val background = decode(description.background, targetWidth, targetHeight, cover = true)
+                    val crop = description.decorationCrop
+                    val decorationHeight = if (crop == null) targetHeight else
+                        (targetHeight.toFloat() * crop.height / crop.canvasHeight).roundToInt().coerceAtLeast(1)
+                    val decoration = decode(description.decoration, targetWidth, decorationHeight)
                     val eyes = description.eyes?.let { decode(it, targetWidth, targetHeight) }
-                    ThemePreviewBitmaps(background, decoration, eyes)
+                    val flat = compose(background, decoration, eyes, targetWidth, targetHeight, crop)
+                    ThemePreviewBitmaps(background, decoration, eyes, flat, crop)
                 } catch (error: Exception) {
                     if (!Thread.currentThread().isInterrupted) Log.w("ThemePreview", "Cannot decode ${description.assetFolder}", error)
                     null
@@ -94,15 +104,17 @@ internal class ThemePreviewImages(
         }
     }
 
-    private fun decode(path: String, targetWidth: Int, targetHeight: Int): Bitmap {
+    private fun decode(path: String, targetWidth: Int, targetHeight: Int, cover: Boolean = false): Bitmap {
         check(!Thread.currentThread().isInterrupted)
         val dimensions = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         assets.open(path).use { BitmapFactory.decodeStream(it, null, dimensions) }
         require(dimensions.outWidth > 0 && dimensions.outHeight > 0)
         // 背景覆盖实际宽度；不放大源文件，不按平板整屏分配超大 Bitmap。
+        val fit = if (cover) max(targetWidth.toFloat() / dimensions.outWidth, targetHeight.toFloat() / dimensions.outHeight)
+            else targetHeight.toFloat() / dimensions.outHeight
         val scale = min(min(Dimensions.PREVIEW_BITMAP_MAX_WIDTH_PX.toFloat() / dimensions.outWidth,
             Dimensions.PREVIEW_BITMAP_MAX_HEIGHT_PX.toFloat() / dimensions.outHeight),
-            max(targetWidth.toFloat() / dimensions.outWidth, targetHeight.toFloat() / dimensions.outHeight)).coerceAtMost(1f)
+            fit).coerceAtMost(1f)
         var sample = 1
         while (sample * 2 <= 1f / scale) sample *= 2
         val options = BitmapFactory.Options().apply { inSampleSize = sample; inPreferredConfig = Bitmap.Config.ARGB_8888 }
@@ -112,6 +124,27 @@ internal class ThemePreviewImages(
         return if (decoded.width == w && decoded.height == h) decoded else {
             decoded.scale(w, h, true).also { if (it !== decoded) decoded.recycle() }
         }
+    }
+
+    private fun compose(background: Bitmap, decoration: Bitmap, eyes: Bitmap?, width: Int, height: Int, crop: ThemePreviewCrop?): Bitmap {
+        check(!Thread.currentThread().isInterrupted)
+        val scale = min(1f, min(Dimensions.PREVIEW_BITMAP_MAX_WIDTH_PX.toFloat() / width,
+            Dimensions.PREVIEW_BITMAP_MAX_HEIGHT_PX.toFloat() / height))
+        val flat = createBitmap((width * scale).roundToInt().coerceAtLeast(1),
+            (height * scale).roundToInt().coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(flat)
+        canvas.scale(flat.width.toFloat() / width, flat.height.toFloat() / height)
+        val bounds = RectF(0f, 0f, width.toFloat(), height.toFloat())
+        val destination = RectF()
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+        fun layer(bitmap: Bitmap, cover: Boolean, layerCrop: ThemePreviewCrop? = null) {
+            themePreviewLayerBounds(bitmap.width, bitmap.height, bounds, height.toFloat(), cover, destination, layerCrop)
+            canvas.drawBitmap(bitmap, null, destination, paint)
+        }
+        layer(background, true)
+        layer(decoration, false, layerCrop = crop)
+        eyes?.let { layer(it, false) }
+        return flat
     }
 
     private fun trim() {

@@ -1,6 +1,8 @@
 package com.otokit.noharayh.ui.theme.mai
 
 import com.otokit.noharayh.ui.theme.ThemeColors
+import com.otokit.noharayh.ui.theme.ThemePreviewCrop
+import com.otokit.noharayh.ui.theme.ThemePreviewDescription
 import com.otokit.noharayh.ui.theme.ThemeDefinition
 
 /** Mai「UNiVERSE」：官网背景的离线版本与主题取色。 */
@@ -9,6 +11,7 @@ object MaiUniverseTheme {
 
     val definition: ThemeDefinition = ThemeDefinition(
         htmlAssetPath = HTML_ASSET_PATH,
+        preview = ThemePreviewDescription("theme-preview/MaiUniverse", hasEyes = true, decorationFromRight = false, decorationCrop = ThemePreviewCrop(1152, 160, 0, 0, 1145, 160)),
         colors = ThemeColors(
             primaryColor = 0xFF50B5FB.toInt(),
             secondaryColor = 0xFF9DF7FF.toInt(),

@@ -1,6 +1,7 @@
 package com.otokit.noharayh.ui.theme.mai
 
 import com.otokit.noharayh.ui.theme.ThemeColors
+import com.otokit.noharayh.ui.theme.ThemePreviewDescription
 import com.otokit.noharayh.ui.theme.ThemeDefinition
 
 /** Mai「Splash+」：官网背景的离线版本与主题取色。 */
@@ -9,6 +10,7 @@ object MaiSplashPlusTheme {
 
     val definition: ThemeDefinition = ThemeDefinition(
         htmlAssetPath = HTML_ASSET_PATH,
+        preview = ThemePreviewDescription("theme-preview/MaiSplashPlus", hasEyes = true, decorationFromRight = false),
         colors = ThemeColors(
             primaryColor = 0xFF454EB9.toInt(),
             secondaryColor = 0xFFFFE253.toInt(),

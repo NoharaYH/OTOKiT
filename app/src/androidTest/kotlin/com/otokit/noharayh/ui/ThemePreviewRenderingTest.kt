@@ -22,8 +22,8 @@ class ThemePreviewRenderingTest : UiComponentTestHost() {
         while (SystemClock.uptimeMillis() < deadline) {
             main {
                 val current = menu(panel)
-                if (current.previewImageCount == expected && !current.previewHasPendingWork &&
-                    (current.getChildAt(0) as ViewGroup).getChildAt(0).isEnabled) found = current
+                if ((expected < 0 || current.previewImageCount == expected) && !current.previewHasPendingWork &&
+                    (current.getChildAt(0) as ViewGroup).let { rows -> (0 until rows.childCount).any { rows.getChildAt(it).isEnabled } }) found = current
             }
             if (found != null) return found!!
             SystemClock.sleep(30)
@@ -110,4 +110,37 @@ class ThemePreviewRenderingTest : UiComponentTestHost() {
         awaitSettled(panel, 0)
         main { assertEquals(0, old.previewImageCount); assertEquals(0, old.previewBitmapBytes); assertFalse(old.previewHasPendingWork) }
     }
+    @Test fun everyRegisteredThemeLoadsDuringForwardAndReverseTraversalWithinTheByteBudget() {
+        lateinit var panel: ThemeSelectorPanel
+        val themes = GameLine.entries.flatMap(ThemeRegistry::themesFor)
+        val all = themes.map(ThemeOption::Html)
+        main { panel = ThemeSelectorPanel(activity, LabeledDropdownField(activity, "All previews")) {} }
+        mount(panel, 800, 1800)
+        main { panel.open(all, 1600) {} }
+        val current = awaitSettled(panel, -1)
+        val seen = HashSet<String>()
+        var peak = 0
+        val positions = (0..17).toList() + listOf(17, 14, 11, 8, 5, 2, 0)
+        for (step in positions) {
+            main {
+                current.beginScrollbarDrag()
+                current.dragScrollbarTo(step / 17f)
+                current.endScrollbarDrag()
+            }
+            awaitSettled(panel, -1)
+            main {
+                val rows = current.getChildAt(0) as ViewGroup
+                val expanded = (0 until rows.childCount).map(rows::getChildAt).filter { it.isEnabled }
+                seen.addAll(expanded.map { it.contentDescription.toString() })
+                assertTrue("整组图片应就绪", current.previewImageCount >= expanded.size)
+                assertTrue("最多六整行加一个交换项", current.previewImageCount <= 7)
+                assertTrue(current.previewBitmapBytes <= ThemePreviewImages.BYTE_BUDGET)
+                peak = maxOf(peak, current.previewBitmapBytes)
+            }
+        }
+        assertEquals(themes.map { it.displayName }.toSet(), seen)
+        android.util.Log.i("ThemePreviewTest", "allThemes=${seen.size} peakBitmapBytes=$peak")
+        main { panel.reset(); assertEquals(0, current.previewBitmapBytes); assertFalse(current.previewHasPendingWork) }
+    }
+
 }
