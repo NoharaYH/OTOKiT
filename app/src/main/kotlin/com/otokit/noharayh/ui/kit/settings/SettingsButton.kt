@@ -20,7 +20,10 @@ import com.otokit.noharayh.ui.kit.common.PressSurface
 @android.annotation.SuppressLint("ViewConstructor") // 纯代码组件，需要显式内容与回调。
 internal class SettingsButton(context: Context, label: String, private val kind: Kind,
     selected: Boolean = false, trailingIcon: ActionIcon = ActionIcon.Next,
-    contentHeight: Int = ViewPrimitives.dp(context, Dimensions.HEIGHT_DP), onClick: () -> Unit,
+    contentHeight: Int = ViewPrimitives.dp(context, Dimensions.HEIGHT_DP),
+    private val choiceIndicatorVisible: Boolean = true,
+    private val selectedTextColor: Int = Colors.SELECTED,
+    onClick: () -> Unit,
 ) : PressSurface(context) {
     enum class ActionIcon { Next, ExternalLink }
     enum class Kind { Action, Choice }
@@ -44,8 +47,10 @@ internal class SettingsButton(context: Context, label: String, private val kind:
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
             setPadding(dp(Dimensions.INSET_DP), 0, dp(Dimensions.INSET_DP), 0)
             addView(labelView, LinearLayout.LayoutParams(0, -1, 1f))
-            if (kind == Kind.Choice) addView(indicator, LinearLayout.LayoutParams(dp(Dimensions.ICON_DP), dp(Dimensions.ICON_DP)))
-            else addView(ImageView(context).apply {
+            if (kind == Kind.Choice) {
+                if (choiceIndicatorVisible) addView(indicator,
+                    LinearLayout.LayoutParams(dp(Dimensions.ICON_DP), dp(Dimensions.ICON_DP)))
+            } else addView(ImageView(context).apply {
                 setImageResource(if (trailingIcon == ActionIcon.ExternalLink) R.drawable.ic_open_in_new_24 else R.drawable.ic_chevron_right_24)
                 setColorFilter(Colors.MUTED)
             }, LinearLayout.LayoutParams(dp(Dimensions.ICON_DP), dp(Dimensions.ICON_DP)).apply { marginStart = dp(Dimensions.ICON_GAP_DP) })
@@ -63,8 +68,8 @@ internal class SettingsButton(context: Context, label: String, private val kind:
         confirmed = selected && kind == Kind.Choice
         isSelected = confirmed
         val radius = dp(if (confirmed) Dimensions.SELECTED_RADIUS_DP else Dimensions.RADIUS_DP).toFloat()
-        val color = if (confirmed) Colors.SELECTED else Colors.TEXT
-        if (kind == Kind.Choice) {
+        val color = if (confirmed) selectedTextColor else Colors.TEXT
+        if (kind == Kind.Choice && choiceIndicatorVisible) {
             indicator.background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(Color.TRANSPARENT)

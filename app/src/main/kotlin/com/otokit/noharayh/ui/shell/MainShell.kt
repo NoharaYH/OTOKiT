@@ -301,6 +301,7 @@ class MainShell(
                 updateBackgroundRendering(backgroundRendering.copy(htmlAnimations = it))
             },
             selectionProvider = { selection.state },
+            materkitColors = materkitColors,
             onThemeModeSelected = ::selectThemeMode,
             onThemeOptionSelected = ::selectThemeOption,
             onNoneThemeBackgroundSelected = ::selectNoneThemeBackground,
@@ -658,6 +659,7 @@ class MainShell(
     private fun renderMaterkitColors(colors: ThemeColors) {
         materkitColors = colors
         background?.setMaterkitColors(colors)
+        settingsPage?.renderMaterkitColors(colors)
         if (selection.state.themeMode == ThemeSelectionMode.None) return
         mountedContent?.updateColor(placeholderTextColor())
         settingsContent?.updateColor(placeholderTextColor())

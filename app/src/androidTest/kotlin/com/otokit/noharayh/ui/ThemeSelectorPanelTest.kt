@@ -1,6 +1,9 @@
 package com.otokit.noharayh.ui
 
 import android.os.SystemClock
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
@@ -10,6 +13,9 @@ import com.otokit.noharayh.ui.kit.settings.SettingsButton
 import com.otokit.noharayh.ui.kit.settings.ThemeDropdownMenu
 import com.otokit.noharayh.ui.kit.settings.ThemeSelectorPanel
 import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors
+import com.otokit.noharayh.ui.constants.settings.ThemeMenuPreviewColors
+import com.otokit.noharayh.ui.theme.ThemeColors
+import com.otokit.noharayh.ui.theme.ThemeRegistry
 import com.otokit.noharayh.ui.settings.components.ThemeSettingsContent
 import com.otokit.noharayh.ui.shell.selection.GameSelectionState
 import com.otokit.noharayh.ui.theme.GameLine
@@ -188,8 +194,50 @@ class ThemeSelectorPanelTest : UiComponentTestHost() {
         assertTrue(node.isCheckable)
         assertEquals(selected, node.isChecked)
         assertEquals(selected, node.isSelected)
-        assertEquals(if (selected) SettingsComponentColors.SELECTED else SettingsComponentColors.TEXT, label(row).currentTextColor)
-        val indicator = (row.getChildAt(0) as ViewGroup).getChildAt(1) as ViewGroup
-        assertEquals(if (selected) 1 else 0, indicator.childCount)
+        assertEquals(if (selected) SettingsComponentColors.TITLE else SettingsComponentColors.TEXT, label(row).currentTextColor)
+        assertEquals("预览不显示右侧单选圈，但保留单选语义", 1, (row.getChildAt(0) as ViewGroup).childCount)
+    }
+
+    @Test fun foldedThemesUseTheirOwnPrimaryAndMaterkitUpdatesWithoutRecreatingTheMenu() {
+        lateinit var panel: ThemeSelectorPanel
+        val html = ThemeRegistry.themesFor(GameLine.Mai).take(8).map(ThemeOption::Html)
+        val options = html + ThemeOptions.placeholder
+        main {
+            panel = ThemeSelectorPanel(activity, LabeledDropdownField(activity, "Preview")) {}
+            panel.renderMaterkitColors(ThemeColors(Color.RED, Color.BLUE))
+        }
+        mount(panel, 600, 1000)
+        main { panel.open(options, 800, selectedId = ThemeOptions.PLACEHOLDER_ID) {} }
+        awaitInteractive(panel)
+        main {
+            val original = menu(panel)!!
+            val rows = original.getChildAt(0) as ViewGroup
+            val themed = rows.getChildAt(7) as SettingsButton
+            val native = rows.getChildAt(8) as SettingsButton
+            fun primaryPixel(row: View): Int = pixel(row, row.width / 10, row.height / 2)
+            assertEquals(html[7].theme.definition.colors.primaryColor, primaryPixel(themed))
+            assertEquals(Color.RED, primaryPixel(native))
+            panel.renderMaterkitColors(ThemeColors(Color.GREEN, Color.BLUE))
+            assertSame(original, menu(panel))
+            assertEquals(Color.GREEN, primaryPixel(native))
+            assertTrue(native.isSelected)
+            original.beginScrollbarDrag()
+            original.dragScrollbarTo(1f)
+            original.endScrollbarDrag()
+        }
+        awaitInteractive(panel, options.lastIndex)
+        main {
+            val native = (menu(panel)!!.getChildAt(0) as ViewGroup).getChildAt(options.lastIndex)
+            assertEquals(ThemeMenuPreviewColors.SELECTED, pixel(native, native.width * 3 / 4, native.height / 2))
+            val stroke = pixel(native, native.width / 2, 2)
+            assertEquals(Color.red(stroke), Color.green(stroke))
+            assertEquals(Color.red(stroke), Color.blue(stroke))
+            assertTrue(Color.red(stroke) < Color.red(ThemeMenuPreviewColors.SELECTED))
+        }
+    }
+
+    private fun pixel(view: View, x: Int, y: Int): Int {
+        val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+        return try { view.draw(Canvas(bitmap)); bitmap.getPixel(x, y) } finally { bitmap.recycle() }
     }
 }

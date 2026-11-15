@@ -19,6 +19,7 @@ import com.otokit.noharayh.ui.theme.NoneThemeColorRole
 import com.otokit.noharayh.ui.theme.GameLine
 import com.otokit.noharayh.ui.theme.ThemeOption
 import com.otokit.noharayh.ui.theme.ThemeSelectionMode
+import com.otokit.noharayh.ui.theme.ThemeColors
 
 /** 设置展示宿主。section 只是最后渲染值；所有稳定页面命令交回导航控制器。 */
 @android.annotation.SuppressLint("ViewConstructor") // 由主壳传入明确事件构造，不提供 XML 入口。
@@ -33,6 +34,7 @@ class SettingsAssembly(
     private val onHtmlAnimationsSelected: (Boolean) -> Unit,
     private val takeHardwareWarning: () -> Boolean,
     private val selectionProvider: () -> GameSelectionState,
+    private var materkitColors: ThemeColors,
     private val onThemeModeSelected: (ThemeSelectionMode) -> Unit,
     private val onThemeOptionSelected: (ThemeOption, GameLine?) -> Unit,
     private val onNoneThemeBackgroundSelected: (Boolean) -> Unit,
@@ -69,6 +71,14 @@ class SettingsAssembly(
         if (disposed) return
         for (index in 0 until childHost.childCount) {
             (childHost.getChildAt(index) as? PersonalizationSettingsPage)?.renderSelection(selection)
+        }
+    }
+
+    fun renderMaterkitColors(colors: ThemeColors) {
+        if (disposed || materkitColors == colors) return
+        materkitColors = colors
+        for (index in 0 until childHost.childCount) {
+            (childHost.getChildAt(index) as? PersonalizationSettingsPage)?.renderMaterkitColors(colors)
         }
     }
 
@@ -267,6 +277,7 @@ class SettingsAssembly(
         onHtmlAnimationsSelected = onHtmlAnimationsSelected,
         takeHardwareWarning = takeHardwareWarning,
         selection = selectionProvider(),
+        materkitColors = materkitColors,
         onThemeModeSelected = {
             onThemeModeSelected(it)
             renderThemeSelection(selectionProvider())

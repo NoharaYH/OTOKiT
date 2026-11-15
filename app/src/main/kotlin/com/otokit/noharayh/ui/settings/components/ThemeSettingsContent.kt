@@ -33,6 +33,7 @@ import com.otokit.noharayh.ui.theme.GameLine
 import com.otokit.noharayh.ui.theme.ThemeOption
 import com.otokit.noharayh.ui.theme.ThemeOptions
 import com.otokit.noharayh.ui.theme.ThemeSelectionMode
+import com.otokit.noharayh.ui.theme.ThemeColors
 import kotlin.math.roundToInt
 
 @android.annotation.SuppressLint("ViewConstructor") // 页面装配必须提供选择快照和事件回调。
@@ -46,6 +47,7 @@ internal class ThemeSettingsContent(
     onBackgroundTintSelected: (Boolean) -> Unit,
     onWallpaperSelected: (Boolean) -> Unit,
     onColorSelected: (NoneThemeColorRole, Int) -> Unit,
+    materkitColors: ThemeColors = NoneThemePalette.default.colors,
 ) : ScrollView(context) {
     private var controlsEnabled = true
     private var renderedSelection: GameSelectionState? = null
@@ -152,7 +154,12 @@ internal class ThemeSettingsContent(
         clipChildren = false
         clipToPadding = false
         addView(body, FrameLayout.LayoutParams(-1, -2))
+        renderMaterkitColors(materkitColors)
         renderSelection(selection)
+    }
+
+    fun renderMaterkitColors(colors: ThemeColors) {
+        panels.forEach { it.renderMaterkitColors(colors) }
     }
 
     /** 只消费确认快照；保留行实例以连续改变高度、标签缺口和可见度。 */

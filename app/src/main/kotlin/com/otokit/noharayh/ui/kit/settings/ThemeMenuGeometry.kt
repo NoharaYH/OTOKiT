@@ -33,6 +33,15 @@ internal class ThemeMenuGeometry(
         return (minOf(index + 1f, progress + slots) - maxOf(index.toFloat(), progress))
             .coerceIn(0f, 1f)
     }
+
+    /** 两个折叠区各有一个共享原点；以连续滚动量计算，跨整行时不跳变。 */
+    fun foldedRegionCenter(index: Int, offset: Float): Float {
+        val progress = offset.coerceIn(0f, maximum) / stride
+        val before = index + 0.5f < progress + slots / 2f
+        val foldedCount = if (before) progress else count - slots - progress
+        val extent = (foldedCount * (collapsedHeight + gap) - gap).coerceAtLeast(0f)
+        return if (before) padding + extent / 2f else height - padding - extent / 2f
+    }
 }
 
 /** 以实际绘制的整像素高度判定展开完成，避免弹簧尾段在同一选项上重复触发。 */

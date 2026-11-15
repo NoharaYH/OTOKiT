@@ -2,6 +2,8 @@ package com.otokit.noharayh.ui
 
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Bitmap
+import android.view.MotionEvent
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.SdkSuppress
 import com.otokit.noharayh.ui.kit.common.PressSurface
@@ -15,6 +17,42 @@ import java.util.concurrent.TimeUnit
 @RunWith(AndroidJUnit4::class)
 @SdkSuppress(minSdkVersion = 29)
 class PressSurfaceRenderingTest : UiComponentTestHost() {
+    @Test fun surfaceContentIsClippedToActualPressShapeAndStaysBelowFeedback() {
+        lateinit var surface: PressSurface
+        var lastInset = 0f
+        main {
+            surface = PressSurface(activity).apply {
+                fillColor = Color.BLUE
+                baseRadius = 40f
+                surfaceContent = { canvas, bounds, _ ->
+                    lastInset = bounds.left
+                    // 故意画满 Canvas，验证裁剪由表面负责而非装饰自行假定圆角。
+                    canvas.drawColor(Color.RED)
+                }
+            }
+        }
+        mount(surface, 260, 160)
+        fun pixels(): Pair<Int, Int> {
+            val bitmap = Bitmap.createBitmap(surface.width, surface.height, Bitmap.Config.ARGB_8888)
+            return try {
+                val canvas = Canvas(bitmap)
+                canvas.drawColor(Color.WHITE)
+                surface.draw(canvas)
+                bitmap.getPixel(1, 1) to bitmap.getPixel(surface.width / 2, surface.height / 2)
+            } finally { bitmap.recycle() }
+        }
+        main { assertEquals(Color.WHITE to Color.RED, pixels()) }
+        touch(surface, MotionEvent.ACTION_DOWN, Triple(0, 130f, 80f))
+        android.os.SystemClock.sleep(200)
+        main {
+            val (corner, center) = pixels()
+            assertEquals(Color.WHITE, corner)
+            assertTrue(lastInset > 0f)
+            assertTrue("按压反馈必须在装饰之上", center != Color.RED)
+        }
+        touch(surface, MotionEvent.ACTION_CANCEL, Triple(0, 130f, 80f))
+    }
+
     @Test fun changingGeometryRedrawsTheAttachedSurfaceWithoutCallerInvalidation() {
         lateinit var surface: PressSurface
         var drawn: CountDownLatch? = null

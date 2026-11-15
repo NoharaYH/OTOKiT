@@ -17,6 +17,7 @@ import android.view.View
 import android.view.animation.AnimationUtils
 import android.widget.Button
 import android.widget.FrameLayout
+import androidx.core.graphics.withClip
 import com.otokit.noharayh.ui.animation.common.PressHalo
 import com.otokit.noharayh.ui.constants.motion.PressDeformationSpec
 import com.otokit.noharayh.ui.constants.motion.PressOverlaySpec
@@ -95,6 +96,12 @@ open class PressSurface @JvmOverloads constructor(
     /** 自带展开反馈的组件可关闭释放震动，避免两次触觉叠加。 */
     var releaseHapticEnabled = true
 
+    /** 填充之上、按压反馈之下的可选内容；由宿主按当前表面路径裁剪。
+     * bounds/path 只在本次绘制有效，接收者不得修改或保存它们。
+     */
+    var surfaceContent: ((Canvas, RectF, Path) -> Unit)? = null
+        set(value) { field = value; invalidate() }
+
     private val pressStateListeners = mutableListOf<(Boolean) -> Unit>()
 
     /** 供容器观察按压事实（例如把按压行提到最前）；返回注销函数。 */
@@ -153,6 +160,9 @@ open class PressSurface @JvmOverloads constructor(
     }
     private val shapeRect = RectF()
     private val shapePath = Path()
+    private val contentPathBounds = RectF()
+    private var contentPathTop = Float.NaN
+    private var contentPathBottom = Float.NaN
     private val continuousCorners = ContinuousRoundedPath()
 
     private val press = PressProgress { invalidate() }
@@ -184,7 +194,7 @@ open class PressSurface @JvmOverloads constructor(
     /** 与底形共享按压几何的描边，绘制在反馈层之上、文字之下。 */
     protected open fun drawOutline(canvas: Canvas, cornerRadius: Float, inset: Float) = Unit
 
-    /** 填充、内部反馈和外环使用同一种轮廓；特殊控件可覆盖路径生成。 */
+    /** 填充、内部反馈和外环使用同一种轮廓；输出只由本次 bounds/top/bottom 决定。 */
     protected open fun buildSurfacePath(path: Path, bounds: RectF, top: Float, bottom: Float) {
         continuousCorners.setPath(path, bounds, top, bottom)
     }
@@ -304,9 +314,21 @@ open class PressSurface @JvmOverloads constructor(
 
         val layer = canvas.saveLayer(0f, 0f, width.toFloat(), height.toFloat(), null)
         shapeRect.inset(fillInset, fillInset)
-        buildSurfacePath(shapePath, shapeRect,
-            (top - fillInset).coerceAtLeast(0f), (bottom - fillInset).coerceAtLeast(0f))
+        val pathTop = (top - fillInset).coerceAtLeast(0f)
+        val pathBottom = (bottom - fillInset).coerceAtLeast(0f)
+        val content = surfaceContent
+        // 装饰使用同一条路径裁剪；几何不变时复用 Path，避免每帧为裁剪重建相同轮廓。
+        // 未配置装饰的既有组件保持原路径生成行为。
+        if (content == null || shapeRect != contentPathBounds || pathTop != contentPathTop || pathBottom != contentPathBottom) {
+            buildSurfacePath(shapePath, shapeRect, pathTop, pathBottom)
+            contentPathBounds.set(shapeRect)
+            contentPathTop = pathTop
+            contentPathBottom = pathBottom
+        }
         canvas.drawPath(shapePath, fillPaint)
+        content?.let {
+            canvas.withClip(shapePath) { content(this, shapeRect, shapePath) }
+        }
         whitePaint.alpha = (whiteMaxAlpha * boundedProgress * 255f).roundToInt()
         if (whitePaint.alpha > 0) canvas.drawRect(shapeRect, whitePaint)
 

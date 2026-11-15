@@ -13,6 +13,10 @@ import com.otokit.noharayh.ui.animation.settings.ThemeMenuMotionRunner
 import com.otokit.noharayh.ui.constants.dimensions.ThemeSelectionDimensions as Dimensions
 import com.otokit.noharayh.ui.constants.motion.ThemeSelectionMotion as Spec
 import com.otokit.noharayh.ui.theme.ThemeOption
+import com.otokit.noharayh.ui.theme.ThemeColors
+import com.otokit.noharayh.ui.theme.NoneThemePalette
+import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors
+import com.otokit.noharayh.ui.constants.settings.ThemeMenuPreviewColors
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -25,6 +29,7 @@ internal class ThemeDropdownMenu(
     availableHeight: Int,
     onBottomRadiusChanged: () -> Unit,
     onScrollChanged: () -> Unit,
+    materkitColors: ThemeColors = NoneThemePalette.default.colors,
     onSelected: (ThemeOption) -> Unit,
 ) : FrameLayout(context) {
     private fun dp(value: Int) = (value * resources.displayMetrics.density + 0.5f).toInt()
@@ -40,7 +45,7 @@ internal class ThemeDropdownMenu(
     private val geometry = ThemeMenuGeometry(options.size, slots, rowHeight, gap,
         collapsedHeight, dp(Dimensions.MENU_PADDING_DP).toFloat())
     val contentHeight = geometry.height.roundToInt()
-    private val viewport = MenuViewport(context, options, selectedId, geometry, onBottomRadiusChanged, onScrollChanged, onSelected)
+    private val viewport = MenuViewport(context, options, selectedId, geometry, onBottomRadiusChanged, onScrollChanged, materkitColors, onSelected)
     val bottomCornerRadius: Float get() = viewport.bottomCornerRadius
     val canScroll: Boolean get() = geometry.maximum > 0f
     val scrollFraction: Float get() = viewport.scrollFraction
@@ -54,6 +59,7 @@ internal class ThemeDropdownMenu(
     }
     fun setInteractionEnabled(enabled: Boolean) = viewport.setInteractionEnabled(enabled)
     fun renderSelection(selectedId: String?) = viewport.renderSelection(selectedId)
+    fun renderMaterkitColors(colors: ThemeColors) = viewport.renderMaterkitColors(colors)
     fun stopMotion() = viewport.stopMotion()
 }
 
@@ -66,10 +72,16 @@ private class MenuViewport(
     private val geometry: ThemeMenuGeometry,
     private val onBottomRadiusChanged: () -> Unit,
     private val onScrollChanged: () -> Unit,
+    materkitColors: ThemeColors,
     onSelected: (ThemeOption) -> Unit,
 ) : ViewGroup(context) {
     private val edges = themeMenuEdges(options)
     private val density = resources.displayMetrics.density
+    private val previews = options.map { option ->
+        ThemeMenuPreview(if (option is ThemeOption.Html) option.theme.definition.colors.primaryColor
+            else materkitColors.primaryColor, density)
+    }
+    private val previewContents = previews.map { it::draw }
     private val config = ViewConfiguration.get(context)
     private var interactionEnabled = false
     private var touching = false
@@ -102,8 +114,10 @@ private class MenuViewport(
         options.forEachIndexed { index, option ->
             addView(SettingsButton(context, option.title, SettingsButton.Kind.Choice,
                 selected = option.id == selectedId, contentHeight = LayoutParams.MATCH_PARENT,
+                choiceIndicatorVisible = false, selectedTextColor = SettingsComponentColors.TITLE,
                 onClick = { if (!motion.isRunning && !dragging) onSelected(option) }).apply {
-                fillColor = 0xFFF2F2F2.toInt()
+                fillColor = ThemeMenuPreviewColors.BASE
+                surfaceContent = previewContents[index]
                 deferClickUntilReleaseFeedback = true
                 addOnPressStateChangedListener { pressed ->
                     if (pressed) { frontIndex = index; invalidate() }
@@ -119,6 +133,15 @@ private class MenuViewport(
             if (row.isSelected != selected) row.renderSelection(selected, animate = false)
         }
         if (width > 0) layoutRows()
+    }
+
+    fun renderMaterkitColors(colors: ThemeColors) {
+        options.forEachIndexed { index, option ->
+            if (option is ThemeOption.Placeholder) {
+                previews[index].setPrimaryColor(colors.primaryColor)
+                (getChildAt(index) as SettingsButton).fillColor = previews[index].backgroundColor
+            }
+        }
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
@@ -181,6 +204,12 @@ private class MenuViewport(
                 MeasureSpec.makeMeasureSpec(h.roundToInt(), MeasureSpec.EXACTLY))
             child.layout(pad, (top + overscroll).roundToInt(), width - pad,
                 (top + overscroll).roundToInt() + h.roundToInt())
+            previews[index].render(geometry.expansion(index, offset), child.isSelected,
+                child.top.toFloat(), geometry.foldedRegionCenter(index, offset) + overscroll)
+            val color = previews[index].backgroundColor
+            if (child.fillColor != color) child.fillColor = color
+            val content = if (previews[index].needsDecoration) previewContents[index] else null
+            if (child.surfaceContent !== content) child.surfaceContent = content
             child.invalidate()
         }
         val radius = bottomCornerRadius

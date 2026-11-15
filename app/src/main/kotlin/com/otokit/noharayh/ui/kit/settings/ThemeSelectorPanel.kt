@@ -8,6 +8,8 @@ import com.otokit.noharayh.ui.animation.settings.ThemePanelFrames
 import com.otokit.noharayh.ui.animation.settings.ThemePanelTransitionRunner
 import com.otokit.noharayh.ui.constants.dimensions.ThemeSelectionDimensions as Dimensions
 import com.otokit.noharayh.ui.theme.ThemeOption
+import com.otokit.noharayh.ui.theme.ThemeColors
+import com.otokit.noharayh.ui.theme.NoneThemePalette
 import kotlin.math.roundToInt
 
 /** 标题命中区域保持固定高度，菜单、描边和外部布局共享展开进度。 */
@@ -21,6 +23,7 @@ internal class ThemeSelectorPanel(
     private var menu: ThemeDropdownMenu? = null
     private var menuOptions = emptyList<ThemeOption>()
     private var menuHeightBudget: Int? = null
+    private var materkitColors = NoneThemePalette.default.colors
     private var onOptionSelected: ((ThemeOption) -> Unit)? = null
     private var opening = false
     private var previewStart: Float? = null
@@ -68,7 +71,7 @@ internal class ThemeSelectorPanel(
         onOptionSelected = onSelected
         val content = ThemeDropdownMenu(context, options, selectedId, availableHeight,
             onBottomRadiusChanged = { render(runner.progress, notifyHeight = false) },
-            onScrollChanged = { renderScrollbar() }) { option ->
+            onScrollChanged = { renderScrollbar() }, materkitColors = materkitColors) { option ->
             if (opening && previewStart == null && controlsEnabled) {
                 // 关闭动画被系统禁用时会同步 releaseMenu，先保留本次接收者。
                 val selected = onOptionSelected
@@ -85,6 +88,12 @@ internal class ThemeSelectorPanel(
     }
 
     fun renderSelection(selectedId: String?) { menu?.renderSelection(selectedId) }
+
+    fun renderMaterkitColors(colors: ThemeColors) {
+        if (materkitColors == colors) return
+        materkitColors = colors
+        menu?.renderMaterkitColors(colors)
+    }
 
     fun close() {
         if (menu == null || (!opening && previewStart == null)) return

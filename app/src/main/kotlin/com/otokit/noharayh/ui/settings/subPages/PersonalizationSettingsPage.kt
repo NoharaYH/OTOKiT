@@ -8,6 +8,7 @@ import com.otokit.noharayh.ui.theme.GameLine
 import com.otokit.noharayh.ui.theme.ThemeOption
 import com.otokit.noharayh.ui.theme.ThemeSelectionMode
 import com.otokit.noharayh.ui.theme.NoneThemeColorRole
+import com.otokit.noharayh.ui.theme.ThemeColors
 
 /** 页面只提供业务确认值及意图，标准组件负责布局与效果组合。 */
 @android.annotation.SuppressLint("ViewConstructor") // 纯代码组件，需要显式内容与回调。
@@ -18,11 +19,13 @@ internal class PersonalizationSettingsPage(
     onBackgroundTintSelected: (Boolean) -> Unit,
     onWallpaperSelected: (Boolean) -> Unit,
     onColorSelected: (NoneThemeColorRole, Int) -> Unit,
+    materkitColors: ThemeColors,
 ) : FrameLayout(context) {
     private val content = ThemeSettingsContent(context, margin, split, selection,
-        onModeSelected, onOptionSelected, onBackgroundTintSelected, onWallpaperSelected, onColorSelected)
+        onModeSelected, onOptionSelected, onBackgroundTintSelected, onWallpaperSelected, onColorSelected, materkitColors)
     init { clipChildren = false; clipToPadding = false; addView(content, LayoutParams(-1, -1)) }
     fun renderSelection(selection: GameSelectionState) = content.renderSelection(selection)
+    fun renderMaterkitColors(colors: ThemeColors) = content.renderMaterkitColors(colors)
     fun closeThemePanel() = content.closeThemePanel()
     fun beginThemePanelBack() = content.beginThemePanelBack()
     fun previewThemePanelBack(progress: Float) = content.previewThemePanelBack(progress)

@@ -19,6 +19,10 @@ internal object ThemeSelectionDimensions {
     const val MENU_BAR_RADIUS_DP = 3f
     const val MENU_INNER_RADIUS_DP = 4f
     const val MENU_MIN_VISIBLE_DP = 2
+    const val MENU_SELECTED_STROKE_DP = 2f
+    const val PREVIEW_SPLIT_POSITION = 0.58f
+    const val PREVIEW_SPLIT_SLOPE = 0.55f
+    const val PREVIEW_BRANCH_SLOPE = 1.2f
     const val MENU_OVERSCROLL_DP = 32
     const val MENU_TRANSLATION_DP = 8
     const val SCROLLBAR_WIDTH_DP = 9f

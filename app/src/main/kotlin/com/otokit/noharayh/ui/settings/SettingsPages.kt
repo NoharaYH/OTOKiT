@@ -9,6 +9,7 @@ import com.otokit.noharayh.ui.theme.NoneThemeColorRole
 import com.otokit.noharayh.ui.theme.GameLine
 import com.otokit.noharayh.ui.theme.ThemeOption
 import com.otokit.noharayh.ui.theme.ThemeSelectionMode
+import com.otokit.noharayh.ui.theme.ThemeColors
 import com.otokit.noharayh.ui.shell.background.BackgroundRenderingOptions
 
 internal object SettingsPages {
@@ -25,6 +26,7 @@ internal object SettingsPages {
         onHtmlAnimationsSelected: (Boolean) -> Unit,
         takeHardwareWarning: () -> Boolean,
         selection: GameSelectionState,
+        materkitColors: ThemeColors,
         onThemeModeSelected: (ThemeSelectionMode) -> Unit,
         onThemeOptionSelected: (ThemeOption, GameLine?) -> Unit,
         onNoneThemeBackgroundSelected: (Boolean) -> Unit,
@@ -48,6 +50,7 @@ internal object SettingsPages {
             margin = margin,
             split = split,
             selection = selection,
+            materkitColors = materkitColors,
             onModeSelected = onThemeModeSelected,
             onOptionSelected = onThemeOptionSelected,
             onBackgroundTintSelected = onNoneThemeBackgroundSelected,
