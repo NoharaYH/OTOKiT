@@ -37,7 +37,8 @@ internal class SettingsButton(context: Context, label: String, private val kind:
     private val transition = SettingsChoiceTransitionRunner()
     private var confirmed = selected
     private var contentColor: Int? = null
-    val textExtent: Float get() = labelView.paint.measureText(labelView.text.toString()) + dp(Dimensions.INSET_DP)
+    fun textExtentFor(label: String, widthScale: Float): Float =
+        dp(Dimensions.INSET_DP) + labelView.paint.measureText(label) * widthScale
 
     fun setContentColor(color: Int?) {
         contentColor = color

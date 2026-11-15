@@ -260,6 +260,8 @@ private class MenuViewport(
         val pad = geometry.padding.roundToInt()
         val overscroll = (offset - offset.coerceIn(0f, geometry.maximum)) * Spec.OVERSCROLL_SHIFT_FACTOR
         var enteringOrder = 0
+        val textExtent = ((getChildAt(0) as? SettingsButton)?.textExtentFor(
+            "UNiVERSE", Dimensions.PREVIEW_SCRIM_TEXT_WIDTH_SCALE) ?: 0f) * Dimensions.PREVIEW_SCRIM_LENGTH_SCALE
         for (index in 0 until childCount) {
             val child = getChildAt(index) as SettingsButton
             val (top, bottom) = geometry.bounds(index, offset)
@@ -283,7 +285,7 @@ private class MenuViewport(
                 enteringOrder++
             }
             previews[index].render(geometry.expansion(index, offset), child.isSelected)
-            previews[index].setTextExtent(child.textExtent, child.width.toFloat())
+            previews[index].setTextExtent(textExtent, child.width.toFloat())
             renderPreview(index)
             val color = previews[index].backgroundColor
             if (child.fillColor != color) child.fillColor = color

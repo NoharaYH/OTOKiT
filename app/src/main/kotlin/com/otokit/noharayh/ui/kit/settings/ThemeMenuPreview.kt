@@ -50,12 +50,12 @@ internal class ThemeMenuPreview(primaryColor: Int, private val density: Float) {
 
     /** 布局/资源改变时更新，draw 中不创建 Shader 或其他绘制对象。 */
     fun setTextExtent(textExtent: Float, width: Float) {
-        val next = min(width * Dimensions.PREVIEW_SCRIM_MAX_FRACTION,
-            min(textExtent + Dimensions.PREVIEW_SCRIM_PADDING_DP * density, Dimensions.PREVIEW_SCRIM_MAX_DP * density))
+        val next = min(width, textExtent)
         if (scrimWidth == next) return
         scrimWidth = next
+        // 沿用侧边栏的线性渐变样式，按预览可读性将左端加深到 80% 黑色。
         scrim.shader = LinearGradient(0f, 0f, next.coerceAtLeast(1f), 0f,
-            intArrayOf(0xC0000000.toInt(), 0xA0000000.toInt(), 0x00000000), floatArrayOf(0f, 0.65f, 1f), Shader.TileMode.CLAMP)
+            Colors.SCRIM_START, android.graphics.Color.TRANSPARENT, Shader.TileMode.CLAMP)
     }
 
     fun draw(canvas: Canvas, bounds: RectF, surfacePath: Path) {
