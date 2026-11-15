@@ -35,6 +35,11 @@ internal class ThemeSelectorPanel(
         onDrag = { menu?.dragScrollbarTo(it) },
         onDragEnd = { menu?.endScrollbarDrag() })
     val isOpen: Boolean get() = opening
+    /** 只报告临时呈现几何；宿主负责把最下方可见面板接到容器。 */
+    var onCornersChanged: (() -> Unit)? = null
+    val bottomCornerExtension: Float get() =
+        if (menu == null) 0f else (header.panelBottomCornerRadius -
+            dp(Dimensions.FIELD_COLLAPSED_RADIUS_DP)).coerceAtLeast(0f) * presentation
     val extraHeight: Float get() = menu?.let {
         it.contentHeight * ThemePanelFrames.extension(runner.progress)
     } ?: 0f
@@ -165,6 +170,7 @@ internal class ThemeSelectorPanel(
             it.importantForAccessibility = if (interactive) IMPORTANT_FOR_ACCESSIBILITY_AUTO else IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
         }
         renderScrollbar()
+        onCornersChanged?.invoke()
         if (notifyHeight) onHeightChanged()
     }
 
@@ -192,6 +198,7 @@ internal class ThemeSelectorPanel(
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
         super.onLayout(changed, left, top, right, bottom)
         renderScrollbar()
+        onCornersChanged?.invoke()
     }
 
     fun reset() {
@@ -211,6 +218,7 @@ internal class ThemeSelectorPanel(
         menuHeightBudget = null
         onOptionSelected = null
         header.renderPanel(0f, 0f)
+        onCornersChanged?.invoke()
         onHeightChanged()
     }
     override fun onDetachedFromWindow() {

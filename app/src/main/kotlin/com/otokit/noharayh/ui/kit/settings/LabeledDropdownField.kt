@@ -21,7 +21,7 @@ import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.kit.common.AppTypography
 import com.otokit.noharayh.ui.kit.common.PressSurface
 
-/** 胶囊触发框；描边和反馈层共享按压几何，不叠加固定尺寸外框。 */
+/** 收起小圆角、展开胶囊上缘；描边和反馈层共享按压几何。 */
 @android.annotation.SuppressLint("ViewConstructor") // 仅由代码提供标签并创建。
 internal class LabeledDropdownField(context: Context, label: String) : PressSurface(context) {
     private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -78,7 +78,7 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
     private var drawingAlpha = 255
     /** 标题及外环的绘制外溢范围，供自身合成层和宿主过渡裁剪共同使用。 */
     val drawingOverflow: Float
-        get() = maxOf(baseRadius, labelView.height.toFloat(), prefixView.height.toFloat())
+        get() = maxOf(dp(Dimensions.FIELD_RADIUS_DP).toFloat(), labelView.height.toFloat(), prefixView.height.toFloat())
 
     // View 默认的透明度合成层只覆盖自身矩形，会裁掉伸出顶部的浮动标题。
     // 由组件合成整个绘制结果，保留标题和外环，同时避免子元素分别淡化导致叠色。
@@ -116,12 +116,19 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
     private var panelHeight = 0f
     private var panelGap = 0f
     private var panelExpansion = 0f
-    private var menuBottomRadius = 0f
+    private val collapsedRadius = dp(Dimensions.FIELD_COLLAPSED_RADIUS_DP).toFloat()
+    private var corners = ThemePanelCorners(collapsedRadius, collapsedRadius, collapsedRadius)
+    /** 外轮廓半径，包含半个描边；不把中心线半径当成容器的内轮廓。 */
+    val panelBottomCornerRadius: Float get() {
+        if (width == 0) return corners.bottom
+        updateOutlineGeometry(baseRadius, 0f)
+        return outlineBottomRadius + stroke.strokeWidth / 2f
+    }
 
     init {
         fillColor = Color.WHITE
         outerHaloEnabled = true
-        baseRadius = dp(Dimensions.FIELD_RADIUS_DP).toFloat()
+        baseRadius = collapsedRadius
         clipChildren = false
         clipToPadding = false
         val row = LinearLayout(context).apply {
@@ -155,13 +162,12 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
         val half = stroke.strokeWidth / 2f
         outline.set(inset + half, inset + half, width - inset - half, height + panelHeight - inset - half)
         val radius = (cornerRadius - half).coerceAtLeast(0f)
-        // 菜单与框的左右、底部留白相同。半径之差等于边界之差，圆心才能重合。
-        val clearance = dp(Dimensions.MENU_PADDING_DP) - inset - half
-        val expandedRadius = (menuBottomRadius + clearance).coerceAtLeast(0f)
-        outlineBottomRadius = (radius + (expandedRadius - radius) * panelExpansion)
+        // 完全展开时仍是「末项半径 + 菜单留白 - 按压内缩 - 半描边」。
+        // 收起起点独立于上角的大圆角过渡，避免二次插值改变原来的末项跟随目标。
+        val pressAdjustment = (cornerRadius - baseRadius) * (1f - panelExpansion) - inset * panelExpansion
+        outlineBottomRadius = (corners.bottom + pressAdjustment - half)
             .coerceIn(0f, minOf(outline.width() / 2f, outline.height() - radius).coerceAtLeast(0f))
-        val maximumRadius = Dimensions.MENU_LARGE_RADIUS_DP * resources.displayMetrics.density + clearance
-        outlineMaximumBottomRadius = (radius + (maximumRadius - radius) * panelExpansion)
+        outlineMaximumBottomRadius = (corners.maximumBottom + pressAdjustment - half)
             .coerceIn(0f, minOf(outline.width() / 2f, outline.height() - radius).coerceAtLeast(0f))
         return radius
     }
@@ -274,7 +280,10 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
         panelHeight = extraHeight
         panelGap = gap
         panelExpansion = expansion
-        menuBottomRadius = bottomRadius
+        corners = ThemePanelCorners.resolve(expansion, collapsedRadius, dp(Dimensions.FIELD_RADIUS_DP).toFloat(),
+            bottomRadius, Dimensions.MENU_LARGE_RADIUS_DP * resources.displayMetrics.density,
+            dp(Dimensions.MENU_PADDING_DP).toFloat())
+        baseRadius = corners.top
         invalidate()
     }
 

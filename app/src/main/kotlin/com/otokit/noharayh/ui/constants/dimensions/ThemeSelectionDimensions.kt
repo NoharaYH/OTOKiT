@@ -5,6 +5,8 @@ internal object ThemeSelectionDimensions {
     const val FIELD_GAP_DP = 12
     const val FIELD_HEIGHT_DP = 44
     const val FIELD_RADIUS_DP = FIELD_HEIGHT_DP / 2
+    // 收起外轮廓与复合容器相差一个内容内缩，展开仍使用原来的胶囊半径。
+    const val FIELD_COLLAPSED_RADIUS_DP = SettingsGroupDimensions.OUTER_RADIUS_DP - SettingsCardDimensions.CONTENT_INSET_DP
     const val FIELD_STROKE_DP = 2.5f
     const val FIELD_TEXT_INSET_DP = 26
     const val FIELD_END_INSET_DP = 12

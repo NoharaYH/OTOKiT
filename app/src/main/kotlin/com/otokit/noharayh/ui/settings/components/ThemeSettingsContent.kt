@@ -107,6 +107,7 @@ internal class ThemeSettingsContent(
         R.string.settings_theme_selection, content, trailing = segment)
 
     init {
+        panels.forEach { it.onCornersChanged = ::renderCardCorners }
         val body = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(if (split) 0 else margin, margin, margin, margin)
@@ -251,10 +252,16 @@ internal class ThemeSettingsContent(
         (noneOptions.layoutParams as? LinearLayout.LayoutParams)?.topMargin =
             (dp(context, SettingsGroupDimensions.GAP_DP) * frame.none).roundToInt()
         themeCard.renderGroupEdges(1f, 1f - frame.none)
+        renderCardCorners()
         backgroundSwitch.renderGroupEdges(1f - frame.none, 1f)
         noneOptions.importantForAccessibility = if (frame.none == 1f && !transition.isRunning)
             View.IMPORTANT_FOR_ACCESSIBILITY_AUTO else View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
         updateControls()
+    }
+
+    private fun renderCardCorners() {
+        val last = panels.lastOrNull { it.visibility == View.VISIBLE }
+        themeCard.renderBottomCornerExtension(last?.bottomCornerExtension ?: 0f)
     }
 
     private fun layoutContent() {

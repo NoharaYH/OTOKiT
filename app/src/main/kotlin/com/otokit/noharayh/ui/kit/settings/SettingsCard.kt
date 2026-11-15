@@ -24,12 +24,17 @@ internal class SettingsCard(context: Context, icon: Int, title: Int,
     private var contentView: View? = null
     private var animatedSlot: ExpandableContent? = null
     private var contentExpanded = true
+    private var groupTopRadius = 0f
+    private var groupBottomRadius = 0f
+    private var bottomCornerExtension = 0f
     private val groupShape = GroupShape(this,
         SettingsGroupDimensions.INNER_RADIUS_DP * resources.displayMetrics.density,
         SettingsGroupDimensions.OUTER_RADIUS_DP * resources.displayMetrics.density,
         SettingsGroupMotion.SHAPE,
     ) { top, bottom ->
-        shape.setRadii(top, bottom)
+        groupTopRadius = top
+        groupBottomRadius = bottom
+        renderCorners()
     }
     private fun dp(value: Int) = ViewPrimitives.dp(context, value)
 
@@ -97,6 +102,16 @@ internal class SettingsCard(context: Context, icon: Int, title: Int,
         groupShape.setEdges(if (position.first) 1f else 0f, if (position.last) 1f else 0f)
     }
     override fun renderGroupEdges(first: Float, last: Float) = groupShape.setEdges(first, last, false)
+
+    /** 内容驱动的底角增量（px），与分组底角合成；不另开动画或改变上角。 */
+    fun renderBottomCornerExtension(radius: Float) {
+        val next = radius.coerceAtLeast(0f)
+        if (bottomCornerExtension == next) return
+        bottomCornerExtension = next
+        renderCorners()
+    }
+
+    private fun renderCorners() = shape.setRadii(groupTopRadius, groupBottomRadius + bottomCornerExtension)
 
     override fun onDetachedFromWindow() {
         groupShape.finish()
