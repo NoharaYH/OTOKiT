@@ -1,0 +1,121 @@
+[
+  {
+    "theme": "ChuXVerseX",
+    "source": "D:\\CodeProject\\OTOKiT背景\\完成背景\\ChuXVerseX\\html\\index.html",
+    "viewport": [
+      1200,
+      160
+    ],
+    "animation_time_ms": 1000,
+    "hidden_hero": ".otokit-hero,.chara.topChara",
+    "decoration": ".globe,.verse-town,.frame,.corner-text",
+    "layers": [
+      "background",
+      "decoration"
+    ],
+    "direction": [
+      "left",
+      "right"
+    ],
+    "bytes": 48184
+  },
+  {
+    "theme": "MaiCirclePlus",
+    "source": "D:\\CodeProject\\OTOKiT背景\\完成背景\\MaiCirclePlus\\html\\index.html",
+    "viewport": [
+      1200,
+      160
+    ],
+    "animation_time_ms": 1000,
+    "hidden_hero": ".otokit-hero,.chara.topChara",
+    "decoration": ".rotation-wrapper",
+    "layers": [
+      "background",
+      "decoration",
+      "eyes"
+    ],
+    "direction": [
+      "left",
+      "left",
+      "right"
+    ],
+    "eyes_source": "D:\\CodeProject\\OTOKiT背景\\完成背景\\MaiCirclePlus\\status\\chara.webp",
+    "eyes_crop": [
+      0,
+      88,
+      805,
+      221
+    ],
+    "eyes_size": [
+      968,
+      160
+    ],
+    "bytes": 78398
+  },
+  {
+    "theme": "MaiFestival",
+    "source": "D:\\CodeProject\\OTOKiT背景\\完成背景\\MaiFestival\\html\\index.html",
+    "viewport": [
+      1200,
+      160
+    ],
+    "animation_time_ms": 1000,
+    "hidden_hero": ".otokit-hero,.chara.topChara",
+    "decoration": ".decoration-topLeft,.decoration-topRight,.decoration-bottomLeft,.decoration-bottomRight,.decoration-bottom",
+    "layers": [
+      "background",
+      "decoration",
+      "eyes"
+    ],
+    "direction": [
+      "left",
+      "left",
+      "right"
+    ],
+    "eyes_source": "D:\\CodeProject\\OTOKiT背景\\完成背景\\MaiFestival\\status\\storage_root_chara.webp",
+    "eyes_crop": [
+      0,
+      123,
+      723,
+      240
+    ],
+    "eyes_size": [
+      989,
+      160
+    ],
+    "bytes": 97686
+  },
+  {
+    "theme": "MaiFestivalPlus",
+    "source": "D:\\CodeProject\\OTOKiT背景\\完成背景\\MaiFestivalPlus\\html\\index.html",
+    "viewport": [
+      1200,
+      160
+    ],
+    "animation_time_ms": 1000,
+    "hidden_hero": ".otokit-hero,.chara.topChara",
+    "decoration": ".decoration-topLeft,.decoration-topRight,.decoration-bottomLeft,.decoration-bottomRight,.decoration-bottom",
+    "layers": [
+      "background",
+      "decoration",
+      "eyes"
+    ],
+    "direction": [
+      "left",
+      "left",
+      "right"
+    ],
+    "eyes_source": "D:\\CodeProject\\OTOKiT背景\\完成背景\\MaiFestivalPlus\\status\\storage_root_chara.webp",
+    "eyes_crop": [
+      0,
+      122,
+      711,
+      222
+    ],
+    "eyes_size": [
+      1138,
+      160
+    ],
+    "bytes": 102462
+  }
+]

@@ -145,6 +145,7 @@ internal class ThemeSelectorPanel(
             val visibility = ThemePanelFrames.menu(progress)
             it.visibility = if (visibility > 0f) View.VISIBLE else View.INVISIBLE
             it.alpha = visibility * presentation
+            it.setPreviewActive(opening && previewStart == null && visibility > 0f && presentation == 1f)
             it.translationY = -dp(Dimensions.MENU_TRANSLATION_DP) * (1f - visibility)
             val interactive = opening && previewStart == null && progress == 1f && controlsEnabled && presentation == 1f
             it.setInteractionEnabled(interactive)

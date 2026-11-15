@@ -13,10 +13,11 @@ data class ThemeColors(
     val secondaryColor: Int,
 )
 
-/** 主题自身提供的描述：HTML 相对入口与颜色，不含 WebView 或加载函数。 */
+/** 主题自身提供的描述：HTML 相对入口、颜色与可选原生预览，不含运行对象或加载函数。 */
 data class ThemeDefinition(
     val htmlAssetPath: String,
     val colors: ThemeColors,
+    val preview: ThemePreviewDescription? = null,
 )
 
 /**

@@ -23,6 +23,14 @@ internal object ThemeSelectionDimensions {
     const val PREVIEW_SPLIT_POSITION = 0.58f
     const val PREVIEW_SPLIT_SLOPE = 0.55f
     const val PREVIEW_BRANCH_SLOPE = 1.2f
+    const val PREVIEW_TRAVEL_MAX_DP = 56f
+    const val PREVIEW_SCRIM_MAX_FRACTION = 0.65f
+    const val PREVIEW_SCRIM_MAX_DP = 240f
+    const val PREVIEW_SCRIM_PADDING_DP = 48f
+    const val PREVIEW_EYES_MAX_FRACTION = 0.62f
+    const val PREVIEW_BITMAP_MAX_WIDTH_PX = 1024
+    const val PREVIEW_BITMAP_MAX_HEIGHT_PX = 144
+    const val PREVIEW_CACHE_BYTES = 16 * 1024 * 1024
     const val MENU_OVERSCROLL_DP = 32
     const val MENU_TRANSLATION_DP = 8
     const val SCROLLBAR_WIDTH_DP = 9f

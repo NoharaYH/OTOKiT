@@ -9,6 +9,8 @@ import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.FrameLayout
+import com.otokit.noharayh.ui.animation.settings.ThemePreviewFrames
+import com.otokit.noharayh.ui.animation.settings.ThemePreviewRunner
 import com.otokit.noharayh.ui.animation.settings.ThemeMenuMotionRunner
 import com.otokit.noharayh.ui.constants.dimensions.ThemeSelectionDimensions as Dimensions
 import com.otokit.noharayh.ui.constants.motion.ThemeSelectionMotion as Spec
@@ -61,6 +63,10 @@ internal class ThemeDropdownMenu(
     fun renderSelection(selectedId: String?) = viewport.renderSelection(selectedId)
     fun renderMaterkitColors(colors: ThemeColors) = viewport.renderMaterkitColors(colors)
     fun stopMotion() = viewport.stopMotion()
+    fun setPreviewActive(active: Boolean) = viewport.setPreviewActive(active)
+    val previewBitmapBytes: Int get() = viewport.previewBitmapBytes
+    val previewImageCount: Int get() = viewport.previewImageCount
+    val previewHasPendingWork: Boolean get() = viewport.previewHasPendingWork
 }
 
 /** 无 ScrollView 的单一运动容器：位置同时决定行高、文字显隐和吸附位置。 */
@@ -77,11 +83,60 @@ private class MenuViewport(
 ) : ViewGroup(context) {
     private val edges = themeMenuEdges(options)
     private val density = resources.displayMetrics.density
+    private val descriptions = options.map { (it as? ThemeOption.Html)?.theme?.definition?.preview }
     private val previews = options.map { option ->
         ThemeMenuPreview(if (option is ThemeOption.Html) option.theme.definition.colors.primaryColor
-            else materkitColors.primaryColor, density)
+            else materkitColors.primaryColor, density, (option as? ThemeOption.Html)?.theme?.definition?.preview?.decorationFromRight == true)
     }
     private val previewContents = previews.map { it::draw }
+    private val previewFrames = ThemePreviewFrames(options.size)
+    private val renderedPreviewProgress = FloatArray(options.size) { Float.NaN }
+    private var previewActive = false
+    private var images: ThemePreviewImages? = null
+    private val previewRunner = ThemePreviewRunner(previewFrames::advance, previewFrames::finish, ::renderPreviews)
+    val previewBitmapBytes: Int get() = images?.cachedBytes ?: 0
+    val previewImageCount: Int get() = previews.count { it.images != null }
+    val previewHasPendingWork: Boolean get() = previewRunner.hasPendingWork || images?.hasPendingWork == true
+
+    fun setPreviewActive(active: Boolean) {
+        previewActive = active
+        val visible = active && isAttachedToWindow && isShown && hasWindowFocus()
+        images?.setActive(visible)
+        previewRunner.setActive(visible)
+    }
+
+    private fun publishImages(index: Int, value: ThemePreviewBitmaps?) {
+        if (previews[index].images === value) return
+        previews[index].images = value
+        if (value != null) {
+            val order = (0 until index).count { geometry.expansion(it, offset) > 0f }
+            previewFrames.ready(index, order)
+            previewRunner.request()
+        }
+        renderPreview(index)
+    }
+
+    private fun renderPreview(index: Int) {
+        val child = getChildAt(index) as SettingsButton
+        val preview = previews[index]
+        renderedPreviewProgress[index] = previewFrames.progress[index]
+        preview.motion(renderedPreviewProgress[index])
+        child.setContentColor(preview.contentColor)
+        val content = if (preview.needsDecoration) previewContents[index] else null
+        if (child.surfaceContent !== content) child.surfaceContent = content
+        child.invalidate()
+    }
+
+    private fun renderPreviews() {
+        for (index in 0 until childCount) {
+            if (renderedPreviewProgress[index] != previewFrames.progress[index]) renderPreview(index)
+        }
+    }
+
+    private fun updateImages() {
+        val indices = (0 until childCount).filter { geometry.expansion(it, offset) > 0f }.toSet()
+        images?.update(indices, (width - geometry.padding * 2).roundToInt(), geometry.rowHeight.roundToInt())
+    }
     private val config = ViewConfiguration.get(context)
     private var interactionEnabled = false
     private var touching = false
@@ -204,13 +259,18 @@ private class MenuViewport(
                 MeasureSpec.makeMeasureSpec(h.roundToInt(), MeasureSpec.EXACTLY))
             child.layout(pad, (top + overscroll).roundToInt(), width - pad,
                 (top + overscroll).roundToInt() + h.roundToInt())
+            previewFrames.geometry(index, geometry.expansion(index, offset))
             previews[index].render(geometry.expansion(index, offset), child.isSelected)
+            previews[index].setTextExtent(child.textExtent, child.width.toFloat())
+            renderPreview(index)
             val color = previews[index].backgroundColor
             if (child.fillColor != color) child.fillColor = color
             val content = if (previews[index].needsDecoration) previewContents[index] else null
             if (child.surfaceContent !== content) child.surfaceContent = content
             child.invalidate()
         }
+        updateImages()
+        previewRunner.request()
         val radius = bottomCornerRadius
         if (radius != reportedBottomRadius) {
             reportedBottomRadius = radius
@@ -339,13 +399,23 @@ private class MenuViewport(
         tracker = null
     }
 
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        images = ThemePreviewImages(context.assets, descriptions, ::publishImages)
+        setPreviewActive(previewActive)
+        updateImages()
+    }
+
     override fun onDetachedFromWindow() {
+        previewRunner.setActive(false)
+        images?.close(); images = null
         stopMotion()
         super.onDetachedFromWindow()
     }
 
     override fun onWindowFocusChanged(hasWindowFocus: Boolean) {
         super.onWindowFocusChanged(hasWindowFocus)
+        setPreviewActive(previewActive)
         if (!hasWindowFocus) {
             stopMotion()
             dragging = false

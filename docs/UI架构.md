@@ -4,6 +4,7 @@
 ```
 assets/
 ├── background/                # HTML 背景及其 CSS、JS、图片
+├── theme-preview/             # 原生主题菜单使用的静态 WebP 图层
 └── fonts/                     # 原生与 HTML 使用的字体资源
 
 ui/
@@ -50,8 +51,8 @@ ui/
 │   └── navigation/            # 全局切页、覆盖层开关、返回事件分发
 │
 ├── theme/                     # 按音游组织主题，初始标识为 mai-circle-plus、chu-xversex
-│   ├── chu/                   # CHUNITHM 主题；每个主题一个 Kotlin 文件，仅提供 HTML 入口与主题色
-│   ├── mai/                   # maimai 主题；每个主题一个 Kotlin 文件，仅提供 HTML 入口与主题色
+│   ├── chu/                   # CHUNITHM 主题；每个主题一个 Kotlin 文件，提供 HTML 入口、主题色及可选纯预览描述
+│   ├── mai/                   # maimai 主题；每个主题一个 Kotlin 文件，提供 HTML 入口、主题色及可选纯预览描述
 │   └── ThemeRegistry.kt       # 注册入口：统一登记稳定标识、展示名（如 CiRCLE+）、所属音游与默认项
 │
 └── window/                    # 当前应用窗口信息与布局判断，不按设备类型猜测安全区
@@ -120,3 +121,11 @@ chrome 上报的是**不含系统安全区的应用额外占用**。标题总容
 shell 缓存当前有效窗口快照和应用 chrome 占用，窗口变化与标题实测占用变化都调用同一几何重算入口；不能依赖已去重的窗口回调碰巧再次发生才调整内容。相同占用去重，只有背景实际视口矩形改变才触发背景归位；主题换色或 IME 独立变化不能截断背景正常 settling。
 
 每步验收检查实际 import、构造参数、状态写入口、订阅解绑和恢复路径；禁止以“目录已拆分”替代边界检查。几何验证使用显式输入，例如系统顶区 24px、标题行 72px 时内容顶边为 96px；已有标题容器总高 96px 不能再次加 24px。动画验证包含音游回弹中打开设置、设置退出时横滑及转场中跨断点。
+
+### 原生主题菜单预览
+
+`ThemeDefinition.preview` 可提供 `ThemePreviewDescription`，只声明相对资源目录、是否有眼睛层及装饰方向，不含 Context/Bitmap/加载器。各主题自行提供值，Registry 保持唯一登记入口。素材来源和裁切见 [素材清单](主题选单预览/素材清单.json)。
+
+`ThemeDropdownMenu` 消费实际行宽/展开程度，拥有每行静态画面、菜单局部 `ThemePreviewImages` 和 16MiB 字节预算缓存。仅加载实际展开/交换中的行；后台单线程整组解码，尺寸代次与请求编号共同拒绝过期回调。关闭/卸载取消请求，卸载清空 Bitmap 引用，不回收 UI 仍持有的图像。预览不创建 WebView，不修改 HTML 背景宿主。
+
+`animation/settings/ThemePreviewRunner` 为一条按需短时钟，`ThemePreviewFrames` 只处理逐行延迟、图层进度与反向采样；不拥有菜单组件、图片或稳定选择。图像、短时钟随面板显露启停，预测返回冻结、取消从当前帧继续，系统关闭动画立即到目标。行高/滚动仍只由 `ThemeMenuGeometry`/`ThemeMenuMotionRunner` 决定。图片完毕停止预览自身刷新；折叠态为浅主题底，不绘制几何分割。

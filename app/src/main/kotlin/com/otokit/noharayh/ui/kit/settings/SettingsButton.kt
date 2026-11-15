@@ -36,6 +36,14 @@ internal class SettingsButton(context: Context, label: String, private val kind:
     private val content = LinearLayout(context)
     private val transition = SettingsChoiceTransitionRunner()
     private var confirmed = selected
+    private var contentColor: Int? = null
+    val textExtent: Float get() = labelView.paint.measureText(labelView.text.toString()) + dp(Dimensions.INSET_DP)
+
+    fun setContentColor(color: Int?) {
+        contentColor = color
+        val next = color ?: if (confirmed) selectedTextColor else Colors.TEXT
+        if (labelView.currentTextColor != next) labelView.setTextColor(next)
+    }
     private fun dp(value: Int) = ViewPrimitives.dp(context, value)
 
     init {
@@ -68,7 +76,7 @@ internal class SettingsButton(context: Context, label: String, private val kind:
         confirmed = selected && kind == Kind.Choice
         isSelected = confirmed
         val radius = dp(if (confirmed) Dimensions.SELECTED_RADIUS_DP else Dimensions.RADIUS_DP).toFloat()
-        val color = if (confirmed) selectedTextColor else Colors.TEXT
+        val color = contentColor ?: if (confirmed) selectedTextColor else Colors.TEXT
         if (kind == Kind.Choice && choiceIndicatorVisible) {
             indicator.background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL

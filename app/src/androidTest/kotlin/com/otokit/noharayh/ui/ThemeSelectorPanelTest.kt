@@ -165,6 +165,13 @@ class ThemeSelectorPanelTest : UiComponentTestHost() {
                     }
                 }
                 awaitInteractive(panel, selectedIndex)
+                val previewDeadline = SystemClock.uptimeMillis() + 5000
+                var pending = true
+                while (pending && SystemClock.uptimeMillis() < previewDeadline) {
+                    main { pending = menu(panel)!!.previewHasPendingWork }
+                    if (pending) SystemClock.sleep(20)
+                }
+                assertFalse(pending)
                 main {
                     val rows = menu(panel)!!.getChildAt(0) as ViewGroup
                     assertEquals(options.size, rows.childCount)
@@ -172,7 +179,8 @@ class ThemeSelectorPanelTest : UiComponentTestHost() {
                     assertEquals(1, selectedRows.size)
                     val row = selectedRows.single() as SettingsButton
                     assertEquals(ThemeOptions.find(selectedId)!!.title, row.contentDescription)
-                    assertChoice(row, true)
+                    val hasImage = (options[selectedIndex] as? ThemeOption.Html)?.theme?.definition?.preview != null
+                    assertChoice(row, true, if (hasImage) Color.WHITE else SettingsComponentColors.TITLE)
                     assertEquals(row.height / 2f, row.topCornerRadius!!, 1f)
                     assertEquals(row.height / 2f, row.bottomCornerRadius!!, 1f)
                     row.performClick()
@@ -189,13 +197,13 @@ class ThemeSelectorPanelTest : UiComponentTestHost() {
 
     private fun label(row: ViewGroup): TextView = (row.getChildAt(0) as ViewGroup).getChildAt(0) as TextView
 
-    private fun assertChoice(row: SettingsButton, selected: Boolean) {
+    private fun assertChoice(row: SettingsButton, selected: Boolean, textColor: Int = if (selected) SettingsComponentColors.TITLE else SettingsComponentColors.TEXT) {
         val node = row.createAccessibilityNodeInfo()
         assertEquals("android.widget.RadioButton", node.className)
         assertTrue(node.isCheckable)
         assertEquals(selected, node.isChecked)
         assertEquals(selected, node.isSelected)
-        assertEquals(if (selected) SettingsComponentColors.TITLE else SettingsComponentColors.TEXT, label(row).currentTextColor)
+        assertEquals(textColor, label(row).currentTextColor)
         assertEquals("预览不显示右侧单选圈，但保留单选语义", 1, (row.getChildAt(0) as ViewGroup).childCount)
     }
 
