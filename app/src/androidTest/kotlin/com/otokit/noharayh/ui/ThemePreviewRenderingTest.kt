@@ -115,7 +115,7 @@ class ThemePreviewRenderingTest : UiComponentTestHost() {
         main { current.endScrollbarDrag() }
     }
 
-    @Test fun actualLayersRenderInColorOrSelectedGrayscaleAndReleaseAfterClosing() {
+    @Test fun actualLayersKeepTheirColorsWhenSelectedAndReleaseAfterClosing() {
         lateinit var panel: ThemeSelectorPanel
         main { panel = ThemeSelectorPanel(activity, LabeledDropdownField(activity, "Images")) {} }
         mount(panel, 800, 600)
@@ -135,7 +135,25 @@ class ThemePreviewRenderingTest : UiComponentTestHost() {
                     if (maxOf(Color.red(c),Color.green(c),Color.blue(c))-minOf(Color.red(c),Color.green(c),Color.blue(c)) > 20) colored++
                 }
                 assertEquals(Color.WHITE, ((row.getChildAt(0) as ViewGroup).getChildAt(0) as TextView).currentTextColor)
-                if (index == 0) assertEquals("选中图片必须灰度", 0, colored) else assertTrue("原版图片应保留主题颜色", colored > 20)
+                assertTrue("选中与未选中的图片都保留主题颜色", colored > 20)
+                if (index == 0) {
+                    original.renderSelection(null)
+                    val unselected = Bitmap.createBitmap(row.width, row.height, Bitmap.Config.ARGB_8888)
+                    row.draw(Canvas(unselected))
+                    var selectedBrightness = 0L
+                    var originalBrightness = 0L
+                    for (y in row.height / 3 until row.height * 2 / 3 step 3) {
+                        for (x in row.width / 2 until row.width * 3 / 4 step 3) {
+                            val a = bitmap.getPixel(x, y)
+                            val b = unselected.getPixel(x, y)
+                            selectedBrightness += Color.red(a) + Color.green(a) + Color.blue(a)
+                            originalBrightness += Color.red(b) + Color.green(b) + Color.blue(b)
+                        }
+                    }
+                    assertTrue("同一幅预览选中后应整体压暗", selectedBrightness < originalBrightness * 0.8)
+                    unselected.recycle()
+                    original.renderSelection("mai-circle-plus")
+                }
                 bitmap.recycle()
             }
             assertTrue(panel.beginBackPreview())

@@ -16,7 +16,7 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class MaterkitPreviewRenderingTest : UiComponentTestHost() {
-    @Test fun nativeLayersRecolorWithoutCumulativeLossAndSelectedSceneIsGrayscale() {
+    @Test fun nativeLayersRecolorWithoutCumulativeLossAndSelectedSceneRetainsItsColor() {
         val green = 0xFF006E24.toInt()
         val pink = 0xFFB00068.toInt()
         val preview = ThemeMenuPreview(green, 1f, MaterkitMenuPreview(activity.assets, green))
@@ -42,11 +42,16 @@ class MaterkitPreviewRenderingTest : UiComponentTestHost() {
             assertTrue(before.sameAs(restored))
             preview.render(1f, true)
             val selected = render(width, 1f)
+            var colored = 0
             for (x in width / 2 until width step 7) for (y in 3..40 step 5) {
                 val pixel = selected.getPixel(x, y)
-                assertTrue(kotlin.math.abs(Color.red(pixel) - Color.green(pixel)) <= 1)
-                assertTrue(kotlin.math.abs(Color.red(pixel) - Color.blue(pixel)) <= 1)
+                val original = before.getPixel(x, y)
+                assertTrue(Color.red(pixel) + Color.green(pixel) + Color.blue(pixel) <
+                    Color.red(original) + Color.green(original) + Color.blue(original))
+                if (maxOf(Color.red(pixel), Color.green(pixel), Color.blue(pixel)) -
+                    minOf(Color.red(pixel), Color.green(pixel), Color.blue(pixel)) > 8) colored++
             }
+            assertTrue("Selected native scene must keep its green hue", colored > 20)
             preview.render(1f, false)
             val moving = render(width, 0.35f)
             assertFalse("Fourth-layer entry must produce a different scene before completion", moving.sameAs(before))

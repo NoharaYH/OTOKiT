@@ -22,7 +22,10 @@ internal class ThemeMenuPreview(primaryColor: Int, private val density: Float,
 ) {
     private var palette = ThemeMenuPreviewPalette.fromPrimary(primaryColor)
     private val imagePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
-    private val grayscale = ColorMatrixColorFilter(ColorMatrix().apply { setSaturation(0f) })
+    private val selectedShade = ColorMatrixColorFilter(ColorMatrix().apply {
+        setScale(Colors.SELECTED_IMAGE_BRIGHTNESS, Colors.SELECTED_IMAGE_BRIGHTNESS,
+            Colors.SELECTED_IMAGE_BRIGHTNESS, 1f)
+    })
     private val scrim = Paint(Paint.ANTI_ALIAS_FLAG)
     private val outline = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         style = Paint.Style.STROKE
@@ -68,7 +71,7 @@ internal class ThemeMenuPreview(primaryColor: Int, private val density: Float,
     fun draw(canvas: Canvas, bounds: RectF, surfacePath: Path) {
         val scene = images
         if (hasScene && expansion > 0f && progress > 0f) {
-            imagePaint.colorFilter = if (selected) grayscale else null
+            imagePaint.colorFilter = if (selected) selectedShade else null
             val background = ThemePreviewFrames.layer(progress, 0f, backgroundEnd)
             val eyes = ThemePreviewFrames.layer(progress, Spec.EYES_START, 1f)
             val travel = themePreviewTravel(bounds.width(), fullHeight)
