@@ -23,6 +23,8 @@ import com.otokit.noharayh.ui.chrome.ChromeAssembly
 import com.otokit.noharayh.ui.chrome.ChromeDisplayInput
 import com.otokit.noharayh.ui.chrome.ChromeInsets
 import com.otokit.noharayh.ui.animation.common.GameFrame
+import com.otokit.noharayh.ui.animation.common.ContentTransition
+import com.otokit.noharayh.ui.constants.motion.TransitionTiming
 import com.otokit.noharayh.ui.animation.shell.BackgroundSwitchRunner
 import com.otokit.noharayh.ui.animation.shell.BackgroundVeilRunner
 import com.otokit.noharayh.ui.animation.shell.ContentTransitionRunner
@@ -107,7 +109,17 @@ class MainShell(
     )
 
     private var noneThemePalette = resolveNonePalette()
-    private val materkitColors = MaterkitColors.resolve(contentHost.context)
+    private var materkitColors = resolveMaterkitColors()
+    private var materkitTargetColors = materkitColors
+    private val materkitColorTransition = ContentTransition(
+        materkitColors,
+        TransitionTiming(ColorPickerMotion.TRANSITION_MS, MotionDefaults.EMPHASIZED_CURVE),
+        { from, to, progress -> ThemeColors(
+            ColorUtils.blendARGB(from.primaryColor, to.primaryColor, progress),
+            ColorUtils.blendARGB(from.secondaryColor, to.secondaryColor, progress),
+        ) },
+        ::renderMaterkitColors,
+    )
     private var noneColorAnimator: ValueAnimator? = null
     private val colorHandler = Handler(Looper.getMainLooper())
     private var colorSavePending = false
@@ -116,7 +128,10 @@ class MainShell(
         selectionPreferences.write(selection.state)
     }
     private val wallpaperColors = WallpaperColorSource(contentHost.context) { seed, secondary ->
-        if (lifecycleState == LifecycleState.Attached && selection.updateWallpaperSeed(seed, secondary)) applyNoneColors(animate = selection.state.noneThemeUseWallpaper)
+        if (lifecycleState == LifecycleState.Attached) {
+            if (selection.updateWallpaperSeed(seed, secondary)) applyNoneColors(animate = selection.state.noneThemeUseWallpaper)
+            refreshMaterkitColors()
+        }
     }
 
     private fun resolveNonePalette(): NoneThemePalette = selection.state.let {
@@ -205,6 +220,7 @@ class MainShell(
             onBackgroundSelectionConfirmed(gameLine)
         }.also { host ->
             host.setNoneBackgroundColor(noneBackgroundColor())
+            host.setMaterkitColors(materkitColors)
             host.attach(current.currentGame)
             host.renderSelection(
                 currentGame = current.currentGame,
@@ -329,6 +345,7 @@ class MainShell(
         flushColorSave()
         wallpaperColors.close()
         stopNoneColorAnimation()
+        materkitColorTransition.stop()
         val wasAttached = lifecycleState == LifecycleState.Attached
         lifecycleState = LifecycleState.Disposed
         onCanHandleBackChanged = null
@@ -623,12 +640,37 @@ class MainShell(
         backgroundSwitching = false
     }
 
+    private fun resolveMaterkitColors(): ThemeColors = selection.state.let {
+        MaterkitColors.resolve(contentHost.context, it.noneThemeSeedColor, it.noneThemeWallpaperSecondary)
+    }
+
+    /** 直接使用壁纸色，避免厂商固定的系统强调色阻止 Materkit 跟随壁纸。 */
+    private fun refreshMaterkitColors() {
+        val colors = resolveMaterkitColors()
+        if (materkitTargetColors == colors) return
+        materkitTargetColors = colors
+        val visible = GameLine.entries.any { backgroundFor(selection.state, it) == BackgroundSelection.Placeholder }
+        if (visible) invalidateBackPreview()
+        materkitColorTransition.play(colors, animate = resumed && visible)
+    }
+
+    /** 背景、标题和内容共用同一插值帧；重定向从当前颜色继续。 */
+    private fun renderMaterkitColors(colors: ThemeColors) {
+        materkitColors = colors
+        background?.setMaterkitColors(colors)
+        if (selection.state.themeMode == ThemeSelectionMode.None) return
+        mountedContent?.updateColor(placeholderTextColor())
+        settingsContent?.updateColor(placeholderTextColor())
+        mountedContent?.let(::updatePageThemeColors)
+        chrome.render(chromeDisplay(), animateColors = false)
+    }
+
     private fun placeholderTextColor(): Int {
         val current = selection.state
         return themeColorsFor(current, current.currentGame).primaryColor
     }
 
-    /** 无主题使用自选配色，Materkit 使用系统动态色，HTML 使用登记配色。 */
+    /** 无主题使用自选配色，Materkit 使用壁纸配色，HTML 使用登记配色。 */
     private fun themeColorsFor(
         state: GameSelectionState,
         gameLine: GameLine,
@@ -664,8 +706,12 @@ class MainShell(
     fun setBackgroundResumed(resumed: Boolean) {
         if (lifecycleState != LifecycleState.Attached) return
         this.resumed = resumed
-        if (resumed) wallpaperColors.refresh() else flushColorSave()
+        if (resumed) {
+            refreshMaterkitColors()
+            wallpaperColors.refresh()
+        } else flushColorSave()
         if (!resumed) {
+            materkitColorTransition.finish()
             stopNoneColorAnimation()
             noneThemePalette = resolveNonePalette()
             renderNoneColors()

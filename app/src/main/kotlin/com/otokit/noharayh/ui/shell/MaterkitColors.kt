@@ -6,10 +6,12 @@ import com.google.android.material.color.DynamicColors
 import com.google.android.material.color.MaterialColors
 import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.theme.ThemeColors
+import com.otokit.noharayh.ui.theme.NoneThemePalette
 
-/** Shared system dynamic palette for Materkit's native background and shell chrome. */
+/** 壁纸配色由背景与主壳共享；尚未取得壁纸色时使用系统动态色兜底。 */
 internal object MaterkitColors {
-    fun resolve(context: Context): ThemeColors {
+    fun resolve(context: Context, wallpaperSeed: Int? = null, secondarySeed: Int? = null): ThemeColors {
+        if (wallpaperSeed != null) return NoneThemePalette.fromSeed(wallpaperSeed, secondarySeed).colors
         val themed = DynamicColors.wrapContextIfAvailable(
             ContextThemeWrapper(context, R.style.Theme_OTOKiT_ColorSlider))
         return ThemeColors(

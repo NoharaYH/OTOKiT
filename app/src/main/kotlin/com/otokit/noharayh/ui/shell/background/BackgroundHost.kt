@@ -14,6 +14,7 @@ import com.otokit.noharayh.ui.animation.shell.PagerSettleCurve
 import com.otokit.noharayh.ui.theme.BackgroundPalette
 import com.otokit.noharayh.ui.theme.GameLine
 import com.otokit.noharayh.ui.theme.BackgroundSelection
+import com.otokit.noharayh.ui.theme.ThemeColors
 import kotlin.math.abs
 
 /** 双背景的运行所有者；稳定选择由 shell 确认，归位期间不接受新选择。 */
@@ -35,6 +36,11 @@ class BackgroundHost(
 
     private val noneColorTransition = NoneBackgroundColorRunner(BackgroundPalette.NONE_COLOR) { color ->
         pages.values.forEach { it.setNoneBackgroundColor(color) }
+    }
+
+    fun setMaterkitColors(colors: ThemeColors) {
+        if (disposed) return
+        pages.values.forEach { it.setMaterkitColors(colors) }
     }
 
     fun setRenderingOptions(options: BackgroundRenderingOptions) {

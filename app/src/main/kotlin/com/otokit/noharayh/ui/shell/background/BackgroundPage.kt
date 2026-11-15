@@ -14,6 +14,8 @@ import android.webkit.WebViewClient
 import com.otokit.noharayh.ui.theme.BackgroundPalette
 import com.otokit.noharayh.ui.theme.BackgroundSelection
 import com.otokit.noharayh.ui.theme.GameLine
+import com.otokit.noharayh.ui.theme.ThemeColors
+import com.otokit.noharayh.ui.shell.MaterkitColors
 
 /**
  * 单个音游页的原生背景与按需创建的 WebView。
@@ -174,8 +176,16 @@ internal class BackgroundPage(
         }
     }
 
-    private val nativeBackgroundDelegate = lazy { MistBackgroundDrawable(context) }
+    private var materkitColors = MaterkitColors.resolve(context)
+    private val nativeBackgroundDelegate = lazy {
+        MistBackgroundDrawable(context).apply { setPrimaryColor(materkitColors.primaryColor) }
+    }
     private val nativeBackground get() = nativeBackgroundDelegate.value
+
+    fun setMaterkitColors(colors: ThemeColors) {
+        materkitColors = colors
+        if (nativeBackgroundDelegate.isInitialized()) nativeBackground.setPrimaryColor(colors.primaryColor)
+    }
 
     private fun updateNativePlayback() {
         if (!nativeBackgroundDelegate.isInitialized()) return

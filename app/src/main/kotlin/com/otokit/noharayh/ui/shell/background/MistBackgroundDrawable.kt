@@ -29,21 +29,24 @@ internal class MistBackgroundDrawable(context: Context, private val dynamicColor
     private var progress = 0f
     private var opacity = 255
     private var requested = false
-    private val seed = Hct.fromInt(MaterkitColors.resolve(context).primaryColor)
+    private var seed = Hct.fromInt(MaterkitColors.resolve(context).primaryColor)
     private val dark = context.resources.configuration.uiMode and
         Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
 
     // Keep the source's tonal hierarchy, using the system primary hue and chroma budget.
     private fun color(source: String): Int {
-        val original = Color.parseColor(source)
+        return color(Color.parseColor(source))
+    }
+
+    private fun color(original: Int): Int {
         if (!dynamicColors) return original
         val hct = Hct.fromInt(original)
         return Hct.from(seed.hue, min(hct.chroma, seed.chroma),
             if (dark) 100.0 - hct.tone else hct.tone).toInt()
     }
 
-    private val backdrop = color("#F0F5EF")
-    private val ornamentColor = color("#81BD9E")
+    private var backdrop = color("#F0F5EF")
+    private var ornamentColor = color("#81BD9E")
     // In Quiet foreground's local coordinates: same center (1000, 880), inset from its edge.
     // PathMeasure gives constant distance per second instead of accelerating at ellipse ends.
     private val orbit = PathMeasure(Path().apply {
@@ -66,14 +69,14 @@ internal class MistBackgroundDrawable(context: Context, private val dynamicColor
         close()
     }
     private data class Layer(val path: Path, val x: Float, val y: Float,
-        val width: Float, val height: Float, val color: Int, val alpha: Int,
+        val width: Float, val height: Float, val sourceColor: Int, val alpha: Int,
         val dx: FloatArray, val dy: FloatArray, val scales: FloatArray)
 
     private fun ellipse(asset: String, x: Float, y: Float,
         dx: FloatArray, dy: FloatArray, scales: FloatArray): Layer {
         val parser = Xml.newPullParser()
         var width = 0f; var height = 0f
-        var fill = backdrop; var alpha = 255
+        var fill = Color.parseColor("#F0F5EF"); var alpha = 255
         val path = Path()
         assets.open("background/mist/$asset.svg").use { input ->
             parser.setInput(input, "UTF-8")
@@ -86,7 +89,7 @@ internal class MistBackgroundDrawable(context: Context, private val dynamicColor
                         val cx = attr("cx").toFloat(); val cy = attr("cy").toFloat()
                         val rx = attr("rx").toFloat(); val ry = attr("ry").toFloat()
                         path.addOval(cx - rx, cy - ry, cx + rx, cy + ry, Path.Direction.CW)
-                        fill = color(attr("fill"))
+                        fill = Color.parseColor(attr("fill"))
                         alpha = ((attr("opacity")?.toFloat() ?: 1f) * 255f).toInt()
                     }
                 }
@@ -106,9 +109,22 @@ internal class MistBackgroundDrawable(context: Context, private val dynamicColor
         ellipse("foreground", -1050f, -320f, floatArrayOf(0f,12f,18f,-6f,0f), floatArrayOf(0f,4f,-8f,-12f,0f), floatArrayOf(1f,1.005f,1.009f,1.004f,1f)),
         Layer(Path().apply { com.otokit.noharayh.ui.animation.common.ContinuousRoundedPath().setCorners(
             this, android.graphics.RectF(0f, 0f, 1040f, 650f), 180f, 325f, 325f, 100f) },
-            -320f,235f,1040f,650f,color("#DEE8E0"),178,
+            -320f,235f,1040f,650f,Color.parseColor("#DEE8E0"),178,
             floatArrayOf(0f,7f,10f,-4f,0f), floatArrayOf(0f,2f,-5f,-7f,0f), floatArrayOf(1f,1.003f,1.005f,1.003f,1f)),
     )
+    private var layerColors = layers.map { color(it.sourceColor) }
+
+    /** 只重算配色，保留路径、动画进度及播放状态。 */
+    fun setPrimaryColor(primaryColor: Int) {
+        val next = Hct.fromInt(primaryColor)
+        if (!dynamicColors || seed.toInt() == next.toInt()) return
+        seed = next
+        backdrop = color("#F0F5EF")
+        ornamentColor = color("#81BD9E")
+        layerColors = layers.map { color(it.sourceColor) }
+        invalidateSelf()
+    }
+
     private val animator = ValueAnimator.ofFloat(0f, 1f).apply {
         duration = 96_000L
         repeatCount = ValueAnimator.INFINITE
@@ -131,12 +147,12 @@ internal class MistBackgroundDrawable(context: Context, private val dynamicColor
         val segment = min(position.toInt(), 3)
         val fraction = easing.getInterpolation(position - segment)
         fun sample(values: FloatArray) = values[segment] + (values[segment + 1] - values[segment]) * fraction
-        for (layer in layers) {
+        for ((index, layer) in layers.withIndex()) {
             val layerSave = canvas.save()
             canvas.translate(layer.x + sample(layer.dx), layer.y + sample(layer.dy))
             val s = sample(layer.scales)
             canvas.scale(s, s, layer.width / 2f, layer.height / 2f)
-            paint.color = layer.color
+            paint.color = layerColors[index]
             paint.alpha = layer.alpha
             canvas.drawPath(layer.path, paint)
             canvas.restoreToCount(layerSave)
