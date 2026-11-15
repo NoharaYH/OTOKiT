@@ -375,9 +375,9 @@ row.setExpanded(nextShowContent)
 
 **单选行：** `SettingsPageViews.choice(context, label, selected, onClick)`。40dp 行高，未选中 4dp、选中 20dp 圆角，右侧选择标记；单选语义在创建时配置。工厂返回 `SettingsButton`，通过 `renderSelection(selected, animate)` 更新确认状态、标记、文字与圆角；不能只改 `isSelected`。
 
-主题菜单使用 `SettingsButton` 的单选语义，当前主题保留在原有列表位置；通过 `choiceIndicatorVisible = false` 隐藏可见单选圈，并使用深灰选中文字。完整选中行呈灰底、深灰半透明内描边与胶囊轮廓，折叠后恢复自身主题色。其他标准单选行仍保持蓝色选中和右侧标记。菜单保持自己的 44dp 完整行、最多 6 个完整槽位、薄条及分组几何：通过 `contentHeight = MATCH_PARENT` 让内容跟随行高，`setContentAlpha` 隐藏折叠行文字，选中行圆角为当前高度的一半。选择状态只从确认快照回传；点击当前项仍收起菜单，不重复切换背景。
+主题菜单使用 `SettingsButton` 的单选语义，当前主题保留在原有列表位置；通过 `choiceIndicatorVisible = false` 隐藏可见单选圈，并使用深灰选中文字。完整选中行呈灰底、深灰半透明内描边与胶囊轮廓，折叠后恢复自身浅主题色。其他标准单选行仍保持蓝色选中和右侧标记。菜单保持自己的 44dp 完整行、最多 6 个完整槽位、薄条及分组几何：通过 `contentHeight = MATCH_PARENT` 让内容跟随行高，`setContentAlpha` 隐藏折叠行文字，选中行圆角为当前高度的一半。选择状态只从确认快照回传；点击当前项仍收起菜单，不重复切换背景。
 
-主题预览第 1 步已接入静态配色：各项使用现有主色，亮色派生暗块、暗色派生亮块，完整行使用轻微主题色底；每个连续折叠区共享切线坐标，切线角度不随平板宽度拉伸。Materkit 从 shell 经 settings 公开入口接收实际 `ThemeColors`，支持菜单打开期间更新，不在组件内取壁纸或偏好。错峰切入和三层 WebP 尚未接入，分步状态见 [主题选单预览计划](主题选单预览/README.md)。
+主题预览折叠态按 2026-11-15 用户修订统一使用主色向菜单底色轻微混合后的浅主题色，取消几何分割及几何切入。完整行等待态使用同一浅底，选中完整行使用灰底和深灰半透明内描边。Materkit 从 shell 经 settings 公开入口接收实际 `ThemeColors`，支持菜单打开期间更新，不在组件内取壁纸或偏好。WebP 与短时钟交付状态见 [主题选单预览计划](主题选单预览/README.md)。
 
 `PressSurface.surfaceContent` 是通用的可选表面绘制槽，位于填充之后、白色覆盖及内部涟漪之前，由表面使用当前按压内缩的真实 G2 路径裁剪。回调只能在当前绘制期间读取 bounds/path，不能保存或修改它们；不提供点击、导航或主题播放策略。配置装饰时，几何不变则复用同一条表面路径；尺寸、内缩或上下圆角改变时重建，`buildSurfacePath` 的输出只由这些输入决定。未配置时不改变原有路径生成行为。主题内描边沿同一路径绘制，外半侧裁去后形成内描边，不叠加投影。
 

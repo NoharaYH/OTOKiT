@@ -10,6 +10,7 @@ import android.widget.TextView
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.otokit.noharayh.ui.kit.settings.LabeledDropdownField
 import com.otokit.noharayh.ui.kit.settings.SettingsButton
+import com.otokit.noharayh.ui.kit.settings.ThemeMenuPreviewPalette
 import com.otokit.noharayh.ui.kit.settings.ThemeDropdownMenu
 import com.otokit.noharayh.ui.kit.settings.ThemeSelectorPanel
 import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors
@@ -198,7 +199,7 @@ class ThemeSelectorPanelTest : UiComponentTestHost() {
         assertEquals("预览不显示右侧单选圈，但保留单选语义", 1, (row.getChildAt(0) as ViewGroup).childCount)
     }
 
-    @Test fun foldedThemesUseTheirOwnPrimaryAndMaterkitUpdatesWithoutRecreatingTheMenu() {
+    @Test fun foldedThemesUseTheirExpandedUnderpaintAndMaterkitUpdatesWithoutRecreatingTheMenu() {
         lateinit var panel: ThemeSelectorPanel
         val html = ThemeRegistry.themesFor(GameLine.Mai).take(8).map(ThemeOption::Html)
         val options = html + ThemeOptions.placeholder
@@ -215,11 +216,11 @@ class ThemeSelectorPanelTest : UiComponentTestHost() {
             val themed = rows.getChildAt(7) as SettingsButton
             val native = rows.getChildAt(8) as SettingsButton
             fun primaryPixel(row: View): Int = pixel(row, row.width / 10, row.height / 2)
-            assertEquals(html[7].theme.definition.colors.primaryColor, primaryPixel(themed))
-            assertEquals(Color.RED, primaryPixel(native))
+            assertEquals(ThemeMenuPreviewPalette.fromPrimary(html[7].theme.definition.colors.primaryColor).underpaint, primaryPixel(themed))
+            assertEquals(ThemeMenuPreviewPalette.fromPrimary(Color.RED).underpaint, primaryPixel(native))
             panel.renderMaterkitColors(ThemeColors(Color.GREEN, Color.BLUE))
             assertSame(original, menu(panel))
-            assertEquals(Color.GREEN, primaryPixel(native))
+            assertEquals(ThemeMenuPreviewPalette.fromPrimary(Color.GREEN).underpaint, primaryPixel(native))
             assertTrue(native.isSelected)
             original.beginScrollbarDrag()
             original.dragScrollbarTo(1f)

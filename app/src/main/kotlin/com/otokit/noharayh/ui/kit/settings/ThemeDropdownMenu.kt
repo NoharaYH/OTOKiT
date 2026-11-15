@@ -204,8 +204,7 @@ private class MenuViewport(
                 MeasureSpec.makeMeasureSpec(h.roundToInt(), MeasureSpec.EXACTLY))
             child.layout(pad, (top + overscroll).roundToInt(), width - pad,
                 (top + overscroll).roundToInt() + h.roundToInt())
-            previews[index].render(geometry.expansion(index, offset), child.isSelected,
-                child.top.toFloat(), geometry.foldedRegionCenter(index, offset) + overscroll)
+            previews[index].render(geometry.expansion(index, offset), child.isSelected)
             val color = previews[index].backgroundColor
             if (child.fillColor != color) child.fillColor = color
             val content = if (previews[index].needsDecoration) previewContents[index] else null
