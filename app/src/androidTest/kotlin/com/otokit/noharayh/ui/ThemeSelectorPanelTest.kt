@@ -179,7 +179,8 @@ class ThemeSelectorPanelTest : UiComponentTestHost() {
                     assertEquals(1, selectedRows.size)
                     val row = selectedRows.single() as SettingsButton
                     assertEquals(ThemeOptions.find(selectedId)!!.title, row.contentDescription)
-                    val hasImage = (options[selectedIndex] as? ThemeOption.Html)?.theme?.definition?.preview != null
+                    val hasImage = options[selectedIndex].id == ThemeOptions.PLACEHOLDER_ID ||
+                        (options[selectedIndex] as? ThemeOption.Html)?.theme?.definition?.preview != null
                     assertChoice(row, true, if (hasImage) Color.WHITE else SettingsComponentColors.TITLE)
                     assertEquals(row.height / 2f, row.topCornerRadius!!, 1f)
                     assertEquals(row.height / 2f, row.bottomCornerRadius!!, 1f)

@@ -16,8 +16,10 @@ import com.otokit.noharayh.ui.constants.dimensions.ThemeSelectionDimensions as D
 import com.otokit.noharayh.ui.constants.settings.ThemeMenuPreviewColors as Colors
 import kotlin.math.min
 
-/** 一行静态 WebP 的轻量绘制；按压裁剪、覆盖和涟漪仍由 PressSurface 拥有。 */
-internal class ThemeMenuPreview(primaryColor: Int, private val density: Float) {
+/** 一行静态资源/原生路径的轻量绘制；按压裁剪、覆盖和涟漪仍由 PressSurface 拥有。 */
+internal class ThemeMenuPreview(primaryColor: Int, private val density: Float,
+    private val materkit: MaterkitMenuPreview? = null,
+) {
     private var palette = ThemeMenuPreviewPalette.fromPrimary(primaryColor)
     private val imagePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
     private val grayscale = ColorMatrixColorFilter(ColorMatrix().apply { setSaturation(0f) })
@@ -29,16 +31,18 @@ internal class ThemeMenuPreview(primaryColor: Int, private val density: Float) {
     private val destination = RectF()
     private val source = Rect()
     private val fullHeight = (Dimensions.MENU_ROW_DP * density + 0.5f).toInt().toFloat()
-    private val backgroundEnd: Float get() = if (images?.eyes == null) 1f else Spec.BACKGROUND_END
+    private val backgroundEnd: Float get() = if (materkit != null || images?.eyes != null) Spec.BACKGROUND_END else 1f
     private var expansion = 0f
     private var selected = false
     private var progress = 0f
     private var scrimWidth = -1f
     var images: ThemePreviewBitmaps? = null
+    val isNative: Boolean get() = materkit != null
+    private val hasScene: Boolean get() = isNative || images != null
     val backgroundColor: Int get() = if (selected) previewColorBetween(palette.underpaint, Colors.SELECTED, expansion) else palette.underpaint
-    val needsDecoration: Boolean get() = (images != null && expansion > 0f) || (selected && expansion > 0f)
+    val needsDecoration: Boolean get() = (hasScene && expansion > 0f) || (selected && expansion > 0f)
     val contentColor: Int get() = previewColorBetween(if (selected) com.otokit.noharayh.ui.constants.settings.SettingsComponentColors.TITLE else com.otokit.noharayh.ui.constants.settings.SettingsComponentColors.TEXT, android.graphics.Color.WHITE,
-        if (images == null) 0f else expansion * ThemePreviewFrames.layer(progress, 0f, backgroundEnd))
+        if (!hasScene) 0f else expansion * ThemePreviewFrames.layer(progress, 0f, backgroundEnd))
 
     fun render(expansion: Float, selected: Boolean) {
         // 行高独立控制渐隐；切入进度只向前，不能在收缩时冻结未完成的人物。
@@ -46,7 +50,10 @@ internal class ThemeMenuPreview(primaryColor: Int, private val density: Float) {
         this.selected = selected
     }
     fun motion(value: Float) { progress = value }
-    fun setPrimaryColor(color: Int) { if (palette.primary != color) palette = ThemeMenuPreviewPalette.fromPrimary(color) }
+    fun setPrimaryColor(color: Int) {
+        if (palette.primary != color) palette = ThemeMenuPreviewPalette.fromPrimary(color)
+        materkit?.setPrimaryColor(color)
+    }
 
     /** 布局/资源改变时更新，draw 中不创建 Shader 或其他绘制对象。 */
     fun setTextExtent(textExtent: Float, width: Float) {
@@ -60,18 +67,20 @@ internal class ThemeMenuPreview(primaryColor: Int, private val density: Float) {
 
     fun draw(canvas: Canvas, bounds: RectF, surfacePath: Path) {
         val scene = images
-        if (scene != null && expansion > 0f && progress > 0f) {
+        if (hasScene && expansion > 0f && progress > 0f) {
             imagePaint.colorFilter = if (selected) grayscale else null
             val background = ThemePreviewFrames.layer(progress, 0f, backgroundEnd)
             val eyes = ThemePreviewFrames.layer(progress, Spec.EYES_START, 1f)
             val travel = themePreviewTravel(bounds.width(), fullHeight)
-            val flat = scene.flat
-            if (progress == 1f && flat != null) {
+            val flat = scene?.flat
+            if (materkit != null) {
+                materkit.draw(canvas, bounds, fullHeight, progress, expansion, imagePaint)
+            } else if (progress == 1f && flat != null) {
                 destination.set(bounds.left, bounds.centerY() - fullHeight / 2f,
                     bounds.right, bounds.centerY() + fullHeight / 2f)
                 imagePaint.alpha = (255 * expansion).toInt().coerceIn(0, 255)
                 canvas.drawBitmap(flat, null, destination, imagePaint)
-            } else {
+            } else if (scene != null) {
                 themePreviewBackgroundBounds(scene.background.width, scene.background.height,
                     bounds, fullHeight, background, source, destination)
                 imagePaint.alpha = (255 * expansion * background).toInt().coerceIn(0, 255)

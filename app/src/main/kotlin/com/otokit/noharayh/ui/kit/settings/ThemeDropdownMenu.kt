@@ -15,6 +15,7 @@ import com.otokit.noharayh.ui.animation.settings.ThemeMenuMotionRunner
 import com.otokit.noharayh.ui.constants.dimensions.ThemeSelectionDimensions as Dimensions
 import com.otokit.noharayh.ui.constants.motion.ThemeSelectionMotion as Spec
 import com.otokit.noharayh.ui.theme.ThemeOption
+import com.otokit.noharayh.ui.theme.ThemeOptions
 import com.otokit.noharayh.ui.theme.ThemeColors
 import com.otokit.noharayh.ui.theme.NoneThemePalette
 import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors
@@ -95,7 +96,8 @@ private class MenuViewport(
     private val descriptions = options.map { (it as? ThemeOption.Html)?.theme?.definition?.preview }
     private val previews = options.map { option ->
         ThemeMenuPreview(if (option is ThemeOption.Html) option.theme.definition.colors.primaryColor
-            else materkitColors.primaryColor, density)
+            else materkitColors.primaryColor, density,
+            if (option.id == ThemeOptions.PLACEHOLDER_ID) MaterkitMenuPreview(context.assets, materkitColors.primaryColor) else null)
     }
     private val previewContents = previews.map { it::draw }
     private val previewFrames = ThemePreviewFrames(options.size)
@@ -281,9 +283,11 @@ private class MenuViewport(
                 MeasureSpec.makeMeasureSpec(h.roundToInt(), MeasureSpec.EXACTLY))
             child.layout(pad, (top + overscroll).roundToInt(), width - pad,
                 (top + overscroll).roundToInt() + h.roundToInt())
-            if (previewFrames.geometry(index, geometry.expansion(index, offset), enteringOrder) && descriptions[index] != null) {
+            if (previewFrames.geometry(index, geometry.expansion(index, offset), enteringOrder) &&
+                (descriptions[index] != null || previews[index].isNative)) {
                 enteringOrder++
             }
+            if (previews[index].isNative) previewFrames.ready(index)
             previews[index].render(geometry.expansion(index, offset), child.isSelected)
             previews[index].setTextExtent(textExtent, child.width.toFloat())
             renderPreview(index)

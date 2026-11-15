@@ -23,6 +23,7 @@ internal object ThemeSelectionDimensions {
     const val PREVIEW_TRAVEL_MAX_DP = 56f
     const val PREVIEW_SCRIM_TEXT_WIDTH_SCALE = 1.3f
     const val PREVIEW_SCRIM_LENGTH_SCALE = 1.1f
+    const val PREVIEW_MATERKIT_STAR_HEIGHT_FACTOR = 2f
     const val PREVIEW_BITMAP_MAX_WIDTH_PX = 1024
     const val PREVIEW_BITMAP_MAX_HEIGHT_PX = 144
     const val PREVIEW_CACHE_BYTES = 16 * 1024 * 1024

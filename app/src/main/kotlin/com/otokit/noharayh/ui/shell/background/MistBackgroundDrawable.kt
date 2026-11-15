@@ -14,9 +14,7 @@ import com.materialkolor.hct.Hct
 import org.xmlpull.v1.XmlPullParser
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
+import com.otokit.noharayh.ui.kit.common.softEightLobePath
 
 /** Figma WTnoHx4OnRUwv0svJ2FjV0 / 12:224. Fixed 1600×1200 master, centered cover crop.
  * Original SVG ellipses are parsed once; no WebView, bitmap textures or per-frame parsing.
@@ -53,21 +51,7 @@ internal class MistBackgroundDrawable(context: Context, private val dynamicColor
         addOval(260f, 90f, 1740f, 1670f, Path.Direction.CW)
     }, true)
     private val orbitPosition = FloatArray(2)
-    private val ornament = Path().apply {
-        // Eight soft lobes, diameter 164 master pixels; geometry is cached for the drawable's life.
-        val count = 96
-        val points = Array(count) { i ->
-            val angle = 2.0 * PI * i / count
-            val radius = 76.0 + 6.0 * cos(8.0 * angle)
-            floatArrayOf((radius * cos(angle)).toFloat(), (radius * sin(angle)).toFloat())
-        }
-        moveTo((points.last()[0] + points[0][0]) / 2f, (points.last()[1] + points[0][1]) / 2f)
-        for (i in points.indices) {
-            val next = points[(i + 1) % count]
-            quadTo(points[i][0], points[i][1], (points[i][0] + next[0]) / 2f, (points[i][1] + next[1]) / 2f)
-        }
-        close()
-    }
+    private val ornament = softEightLobePath()
     private data class Layer(val path: Path, val x: Float, val y: Float,
         val width: Float, val height: Float, val sourceColor: Int, val alpha: Int,
         val dx: FloatArray, val dy: FloatArray, val scales: FloatArray)
