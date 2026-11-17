@@ -25,6 +25,9 @@ object GamePlaceholderPage {
         context: Context,
         maiDescription: CharSequence,
         chuDescription: CharSequence,
+        buttonLabel: String? = null,
+        buttonFillColor: Int? = null,
+        onButtonClick: (() -> Unit)? = null,
     ): PageContent {
         val root = FrameLayout(context)
         val toast = Toast.makeText(context, R.string.press_surface_preview_clicked, Toast.LENGTH_SHORT)
@@ -32,20 +35,22 @@ object GamePlaceholderPage {
         val maiPanel = GamePlaceholderPanel(
             context = context,
             description = maiDescription,
-            buttonDescription = context.getString(
+            buttonDescription = buttonLabel ?: context.getString(
                 R.string.placeholder_button_description,
                 maiDescription,
             ),
-            onButtonClick = { toast.show() },
+            onButtonClick = onButtonClick ?: { toast.show() },
+            buttonLabel = buttonLabel,
         )
         val chuPanel = GamePlaceholderPanel(
             context = context,
             description = chuDescription,
-            buttonDescription = context.getString(
+            buttonDescription = buttonLabel ?: context.getString(
                 R.string.placeholder_button_description,
                 chuDescription,
             ),
-            onButtonClick = { toast.show() },
+            onButtonClick = onButtonClick ?: { toast.show() },
+            buttonLabel = buttonLabel,
         )
         root.addView(
             maiPanel,
@@ -103,8 +108,8 @@ object GamePlaceholderPage {
         return PageContent(
             view = root,
             gameColorsUpdater = { maiColor, chuColor ->
-                maiPanel.button.fillColor = maiColor
-                chuPanel.button.fillColor = chuColor
+                maiPanel.button.fillColor = buttonFillColor ?: maiColor
+                chuPanel.button.fillColor = buttonFillColor ?: chuColor
             },
             frameUpdater = ::applyFrame,
             interactiveUpdater = { allowed ->

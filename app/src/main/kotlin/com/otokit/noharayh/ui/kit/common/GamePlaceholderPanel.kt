@@ -8,6 +8,7 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
 import android.view.View
+import android.view.Gravity
 import android.widget.FrameLayout
 import android.widget.Toast
 import com.otokit.noharayh.R
@@ -25,6 +26,7 @@ class GamePlaceholderPanel(
     description: CharSequence,
     buttonDescription: CharSequence,
     private val onButtonClick: () -> Unit,
+    buttonLabel: String? = null,
 ) : FrameLayout(context) {
 
     private val density = resources.displayMetrics.density
@@ -39,6 +41,13 @@ class GamePlaceholderPanel(
         contentDescription = buttonDescription
         importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
         setOnClickListener { onButtonClick() }
+        buttonLabel?.let { label ->
+            addView(ViewPrimitives.text(context, label, 16f, Color.BLACK).apply {
+                gravity = Gravity.CENTER
+                maxLines = 1
+                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            }, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        }
     }
 
     init {

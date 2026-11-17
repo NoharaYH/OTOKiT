@@ -1,6 +1,8 @@
 package com.otokit.noharayh.ui.pages.pageScoreSync
 
 import android.content.Context
+import android.graphics.Color
+import android.widget.Toast
 import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.kit.common.PageContent
 import com.otokit.noharayh.ui.pages.GamePlaceholderPage
@@ -12,5 +14,10 @@ object ScoreSyncPlaceholder {
         context = context,
         maiDescription = context.getString(R.string.placeholder_mai_score_sync),
         chuDescription = context.getString(R.string.placeholder_chu_score_sync),
+        buttonLabel = context.getString(R.string.score_sync_lxns_authorize),
+        buttonFillColor = Color.WHITE,
+        onButtonClick = {
+            Toast.makeText(context, R.string.score_sync_lxns_authorize_pending, Toast.LENGTH_SHORT).show()
+        },
     )
 }

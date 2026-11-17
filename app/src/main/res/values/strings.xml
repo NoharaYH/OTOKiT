@@ -1,5 +1,7 @@
 <resources>
     <string name="app_name">OTOKiT</string>
+    <string name="score_sync_lxns_authorize">落雪授权</string>
+    <string name="score_sync_lxns_authorize_pending">落雪授权暂未接入</string>
 
     <string name="placeholder_score_sync">成绩同步（占位，尚未迁移）</string>
     <string name="placeholder_music_data">歌曲详情（占位，尚未迁移）</string>
