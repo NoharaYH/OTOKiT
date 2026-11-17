@@ -13,7 +13,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicBoolean
 
-/** Debug HTTP proxy. HTTPS CONNECT is passed through without inspecting TLS. */
+/** Task-scoped loopback capture. HTTPS CONNECT is passed through without inspecting TLS. */
 internal class LoopbackCaptureProxy(
     private val entryPath: String,
     @Volatile private var authorization: URI? = null,

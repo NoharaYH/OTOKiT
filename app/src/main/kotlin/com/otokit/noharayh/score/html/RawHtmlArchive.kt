@@ -14,7 +14,7 @@ internal class RawHtmlArchive(private val directory: File) {
     init { check(directory.mkdirs() || directory.isDirectory) }
 
     fun save(name: String, source: InputStream, cancelled: () -> Boolean = { false }): SavedPage {
-        require(name.matches(Regex("[a-z0-9_-]+\\.html")))
+        require(name.matches(Regex("[A-Za-z0-9_-]+\\.html")))
         val target = File(directory, name)
         check(!target.exists()) { "Page already saved" }
         val pending = File(directory, "$name.part")

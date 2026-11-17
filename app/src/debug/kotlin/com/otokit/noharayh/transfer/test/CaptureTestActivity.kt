@@ -13,6 +13,10 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import org.json.JSONObject
 import java.io.File
+import com.otokit.noharayh.score.ScoreGame
+import com.otokit.noharayh.transfer.CaptureRequest
+import com.otokit.noharayh.transfer.net.GameNetPages
+import com.otokit.noharayh.transfer.runtime.NetCaptureService
 
 /** ADB-only debug entry. No production UI or supplier credentials. */
 class CaptureTestActivity : Activity() {
@@ -115,11 +119,14 @@ class CaptureTestActivity : Activity() {
     }
 
     private fun startCapture() {
-        startForegroundService(Intent(this, CaptureTestService::class.java).apply {
-            putExtra("game", intent.getStringExtra("game") ?: "maimai")
-            putExtra("difficulties", intent.getStringExtra("difficulties") ?: "3")
-            putExtra("launchId", intent.getStringExtra("launchId"))
-        })
+        val game = ScoreGame.entries.first { it.key == (intent.getStringExtra("game") ?: "maimai") }
+        val kinds = (intent.getStringExtra("difficulties") ?: "3").split(',').map {
+            val number = it.trim().toInt()
+            require(game != ScoreGame.MAIMAI || number in listOf(0, 1, 2, 3, 4, 10))
+            GameNetPages.difficulties(game)[if (number == 10) 5 else number]
+        }
+        val request = CaptureRequest(game, kinds, requireNotNull(intent.getStringExtra("launchId")))
+        startForegroundService(NetCaptureService.startIntent(this, request).setClass(this, CaptureTestService::class.java))
     }
 
     @Deprecated("Platform permission callback")

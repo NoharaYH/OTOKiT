@@ -1,6 +1,8 @@
 package com.otokit.noharayh.transfer.net
 
 import com.otokit.noharayh.transfer.capture.NetCaptureProtocol
+import com.otokit.noharayh.transfer.CaptureHttpTrace
+import com.otokit.noharayh.transfer.CaptureProtocolIssue
 import okhttp3.Call
 import okhttp3.ConnectionSpec
 import okhttp3.Cookie
@@ -11,8 +13,6 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.TlsVersion
-import java.io.Closeable
-import java.io.InputStream
 import java.net.Proxy
 import java.net.URI
 import java.util.concurrent.TimeUnit
@@ -21,11 +21,16 @@ import java.util.zip.GZIPInputStream
 import java.util.zip.InflaterInputStream
 
 /** Task-local transport. Compatibility profile follows the existing Dart Android crawler. */
-internal class GameNetClient(private val onResponse: (String, Int) -> Unit = { _, _ -> }) : Closeable {
+internal class GameNetClient(
+    private val onResponse: (String, Int) -> Unit = { _, _ -> },
+    private val onRetry: () -> Unit = {},
+    private val onTrace: (CaptureHttpTrace) -> Unit = {},
+    private val onRejectedResponse: (NetSession.Page) -> Unit = {},
+) : NetSession {
     private val closed = AtomicBoolean(false)
     @Volatile private var active: Call? = null
     private val cookies = HostCookies()
-    private val client = OkHttpClient.Builder()
+    private val client = NetExchangeGuard.configure(OkHttpClient.Builder())
         .proxy(Proxy.NO_PROXY)
         .connectTimeout(120, TimeUnit.SECONDS)
         .readTimeout(120, TimeUnit.SECONDS)
@@ -40,12 +45,17 @@ internal class GameNetClient(private val onResponse: (String, Int) -> Unit = { _
         .addNetworkInterceptor { chain ->
             val uri = chain.request().url.toUri()
             require(NetCaptureProtocol.isNetDestination(uri)) { "Unexpected NET destination" }
-            chain.proceed(chain.request()).also { onResponse(uri.host, it.code) }
+            val started = System.nanoTime()
+            chain.proceed(chain.request()).also { response ->
+                onResponse(uri.host, response.code)
+                onTrace(CaptureHttpTrace(chain.request().method, NetTraceEndpoint.classify(uri), response.code,
+                    response.protocol.toString(), response.handshake?.tlsVersion?.javaName,
+                    response.header("Location")?.let { runCatching { NetTraceEndpoint.classify(uri.resolve(it)) }.getOrDefault("INVALID_LOCATION") },
+                    (System.nanoTime() - started) / 1_000_000))
+            }
         }.build()
 
-    data class Page(val uri: URI, val contentType: String, val stream: InputStream, val status: Int)
-
-    fun authorizationUrl(game: String): URI {
+    override fun authorizationUrl(game: String): URI {
         require(game in listOf("maimai", "chunithm"))
         var current = URI("https://${NetCaptureProtocol.AUTH_HOST}/wc_auth/oauth/authorize/" +
             if (game == "maimai") "maimai-dx" else "chunithm")
@@ -63,21 +73,33 @@ internal class GameNetClient(private val onResponse: (String, Int) -> Unit = { _
         error("Too many authorization redirects")
     }
 
-    fun login(callback: URI, saveDiagnostic: (Page) -> Unit) {
+    override fun login(callback: URI, saveDiagnostic: (NetSession.Page) -> Unit) {
         cookies.clear()
         // The reference constructs a fresh OkHttp client after authorization/VPN teardown.
         client.connectionPool.evictAll()
-        val request = browserHeaders(Request.Builder().url(NetCaptureProtocol.secureCallback(callback).toString()), DESKTOP_UA)
+        var request = browserHeaders(Request.Builder().url(NetCaptureProtocol.secureCallback(callback).toString()), DESKTOP_UA)
             .header("Connection", "keep-alive")
             .header("Accept-Encoding", "gzip, deflate, br").build()
-        // Reproduce the former client's redirect/header/cookie handling for login.
-        execute(request, followRedirects = true) { response ->
-            page(response) { saveDiagnostic(it) }
-            check(response.code == 200) { "NET returned HTTP ${response.code}" }
+        // Follow each redirect explicitly; a callback is never transparently replayed.
+        val visited = mutableSetOf<String>()
+        repeat(12) {
+            if (!visited.add(request.url.toString())) throw NetProtocolException(CaptureProtocolIssue.REDIRECT_LOOP)
+            var redirect: URI? = null
+            execute(request) { response ->
+                if (response.code in 300..399) {
+                    redirect = request.url.toUri().resolve(response.header("Location") ?: error("Missing login redirect"))
+                } else {
+                    page(response) { saveDiagnostic(it) }
+                    if (response.code != 200) throw NetHttpException(response.code)
+                }
+            }
+            val next = redirect ?: return
+            request = request.newBuilder().url(next.toString()).build()
         }
+        error("Too many login redirects")
     }
 
-    fun <T> read(uri: URI, post: String? = null, consume: (Page) -> T): T {
+    override fun <T> read(uri: URI, post: String?, consume: (NetSession.Page) -> T): T {
         var current = uri
         var body = post
         repeat(12) {
@@ -87,37 +109,40 @@ internal class GameNetClient(private val onResponse: (String, Int) -> Unit = { _
             var redirect: URI? = null
             var result: T? = null
             var consumed = false
-            execute(request) { response ->
+            NetReadRetry({ closed.get() }, onRetry).run(replaySafe = body == null) { execute(request) { response ->
                 if (response.code in 300..399) {
                     redirect = current.resolve(response.header("Location") ?: error("Missing NET redirect"))
                     if (response.code in listOf(301, 302, 303)) body = null
                 } else {
-                    check(response.code == 200) { "NET returned HTTP ${response.code}" }
+                    if (response.code != 200) {
+                        try { page(response) { onRejectedResponse(it) } }
+                        catch (error: java.io.IOException) { throw NetHttpException(response.code).apply { initCause(error) } }
+                        throw NetHttpException(response.code)
+                    }
                     result = page(response, consume)
                     consumed = true
                 }
-            }
+            } }
             if (consumed) { @Suppress("UNCHECKED_CAST") return result as T }
             current = redirect ?: error("Missing NET redirect")
         }
         error("Too many NET redirects")
     }
 
-    private fun <T> page(response: okhttp3.Response, consume: (Page) -> T): T {
+    private fun <T> page(response: okhttp3.Response, consume: (NetSession.Page) -> T): T {
         val body = response.body ?: error("Missing NET body")
         val stream = when (response.header("Content-Encoding")?.lowercase()) {
             "gzip" -> GZIPInputStream(body.byteStream())
             "deflate" -> InflaterInputStream(body.byteStream())
             else -> body.byteStream()
         }
-        return stream.use { consume(Page(response.request.url.toUri(), response.header("Content-Type").orEmpty(), it, response.code)) }
+        return stream.use { consume(NetSession.Page(response.request.url.toUri(), response.header("Content-Type").orEmpty(), it, response.code)) }
     }
 
-    private fun <T> execute(request: Request, followRedirects: Boolean = false, consume: (okhttp3.Response) -> T): T {
+    private fun <T> execute(request: Request, consume: (okhttp3.Response) -> T): T {
         check(!closed.get()) { "Session closed" }
         require(NetCaptureProtocol.isNetDestination(request.url.toUri())) { "Unexpected NET destination" }
-        val transport = if (followRedirects) client.newBuilder().followRedirects(true).followSslRedirects(true).build() else client
-        val call = transport.newCall(request)
+        val call = client.newCall(NetExchangeGuard.schedule(request))
         active = call
         if (closed.get()) call.cancel()
         try { return call.execute().use(consume) }
