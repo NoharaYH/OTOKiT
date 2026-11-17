@@ -21,6 +21,7 @@
         </service>
         <activity
             android:name=".MainActivity"
+            android:theme="@style/Theme.OTOKiT.Starting"
             android:exported="true"
             android:resizeableActivity="true">
             <!-- 明确声明窗口尺寸变化支持，不依赖 targetSdk 推导的默认可调整模式。 -->

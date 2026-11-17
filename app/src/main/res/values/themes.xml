@@ -7,4 +7,12 @@
     <style name="Theme.OTOKiT.ColorSlider" parent="Theme.Material3.Light.NoActionBar">
         <item name="sliderStyle">@style/Widget.Material3.Slider</item>
     </style>
+    <style name="Theme.OTOKiT.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#87B1CC</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/otokit_logo_mark</item>
+        <item name="postSplashScreenTheme">@style/Theme.OTOKiT</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:statusBarColor">#87B1CC</item>
+        <item name="android:navigationBarColor">#87B1CC</item>
+    </style>
 </resources>

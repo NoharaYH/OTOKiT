@@ -18,6 +18,7 @@ class SharedPreferencesUiPreferences(context: Context) : UiPreferences {
         val stored = preferences.all
         return UiPreferenceRecord(
             version = stored[KEY_VERSION] as? Int,
+            startupAnimationEnabled = stored[KEY_STARTUP_ANIMATION] as? Boolean,
             currentGame = stored[KEY_CURRENT_GAME] as? String,
             maiThemeId = stored[KEY_THEME_MAI] as? String,
             chuThemeId = stored[KEY_THEME_CHU] as? String,
@@ -71,9 +72,14 @@ class SharedPreferencesUiPreferences(context: Context) : UiPreferences {
         }
     }
 
+    override fun writeStartupAnimation(enabled: Boolean) {
+        preferences.edit { putBoolean(KEY_STARTUP_ANIMATION, enabled) }
+    }
+
     companion object {
         const val FILE_NAME: String = "ui_shell_preferences"
         const val KEY_VERSION: String = "version"
+        const val KEY_STARTUP_ANIMATION = "startup_animation_enabled"
         const val KEY_CURRENT_GAME: String = "current_game"
         const val KEY_THEME_MAI: String = "theme_mai"
         const val KEY_THEME_CHU: String = "theme_chu"

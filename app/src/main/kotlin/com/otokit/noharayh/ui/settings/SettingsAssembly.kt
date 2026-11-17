@@ -30,6 +30,8 @@ class SettingsAssembly(
     private val displayScale: DisplayScaleOption,
     private val onDisplayScaleSelected: (DisplayScaleOption) -> Unit,
     private val renderingProvider: () -> BackgroundRenderingOptions,
+    private val startupAnimationProvider: () -> Boolean,
+    private val onStartupAnimationSelected: (Boolean) -> Unit,
     private val onHardwareAccelerationSelected: (Boolean) -> Unit,
     private val onHtmlAnimationsSelected: (Boolean) -> Unit,
     private val takeHardwareWarning: () -> Boolean,
@@ -64,6 +66,13 @@ class SettingsAssembly(
         if (disposed) return
         for (index in 0 until childHost.childCount) {
             (childHost.getChildAt(index) as? AppSettingsPage)?.renderBackgroundRendering(options)
+        }
+    }
+
+    private fun renderStartupAnimation(enabled: Boolean) {
+        if (disposed) return
+        for (index in 0 until childHost.childCount) {
+            (childHost.getChildAt(index) as? AppSettingsPage)?.renderStartupAnimation(enabled)
         }
     }
 
@@ -273,6 +282,11 @@ class SettingsAssembly(
         displayScale = displayScale,
         onDisplayScaleSelected = onDisplayScaleSelected,
         rendering = renderingProvider(),
+        startupAnimationEnabled = startupAnimationProvider(),
+        onStartupAnimationSelected = {
+            onStartupAnimationSelected(it)
+            renderStartupAnimation(startupAnimationProvider())
+        },
         onHardwareAccelerationSelected = onHardwareAccelerationSelected,
         onHtmlAnimationsSelected = onHtmlAnimationsSelected,
         takeHardwareWarning = takeHardwareWarning,

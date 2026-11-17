@@ -13,6 +13,8 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import com.otokit.noharayh.ui.shell.StartupPresentation
 import com.otokit.noharayh.databinding.ActivityMainBinding
 import com.otokit.noharayh.platform.DisplayScaleStore
 import com.otokit.noharayh.platform.WindowOrientationController
@@ -36,6 +38,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var displayScaleStore: DisplayScaleStore
     private var shell: MainShell? = null
+    private var startup: StartupPresentation? = null
     private var backCallback: OnBackPressedCallback? = null
     private var windowObserver: WindowEnvironmentObserver? = null
     private var orientationController: WindowOrientationController? = null
@@ -69,6 +72,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         // 在 inflate 之前固定浅色，避免首帧跟随系统夜间模式闪烁。
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
+        val systemSplash = installSplashScreen()
         super.onCreate(savedInstanceState)
         // 显式浅底深色内容，不使用按模式自动判断的另一套回调。
         enableEdgeToEdge(
@@ -116,6 +120,13 @@ class MainActivity : AppCompatActivity() {
             },
         )
         this.shell = shell
+        startup = shell.prepareStartup(binding.root, savedInstanceState != null,
+            android.animation.ValueAnimator.areAnimatorsEnabled()).also { presentation ->
+            systemSplash.setKeepOnScreenCondition(presentation::shouldKeepSystemSplash)
+            systemSplash.setOnExitAnimationListener { provider ->
+                presentation.onSystemExit(provider.view, provider::remove)
+            }
+        }
         backCallback = object : OnBackPressedCallback(false) {
             override fun handleOnBackStarted(backEvent: BackEventCompat) {
                 shell.beginBackPreview()
@@ -167,6 +178,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onStop() {
+        startup?.finish()
         windowObserver?.stop()
         super.onStop()
     }
@@ -221,6 +233,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        startup?.finish()
+        startup = null
         windowObserver?.dispose()
         windowObserver = null
         backCallback?.remove()

@@ -33,11 +33,16 @@ internal class AppSettingsPage(
     displayScale: DisplayScaleOption,
     onDisplayScaleSelected: (DisplayScaleOption) -> Unit,
     rendering: BackgroundRenderingOptions,
+    startupAnimationEnabled: Boolean,
+    onStartupAnimationSelected: (Boolean) -> Unit,
     private val onHardwareAccelerationSelected: (Boolean) -> Unit,
     onHtmlAnimationsSelected: (Boolean) -> Unit,
     private val takeHardwareWarning: () -> Boolean,
 ) : ScrollView(context) {
     private var warningDialog: ConfirmationDialog? = null
+    private val startupSwitch = GroupedSwitchRow(context,
+        context.getString(R.string.settings_startup_animation), false, true,
+        startupAnimationEnabled, onStartupAnimationSelected)
     private val hardwareSwitch = GroupedSwitchRow(context,
         context.getString(R.string.settings_background_hardware_acceleration), true, false,
         rendering.hardwareAccelerated, ::requestHardwareAcceleration,
@@ -46,7 +51,7 @@ internal class AppSettingsPage(
         deferClickUntilReleaseFeedback = true
     }
     private val animationSwitch = GroupedSwitchRow(context,
-        context.getString(R.string.settings_background_html_animations), false, true,
+        context.getString(R.string.settings_background_html_animations), false, false,
         rendering.htmlAnimations, onHtmlAnimationsSelected)
 
     init {
@@ -96,6 +101,7 @@ internal class AppSettingsPage(
             addView(animationSwitch, LinearLayout.LayoutParams(-1, -2).apply {
                 topMargin = dp(context, SettingsGroupDimensions.GAP_DP)
             })
+            addView(startupSwitch, LinearLayout.LayoutParams(-1, -2))
         }
         body.addView(switches, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(context, 12) })
         isFillViewport = true
@@ -108,6 +114,8 @@ internal class AppSettingsPage(
         hardwareSwitch.isChecked = options.hardwareAccelerated
         animationSwitch.isChecked = options.htmlAnimations
     }
+
+    fun renderStartupAnimation(enabled: Boolean) { startupSwitch.isChecked = enabled }
 
     private fun requestHardwareAcceleration(enabled: Boolean) {
         if (!isAttachedToWindow || warningDialog != null) return

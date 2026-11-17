@@ -13,6 +13,10 @@ class UiPreferencesAdapter(private val preferences: UiPreferences) {
 
     fun read(): SelectionSource = preferences.readSelection().toSelectionSource()
 
+    fun readStartupAnimation(): Boolean = preferences.readSelection().startupAnimationEnabled ?: false
+
+    fun writeStartupAnimation(enabled: Boolean) = preferences.writeStartupAnimation(enabled)
+
     fun readBackgroundRendering(): BackgroundRenderingOptions = preferences.readSelection().let {
         BackgroundRenderingOptions(it.backgroundHardwareAcceleration ?: true, it.backgroundHtmlAnimations ?: true)
     }

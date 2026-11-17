@@ -98,6 +98,12 @@ class MainShell(
     private val controller = NavigationController(initialState)
     private var backgroundRendering = selectionPreferences.readBackgroundRendering()
 
+    /** 平台只接系统启动窗与生命周期；保存选择仍由 UI 偏好入口读取。 */
+    fun prepareStartup(root: FrameLayout, restored: Boolean, systemAnimationsEnabled: Boolean) =
+        StartupPresentation(root,
+            enabled = !restored && systemAnimationsEnabled && selectionPreferences.readStartupAnimation(),
+            animateExit = !restored && systemAnimationsEnabled)
+
     /** 稳定的音游/主题选择；恢复顺序为保存状态、偏好、Registry 默认。 */
     private val selection = GameSelectionController(
         restoreGameSelection(
@@ -288,6 +294,8 @@ class MainShell(
             displayScale = displayScale,
             onDisplayScaleSelected = onDisplayScaleSelected,
             renderingProvider = { backgroundRendering },
+            startupAnimationProvider = selectionPreferences::readStartupAnimation,
+            onStartupAnimationSelected = selectionPreferences::writeStartupAnimation,
             takeHardwareWarning = {
                 if (hardwareWarningShownThisProcess) false else {
                     hardwareWarningShownThisProcess = true

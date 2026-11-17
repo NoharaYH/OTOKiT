@@ -85,7 +85,24 @@ class UiPreferencesAdapterTest {
         assertEquals(BackgroundRenderingOptions(true, false), UiPreferencesAdapter(fake).readBackgroundRendering())
     }
 
+    @Test
+    fun startupChoiceDefaultsOffAndSurvivesUnrelatedPreferenceWrites() {
+        val fake = FakePreferences(UiPreferenceRecord(null, null, null, null))
+        val adapter = UiPreferencesAdapter(fake)
+        assertEquals(false, adapter.readStartupAnimation())
+        adapter.writeStartupAnimation(false)
+        adapter.writeBackgroundRendering(BackgroundRenderingOptions(false, true))
+        adapter.write(GameSelectionState(GameLine.Chu, "mai-a", "chu-a", ThemeSelectionMode.Merged, "shared"))
+        assertEquals(false, adapter.readStartupAnimation())
+        adapter.writeStartupAnimation(true)
+        assertEquals(true, adapter.readStartupAnimation())
+        assertEquals(BackgroundRenderingOptions(false, true), adapter.readBackgroundRendering())
+        assertEquals("chu-a", adapter.read().chuThemeId)
+    }
+
     private class FakePreferences(var record: UiPreferenceRecord) : UiPreferences {
+
+        override fun writeStartupAnimation(enabled: Boolean) { record = record.copy(startupAnimationEnabled = enabled) }
 
         var written: UiPreferenceRecord? = null
         var writeCount = 0

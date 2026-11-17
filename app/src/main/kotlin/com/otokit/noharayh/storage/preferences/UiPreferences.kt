@@ -21,12 +21,15 @@ data class UiPreferenceRecord(
     val noneThemePrimaryColor: Int? = null,
     val noneThemeSecondaryColor: Int? = null,
     val noneThemeWallpaperSecondary: Int? = null,
+    val startupAnimationEnabled: Boolean? = null,
 )
 
 /** 最小 UI 偏好读写入口：只读写原始字段。 */
 interface UiPreferences {
 
     fun readSelection(): UiPreferenceRecord
+
+    fun writeStartupAnimation(enabled: Boolean)
 
     /** 两个背景选项一次写入；保留音游和主题字段。 */
     fun writeBackgroundRendering(hardwareAccelerated: Boolean, htmlAnimations: Boolean)
