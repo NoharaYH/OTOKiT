@@ -1,14 +1,9 @@
 package com.otokit.noharayh.ui.pages
 
 import android.content.Context
-import android.view.View
-import android.widget.FrameLayout
 import android.widget.Toast
 import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.animation.common.GameFrame
-import com.otokit.noharayh.ui.animation.common.GamePhase
-import com.otokit.noharayh.ui.animation.common.TransitionFrames
-import com.otokit.noharayh.ui.constants.motion.PagerPairTransition
 import com.otokit.noharayh.ui.kit.common.GamePlaceholderPanel
 import com.otokit.noharayh.ui.kit.common.PageContent
 import kotlin.math.roundToInt
@@ -29,7 +24,6 @@ object GamePlaceholderPage {
         buttonFillColor: Int? = null,
         onButtonClick: (() -> Unit)? = null,
     ): PageContent {
-        val root = FrameLayout(context)
         val toast = Toast.makeText(context, R.string.press_surface_preview_clicked, Toast.LENGTH_SHORT)
 
         val maiPanel = GamePlaceholderPanel(
@@ -52,93 +46,23 @@ object GamePlaceholderPage {
             onButtonClick = onButtonClick ?: { toast.show() },
             buttonLabel = buttonLabel,
         )
-        root.addView(
-            maiPanel,
-            FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT,
-            ),
-        )
-        root.addView(
-            chuPanel,
-            FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.MATCH_PARENT,
-            ),
-        )
-
-        var interactiveAllowed = true
-        var lastFrame: GameFrame? = null
-
-        fun applyFrame(frame: GameFrame) {
-            lastFrame = frame
-            maiPanel.setWindowWidth(frame.windowWidthPx)
-            chuPanel.setWindowWidth(frame.windowWidthPx)
-            val progress = frame.normalizedProgress
-            if (frame.phase == GamePhase.Idle) {
-                val selectedMai = frame.selectedMai
-                showEndpoint(maiPanel, selectedMai)
-                showEndpoint(chuPanel, !selectedMai)
-                maiPanel.setInteractive(interactiveAllowed && selectedMai)
-                chuPanel.setInteractive(interactiveAllowed && !selectedMai)
-                return
-            }
-
-            maiPanel.visibility = View.VISIBLE
-            chuPanel.visibility = View.VISIBLE
-            val slideDistance = root.width * PagerPairTransition.CONTENT_TRANSLATION_RATIO
-            val (maiFrame, chuFrame) = TransitionFrames.pagerPair(
-                kind = PagerPairTransition.KIND,
-                progress = progress,
-                slideDistancePx = slideDistance,
-                minScale = PagerPairTransition.MIN_SCALE,
-                minAlpha = PagerPairTransition.MIN_ALPHA,
-                cardMotion = true,
-            )
-            applyPanelFrame(maiPanel, maiFrame, exitOnLeft = true)
-            applyPanelFrame(chuPanel, chuFrame, exitOnLeft = false)
-            maiPanel.setInteractive(false)
-            chuPanel.setInteractive(false)
+        val root = GamePairLayout(maiPanel, chuPanel) { mai, chu ->
+            maiPanel.setInteractive(mai)
+            chuPanel.setInteractive(chu)
         }
-
-        root.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-            lastFrame?.let(::applyFrame)
-        }
-
         return PageContent(
             view = root,
             gameColorsUpdater = { maiColor, chuColor ->
                 maiPanel.button.fillColor = buttonFillColor ?: maiColor
                 chuPanel.button.fillColor = buttonFillColor ?: chuColor
             },
-            frameUpdater = ::applyFrame,
-            interactiveUpdater = { allowed ->
-                interactiveAllowed = allowed
-                lastFrame?.let(::applyFrame)
+            frameUpdater = { frame ->
+                maiPanel.setWindowWidth(frame.windowWidthPx)
+                chuPanel.setWindowWidth(frame.windowWidthPx)
+                root.render(frame)
             },
-            disposeAction = {
-                // Toast/面板无运行对象；移除监听即可，root 由 shell 移除。
-                lastFrame = null
-            },
+            interactiveUpdater = root::setInteractive,
         )
-    }
-
-    private fun showEndpoint(panel: GamePlaceholderPanel, visible: Boolean) {
-        panel.visibility = if (visible) View.VISIBLE else View.GONE
-        panel.alpha = 1f
-        panel.scaleX = 1f
-        panel.scaleY = 1f
-        panel.translationX = 0f
-    }
-
-    private fun applyPanelFrame(panel: GamePlaceholderPanel, frame: com.otokit.noharayh.ui.animation.common.TransitionFrame, exitOnLeft: Boolean) {
-        panel.alpha = frame.alpha
-        panel.scaleX = frame.scale
-        panel.scaleY = frame.scale
-        panel.translationX = TransitionFrames.rebasePivotTranslation(
-            frame.translationX, frame.scale, if (exitOnLeft) 0f else panel.width.toFloat(), panel.pivotX,
-        )
-        panel.translationY = frame.translationY
     }
 
     /** 测试用纯计算：按钮高度按 160dp 的三分之一取整。 */

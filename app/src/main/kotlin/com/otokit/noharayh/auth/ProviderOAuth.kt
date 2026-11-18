@@ -12,21 +12,24 @@ enum class OAuthProvider(
     internal val issuer: String,
     internal val clientId: String,
     internal val callbackPath: String,
-    internal val writes: List<String>,
+    private val maimaiWrite: String,
+    private val chunithmWrite: String = maimaiWrite,
 ) {
     DIVING_FISH(
         "https://auth.diving-fish.com",
         BuildConfig.DIVING_FISH_CLIENT_ID,
         BuildConfig.DIVING_FISH_CALLBACK_PATH,
-        listOf("prober.records.write", "chunithm.records.write"),
+        "prober.records.write", "chunithm.records.write",
     ),
     LXNS(
         "https://maimai.lxns.net",
         BuildConfig.LXNS_CLIENT_ID,
         BuildConfig.LXNS_CALLBACK_PATH,
-        listOf("write_player"),
+        "write_player",
     );
 
+    fun scoreWriteScope(mai: Boolean): String = if (mai) maimaiWrite else chunithmWrite
+    internal val writes: List<String> get() = listOf(maimaiWrite, chunithmWrite).distinct()
     internal val redirectUri: String get() = "https://${BuildConfig.OAUTH_CALLBACK_HOST}$callbackPath"
     internal val scopes: String get() {
         val requestedWrites = if (this == DIVING_FISH && !BuildConfig.DIVING_FISH_REQUEST_WRITE) emptyList() else writes

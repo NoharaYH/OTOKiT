@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="sync_target_fish">水鱼</string>
+    <string name="sync_target_both">双平台</string>
+    <string name="sync_target_snow">落雪</string>
+    <string name="sync_difficulty">选择难度</string>
+    <string name="sync_start">开始传分</string>
+    <string name="sync_log">传分日志</string>
+    <string name="sync_copy_log">复制传分日志</string>
+    <string name="sync_log_copied">已复制传分日志</string>
+    <string name="sync_log_empty">暂无传分日志</string>
+    <string name="sync_log_auth">请在「成绩同步设置」确认%1$s授权。</string>
+    <string name="sync_log_scope">%1$s授权缺少成绩写入权限。</string>
+    <string name="sync_log_select">请选择至少一个难度。</string>
+    <string name="sync_log_pending">传分任务尚未接入。</string>
+</resources>

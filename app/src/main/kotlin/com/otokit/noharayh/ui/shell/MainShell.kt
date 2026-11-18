@@ -34,7 +34,7 @@ import com.otokit.noharayh.ui.chrome.SideBarHost
 import com.otokit.noharayh.ui.kit.common.PageContent
 import com.otokit.noharayh.ui.pages.ComingSoonPlaceholder
 import com.otokit.noharayh.ui.pages.pageMusicData.MusicDataPlaceholder
-import com.otokit.noharayh.ui.pages.pageScoreSync.ScoreSyncPlaceholder
+import com.otokit.noharayh.ui.pages.pageScoreSync.ScoreSyncPage
 import com.otokit.noharayh.ui.settings.SettingsAssembly
 import com.otokit.noharayh.ui.shell.navigation.SettingsSection
 import com.otokit.noharayh.ui.window.breakpoints.WindowLayoutClass
@@ -918,7 +918,8 @@ class MainShell(
 
     private fun createContent(context: Context, destination: Destination): PageContent =
         when (destination) {
-            Destination.ScoreSync -> ScoreSyncPlaceholder.create(context)
+            // 两个宿主均从 ContentGeometry 的同一安全区左上角起算。
+            Destination.ScoreSync -> ScoreSyncPage.create(context, backgroundHost::dispatchTouchEvent)
             Destination.MusicData -> MusicDataPlaceholder.create(context)
             Destination.ComingSoon -> ComingSoonPlaceholder.create(context)
         }.also(::updatePageThemeColors)
@@ -947,6 +948,7 @@ class MainShell(
             windowWidthPx = latestWindowSnapshot?.metrics?.widthPx ?: 0,
             contentWidthPx = contentWidthPx,
             contentHeightPx = contentHeightPx,
+            wideLayout = latestWindowSnapshot?.layoutClass?.let { it != WindowLayoutClass.Compact } ?: false,
         )
         latestGameFrame = frame
         mountedContent?.updateGameFrame(frame)
