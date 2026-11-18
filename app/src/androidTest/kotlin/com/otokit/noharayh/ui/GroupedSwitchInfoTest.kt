@@ -86,6 +86,15 @@ class GroupedSwitchInfoTest : UiComponentTestHost() {
             assertTrue(instrumentation.uiAutomation.rootInActiveWindow.findAccessibilityNodeInfosByText(message).isNotEmpty())
             assertFalse(preferences.keepCallbackCaptureUntilLogin())
             screenshot("capture-info-dialog.png")
+            val switchAction = instrumentation.uiAutomation.rootInActiveWindow
+                .findAccessibilityNodeInfosByText(activity.getString(R.string.settings_info_plain)).single { it.isClickable }
+            switchAction.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)
+            SystemClock.sleep(800)
+            val plain = activity.getString(R.string.settings_capture_keep_callback_plain)
+            assertTrue(plain.contains("\"获取各个难度成绩\""))
+            assertTrue(instrumentation.uiAutomation.rootInActiveWindow.findAccessibilityNodeInfosByText(plain).isNotEmpty())
+            assertFalse(preferences.keepCallbackCaptureUntilLogin())
+            screenshot("capture-info-plain.png")
             instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
             instrumentation.waitForIdleSync()
             main { info.performClick() }

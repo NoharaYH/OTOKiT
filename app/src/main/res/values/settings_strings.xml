@@ -3,8 +3,11 @@
     <string name="settings_tile_sync">成绩同步设置</string>
     <string name="settings_capture_keep_callback">登录期间保持回调拦截</string>
     <string name="settings_capture_keep_callback_info">查看登录期间保持回调拦截的说明</string>
-    <string name="settings_info_dismiss">知道了</string>
-    <string name="settings_capture_keep_callback_description">获取授权回调后，继续拦截微信的重复访问，直到 NET 登录结束。修改后在下次采集生效。</string>
+    <string name="settings_info_dismiss">已阅</string>
+    <string name="settings_info_plain">说人话</string>
+    <string name="settings_info_technical">高级点</string>
+    <string name="settings_capture_keep_callback_description">捕获微信 OAuth 回调后，保持本地代理与 VPN 运行，直到应用完成 NET 登录，再释放捕获通道。\n\n期间重复到达捕获通道的回调会被本地拒绝，避免微信与应用重复提交同一授权码（code）。code 和 state 的内存保存方式不受此选项影响。\n\n若在开始获取各难度成绩前出现 HTTP 404，可尝试开启。该选项不保证解决 404，修改后在下次成绩同步时生效。</string>
+    <string name="settings_capture_keep_callback_plain">VPN将持续开启，可以拦截微信，防止它将获取到的登录凭证提前用掉，导致后续无法获得成绩。\n\n当成绩同步多次在\"获取各个难度成绩\"环节前就出现404时，可以尝试开启，但不保证有用。</string>
     <string name="settings_tile_app">应用设置</string>
     <string name="settings_tile_personalize">个性化设置</string>
     <string name="settings_tile_about">应用信息</string>

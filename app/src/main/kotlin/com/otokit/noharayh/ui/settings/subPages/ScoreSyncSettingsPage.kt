@@ -17,7 +17,8 @@ import com.otokit.noharayh.composition.oauthConnections
 import com.otokit.noharayh.preferences.CapturePreferences
 import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors
 import com.otokit.noharayh.ui.kit.common.toggle.GroupedSwitchRow
-import com.otokit.noharayh.ui.kit.common.dialog.ConfirmationDialog
+import com.otokit.noharayh.ui.kit.common.dialog.MessageDialog
+import com.otokit.noharayh.ui.kit.common.dialog.AlternateExplanation
 import com.otokit.noharayh.ui.kit.settings.SettingsButton
 import com.otokit.noharayh.ui.kit.settings.SettingsCheckButton
 import com.otokit.noharayh.ui.kit.settings.SettingsCheckButton.State
@@ -32,7 +33,7 @@ internal object ScoreSyncSettingsPage {
     fun create(context: Context, margin: Int, split: Boolean, openLink: (String) -> Unit): ScrollView {
         val state = ScoreSyncSettingsState(capturePreferences(context))
         val oauth = oauthConnections(context)
-        var infoDialog: ConfirmationDialog? = null
+        var infoDialog: MessageDialog? = null
         lateinit var toggle: GroupedSwitchRow
         toggle = GroupedSwitchRow(context, context.getString(R.string.settings_capture_keep_callback),
             true, true, state.keepCallbackCaptureUntilLogin, { enabled ->
@@ -40,10 +41,14 @@ internal object ScoreSyncSettingsPage {
                 toggle.isChecked = state.keepCallbackCaptureUntilLogin
             }, infoDescription = context.getString(R.string.settings_capture_keep_callback_info), onInfoClick = {
                 if (infoDialog == null) {
-                    infoDialog = ConfirmationDialog(context, R.drawable.ic_info_outline_24,
+                    infoDialog = MessageDialog(context, R.drawable.ic_info_outline_24,
                         context.getString(R.string.settings_capture_keep_callback_description),
                         context.getString(R.string.settings_info_dismiss), null,
-                        accentColor = SettingsComponentColors.TEXT, onConfirmed = {}).also { dialog ->
+                        accentColor = SettingsComponentColors.TEXT,
+                        alternateExplanation = AlternateExplanation(
+                            context.getString(R.string.settings_capture_keep_callback_plain),
+                            context.getString(R.string.settings_info_plain),
+                            context.getString(R.string.settings_info_technical)), onConfirmed = {}).also { dialog ->
                         dialog.setOnDismissListener { infoDialog = null }
                         dialog.showWithin(toggle.rootView.width)
                     }

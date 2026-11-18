@@ -16,7 +16,7 @@ import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.constants.display.DisplayScaleOption
 import com.otokit.noharayh.ui.kit.common.PressFrontColumn
 import com.otokit.noharayh.ui.kit.common.toggle.GroupedSwitchRow
-import com.otokit.noharayh.ui.kit.common.dialog.ConfirmationDialog
+import com.otokit.noharayh.ui.kit.common.dialog.MessageDialog
 import com.otokit.noharayh.ui.constants.dimensions.SettingsGroupDimensions
 import com.otokit.noharayh.ui.shell.background.BackgroundRenderingOptions
 import com.otokit.noharayh.ui.kit.settings.SettingsPageViews.card
@@ -39,7 +39,7 @@ internal class AppSettingsPage(
     onHtmlAnimationsSelected: (Boolean) -> Unit,
     private val takeHardwareWarning: () -> Boolean,
 ) : ScrollView(context) {
-    private var warningDialog: ConfirmationDialog? = null
+    private var warningDialog: MessageDialog? = null
     private val startupSwitch = GroupedSwitchRow(context,
         context.getString(R.string.settings_startup_animation), false, true,
         startupAnimationEnabled, onStartupAnimationSelected)
@@ -131,7 +131,7 @@ internal class AppSettingsPage(
                     Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
             }
         }
-        warningDialog = ConfirmationDialog(context, R.drawable.ic_error_40, message,
+        warningDialog = MessageDialog(context, R.drawable.ic_error_40, message,
             context.getString(R.string.settings_hardware_confirm),
             context.getString(R.string.settings_hardware_cancel)) {
             if (isAttachedToWindow) onHardwareAccelerationSelected(false)
