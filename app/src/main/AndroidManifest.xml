@@ -23,6 +23,7 @@
             android:name=".MainActivity"
             android:theme="@style/Theme.OTOKiT.Starting"
             android:exported="true"
+            android:launchMode="singleTop"
             android:resizeableActivity="true">
             <!-- 明确声明窗口尺寸变化支持，不依赖 targetSdk 推导的默认可调整模式。 -->
             <meta-data
@@ -31,6 +32,16 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+                <data android:host="${oauthCallbackHost}" />
+                <data android:path="${divingFishCallbackPath}" />
+                <data android:path="${lxnsCallbackPath}" />
             </intent-filter>
         </activity>
     </application>

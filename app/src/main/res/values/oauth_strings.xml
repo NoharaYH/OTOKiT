@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="oauth_provider_diving_fish">水鱼查分器</string>
+    <string name="oauth_provider_lxns">落雪查分器</string>
+    <string name="oauth_authorize_diving_fish">水鱼授权</string>
+    <string name="oauth_unconnected">尚未授权</string>
+    <string name="oauth_expired">访问令牌已到期，请重新授权</string>
+    <string name="oauth_connected">已授权 · %1$s</string>
+    <string name="oauth_connected_read_only">已授权 · %1$s · 写入权限未完整授予</string>
+    <string name="oauth_success">%1$s授权完成</string>
+    <string name="oauth_cancelled">已取消%1$s授权</string>
+    <string name="oauth_invalid_callback">%1$s授权回调已过期、无效或已处理，请从应用内重新发起</string>
+    <string name="oauth_network_error">连接%1$s失败，请检查网络后重试</string>
+    <string name="oauth_rejected">%1$s未接受这次授权，请重新发起</string>
+    <string name="oauth_local_error">无法完成%1$s授权，请重试</string>
+</resources>

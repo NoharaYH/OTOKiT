@@ -11,6 +11,10 @@ val releaseStorePassword = providers.gradleProperty("OTOKIT_RELEASE_STORE_PASSWO
 val releaseKeyPassword = providers.gradleProperty("OTOKIT_RELEASE_KEY_PASSWORD")
     .orElse(releaseStorePassword)
 
+val oauthCallbackHost = providers.gradleProperty("OTOKIT_OAUTH_CALLBACK_HOST").get()
+val divingFishCallbackPath = "/oauth/diving-fish/callback"
+val lxnsCallbackPath = "/oauth/lxns/callback"
+
 android {
     namespace = "com.otokit.noharayh"
     compileSdk = 35
@@ -22,6 +26,18 @@ android {
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        manifestPlaceholders["oauthCallbackHost"] = oauthCallbackHost
+        manifestPlaceholders["divingFishCallbackPath"] = divingFishCallbackPath
+        manifestPlaceholders["lxnsCallbackPath"] = lxnsCallbackPath
+        buildConfigField("String", "OAUTH_CALLBACK_HOST", "\"$oauthCallbackHost\"")
+        buildConfigField("String", "DIVING_FISH_CALLBACK_PATH", "\"$divingFishCallbackPath\"")
+        buildConfigField("String", "LXNS_CALLBACK_PATH", "\"$lxnsCallbackPath\"")
+        buildConfigField("boolean", "DIVING_FISH_REQUEST_WRITE",
+            providers.gradleProperty("OTOKIT_DIVING_FISH_REQUEST_WRITE").get().toBooleanStrict().toString())
+        for (key in listOf("DIVING_FISH_CLIENT_ID", "LXNS_CLIENT_ID")) {
+            val clientId = providers.gradleProperty("OTOKIT_$key").get()
+            buildConfigField("String", key, "\"$clientId\"")
+        }
     }
 
     signingConfigs {
@@ -50,6 +66,7 @@ android {
     }
 
     buildFeatures {
+        buildConfig = true
         viewBinding = true
     }
 

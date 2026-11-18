@@ -34,7 +34,6 @@ import com.otokit.noharayh.ui.chrome.SideBarHost
 import com.otokit.noharayh.ui.kit.common.PageContent
 import com.otokit.noharayh.ui.pages.ComingSoonPlaceholder
 import com.otokit.noharayh.ui.pages.pageMusicData.MusicDataPlaceholder
-import com.otokit.noharayh.ui.pages.pageScoreSync.ScoreSyncPlaceholder
 import com.otokit.noharayh.ui.settings.SettingsAssembly
 import com.otokit.noharayh.ui.shell.navigation.SettingsSection
 import com.otokit.noharayh.ui.window.breakpoints.WindowLayoutClass
@@ -89,6 +88,7 @@ class MainShell(
     private val onDisplayScaleSelected: (DisplayScaleOption) -> Unit = {},
     private val initialSettingsSettled: Boolean = false,
     private val onOpenExternalLink: (String) -> Unit = {},
+    private val scoreSyncPage: (Context) -> PageContent,
     private val selectionPreferences: UiPreferencesAdapter =
         UiPreferencesAdapter(SharedPreferencesUiPreferences(contentHost.context)),
 ) {
@@ -918,7 +918,7 @@ class MainShell(
 
     private fun createContent(context: Context, destination: Destination): PageContent =
         when (destination) {
-            Destination.ScoreSync -> ScoreSyncPlaceholder.create(context)
+            Destination.ScoreSync -> scoreSyncPage(context)
             Destination.MusicData -> MusicDataPlaceholder.create(context)
             Destination.ComingSoon -> ComingSoonPlaceholder.create(context)
         }.also(::updatePageThemeColors)

@@ -1,10 +1,14 @@
 package com.otokit.noharayh
 
+import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Color
+import android.net.Uri
 import android.os.Bundle
 import android.util.DisplayMetrics
+import android.widget.Toast
 import androidx.activity.BackEventCompat
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.SystemBarStyle
@@ -16,13 +20,17 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.otokit.noharayh.ui.shell.StartupPresentation
 import com.otokit.noharayh.databinding.ActivityMainBinding
+import com.otokit.noharayh.composition.oauthConnections
 import com.otokit.noharayh.platform.DisplayScaleStore
 import com.otokit.noharayh.platform.WindowOrientationController
 import com.otokit.noharayh.platform.restoreColorOsPredictiveBackProgress
 import com.otokit.noharayh.ui.constants.display.DisplayScale
 import com.otokit.noharayh.ui.constants.display.DisplayScaleOption
 import com.otokit.noharayh.ui.constants.typography.AppFonts
+import com.otokit.noharayh.ui.pages.pageScoreSync.ScoreSyncPage
+import com.otokit.noharayh.ui.pages.pageScoreSync.showOAuthFeedback
 import com.otokit.noharayh.ui.shell.MainShell
+import com.otokit.noharayh.ui.shell.navigation.Destination
 import com.otokit.noharayh.ui.shell.navigation.NavigationStateCodec
 import com.otokit.noharayh.ui.shell.navigation.SettingsSection
 import com.otokit.noharayh.ui.shell.selection.GameSelectionStateCodec
@@ -45,6 +53,7 @@ class MainActivity : AppCompatActivity() {
     private var resetTransientOnResume = false
     private var reopenSettingsAfterRecreate = false
     private var restoreSettingsAfterRecreate = false
+    private val oauth by lazy { oauthConnections(this) }
 
     /**
      * 固定字体缩放与应用内显示比例。
@@ -112,12 +121,8 @@ class MainActivity : AppCompatActivity() {
             displayScale = displayScaleStore.read(),
             onDisplayScaleSelected = ::onDisplayScaleSelected,
             initialSettingsSettled = restoreSettingsAfterRecreate,
-            onOpenExternalLink = { url ->
-                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
-                try { startActivity(intent) } catch (_: android.content.ActivityNotFoundException) {
-                    android.widget.Toast.makeText(this, "没有可打开链接的应用", android.widget.Toast.LENGTH_SHORT).show()
-                }
-            },
+            onOpenExternalLink = ::openExternalLink,
+            scoreSyncPage = { context -> ScoreSyncPage.create(context, oauth, ::openExternalLink) },
         )
         this.shell = shell
         startup = shell.prepareStartup(binding.root, savedInstanceState != null,
@@ -155,6 +160,31 @@ class MainActivity : AppCompatActivity() {
         }
         orientationController = WindowOrientationController(this).also {
             it.applyForCurrentWindow()
+        }
+        receiveOAuthLink(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        receiveOAuthLink(intent)
+    }
+
+    private fun openExternalLink(url: String) {
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addCategory(Intent.CATEGORY_BROWSABLE))
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(this, "没有可打开链接的应用", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun receiveOAuthLink(intent: Intent) {
+        if (intent.action != Intent.ACTION_VIEW) return
+        val url = intent.dataString ?: return
+        if (oauth.receive(url) { provider, result ->
+            if (!isDestroyed) showOAuthFeedback(this, provider, result)
+        }) {
+            setIntent(Intent(intent).setData(null))
+            shell?.navigate(Destination.ScoreSync)
         }
     }
 

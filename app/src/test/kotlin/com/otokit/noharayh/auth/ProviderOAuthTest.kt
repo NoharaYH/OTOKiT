@@ -1,0 +1,37 @@
+package com.otokit.noharayh.auth
+
+import com.otokit.noharayh.BuildConfig
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Test
+
+class ProviderOAuthTest {
+    private val callback = OAuthProvider.DIVING_FISH.redirectUri
+
+    @Test fun pkceUsesTheS256ChallengeFromRfc7636() {
+        assertEquals("E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+            ProviderOAuth.challenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"))
+    }
+
+    @Test fun onlyConfiguredHttpsPathsAreAccepted() {
+        assertEquals(OAuthProvider.DIVING_FISH, ProviderOAuth.callbackProvider(callback))
+        assertEquals(OAuthProvider.LXNS, ProviderOAuth.callbackProvider(OAuthProvider.LXNS.redirectUri))
+        assertNull(ProviderOAuth.callbackProvider(callback.replace("https:", "http:")))
+        assertNull(ProviderOAuth.callbackProvider(callback.replace(BuildConfig.OAUTH_CALLBACK_HOST, "wrong.invalid")))
+        assertNull(ProviderOAuth.callbackProvider("$callback/"))
+        assertNull(ProviderOAuth.callbackProvider("$callback#anything"))
+    }
+
+    @Test fun callbackMustMatchAUniqueStateAndOneOutcome() {
+        val result = ProviderOAuth.callbackResult("$callback?code=a%2Bb&state=valid", "valid")
+            as ProviderOAuth.CallbackResult.Code
+        assertEquals("a+b", result.value)
+        val denied = ProviderOAuth.callbackResult("$callback?error=access_denied&state=valid", "valid")
+            as ProviderOAuth.CallbackResult.Error
+        assertEquals("access_denied", denied.value)
+        assertNull(ProviderOAuth.callbackResult("$callback?code=a&state=wrong", "valid"))
+        assertNull(ProviderOAuth.callbackResult("$callback?code=a&state=valid&state=valid", "valid"))
+        assertNull(ProviderOAuth.callbackResult("$callback?code=a&code=b&state=valid", "valid"))
+        assertNull(ProviderOAuth.callbackResult("$callback?code=a&error=access_denied&state=valid", "valid"))
+    }
+}
