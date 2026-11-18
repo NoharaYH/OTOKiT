@@ -36,7 +36,7 @@ class SettingsComponentsTest : UiComponentTestHost() {
 
     @Test fun emptyCardHasOnlyHeaderAndRemovingContentRestoresItsHeight() {
         lateinit var card: SettingsCard
-        main { card = SettingsCard(activity, R.drawable.ic_format_paint_24, R.string.settings_theme_selection) }
+        main { card = SettingsCard(activity, R.drawable.ic_wallpaper_40, R.string.settings_theme_selection) }
         mount(card, 800, -2)
         val emptyHeight = card.height
         assertEquals((52 * activity.resources.displayMetrics.density + 0.5f).toInt(), emptyHeight)
@@ -82,7 +82,7 @@ class SettingsComponentsTest : UiComponentTestHost() {
 
     @Test fun cardBackgroundUpdatesGroupedCornersWithoutChangingBounds() {
         lateinit var card: SettingsCard
-        main { card = SettingsCard(activity, R.drawable.ic_format_paint_24, R.string.settings_theme_selection) }
+        main { card = SettingsCard(activity, R.drawable.ic_wallpaper_40, R.string.settings_theme_selection) }
         mount(card, 800, -2)
         main {
             fun cornerAlpha(): Int {

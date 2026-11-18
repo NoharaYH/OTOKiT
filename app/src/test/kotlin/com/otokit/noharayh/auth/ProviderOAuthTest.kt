@@ -34,4 +34,15 @@ class ProviderOAuthTest {
         assertNull(ProviderOAuth.callbackResult("$callback?code=a&code=b&state=valid", "valid"))
         assertNull(ProviderOAuth.callbackResult("$callback?code=a&error=access_denied&state=valid", "valid"))
     }
+
+    @Test fun authorizationCheckDistinguishesRevocationFromOtherFailures() {
+        assertEquals(OAuthAuthorizationCheck.INVALID, ProviderOAuth.checkFailure(400, "invalid_grant", true))
+        assertEquals(OAuthAuthorizationCheck.PERMISSION_DENIED, ProviderOAuth.checkFailure(400, "invalid_scope", true))
+        assertEquals(OAuthAuthorizationCheck.APPLICATION_REJECTED, ProviderOAuth.checkFailure(401, "invalid_client", true))
+        assertEquals(OAuthAuthorizationCheck.PERMISSION_DENIED, ProviderOAuth.checkFailure(403, null, true))
+        assertEquals(OAuthAuthorizationCheck.UNAVAILABLE, ProviderOAuth.checkFailure(403, null, false))
+        assertEquals(OAuthAuthorizationCheck.RATE_LIMITED, ProviderOAuth.checkFailure(429, null, true))
+        assertEquals(OAuthAuthorizationCheck.SERVICE_UNAVAILABLE, ProviderOAuth.checkFailure(503, null, true))
+        assertEquals(OAuthAuthorizationCheck.UNAVAILABLE, ProviderOAuth.checkFailure(400, null, true))
+    }
 }

@@ -6,6 +6,8 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Toast
+import androidx.annotation.DrawableRes
+import androidx.annotation.StringRes
 import com.otokit.noharayh.R
 import com.otokit.noharayh.auth.OAuthAuthorizationCheck
 import com.otokit.noharayh.auth.OAuthFeedback
@@ -108,17 +110,8 @@ internal object ScoreSyncSettingsPage {
                             }
                         } ?: noExpiry
                         controls.expiry.renderValue(expiry)
-                        val (state, label) = when (result) {
-                            OAuthAuthorizationCheck.UNCHECKED -> State.READY to provider.checkLabel
-                            OAuthAuthorizationCheck.CHECKING -> State.CHECKING to R.string.oauth_checking
-                            OAuthAuthorizationCheck.VALID -> State.SUCCESS to
-                                if (online) R.string.oauth_check_success else R.string.oauth_local_check_success
-                            OAuthAuthorizationCheck.INVALID -> State.FAILURE to
-                                if (online) R.string.oauth_check_invalid else R.string.oauth_local_check_invalid
-                            OAuthAuthorizationCheck.UNAVAILABLE -> State.UNAVAILABLE to
-                                if (online) R.string.oauth_check_unavailable else R.string.oauth_local_check_unavailable
-                        }
-                        controls.check.render(state, context.getString(label))
+                        val (state, label, icon) = checkPresentation(provider, result)
+                        controls.check.render(state, context.getString(label), icon)
                     }
                 }
             }
@@ -139,6 +132,30 @@ internal object ScoreSyncSettingsPage {
     }
 
     private data class AuthorizationControls(val check: SettingsCheckButton, val expiry: SettingsInfoRow)
+
+    private data class CheckPresentation(val state: State, @StringRes val label: Int, @DrawableRes val icon: Int? = null)
+
+    private fun checkPresentation(provider: OAuthProvider, result: OAuthAuthorizationCheck): CheckPresentation {
+        val online = provider == OAuthProvider.LXNS
+        return when (result) {
+            OAuthAuthorizationCheck.UNCHECKED -> CheckPresentation(State.READY, provider.checkLabel)
+            OAuthAuthorizationCheck.CHECKING -> CheckPresentation(State.CHECKING, R.string.oauth_checking)
+            OAuthAuthorizationCheck.VALID -> CheckPresentation(State.SUCCESS,
+                if (online) R.string.oauth_check_success else R.string.oauth_local_check_success)
+            OAuthAuthorizationCheck.INVALID -> CheckPresentation(State.FAILURE,
+                if (online) R.string.oauth_check_invalid else R.string.oauth_local_check_invalid)
+            OAuthAuthorizationCheck.RATE_LIMITED -> CheckPresentation(State.WARNING,
+                R.string.oauth_check_rate_limited, R.drawable.ic_pace_24)
+            OAuthAuthorizationCheck.APPLICATION_REJECTED -> CheckPresentation(State.FAILURE,
+                R.string.oauth_check_application_rejected, R.drawable.ic_brightness_alert_24)
+            OAuthAuthorizationCheck.PERMISSION_DENIED -> CheckPresentation(State.FAILURE,
+                R.string.oauth_check_permission_denied, R.drawable.ic_lock_reset_24)
+            OAuthAuthorizationCheck.SERVICE_UNAVAILABLE -> CheckPresentation(State.WARNING,
+                R.string.oauth_check_service_unavailable, R.drawable.ic_cloud_alert_24)
+            OAuthAuthorizationCheck.UNAVAILABLE -> CheckPresentation(State.WARNING,
+                if (online) R.string.oauth_check_unavailable else R.string.oauth_local_check_unavailable)
+        }
+    }
 }
 
 internal class ScoreSyncSettingsState(private val preferences: CapturePreferences) {

@@ -99,7 +99,7 @@ class SettingsExpansionTest : UiComponentTestHost() {
 
     @Test fun cardCollapsesContentAndSpacingBackToHeader() {
         lateinit var card: SettingsCard
-        main { card = SettingsCard(activity, R.drawable.ic_format_paint_24, R.string.settings_theme_selection,
+        main { card = SettingsCard(activity, R.drawable.ic_wallpaper_40, R.string.settings_theme_selection,
             View(activity).apply { minimumHeight = 180 }) }
         mount(card, 800, -2)
         val header = (52 * activity.resources.displayMetrics.density + 0.5f).toInt()
@@ -113,7 +113,7 @@ class SettingsExpansionTest : UiComponentTestHost() {
         lateinit var card: SettingsCard
         lateinit var finalBody: View
         main {
-            card = SettingsCard(activity, R.drawable.ic_format_paint_24, R.string.settings_theme_selection,
+            card = SettingsCard(activity, R.drawable.ic_wallpaper_40, R.string.settings_theme_selection,
                 View(activity).apply { minimumHeight = 100 })
             finalBody = View(activity).apply { minimumHeight = 240 }
             card.setContentExpanded(false, false)

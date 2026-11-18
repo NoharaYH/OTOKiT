@@ -59,6 +59,20 @@ internal object ProviderOAuth {
         return OAuthProvider.entries.firstOrNull { it.callbackPath == url.encodedPath }
     }
 
+    fun checkFailure(status: Int, error: String?, tokenRequest: Boolean): OAuthAuthorizationCheck = when {
+        status == 429 || error == "slow_down" -> OAuthAuthorizationCheck.RATE_LIMITED
+        status in 500..599 || error == "server_error" || error == "temporarily_unavailable" ->
+            OAuthAuthorizationCheck.SERVICE_UNAVAILABLE
+        tokenRequest -> when (error) {
+            "invalid_grant" -> if (status == 400) OAuthAuthorizationCheck.INVALID else OAuthAuthorizationCheck.UNAVAILABLE
+            "invalid_client", "unauthorized_client", "unsupported_grant_type", "invalid_request" ->
+                OAuthAuthorizationCheck.APPLICATION_REJECTED
+            "invalid_scope", "insufficient_scope", "access_denied" -> OAuthAuthorizationCheck.PERMISSION_DENIED
+            else -> if (status == 403) OAuthAuthorizationCheck.PERMISSION_DENIED else OAuthAuthorizationCheck.UNAVAILABLE
+        }
+        else -> OAuthAuthorizationCheck.UNAVAILABLE
+    }
+
     fun callbackResult(value: String, expectedState: String): CallbackResult? {
         val url = value.toHttpUrl()
         if (url.queryParameterValues("state").singleOrNull() != expectedState) return null

@@ -6,6 +6,7 @@ import android.view.Gravity
 import android.view.View
 import android.widget.ImageView
 import android.widget.LinearLayout
+import androidx.annotation.DrawableRes
 import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.animation.common.ContentTransition
 import com.otokit.noharayh.ui.constants.dimensions.SettingsButtonDimensions as Dimensions
@@ -18,9 +19,9 @@ import com.otokit.noharayh.ui.kit.common.ViewPrimitives
 /** 容器内检查按钮。页面只提交确认状态和文案，按钮持有图文、底色和动画。 */
 @android.annotation.SuppressLint("ViewConstructor")
 internal class SettingsCheckButton(context: Context, label: String, onClick: () -> Unit) : PressSurface(context) {
-    enum class State { READY, CHECKING, SUCCESS, FAILURE, UNAVAILABLE }
+    enum class State { READY, CHECKING, SUCCESS, FAILURE, WARNING }
 
-    private data class Presentation(val state: State, val label: String)
+    private data class Presentation(val state: State, val label: String, @DrawableRes val icon: Int? = null)
 
     private val icon = ImageView(context)
     private val text = ViewPrimitives.text(context, label, Dimensions.TEXT_SP, Colors.TEXT)
@@ -50,8 +51,8 @@ internal class SettingsCheckButton(context: Context, label: String, onClick: () 
         settle()
     }
 
-    fun render(state: State, label: String) {
-        val next = Presentation(state, label)
+    fun render(state: State, label: String, @DrawableRes icon: Int? = null) {
+        val next = Presentation(state, label, icon)
         if (next == target) return
         target = next
         when {
@@ -106,10 +107,11 @@ internal class SettingsCheckButton(context: Context, label: String, onClick: () 
         val (drawable, ink) = when (target.state) {
             State.SUCCESS -> R.drawable.ic_check_circle_24 to Colors.SUCCESS_TEXT
             State.FAILURE -> R.drawable.ic_cancel_24 to Colors.ERROR_TEXT
+            State.WARNING -> R.drawable.ic_warning_24 to Colors.CAUTION_TEXT
             else -> R.drawable.ic_update_24 to Colors.TEXT
         }
         icon.rotation = 0f
-        icon.setImageResource(drawable)
+        icon.setImageResource(target.icon ?: drawable)
         icon.setColorFilter(ink)
         text.setTextColor(ink)
     }
@@ -128,6 +130,7 @@ internal class SettingsCheckButton(context: Context, label: String, onClick: () 
     private fun backgroundFor(state: State) = when (state) {
         State.SUCCESS -> Colors.SUCCESS_CONTENT
         State.FAILURE -> Colors.ERROR_CONTENT
+        State.WARNING -> Colors.CAUTION_CONTENT
         else -> Colors.CONTENT
     }
 

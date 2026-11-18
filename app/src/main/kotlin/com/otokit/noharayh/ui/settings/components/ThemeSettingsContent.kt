@@ -103,7 +103,7 @@ internal class ThemeSettingsContent(
     private val panels = listOf(firstPanel, secondPanel)
     private var backPanel: ThemeSelectorPanel? = null
     private var scrollbarTouchPanel: ThemeSelectorPanel? = null
-    private val themeCard = SettingsCard(context, R.drawable.ic_format_paint_24,
+    private val themeCard = SettingsCard(context, R.drawable.ic_wallpaper_40,
         R.string.settings_theme_selection, content, trailing = segment)
 
     init {

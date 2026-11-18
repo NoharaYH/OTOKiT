@@ -16,4 +16,6 @@ internal object SettingsComponentColors {
     const val SUCCESS_TEXT = 0xFF21643B.toInt()
     const val ERROR_CONTENT = 0xFFFCE9EA.toInt()
     const val ERROR_TEXT = 0xFFA52D35.toInt()
+    const val CAUTION_CONTENT = 0xFFFFF4D6.toInt()
+    const val CAUTION_TEXT = 0xFF805100.toInt()
 }

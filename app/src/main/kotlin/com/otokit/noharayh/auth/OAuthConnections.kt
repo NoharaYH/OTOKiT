@@ -24,7 +24,10 @@ enum class OAuthFeedback {
     AUTHORIZED, CANCELLED, INVALID_CALLBACK, NETWORK_ERROR, REJECTED, LOCAL_ERROR,
 }
 
-enum class OAuthAuthorizationCheck { UNCHECKED, CHECKING, VALID, INVALID, UNAVAILABLE }
+enum class OAuthAuthorizationCheck {
+    UNCHECKED, CHECKING, VALID, INVALID,
+    RATE_LIMITED, APPLICATION_REJECTED, PERMISSION_DENIED, SERVICE_UNAVAILABLE, UNAVAILABLE,
+}
 
 /** Application-scoped owner for transactions and account summaries. Public callbacks run on the main thread. */
 class OAuthConnections internal constructor(context: Context) {
@@ -71,8 +74,7 @@ class OAuthConnections internal constructor(context: Context) {
                     val refreshed = try {
                         refresh(provider, account)
                     } catch (rejected: OAuthRejected) {
-                        if (!rejected.invalidGrant) throw rejected
-                        main.post { reportAuthorizationCheck(provider, OAuthAuthorizationCheck.INVALID) }
+                        main.post { reportAuthorizationCheck(provider, rejected.checkResult) }
                         return@runSafely
                     }
                     store.write(key, refreshed)
@@ -233,17 +235,18 @@ class OAuthConnections internal constructor(context: Context) {
 
     private fun readJson(request: Request, tokenRequest: Boolean = false): JSONObject = client.newCall(request).execute().use { response ->
         if (!response.isSuccessful) {
-            val invalidGrant = tokenRequest && response.code == 400 &&
-                isInvalidGrant(response.body?.string().orEmpty())
-            throw OAuthRejected(response.code, invalidGrant)
+            val error = if (tokenRequest && response.code in 400..499) {
+                readOAuthError(response.body?.string().orEmpty())
+            } else null
+            throw OAuthRejected(response.code, ProviderOAuth.checkFailure(response.code, error, tokenRequest))
         }
         JSONObject(requireNotNull(response.body).string())
     }
 
-    private fun isInvalidGrant(body: String): Boolean = try {
-        JSONObject(body).optString("error") == "invalid_grant"
+    private fun readOAuthError(body: String): String? = try {
+        JSONObject(body).optString("error").takeIf(String::isNotBlank)
     } catch (_: JSONException) {
-        false
+        null
     }
 
     private fun publish(provider: OAuthProvider, account: OAuthAccount, check: OAuthAuthorizationCheck? = null) {
@@ -294,7 +297,7 @@ class OAuthConnections internal constructor(context: Context) {
     private fun pendingKey(provider: OAuthProvider) = "pending_${provider.name}"
     private fun accountKey(provider: OAuthProvider) = "account_${provider.name}"
     private data class Endpoints(val authorization: HttpUrl, val token: HttpUrl, val userInfo: HttpUrl)
-    private class OAuthRejected(val status: Int, val invalidGrant: Boolean) : IOException()
+    private class OAuthRejected(val status: Int, val checkResult: OAuthAuthorizationCheck) : IOException()
 
     private companion object {
         val REFRESH_LIFETIME_MS = TimeUnit.DAYS.toMillis(30)
