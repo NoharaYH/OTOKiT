@@ -11,6 +11,10 @@ import com.otokit.noharayh.ui.kit.common.ViewPrimitives
 /** 只读信息行；布局和配色由自身契约提供，不借用卡片或按钮的参数。 */
 @android.annotation.SuppressLint("ViewConstructor")
 internal class SettingsInfoRow(context: Context, label: String, value: String) : LinearLayout(context) {
+    private val valueView = ViewPrimitives.text(context, value, Dimensions.TEXT_SP, Colors.TITLE, true).apply {
+        gravity = Gravity.CENTER_VERTICAL
+    }
+
     init {
         gravity = Gravity.CENTER_VERTICAL
         val inset = ViewPrimitives.dp(context, Dimensions.INSET_DP)
@@ -21,8 +25,8 @@ internal class SettingsInfoRow(context: Context, label: String, value: String) :
             gravity = Gravity.CENTER_VERTICAL
             maxLines = 1; ellipsize = TextUtils.TruncateAt.END
         }, LayoutParams(0, -1, 1f))
-        addView(ViewPrimitives.text(context, value, Dimensions.TEXT_SP, Colors.TITLE, true).apply {
-            gravity = Gravity.CENTER_VERTICAL
-        }, LayoutParams(-2, -1))
+        addView(valueView, LayoutParams(-2, -1))
     }
+
+    fun renderValue(value: String) { valueView.text = value }
 }

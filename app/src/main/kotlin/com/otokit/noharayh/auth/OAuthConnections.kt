@@ -11,19 +11,20 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import okio.BufferedSink
+import org.json.JSONException
 import org.json.JSONObject
 import java.io.Closeable
 import java.io.IOException
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
-data class OAuthAccount(val name: String?, val grantedScopes: Set<String>, val expiresAt: Long) {
-    val expired: Boolean get() = System.currentTimeMillis() >= expiresAt
-}
+data class OAuthAccount(val name: String?, val grantedScopes: Set<String>, val refreshExpiresAt: Long?)
 
 enum class OAuthFeedback {
     AUTHORIZED, CANCELLED, INVALID_CALLBACK, NETWORK_ERROR, REJECTED, LOCAL_ERROR,
 }
+
+enum class OAuthAuthorizationCheck { UNCHECKED, CHECKING, VALID, INVALID, UNAVAILABLE }
 
 /** Application-scoped owner for transactions and account summaries. Public callbacks run on the main thread. */
 class OAuthConnections internal constructor(context: Context) {
@@ -33,6 +34,7 @@ class OAuthConnections internal constructor(context: Context) {
     private val listeners = mutableSetOf<() -> Unit>()
     private val preparing = mutableSetOf<OAuthProvider>()
     private val accounts = mutableMapOf<OAuthProvider, OAuthAccount>()
+    private val authorizationChecks = mutableMapOf<OAuthProvider, OAuthAuthorizationCheck>()
     private val client = OkHttpClient.Builder()
         .callTimeout(12, TimeUnit.SECONDS)
         .followRedirects(false)
@@ -51,6 +53,43 @@ class OAuthConnections internal constructor(context: Context) {
     }
 
     fun account(provider: OAuthProvider): OAuthAccount? = accounts[provider]
+
+    fun authorizationCheck(provider: OAuthProvider): OAuthAuthorizationCheck =
+        authorizationChecks[provider] ?: OAuthAuthorizationCheck.UNCHECKED
+
+    fun checkAuthorization(provider: OAuthProvider) {
+        if (authorizationCheck(provider) == OAuthAuthorizationCheck.CHECKING) return
+        authorizationChecks[provider] = OAuthAuthorizationCheck.CHECKING
+        notifyObservers()
+        worker.execute {
+            runSafely(provider, { reportAuthorizationCheck(provider, OAuthAuthorizationCheck.UNAVAILABLE) }) {
+                val key = accountKey(provider)
+                val account = store.read(key)
+                if (provider == OAuthProvider.LXNS && account != null &&
+                    account.optString("refreshToken").isNotBlank()
+                ) {
+                    val refreshed = try {
+                        refresh(provider, account)
+                    } catch (rejected: OAuthRejected) {
+                        if (!rejected.invalidGrant) throw rejected
+                        main.post { reportAuthorizationCheck(provider, OAuthAuthorizationCheck.INVALID) }
+                        return@runSafely
+                    }
+                    store.write(key, refreshed)
+                    publish(provider, refreshed.toAccount(), OAuthAuthorizationCheck.VALID)
+                    return@runSafely
+                }
+
+                val expires = account?.refreshExpiry()
+                val result = if (expires != null && expires > System.currentTimeMillis()) {
+                    OAuthAuthorizationCheck.VALID
+                } else {
+                    OAuthAuthorizationCheck.INVALID
+                }
+                main.post { reportAuthorizationCheck(provider, result) }
+            }
+        }
+    }
 
     fun observe(listener: () -> Unit): Closeable {
         listeners.add(listener)
@@ -132,18 +171,10 @@ class OAuthConnections internal constructor(context: Context) {
             .add("code", code)
             .add("code_verifier", pending.getString("verifier"))
             .build()
-        val oneShot = object : RequestBody() {
-            override fun contentType() = form.contentType()
-            override fun contentLength() = form.contentLength()
-            override fun writeTo(sink: BufferedSink) = form.writeTo(sink)
-            override fun isOneShot() = true
-        }
-        val token = readJson(Request.Builder()
-            .url(ProviderOAuth.endpoint(provider.issuer, pending.getString("token")))
-            .post(oneShot)
-            .build())
+        val endpoint = ProviderOAuth.endpoint(provider.issuer, pending.getString("token"))
+        val token = requestToken(endpoint, form)
         val accessToken = token.getString("access_token")
-        val expires = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(token.getLong("expires_in"))
+        val issuedAt = System.currentTimeMillis()
         val user = readJson(Request.Builder()
             .url(ProviderOAuth.endpoint(provider.issuer, pending.getString("userinfo")))
             .header("Authorization", "Bearer $accessToken")
@@ -151,10 +182,42 @@ class OAuthConnections internal constructor(context: Context) {
         return JSONObject()
             .put("sub", user.getString("sub"))
             .put("name", user.optString("preferred_username").ifBlank { user.optString("name") })
-            .put("accessToken", accessToken)
-            .put("refreshToken", token.optString("refresh_token"))
-            .put("scope", token.optString("scope"))
-            .put("expires", expires)
+            .apply { updateTokens(token, endpoint, issuedAt) }
+    }
+
+    private fun refresh(provider: OAuthProvider, account: JSONObject): JSONObject {
+        val endpoint = account.optString("tokenEndpoint").takeIf(String::isNotBlank)
+            ?.let { ProviderOAuth.endpoint(provider.issuer, it) } ?: discover(provider).token
+        val form = FormBody.Builder()
+            .add("grant_type", "refresh_token")
+            .add("client_id", provider.clientId)
+            .add("refresh_token", account.getString("refreshToken"))
+            .build()
+        val token = requestToken(endpoint, form)
+        check(token.optString("refresh_token").isNotBlank())
+        return account.apply { updateTokens(token, endpoint, System.currentTimeMillis()) }
+    }
+
+    private fun JSONObject.updateTokens(token: JSONObject, endpoint: HttpUrl, issuedAt: Long) {
+        val accessToken = token.getString("access_token")
+        val lifetime = token.getLong("expires_in")
+        check(accessToken.isNotBlank() && lifetime > 0)
+        put("accessToken", accessToken)
+        put("refreshToken", token.optString("refresh_token"))
+        put("expires", issuedAt + TimeUnit.SECONDS.toMillis(lifetime))
+        put("refreshExpires", issuedAt + REFRESH_LIFETIME_MS)
+        put("tokenEndpoint", endpoint.toString())
+        if (token.has("scope")) put("scope", token.getString("scope"))
+    }
+
+    private fun requestToken(endpoint: HttpUrl, form: FormBody): JSONObject {
+        val oneShot = object : RequestBody() {
+            override fun contentType() = form.contentType()
+            override fun contentLength() = form.contentLength()
+            override fun writeTo(sink: BufferedSink) = form.writeTo(sink)
+            override fun isOneShot() = true
+        }
+        return readJson(Request.Builder().url(endpoint).post(oneShot).build(), tokenRequest = true)
     }
 
     private fun discover(provider: OAuthProvider): Endpoints {
@@ -168,17 +231,37 @@ class OAuthConnections internal constructor(context: Context) {
         )
     }
 
-    private fun readJson(request: Request): JSONObject = client.newCall(request).execute().use { response ->
-        if (!response.isSuccessful) throw OAuthRejected(response.code)
+    private fun readJson(request: Request, tokenRequest: Boolean = false): JSONObject = client.newCall(request).execute().use { response ->
+        if (!response.isSuccessful) {
+            val invalidGrant = tokenRequest && response.code == 400 &&
+                isInvalidGrant(response.body?.string().orEmpty())
+            throw OAuthRejected(response.code, invalidGrant)
+        }
         JSONObject(requireNotNull(response.body).string())
     }
 
-    private fun publish(provider: OAuthProvider, account: OAuthAccount) {
+    private fun isInvalidGrant(body: String): Boolean = try {
+        JSONObject(body).optString("error") == "invalid_grant"
+    } catch (_: JSONException) {
+        false
+    }
+
+    private fun publish(provider: OAuthProvider, account: OAuthAccount, check: OAuthAuthorizationCheck? = null) {
         main.post {
             accounts[provider] = account
-            listeners.toList().forEach { it() }
+            // A queued check reads the new authorization on the same worker.
+            if (check != null) authorizationChecks[provider] = check
+            else if (authorizationCheck(provider) != OAuthAuthorizationCheck.CHECKING) authorizationChecks.remove(provider)
+            notifyObservers()
         }
     }
+
+    private fun reportAuthorizationCheck(provider: OAuthProvider, result: OAuthAuthorizationCheck) {
+        authorizationChecks[provider] = result
+        notifyObservers()
+    }
+
+    private fun notifyObservers() = listeners.toList().forEach { it() }
 
     private fun runSafely(provider: OAuthProvider, report: (OAuthFeedback) -> Unit, action: () -> Unit) {
         try {
@@ -198,11 +281,23 @@ class OAuthConnections internal constructor(context: Context) {
     private fun JSONObject.toAccount() = OAuthAccount(
         name = optString("name").takeIf(String::isNotBlank),
         grantedScopes = optString("scope").split(' ').filter(String::isNotBlank).toSet(),
-        expiresAt = getLong("expires"),
+        refreshExpiresAt = refreshExpiry(),
     )
+
+    private fun JSONObject.refreshExpiry(): Long? {
+        if (optString("refreshToken").isBlank()) return null
+        if (has("refreshExpires")) return getLong("refreshExpires")
+        // Earlier app versions stored only the 15-minute authorization-code access expiry.
+        return getLong("expires") - LEGACY_ACCESS_LIFETIME_MS + REFRESH_LIFETIME_MS
+    }
 
     private fun pendingKey(provider: OAuthProvider) = "pending_${provider.name}"
     private fun accountKey(provider: OAuthProvider) = "account_${provider.name}"
     private data class Endpoints(val authorization: HttpUrl, val token: HttpUrl, val userInfo: HttpUrl)
-    private class OAuthRejected(val status: Int) : IOException()
+    private class OAuthRejected(val status: Int, val invalidGrant: Boolean) : IOException()
+
+    private companion object {
+        val REFRESH_LIFETIME_MS = TimeUnit.DAYS.toMillis(30)
+        val LEGACY_ACCESS_LIFETIME_MS = TimeUnit.MINUTES.toMillis(15)
+    }
 }

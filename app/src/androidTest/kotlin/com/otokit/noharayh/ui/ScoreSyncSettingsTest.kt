@@ -22,7 +22,7 @@ class ScoreSyncSettingsTest : UiComponentTestHost() {
         try {
             preferences.setKeepCallbackCaptureUntilLogin(false)
             lateinit var page: View
-            main { page = ScoreSyncSettingsPage.create(activity, 20, false) }
+            main { page = ScoreSyncSettingsPage.create(activity, 20, false) {} }
             mount(page, activity.resources.displayMetrics.widthPixels - 160, -1)
             main {
                 val toggle = switchIn(page)!!
@@ -34,7 +34,7 @@ class ScoreSyncSettingsTest : UiComponentTestHost() {
                     preferences.keepCallbackCaptureUntilLogin())
                 val launch = NetCaptureService.startIntent(activity, request)
                 host.removeView(page)
-                page = ScoreSyncSettingsPage.create(activity, 20, false)
+                page = ScoreSyncSettingsPage.create(activity, 20, false) {}
                 val restored = switchIn(page)!!
                 assertTrue(restored.isChecked)
                 restored.performClick()

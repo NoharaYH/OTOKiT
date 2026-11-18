@@ -73,7 +73,7 @@ class GroupedSwitchInfoTest : UiComponentTestHost() {
         try {
             preferences.setKeepCallbackCaptureUntilLogin(false)
             lateinit var page: View
-            main { page = ScoreSyncSettingsPage.create(activity, 20, false) }
+            main { page = ScoreSyncSettingsPage.create(activity, 20, false) {} }
             mount(page, activity.resources.displayMetrics.widthPixels - 160, -1)
             val info = findInfo(page)!!
             screenshot("capture-info-row.png")

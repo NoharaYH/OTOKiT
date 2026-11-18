@@ -23,3 +23,7 @@ internal object SettingsMenuDimensions {
     const val TEXT_SP = 17f
     const val TEXT_GAP_DP = 16
 }
+
+internal object SettingsCheckButtonDimensions {
+    const val VERTICAL_INSET_DP = 8
+}

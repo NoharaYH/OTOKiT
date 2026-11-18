@@ -2,11 +2,22 @@
 <resources>
     <string name="oauth_provider_diving_fish">水鱼查分器</string>
     <string name="oauth_provider_lxns">落雪查分器</string>
-    <string name="oauth_authorize_diving_fish">水鱼授权</string>
-    <string name="oauth_unconnected">尚未授权</string>
-    <string name="oauth_expired">访问令牌已到期，请重新授权</string>
-    <string name="oauth_connected">已授权 · %1$s</string>
-    <string name="oauth_connected_read_only">已授权 · %1$s · 写入权限未完整授予</string>
+    <string name="oauth_authorization_diving_fish">水鱼Oauth授权</string>
+    <string name="oauth_authorization_lxns">落雪Oauth授权</string>
+    <string name="oauth_get_authorization">获取Oauth授权</string>
+    <string name="oauth_check">检查授权状态</string>
+    <string name="oauth_local_check">检查本地授权状态</string>
+    <string name="oauth_checking">正在校验授权</string>
+    <string name="oauth_check_success">授权状态无问题</string>
+    <string name="oauth_check_invalid">授权状态异常，建议重新获取</string>
+    <string name="oauth_check_unavailable">检查失败，请稍后重试</string>
+    <string name="oauth_local_check_success">本地授权状态无问题</string>
+    <string name="oauth_local_check_invalid">本地授权状态异常，建议重新获取</string>
+    <string name="oauth_local_check_unavailable">暂时无法读取授权，请重试</string>
+    <string name="oauth_expiry_label">刷新令牌有效期</string>
+    <string name="oauth_expiry_unknown">—</string>
+    <string name="oauth_expiry_invalid">已失效</string>
+    <string name="oauth_expiry_expired">%1$s（已过期）</string>
     <string name="oauth_success">%1$s授权完成</string>
     <string name="oauth_cancelled">已取消%1$s授权</string>
     <string name="oauth_invalid_callback">%1$s授权回调已过期、无效或已处理，请从应用内重新发起</string>

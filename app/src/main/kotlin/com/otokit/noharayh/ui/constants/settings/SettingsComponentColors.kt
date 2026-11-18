@@ -12,4 +12,8 @@ internal object SettingsComponentColors {
     const val MUTED = 0xFFBDBDBD.toInt()
     const val SELECTED = 0xFF2196F3.toInt()
     const val WARNING = 0xFFE57373.toInt()
+    const val SUCCESS_CONTENT = 0xFFE8F5EB.toInt()
+    const val SUCCESS_TEXT = 0xFF21643B.toInt()
+    const val ERROR_CONTENT = 0xFFFCE9EA.toInt()
+    const val ERROR_TEXT = 0xFFA52D35.toInt()
 }

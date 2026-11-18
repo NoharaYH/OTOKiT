@@ -1,21 +1,35 @@
 package com.otokit.noharayh.ui.settings.subPages
 
 import android.content.Context
+import android.text.format.DateFormat
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import android.widget.Toast
 import com.otokit.noharayh.R
+import com.otokit.noharayh.auth.OAuthAuthorizationCheck
+import com.otokit.noharayh.auth.OAuthFeedback
+import com.otokit.noharayh.auth.OAuthProvider
 import com.otokit.noharayh.composition.capturePreferences
+import com.otokit.noharayh.composition.oauthConnections
 import com.otokit.noharayh.preferences.CapturePreferences
 import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors
 import com.otokit.noharayh.ui.kit.common.toggle.GroupedSwitchRow
 import com.otokit.noharayh.ui.kit.common.dialog.ConfirmationDialog
+import com.otokit.noharayh.ui.kit.settings.SettingsButton
+import com.otokit.noharayh.ui.kit.settings.SettingsCheckButton
+import com.otokit.noharayh.ui.kit.settings.SettingsCheckButton.State
 import com.otokit.noharayh.ui.kit.settings.SettingsGroup
+import com.otokit.noharayh.ui.kit.settings.SettingsInfoRow
+import com.otokit.noharayh.ui.kit.settings.SettingsPageViews
+import java.io.Closeable
+import java.util.Date
 
-/** 页面装配连接偏好契约；组件只接收确认值和切换意图。 */
+/** 页面装配连接授权与采集偏好；组件只接收展示内容和操作意图。 */
 internal object ScoreSyncSettingsPage {
-    fun create(context: Context, margin: Int, split: Boolean): ScrollView {
+    fun create(context: Context, margin: Int, split: Boolean, openLink: (String) -> Unit): ScrollView {
         val state = ScoreSyncSettingsState(capturePreferences(context))
+        val oauth = oauthConnections(context)
         var infoDialog: ConfirmationDialog? = null
         lateinit var toggle: GroupedSwitchRow
         toggle = GroupedSwitchRow(context, context.getString(R.string.settings_capture_keep_callback),
@@ -38,10 +52,80 @@ internal object ScoreSyncSettingsPage {
             clipChildren = false
             clipToPadding = false
             setPadding(if (split) 0 else margin, margin, margin, margin)
-            addView(SettingsGroup(context).apply { addView(toggle, LinearLayout.LayoutParams(-1, -2)) })
         }
+        val authorizationGroup = SettingsGroup(context)
+        val noExpiry = context.getString(R.string.oauth_expiry_unknown)
+        val dateFormat = DateFormat.getDateFormat(context)
+        val timeFormat = DateFormat.getTimeFormat(context)
+        val authorizationControls = OAuthProvider.entries.associateWith { provider ->
+            val action = SettingsPageViews.action(
+                context, context.getString(R.string.oauth_get_authorization),
+                icon = SettingsButton.ActionIcon.ExternalLink, deferClick = true,
+            ) {
+                oauth.authorize(provider, { url ->
+                    if (body.isAttachedToWindow && body.hasWindowFocus()) openLink(url)
+                }, { result ->
+                    if (body.isAttachedToWindow) showOAuthFeedback(context, provider, result)
+                })
+            }
+            val check = SettingsCheckButton(context, context.getString(provider.checkLabel)) {
+                oauth.checkAuthorization(provider)
+            }
+            val expiry = SettingsPageViews.info(context, context.getString(R.string.oauth_expiry_label), noExpiry)
+            val content = SettingsGroup(context).apply {
+                addView(action, LinearLayout.LayoutParams(-1, -2))
+                addView(check, LinearLayout.LayoutParams(-1, -2))
+                addView(expiry, LinearLayout.LayoutParams(-1, -2))
+            }
+            authorizationGroup.addView(SettingsPageViews.card(
+                context, R.drawable.ic_sync_24, provider.authorizationTitle, content = content,
+            ), LinearLayout.LayoutParams(-1, -2))
+            AuthorizationControls(check, expiry)
+        }
+        body.addView(authorizationGroup, LinearLayout.LayoutParams(-1, -2))
+        body.addView(SettingsGroup(context).apply {
+            addView(toggle, LinearLayout.LayoutParams(-1, -2))
+        }, SettingsPageViews.gap(context))
+
         return object : ScrollView(context) {
+            private var oauthSubscription: Closeable? = null
+
+            override fun onAttachedToWindow() {
+                super.onAttachedToWindow()
+                oauthSubscription = oauth.observe {
+                    for ((provider, controls) in authorizationControls) {
+                        val result = oauth.authorizationCheck(provider)
+                        val online = provider == OAuthProvider.LXNS
+                        val expiry = oauth.account(provider)?.refreshExpiresAt?.let { expiresAt ->
+                            val date = Date(expiresAt)
+                            val timestamp = "${dateFormat.format(date)} ${timeFormat.format(date)}"
+                            when {
+                                online && result == OAuthAuthorizationCheck.INVALID ->
+                                    context.getString(R.string.oauth_expiry_invalid)
+                                expiresAt <= System.currentTimeMillis() ->
+                                    context.getString(R.string.oauth_expiry_expired, timestamp)
+                                else -> timestamp
+                            }
+                        } ?: noExpiry
+                        controls.expiry.renderValue(expiry)
+                        val (state, label) = when (result) {
+                            OAuthAuthorizationCheck.UNCHECKED -> State.READY to provider.checkLabel
+                            OAuthAuthorizationCheck.CHECKING -> State.CHECKING to R.string.oauth_checking
+                            OAuthAuthorizationCheck.VALID -> State.SUCCESS to
+                                if (online) R.string.oauth_check_success else R.string.oauth_local_check_success
+                            OAuthAuthorizationCheck.INVALID -> State.FAILURE to
+                                if (online) R.string.oauth_check_invalid else R.string.oauth_local_check_invalid
+                            OAuthAuthorizationCheck.UNAVAILABLE -> State.UNAVAILABLE to
+                                if (online) R.string.oauth_check_unavailable else R.string.oauth_local_check_unavailable
+                        }
+                        controls.check.render(state, context.getString(label))
+                    }
+                }
+            }
+
             override fun onDetachedFromWindow() {
+                oauthSubscription?.close()
+                oauthSubscription = null
                 infoDialog?.dismiss()
                 infoDialog = null
                 super.onDetachedFromWindow()
@@ -53,6 +137,8 @@ internal object ScoreSyncSettingsPage {
             addView(body, FrameLayout.LayoutParams(-1, -2))
         }
     }
+
+    private data class AuthorizationControls(val check: SettingsCheckButton, val expiry: SettingsInfoRow)
 }
 
 internal class ScoreSyncSettingsState(private val preferences: CapturePreferences) {
@@ -64,3 +150,31 @@ internal class ScoreSyncSettingsState(private val preferences: CapturePreference
         keepCallbackCaptureUntilLogin = preferences.keepCallbackCaptureUntilLogin()
     }
 }
+
+internal fun showOAuthFeedback(context: Context, provider: OAuthProvider, feedback: OAuthFeedback) {
+    val message = when (feedback) {
+        OAuthFeedback.AUTHORIZED -> R.string.oauth_success
+        OAuthFeedback.CANCELLED -> R.string.oauth_cancelled
+        OAuthFeedback.INVALID_CALLBACK -> R.string.oauth_invalid_callback
+        OAuthFeedback.NETWORK_ERROR -> R.string.oauth_network_error
+        OAuthFeedback.REJECTED -> R.string.oauth_rejected
+        OAuthFeedback.LOCAL_ERROR -> R.string.oauth_local_error
+    }
+    val providerName = context.getString(provider.title)
+    Toast.makeText(context, context.getString(message, providerName), Toast.LENGTH_SHORT).show()
+}
+
+private val OAuthProvider.title
+    get() = when (this) {
+        OAuthProvider.DIVING_FISH -> R.string.oauth_provider_diving_fish
+        OAuthProvider.LXNS -> R.string.oauth_provider_lxns
+    }
+
+private val OAuthProvider.authorizationTitle
+    get() = when (this) {
+        OAuthProvider.DIVING_FISH -> R.string.oauth_authorization_diving_fish
+        OAuthProvider.LXNS -> R.string.oauth_authorization_lxns
+    }
+
+private val OAuthProvider.checkLabel
+    get() = if (this == OAuthProvider.LXNS) R.string.oauth_check else R.string.oauth_local_check

@@ -35,7 +35,7 @@ internal object SettingsPages {
         onNoneThemeWallpaperSelected: (Boolean) -> Unit,
         onNoneThemeColorSelected: (NoneThemeColorRole, Int) -> Unit,
     ) = when (section) {
-        SettingsSection.ScoreSync -> ScoreSyncSettingsPage.create(context, margin, split)
+        SettingsSection.ScoreSync -> ScoreSyncSettingsPage.create(context, margin, split, openLink)
         SettingsSection.App -> AppSettingsPage(
             context = context,
             margin = margin,

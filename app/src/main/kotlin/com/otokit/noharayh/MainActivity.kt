@@ -27,10 +27,8 @@ import com.otokit.noharayh.platform.restoreColorOsPredictiveBackProgress
 import com.otokit.noharayh.ui.constants.display.DisplayScale
 import com.otokit.noharayh.ui.constants.display.DisplayScaleOption
 import com.otokit.noharayh.ui.constants.typography.AppFonts
-import com.otokit.noharayh.ui.pages.pageScoreSync.ScoreSyncPage
-import com.otokit.noharayh.ui.pages.pageScoreSync.showOAuthFeedback
+import com.otokit.noharayh.ui.settings.subPages.showOAuthFeedback
 import com.otokit.noharayh.ui.shell.MainShell
-import com.otokit.noharayh.ui.shell.navigation.Destination
 import com.otokit.noharayh.ui.shell.navigation.NavigationStateCodec
 import com.otokit.noharayh.ui.shell.navigation.SettingsSection
 import com.otokit.noharayh.ui.shell.selection.GameSelectionStateCodec
@@ -53,6 +51,7 @@ class MainActivity : AppCompatActivity() {
     private var resetTransientOnResume = false
     private var reopenSettingsAfterRecreate = false
     private var restoreSettingsAfterRecreate = false
+    private var showScoreSyncSettingsOnResume = false
     private val oauth by lazy { oauthConnections(this) }
 
     /**
@@ -122,7 +121,6 @@ class MainActivity : AppCompatActivity() {
             onDisplayScaleSelected = ::onDisplayScaleSelected,
             initialSettingsSettled = restoreSettingsAfterRecreate,
             onOpenExternalLink = ::openExternalLink,
-            scoreSyncPage = { context -> ScoreSyncPage.create(context, oauth, ::openExternalLink) },
         )
         this.shell = shell
         startup = shell.prepareStartup(binding.root, savedInstanceState != null,
@@ -184,7 +182,7 @@ class MainActivity : AppCompatActivity() {
             if (!isDestroyed) showOAuthFeedback(this, provider, result)
         }) {
             setIntent(Intent(intent).setData(null))
-            shell?.navigate(Destination.ScoreSync)
+            showScoreSyncSettingsOnResume = true
         }
     }
 
@@ -198,6 +196,13 @@ class MainActivity : AppCompatActivity() {
         if (resetTransientOnResume) {
             resetTransientOnResume = false
             shell?.resetTransientSettingsAfterRestore()
+        }
+        if (showScoreSyncSettingsOnResume) {
+            showScoreSyncSettingsOnResume = false
+            shell?.apply {
+                openSettings()
+                openSettingsSection(SettingsSection.ScoreSync)
+            }
         }
         shell?.setBackgroundResumed(true)
     }
