@@ -9,6 +9,9 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.net.URI
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 class CaptureTaskCoordinatorTest {
@@ -19,9 +22,10 @@ class CaptureTaskCoordinatorTest {
         while (!condition()) { if (System.nanoTime() > deadline) fail("Task did not reach expected state"); Thread.sleep(5) }
     }
     private fun channel(closes: AtomicInteger) = object : CaptureChannel {
+        private val closed = AtomicBoolean(false)
         override val entryUrl = "http://127.0.0.2:8284/test"
         override val proxyPort = 12345
-        override fun close() { closes.incrementAndGet() }
+        override fun close() { if (closed.compareAndSet(false, true)) closes.incrementAndGet() }
     }
 
     @Test fun taskSavesEvidenceAndKeepsObserversIndependentOfLifetime() {
@@ -97,15 +101,72 @@ class CaptureTaskCoordinatorTest {
         }
     }
 
-    private class FakeSession(private val businessError: Boolean = false, private val failRead: Boolean = false) : NetSession {
+    @Test fun captureCloseTimingFollowsTaskOptionAndFailureAlwaysCleansUp() {
+        for (keep in listOf(false, true)) for (failLogin in listOf(false, true)) {
+            val closes = AtomicInteger()
+            var closedAtLogin = -1
+            var closedAtRead = -1
+            var portAtLogin: Int? = null
+            val store = FileHtmlCaptures(temp.newFolder())
+            lateinit var tasks: CaptureTaskCoordinator
+            val session = FakeSession(onLogin = {
+                closedAtLogin = closes.get()
+                portAtLogin = tasks.snapshot()!!.proxyPort
+                if (failLogin) throw java.io.IOException("Login failed")
+            }, onRead = { closedAtRead = closes.get() })
+            tasks = CaptureTaskCoordinator(store, { _, callback, _ -> callback(uri); channel(closes) }, { session }, 0, 0)
+            tasks.use {
+                tasks.start(CaptureRequest(ScoreGame.MAIMAI, listOf(HtmlPageKind.MASTER), "timing", keep))
+                await { tasks.snapshot()?.terminal == true }
+                assertEquals(if (keep) 0 else 1, closedAtLogin)
+                assertEquals(if (keep) 12345 else null, portAtLogin)
+                assertEquals(if (failLogin) -1 else 1, closedAtRead)
+                assertEquals(if (failLogin) CaptureStage.FAILED else CaptureStage.COMPLETED, tasks.snapshot()!!.stage)
+                assertEquals(1, closes.get())
+                assertNull(tasks.snapshot()!!.proxyPort)
+                assertNull(tasks.snapshot()!!.entryUrl)
+                assertTrue(session.closed)
+            }
+        }
+    }
+
+    @Test fun cancellationAndTimeoutCloseRetainedChannelDuringLogin() {
+        for (timedOut in listOf(false, true)) {
+            val closes = AtomicInteger()
+            val entered = CountDownLatch(1)
+            val session = FakeSession(onLogin = { entered.countDown(); CountDownLatch(1).await() })
+            CaptureTaskCoordinator(FileHtmlCaptures(temp.newFolder()),
+                { _, callback, _ -> callback(uri); channel(closes) }, { session }, 0, 0).use { tasks ->
+                tasks.start(CaptureRequest(ScoreGame.MAIMAI, listOf(HtmlPageKind.MASTER), "cancel", true))
+                assertTrue(entered.await(3, TimeUnit.SECONDS))
+                assertEquals(0, closes.get())
+                assertNull(tasks.snapshot()!!.entryUrl)
+                tasks.cancel(timedOut)
+                await { tasks.snapshot()?.terminal == true }
+                assertEquals(if (timedOut) CaptureStage.TIMED_OUT else CaptureStage.CANCELLED, tasks.snapshot()!!.stage)
+                assertEquals(1, closes.get())
+                assertEquals(0, session.reads)
+                assertTrue(session.closed)
+            }
+        }
+    }
+
+    private class FakeSession(
+        private val businessError: Boolean = false,
+        private val failRead: Boolean = false,
+        private val onLogin: () -> Unit = {},
+        private val onRead: () -> Unit = {},
+    ) : NetSession {
         var closed = false
         var reads = 0
         override fun authorizationUrl(game: String) = URI("https://open.weixin.qq.com/")
         override fun login(callback: URI, saveDiagnostic: (NetSession.Page) -> Unit) {
+            onLogin()
             saveDiagnostic(page(URI("https://maimai.wahlap.com/maimai-mobile/home/"),
                 if (businessError) "<html>错误码：100106</html>" else "<html>maimai-mobile</html>"))
         }
         override fun <T> read(uri: URI, post: String?, consume: (NetSession.Page) -> T): T {
+            onRead()
             if (failRead) error("https://example.invalid/?code=private-code")
             reads++
             val body = when {

@@ -18,11 +18,14 @@ import android.widget.Checkable
 import android.widget.LinearLayout
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.FrameLayout
 import androidx.core.graphics.ColorUtils
 import com.otokit.noharayh.ui.animation.common.SwitchTransitionRunner
 import com.otokit.noharayh.ui.constants.dimensions.GroupedSwitchDimensions as Dimensions
 import com.otokit.noharayh.ui.kit.common.AppTypography
 import com.otokit.noharayh.ui.kit.common.PressSurface
+import com.otokit.noharayh.ui.kit.common.InfoIconButton
+import com.otokit.noharayh.ui.constants.dimensions.InfoIconDimensions
 import kotlin.math.roundToInt
 
 /** 分组开关行。只呈现确认值、发切换意图；整行共用 PressSurface 的触摸与反馈。 */
@@ -37,6 +40,8 @@ open class GroupedSwitchRow(
     labelIconRes: Int? = null,
     labelIconTint: Int = Colors.WARNING,
     labelColor: Int = Colors.TEXT,
+    infoDescription: CharSequence = label,
+    onInfoClick: (() -> Unit)? = null,
 ) : PressSurface(context), Checkable, GroupedSurface {
     private val groupShape = GroupShape(this,
         SettingsGroupDimensions.INNER_RADIUS_DP * resources.displayMetrics.density,
@@ -45,6 +50,7 @@ open class GroupedSwitchRow(
     ) { top, bottom -> topCornerRadius = top; bottomCornerRadius = bottom }
     private var checkedValue = checked
     private val indicator = SwitchIndicator(context, checked)
+    private var infoButton: InfoIconButton? = null
 
     init {
         fillColor = Colors.SURFACE
@@ -56,7 +62,8 @@ open class GroupedSwitchRow(
             minimumHeight = dp(Dimensions.ROW_HEIGHT_DP.toFloat()).roundToInt()
             setPadding(dp(Dimensions.TEXT_INSET_DP.toFloat()).roundToInt(), 0,
                 dp(Dimensions.TEXT_INSET_DP.toFloat()).roundToInt(), 0)
-            importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+            importantForAccessibility = if (onInfoClick == null) IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+                else IMPORTANT_FOR_ACCESSIBILITY_NO
         }
         val labelGroup = LinearLayout(context).apply { gravity = Gravity.CENTER_VERTICAL }
         labelGroup.addView(TextView(context).apply {
@@ -65,18 +72,27 @@ open class GroupedSwitchRow(
             setTextColor(labelColor)
             includeFontPadding = false
             AppTypography.applyAppTypeface(this, bold = true)
-        }, LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
+            importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
+        }, LinearLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT,
+            if (onInfoClick == null) 0f else 1f))
         if (labelIconRes != null) labelGroup.addView(ImageView(context).apply {
             setImageResource(labelIconRes)
             setColorFilter(labelIconTint)
         }, LinearLayout.LayoutParams(dp(Dimensions.WARNING_ICON_DP).roundToInt(), dp(Dimensions.WARNING_ICON_DP).roundToInt()).apply {
             marginStart = dp(Dimensions.WARNING_GAP_DP).roundToInt()
         })
-        row.addView(labelGroup, LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply {
+        if (onInfoClick != null) labelGroup.addView(InfoIconButton(context, infoDescription, onInfoClick).also { infoButton = it },
+            LinearLayout.LayoutParams(dp(InfoIconDimensions.TOUCH_DP.toFloat()).roundToInt(),
+                dp(InfoIconDimensions.TOUCH_DP.toFloat()).roundToInt()))
+        val labelContent = if (onInfoClick == null) labelGroup else FrameLayout(context).apply {
+            addView(labelGroup, FrameLayout.LayoutParams(-2, -2, Gravity.CENTER_VERTICAL))
+        }
+        row.addView(labelContent, LinearLayout.LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f).apply {
             marginEnd = dp(Dimensions.TEXT_INSET_DP.toFloat()).roundToInt()
         })
         row.addView(indicator, LinearLayout.LayoutParams(
             dp(Dimensions.TRACK_WIDTH_DP).roundToInt(), dp(Dimensions.TRACK_HEIGHT_DP).roundToInt()))
+        indicator.importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
         addView(row, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT))
         setOnClickListener { onCheckedChange(!checkedValue) }
     }
@@ -88,6 +104,10 @@ open class GroupedSwitchRow(
     override fun onDetachedFromWindow() { groupShape.finish(); super.onDetachedFromWindow() }
 
     override fun isChecked(): Boolean = checkedValue
+    override fun setEnabled(enabled: Boolean) {
+        super.setEnabled(enabled)
+        infoButton?.isEnabled = enabled
+    }
     override fun toggle() { performClick() }
     override fun setChecked(checked: Boolean) {
         if (checkedValue == checked) return

@@ -83,6 +83,8 @@ open class PressSurface @JvmOverloads constructor(
     /** 可只保留外扩反馈；按压收缩、触觉和点击分发不受影响。 */
     var innerRippleEnabled = true
         set(value) { if (field != value) { field = value; invalidate() } }
+    /** 图标操作可固定反馈中心；手势命中仍使用真实触点。 */
+    var centeredRipple = false
     /** 白色反馈层的峰值不透明度（0..1）。 */
     var whiteMaxAlpha = PressOverlaySpec.WHITE_ALPHA
         set(value) { if (field != value) { field = value; invalidate() } }
@@ -223,7 +225,9 @@ open class PressSurface @JvmOverloads constructor(
                 }
                 val time = now()
                 lastFrame = time
-                val ripple = TouchIndicator(this, time, event.x, event.y, rippleMaxScale, rippleExpandMs)
+                val ripple = TouchIndicator(this, time,
+                    if (centeredRipple) width / 2f else event.x,
+                    if (centeredRipple) height / 2f else event.y, rippleMaxScale, rippleExpandMs)
                 ripples += ripple
                 held = ripple
                 activePointerId = event.getPointerId(0)
@@ -241,9 +245,9 @@ open class PressSurface @JvmOverloads constructor(
                     release()
                     return true
                 }
-                ripple.targetX = event.getX(index)
-                ripple.targetY = event.getY(index)
-                if (!inside(ripple.targetX, ripple.targetY)) release()
+                ripple.targetX = if (centeredRipple) width / 2f else event.getX(index)
+                ripple.targetY = if (centeredRipple) height / 2f else event.getY(index)
+                if (!inside(event.getX(index), event.getY(index))) release()
                 invalidate()
             }
             MotionEvent.ACTION_POINTER_UP -> {
@@ -253,8 +257,8 @@ open class PressSurface @JvmOverloads constructor(
             MotionEvent.ACTION_UP -> {
                 val ripple = held
                 if (ripple != null) {
-                    ripple.targetX = event.x
-                    ripple.targetY = event.y
+                    ripple.targetX = if (centeredRipple) width / 2f else event.x
+                    ripple.targetY = if (centeredRipple) height / 2f else event.y
                 }
                 val clicked = ripple != null && inside(event.x, event.y)
                 release()

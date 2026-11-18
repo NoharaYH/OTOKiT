@@ -54,6 +54,7 @@ class CaptureTestService : NetCaptureService() {
         val detail = "${snapshot.stage}：${snapshot.pages.size}/${snapshot.totalPages}" +
             (snapshot.currentPage?.let { " $it" } ?: "")
         val json = JSONObject().put("game", snapshot.request.game.key).put("launchId", snapshot.request.launchId)
+            .put("keepCallbackCaptureUntilLogin", snapshot.request.keepCallbackCaptureUntilLogin)
             .put("transport", "formal-capture-task-okhttp-4.10").put("directory", directory.absolutePath)
             .put("stage", stage).put("detail", detail).put("pages", JSONArray(snapshot.pages.map { export(it) }))
             .put("proxyEvents", JSONObject(snapshot.proxyEvents)).put("updatedAt", java.time.Instant.now().toString())

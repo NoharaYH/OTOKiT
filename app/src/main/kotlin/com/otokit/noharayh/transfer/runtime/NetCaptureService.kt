@@ -83,7 +83,8 @@ open class NetCaptureService : VpnService() {
         val request = runCatching {
             val game = ScoreGame.entries.first { it.key == intent?.getStringExtra("game") }
             val kinds = requireNotNull(intent?.getStringArrayExtra("pageKinds")).map { HtmlPageKind.valueOf(it) }
-            CaptureRequest(game, kinds, intent?.getStringExtra("launchId") ?: UUID.randomUUID().toString())
+            CaptureRequest(game, kinds, intent?.getStringExtra("launchId") ?: UUID.randomUUID().toString(),
+                intent?.getBooleanExtra("keepCallbackCaptureUntilLogin", false) ?: false)
         }.getOrNull()
         if (request == null) { if (coordinator.snapshot()?.terminal != false) stopSelf() }
         else if (coordinator.start(request) == CaptureStartResult.ACCEPTED) {
@@ -123,5 +124,6 @@ open class NetCaptureService : VpnService() {
         fun startIntent(context: Context, request: CaptureRequest) = Intent(context, NetCaptureService::class.java)
             .putExtra("game", request.game.key).putExtra("pageKinds", request.difficulties.map { it.name }.toTypedArray())
             .putExtra("launchId", request.launchId)
+            .putExtra("keepCallbackCaptureUntilLogin", request.keepCallbackCaptureUntilLogin)
     }
 }

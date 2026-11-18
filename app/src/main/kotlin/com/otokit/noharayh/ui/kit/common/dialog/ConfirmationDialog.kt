@@ -25,10 +25,10 @@ internal class ConfirmationDialog(
     iconRes: Int,
     message: CharSequence,
     confirmLabel: String,
-    cancelLabel: String,
+    cancelLabel: String?,
+    private val accentColor: Int = 0xFFE57373.toInt(),
     private val onConfirmed: () -> Unit,
 ) : Dialog(context) {
-    private val warningColor = 0xFFE57373.toInt()
 
     init {
         requestWindowFeature(Window.FEATURE_NO_TITLE)
@@ -43,7 +43,7 @@ internal class ConfirmationDialog(
         }
         body.addView(ImageView(context).apply {
             setImageResource(iconRes)
-            setColorFilter(warningColor)
+            setColorFilter(accentColor)
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }, LinearLayout.LayoutParams(dp(Dimensions.ICON_SIZE_DP), dp(Dimensions.ICON_SIZE_DP)))
         body.addView(TextView(context).apply {
@@ -55,10 +55,10 @@ internal class ConfirmationDialog(
             AppTypography.applyAppTypeface(this)
         }, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(Dimensions.CONTENT_GAP_DP) })
         val actions = PressFrontColumn(context).apply { orientation = LinearLayout.HORIZONTAL }
-        actions.addView(button(confirmLabel, warningColor) {
+        actions.addView(button(confirmLabel, accentColor) {
             if (isShowing) { dismiss(); onConfirmed() }
         }, LinearLayout.LayoutParams(0, -2, 1f))
-        actions.addView(button(cancelLabel, 0xFF757575.toInt()) { dismiss() },
+        if (cancelLabel != null) actions.addView(button(cancelLabel, 0xFF757575.toInt()) { dismiss() },
             LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(Dimensions.BUTTON_GAP_DP) })
         body.addView(actions, LinearLayout.LayoutParams(-1, -2).apply {
             topMargin = dp(Dimensions.CONTENT_GAP_DP)

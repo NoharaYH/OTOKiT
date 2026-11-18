@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="settings_tile_sync">成绩同步设置</string>
+    <string name="settings_capture_keep_callback">登录期间保持回调拦截</string>
+    <string name="settings_capture_keep_callback_info">查看登录期间保持回调拦截的说明</string>
+    <string name="settings_info_dismiss">知道了</string>
+    <string name="settings_capture_keep_callback_description">获取授权回调后，继续拦截微信的重复访问，直到 NET 登录结束。修改后在下次采集生效。</string>
     <string name="settings_tile_app">应用设置</string>
     <string name="settings_tile_personalize">个性化设置</string>
     <string name="settings_tile_about">应用信息</string>

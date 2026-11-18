@@ -3,7 +3,12 @@ package com.otokit.noharayh.transfer
 import com.otokit.noharayh.score.*
 import java.io.Closeable
 
-data class CaptureRequest(val game: ScoreGame, val difficulties: List<HtmlPageKind>, val launchId: String)
+data class CaptureRequest(
+    val game: ScoreGame,
+    val difficulties: List<HtmlPageKind>,
+    val launchId: String,
+    val keepCallbackCaptureUntilLogin: Boolean = false,
+)
 enum class CaptureStage { PREPARING, WAITING_WECHAT, LOGIN, FETCHING, COMPLETED, FAILED, CANCELLED, TIMED_OUT }
 enum class CaptureFailure { NETWORK, BUSINESS, INVALID_PAGE, STORAGE, PLATFORM, INTERRUPTED }
 enum class CaptureProtocolIssue { FORM_TOKEN_MISSING, FORM_TOKEN_VALUE_MISSING, UNEXPECTED_PAGE_REDIRECT, NON_HTML_RESPONSE, AUTOMATIC_REPLAY_BLOCKED, REDIRECT_LOOP }

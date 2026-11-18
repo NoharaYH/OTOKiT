@@ -106,11 +106,15 @@ internal class CaptureTaskCoordinator(
             checkActive(current)
             update(current) { it.copy(stage = CaptureStage.WAITING_WECHAT, entryUrl = channel.entryUrl, proxyPort = channel.proxyPort) }
             val callback = current.callbacks.take()
-            channel.close(); current.channel = null
+            if (!current.request.keepCallbackCaptureUntilLogin) {
+                channel.close(); current.channel = null
+            }
+            update(current) { it.copy(stage = CaptureStage.LOGIN, entryUrl = null, proxyPort = current.channel?.proxyPort) }
             Thread.sleep(loginDelayMs)
             checkActive(current)
-            update(current) { it.copy(stage = CaptureStage.LOGIN, entryUrl = null, proxyPort = null) }
             session.login(callback) { page -> save(current, batch, HtmlPageKind.LOGIN_DIAGNOSTIC, page) }
+            current.channel?.close(); current.channel = null
+            update(current) { it.copy(proxyPort = null) }
             val gamePages = GameNetPages(current.request.game)
             val plan = listOf(HtmlPageKind.PLAYER, HtmlPageKind.RECENT) + current.request.difficulties
             plan.forEachIndexed { index, kind ->
