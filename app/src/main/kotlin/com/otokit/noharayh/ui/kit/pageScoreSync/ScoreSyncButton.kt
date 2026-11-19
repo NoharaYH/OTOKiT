@@ -46,16 +46,25 @@ internal class ScoreSyncButton(context: Context, label: String, private val choi
             lit -> ColorUtils.setAlphaComponent(accent, 255)
             else -> ColorUtils.blendARGB(Color.WHITE, accent, .12f)
         }
-        val colors = Colors(color, when {
-            !available -> 0xffe0e0e4.toInt()
-            choice && !lit -> accent
-            ColorUtils.calculateContrast(Color.WHITE, color) > ColorUtils.calculateContrast(Color.BLACK, color) -> Color.WHITE
-            else -> 0xff17171a.toInt()
-        })
+        val ink = if (available) ColorUtils.setAlphaComponent(accent, 255) else color
+        val colors = Colors(color, labelColor(color, ink))
         if (colors == target) return
         val animate = target != null && isShown && isLaidOut
         target = colors
         transition.play(colors, animate)
+    }
+
+    private fun labelColor(background: Int, ink: Int): Int {
+        if (ColorUtils.calculateContrast(Color.WHITE, background) >= 4.5) return Color.WHITE
+        if (ColorUtils.calculateContrast(ink, background) >= 4.5) return ink
+        val hsl = FloatArray(3)
+        ColorUtils.colorToHSL(ink, hsl)
+        var darker: Int
+        do {
+            hsl[2] = (hsl[2] - .04f).coerceAtLeast(0f)
+            darker = ColorUtils.HSLToColor(hsl)
+        } while (ColorUtils.calculateContrast(darker, background) < 4.5)
+        return darker
     }
 
     override fun onDetachedFromWindow() {
