@@ -21,6 +21,7 @@ internal class ThemeScrollbar(
     private val onDragStart: () -> Unit,
     private val onDrag: (Float) -> Unit,
     private val onDragEnd: () -> Unit,
+    private val trackEndInsetDp: Float = Dimensions.SCROLLBAR_END_GAP_DP,
 ) : FrameLayout(context) {
     private val density = resources.displayMetrics.density
     private val thumb = PressSurface(context).apply {
@@ -71,7 +72,7 @@ internal class ThemeScrollbar(
     fun render(upperEnd: Float, lowerStart: Float, gap: Float, scrollFraction: Float,
         canScroll: Boolean, enabled: Boolean, progress: Float, retracting: Boolean) {
         panelProgress = progress
-        val endGap = (Dimensions.SCROLLBAR_END_GAP_DP * density).coerceAtMost((lowerStart - upperEnd).coerceAtLeast(0f) / 2f)
+        val endGap = (trackEndInsetDp * density).coerceAtMost((lowerStart - upperEnd).coerceAtLeast(0f) / 2f)
         trackTop = upperEnd + endGap
         trackBottom = lowerStart - endGap
         gapProgress = gap

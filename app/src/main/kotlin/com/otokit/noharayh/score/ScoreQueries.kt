@@ -20,7 +20,8 @@ data class ScoreImportProgress(val state: ScoreImportState, val profileId: Strin
 
 /** Private local archive views. Run reads off the UI thread. */
 interface ScoreArchiveQueries {
-    fun list(game: ScoreGame, offset: Int = 0, limit: Int = 30): ScorePage<ScoreArchiveBatch>
+    /** 两个游戏的批次摘要按采集时间降序排列。 */
+    fun listBatches(): List<ScoreArchiveBatch>
     fun detail(batch: HtmlBatchRef): ScoreArchiveDetail
     fun previewHtml(page: HtmlPageRef): ScoreTextPreview
     fun previewJson(snapshot: ScoreSnapshotRef): ScoreTextPreview

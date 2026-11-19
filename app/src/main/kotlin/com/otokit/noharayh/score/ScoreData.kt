@@ -77,11 +77,8 @@ internal class ScoreData(
         Log.w("ScoreImport", batch.game.key + "/" + batch.id + ": " + error.javaClass.simpleName)
     }
 
-    override fun list(game: ScoreGame, offset: Int, limit: Int): ScorePage<ScoreArchiveBatch> {
-        require(offset >= 0 && limit in 1..200)
-        val batches = html.list(game).drop(offset).take(limit + 1)
-        return ScorePage(batches.take(limit).map { detail(it).batch }, (offset + limit).takeIf { batches.size > limit })
-    }
+    override fun listBatches(): List<ScoreArchiveBatch> =
+        ScoreGame.entries.flatMap { html.list(it) }.sortedByDescending { it.startedAt }.map { detail(it).batch }
 
     override fun detail(batch: HtmlBatchRef): ScoreArchiveDetail {
         val record = html.read(batch)
