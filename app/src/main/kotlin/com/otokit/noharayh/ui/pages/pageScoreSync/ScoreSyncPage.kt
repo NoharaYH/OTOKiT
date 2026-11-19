@@ -6,6 +6,7 @@ import android.content.ClipboardManager
 import android.os.Build
 import android.widget.Toast
 import android.graphics.Color
+import android.text.SpannableStringBuilder
 import android.util.DisplayMetrics
 import android.view.MotionEvent
 import com.otokit.noharayh.R
@@ -92,7 +93,7 @@ private class GameForm(private val context: Context, private val oauth: OAuthCon
     private var accent = Color.DKGRAY
     private val game = if (mai) ScoreGame.MAIMAI else ScoreGame.CHUNITHM
     private var displayedReport: UploadReport? = null
-    private var logText = ""
+    private var logText: CharSequence = ""
     private val buttons = if (mai) MaiDifficulty.entries.map { MaiDifficultyButton(context, it) }
         else ChuDifficulty.entries.map { ChuDifficultyButton(context, it) }
     private val selected = buttons.indices.toMutableSet()
@@ -162,7 +163,7 @@ private class GameForm(private val context: Context, private val oauth: OAuthCon
         val report = UploadReports.latest(game)
         if (displayedReport !== report) {
             displayedReport = report
-            logText = report?.let(::formatUploadReport).orEmpty()
+            logText = report?.let(::styledUploadReport) ?: ""
         }
         val running = report?.terminal == false
         val otherRunning = UploadReports.latest(if (mai) ScoreGame.CHUNITHM else ScoreGame.MAIMAI)?.terminal == false
@@ -176,7 +177,7 @@ private class GameForm(private val context: Context, private val oauth: OAuthCon
             else -> ""
         }
         val status = when {
-            logText.isNotEmpty() && hint.isNotEmpty() -> "$logText\n\n$hint"
+            logText.isNotEmpty() && hint.isNotEmpty() -> SpannableStringBuilder(logText).append("\n\n").append(hint)
             logText.isNotEmpty() -> logText
             hint.isNotEmpty() -> hint
             else -> context.getString(R.string.sync_log_empty)

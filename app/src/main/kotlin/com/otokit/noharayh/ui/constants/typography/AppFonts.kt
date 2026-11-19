@@ -23,5 +23,8 @@ object AppFonts {
 
         /** Flutter MorisawaUD，收录六个中二难度名称使用的字形。 */
         ChuDifficulty("fonts/morisawa_ud_chu_labels.ttf"),
+
+        /** 传分日志的英文、数字与半角标点：JetBrains Mono ASCII 子集。 */
+        LogLatin("fonts/jetbrains_mono_ascii.ttf"),
     }
 }

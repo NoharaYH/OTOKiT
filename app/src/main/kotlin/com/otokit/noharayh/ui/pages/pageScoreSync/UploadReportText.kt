@@ -1,13 +1,14 @@
 package com.otokit.noharayh.ui.pages.pageScoreSync
 
+import android.graphics.Typeface
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
+import android.text.style.StyleSpan
 import com.otokit.noharayh.auth.OAuthProvider
 import com.otokit.noharayh.score.HtmlPageKind
 import com.otokit.noharayh.transfer.*
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-
-private val time = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-private val clock = DateTimeFormatter.ofPattern("HH:mm:ss")
+import com.otokit.noharayh.ui.kit.pageScoreSync.ScoreSyncLogColors
 
 private fun OAuthProvider.label() = if (this == OAuthProvider.DIVING_FISH) "水鱼" else "落雪"
 private fun HtmlPageKind.label() = when (this) {
@@ -19,11 +20,10 @@ private fun HtmlPageKind.label() = when (this) {
 }
 
 internal fun formatUploadReport(report: UploadReport): String = buildString {
-    val zone = ZoneId.systemDefault()
-    append(time.format(report.startedAt.atZone(zone))).append(" · ").append(report.targets.joinToString("、") { it.label() })
+    append(report.targets.joinToString("、") { it.label() })
     append(" · ").append(report.difficulties.joinToString("、") { it.label() })
     for (line in report.log) {
-        append('\n').append(clock.format(line.at.atZone(zone))).append(' ')
+        append('\n')
         when (val event = line.event) {
             is TransferEvent.Saved -> append("[DOWNLOAD] 已校验并保存 ${event.page.label()}（${event.completed}/${event.total}）")
             is TransferEvent.Upload -> appendReceipt(event.page)
@@ -56,8 +56,8 @@ internal fun formatUploadReport(report: UploadReport): String = buildString {
 }
 
 private fun StringBuilder.appendReceipt(page: UploadPageResult) {
-    append("[UPLOAD] [").append(page.provider.label())
-    append("] ").append(page.page.label()).append(" · ")
+    append("[UPLOAD] ").append(page.provider.label())
+    append(' ').append(page.page.label()).append(" · ")
     append(when (page.receipt.outcome) {
         UploadOutcome.SENDING -> "正在提交"
         UploadOutcome.ACCEPTED -> page.receipt.records?.let { "平台已接受，写入 ${it} 条" } ?: "平台已接受"
@@ -74,4 +74,47 @@ private fun StringBuilder.appendReceipt(page: UploadPageResult) {
         UploadOutcome.BLOCKED -> "前置步骤未完成，已跳过"
     })
     page.receipt.httpStatus?.let { append(" [").append(it).append(']') }
+}
+
+internal fun styledUploadReport(report: UploadReport): CharSequence {
+    val text = formatUploadReport(report)
+    return SpannableString(text).apply {
+        fun color(start: Int, end: Int, value: Int) =
+            setSpan(ForegroundColorSpan(value), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        var start = text.indexOf('\n') + 1
+        for (line in report.log) {
+            val end = text.indexOf('\n', start).let { if (it < 0) text.length else it }
+            val event = line.event
+            val tint = when (event) {
+                is TransferEvent.Saved -> ScoreSyncLogColors.SUCCESS
+                is TransferEvent.Stage -> when (event.stage) {
+                    CaptureStage.COMPLETED -> ScoreSyncLogColors.SUCCESS
+                    CaptureStage.FAILED, CaptureStage.TIMED_OUT -> ScoreSyncLogColors.ERROR
+                    CaptureStage.PARTIAL, CaptureStage.CANCELLED -> ScoreSyncLogColors.WARNING
+                    else -> ScoreSyncLogColors.INFO
+                }
+                is TransferEvent.Upload -> when (event.page.receipt.outcome) {
+                    UploadOutcome.SENDING -> ScoreSyncLogColors.INFO
+                    UploadOutcome.ACCEPTED, UploadOutcome.UPDATED, UploadOutcome.NO_CHANGES,
+                    UploadOutcome.NO_RECORDS -> ScoreSyncLogColors.SUCCESS
+                    UploadOutcome.REJECTED, UploadOutcome.AUTH_REQUIRED,
+                    UploadOutcome.PERMISSION_DENIED -> ScoreSyncLogColors.ERROR
+                    UploadOutcome.UNSUPPORTED -> ScoreSyncLogColors.MUTED
+                    else -> ScoreSyncLogColors.WARNING
+                }
+            }
+            val tagEnd = text.indexOf(']', start) + 1
+            color(start, tagEnd, tint)
+            setSpan(StyleSpan(Typeface.BOLD), start, tagEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            if (event is TransferEvent.Upload) {
+                val platformStart = tagEnd + 1
+                color(platformStart, platformStart + event.page.provider.label().length, ScoreSyncLogColors.WARNING)
+                color(text.indexOf(" · ", platformStart) + 3, end, tint)
+            } else if (event is TransferEvent.Stage && event.stage in setOf(CaptureStage.COMPLETED,
+                    CaptureStage.PARTIAL, CaptureStage.FAILED, CaptureStage.CANCELLED, CaptureStage.TIMED_OUT)) {
+                color(tagEnd + 1, end, tint)
+            }
+            start = end + 1
+        }
+    }
 }

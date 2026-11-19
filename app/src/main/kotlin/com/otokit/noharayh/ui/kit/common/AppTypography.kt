@@ -4,6 +4,10 @@ import android.content.Context
 import android.graphics.Typeface
 import android.os.Build
 import android.util.Log
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.TextPaint
+import android.text.style.MetricAffectingSpan
 import android.widget.TextView
 import com.otokit.noharayh.ui.constants.typography.AppFonts
 
@@ -18,6 +22,17 @@ object AppTypography {
     private const val TAG = "AppTypography"
 
     private val cache = HashMap<String, Typeface>()
+    private val ascii = Regex("[\\x20-\\x7e]+")
+
+    /** 只替换 ASCII 字段，保留中文字体与调用方已有的颜色、粗体等 span。 */
+    fun withLogLatin(context: Context, text: CharSequence): CharSequence {
+        val typeface = resolve(context, AppFonts.Role.LogLatin, bold = false) ?: return text
+        return SpannableString(text).apply {
+            for (match in ascii.findAll(text)) {
+                setSpan(LogLatinSpan(typeface), match.range.first, match.range.last + 1, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
+        }
+    }
 
     /** 正文与中文标题：江城圆体；bold 使用合成粗体。 */
     fun applyAppTypeface(textView: TextView, bold: Boolean = false) {
@@ -57,4 +72,11 @@ object AppTypography {
             Log.w(TAG, "字体加载失败，保留调用方原字体：$path", error)
             null
         }
+
+    private class LogLatinSpan(private val typeface: Typeface) : MetricAffectingSpan() {
+        override fun updateDrawState(paint: TextPaint) = updateMeasureState(paint)
+        override fun updateMeasureState(paint: TextPaint) {
+            paint.typeface = Typeface.create(typeface, paint.typeface?.style ?: Typeface.NORMAL)
+        }
+    }
 }

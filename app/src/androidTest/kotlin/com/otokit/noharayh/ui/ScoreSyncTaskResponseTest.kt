@@ -56,7 +56,8 @@ class ScoreSyncTaskResponseTest : UiComponentTestHost() {
             assertEquals(before, log())
             publish(upload.copy(stage = CaptureStage.COMPLETED))
             publish(upload)
-            assertTrue(log().endsWith("传分完成"))
+            // 未具备写权限的设备还会在日志末尾追加授权提示，完成回执仍应保留。
+            assertTrue(log().lines().contains("[SYSTEM] 传分完成"))
             assertFalse(page.view.allViews.any { it.contentDescription == "取消传分" })
         } finally {
             publish(base.copy(stage = CaptureStage.CANCELLED))

@@ -13,6 +13,7 @@ import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.constants.dimensions.SettingsButtonDimensions
 import com.otokit.noharayh.ui.constants.dimensions.ScoreSyncDimensions
 import com.otokit.noharayh.ui.kit.common.PressFrontColumn
+import com.otokit.noharayh.ui.kit.common.AppTypography
 import com.otokit.noharayh.ui.kit.common.ViewPrimitives
 
 internal enum class SyncTarget(val label: Int) {
@@ -39,7 +40,7 @@ internal class ScoreSyncPanel(
     private val start = ScoreSyncButton(context, context.getString(R.string.sync_start), false, onStart)
     private val log = FrameLayout(context)
     private val logBody = PanelScroll(context)
-    private val message = ViewPrimitives.text(context, "", 14f, 0xffd2d2d7.toInt())
+    private val message = ViewPrimitives.text(context, "", 13f, ScoreSyncLogColors.BODY)
     private val copy: ScoreSyncCopyButton
     private var wide: Boolean? = null
 
@@ -75,7 +76,7 @@ internal class ScoreSyncPanel(
         // 标题先独立排版。图标按字高对齐，透明热区不参与标题测量。
         val glyphSize = title.textSize.toInt().coerceAtMost(hitSize)
         val iconInset = (hitSize - glyphSize) / 2
-        copy = ScoreSyncCopyButton(context, glyphSize) { onCopy(message.text) }
+        copy = ScoreSyncCopyButton(context, glyphSize) { onCopy(message.text.toString()) }
         log.addView(copy, LayoutParams(hitSize, hitSize, Gravity.TOP or Gravity.END).apply {
             marginEnd = corner - iconInset
         })
@@ -120,7 +121,7 @@ internal class ScoreSyncPanel(
     }
 
     fun render(target: SyncTarget, bothAvailable: Boolean, selected: Set<Int>, startAvailable: Boolean,
-               interactive: Boolean, accent: Int, status: String) {
+               interactive: Boolean, accent: Int, status: CharSequence) {
         importantForAccessibility = if (interactive) IMPORTANT_FOR_ACCESSIBILITY_AUTO else IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
         modes.forEach { (mode, button) ->
             button.render(accent, target == mode, mode != SyncTarget.Both || bothAvailable, interactive)
@@ -128,9 +129,9 @@ internal class ScoreSyncPanel(
         grid.render(selected, interactive)
         start.render(accent, startAvailable, startAvailable, interactive)
         copy.isEnabled = interactive
-        if (message.text != status) {
+        if (!android.text.TextUtils.equals(message.text, status)) {
             val following = !logBody.canScrollVertically(1)
-            message.text = status
+            message.text = AppTypography.withLogLatin(context, status)
             if (following) logBody.post { logBody.scrollTo(0, message.height) }
         }
     }
