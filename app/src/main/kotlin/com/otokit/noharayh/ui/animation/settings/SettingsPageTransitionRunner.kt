@@ -4,8 +4,8 @@ import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.view.View
-import android.graphics.Rect
 import com.otokit.noharayh.ui.animation.common.MotionInterpolators
+import com.otokit.noharayh.ui.animation.common.TransitionFrame
 import com.otokit.noharayh.ui.animation.common.TransitionProgress
 import com.otokit.noharayh.ui.animation.common.TransitionTiming
 import com.otokit.noharayh.ui.constants.motion.SettingsPageTransition
@@ -14,7 +14,6 @@ import com.otokit.noharayh.ui.constants.motion.SettingsPageTransition
 class SettingsPageTransitionRunner(private val onFrame: (TransitionProgress) -> Unit) {
     private var animator: ValueAnimator? = null
     private var unfold = false
-    private val revealBounds = Rect()
     var progress = 0f
         private set
 
@@ -60,16 +59,11 @@ class SettingsPageTransitionRunner(private val onFrame: (TransitionProgress) -> 
         progress = value.coerceIn(0f, 1f)
         onFrame(TransitionProgress(progress, running))
     }
-    fun apply(view: View, frame: com.otokit.noharayh.ui.animation.common.TransitionFrame, reveal: Float = 1f) {
+    fun apply(view: View, frame: TransitionFrame) {
         view.alpha = frame.alpha
         view.scaleX = frame.scale
         view.scaleY = frame.scale
         view.translationX = frame.translationX
         view.translationY = frame.translationY
-        // 只扩展可见区域，文字与图标始终保持原比例；终态释放裁剪，保留外溢反馈。
-        if (reveal >= 1f) view.clipBounds = null else {
-            revealBounds.set(0, 0, view.width, (view.height * reveal.coerceIn(0f, 1f)).toInt())
-            view.clipBounds = revealBounds
-        }
     }
 }

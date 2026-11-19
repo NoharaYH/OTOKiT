@@ -270,10 +270,7 @@ class SettingsAssembly(
 
     private fun applyPageFrame(view: View, progress: Float, entering: Boolean) {
         val visual = SettingsPageFrames.unfoldPage(progress, entering, forward, resources.displayMetrics.density)
-        // 分栏中直接换子页时，旧子页完整退场；仅展开侧使用揭示裁剪。
-        val reveal = if (view !== rootPage && entering == forward)
-            SettingsPageFrames.unfoldReveal(progress, forward) else 1f
-        runner.apply(view, visual, reveal)
+        runner.apply(view, visual)
     }
 
     override fun onInterceptTouchEvent(event: MotionEvent): Boolean = transitioning || super.onInterceptTouchEvent(event)
@@ -350,7 +347,13 @@ class SettingsAssembly(
             setDisabledProgress(themeDisabledProgress)
         }
     }
-    private fun reset(view: View) { view.alpha = 1f; view.scaleX = 1f; view.scaleY = 1f; view.translationX = 0f; view.translationY = 0f; view.clipBounds = null }
+    private fun reset(view: View) {
+        view.alpha = 1f
+        view.scaleX = 1f
+        view.scaleY = 1f
+        view.translationX = 0f
+        view.translationY = 0f
+    }
     private fun dp(value: Int) = (value * resources.displayMetrics.density + 0.5f).toInt()
     private fun exact(value: Int) = MeasureSpec.makeMeasureSpec(value.coerceAtLeast(0), MeasureSpec.EXACTLY)
 }

@@ -13,6 +13,8 @@ class SettingsPageFramesTest {
                 val reverse = SettingsPageFrames.unfoldPage(1f - p, !entering, false, 2.45f)
                 assertEquals(page.alpha, reverse.alpha, 0.00001f)
                 assertEquals(page.translationX, reverse.translationX, 0.0001f)
+                assertEquals(0f, page.translationY, 0f)
+                assertEquals(0f, reverse.translationY, 0f)
                 val title = SettingsPageFrames.unfoldTitle(p, entering, true, 2.45f)
                 val reverseTitle = SettingsPageFrames.unfoldTitle(1f - p, !entering, false, 2.45f)
                 assertEquals(title.alpha, reverseTitle.alpha, 0.00001f)
@@ -23,11 +25,10 @@ class SettingsPageFramesTest {
         }
     }
 
-    @Test fun unfoldOpensSpaceBeforeContentAndReleasesItAtTheEndpoint() {
-        assertTrue(SettingsPageFrames.unfoldReveal(.2f, true) > 0f)
+    @Test fun unfoldFadesInAndSettlesAtTheVisibleEndpoints() {
         assertEquals(0f, SettingsPageFrames.unfoldPage(.2f, true, true, 1f).alpha, 0f)
-        assertEquals(1f, SettingsPageFrames.unfoldReveal(1f, true), 0f)
-        assertEquals(0f, SettingsPageFrames.unfoldReveal(1f, false), 0f)
+        val partialAlpha = SettingsPageFrames.unfoldPage(.5f, true, true, 1f).alpha
+        assertTrue(partialAlpha > 0f && partialAlpha < 1f)
         for (frame in listOf(SettingsPageFrames.unfoldPage(1f, true, true, 1f),
             SettingsPageFrames.unfoldTitle(1f, true, false, 1f))) {
             assertEquals(1f, frame.alpha, 0f)

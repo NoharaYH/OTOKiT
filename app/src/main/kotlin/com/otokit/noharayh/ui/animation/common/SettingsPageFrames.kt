@@ -20,9 +20,6 @@ object SettingsPageFrames {
         )
     }
 
-    fun unfoldReveal(progress: Float, forward: Boolean): Float =
-        window(if (forward) progress else 1f - progress, 0f, Spec.UNFOLD_REVEAL_END)
-
     fun unfoldTitle(progress: Float, entering: Boolean, forward: Boolean, density: Float): TransitionFrame {
         val p = (if (forward) progress else 1f - progress).coerceIn(0f, 1f)
         return if (entering == forward) TransitionFrame(

@@ -15,7 +15,6 @@ object SettingsPageTransition {
     const val UNFOLD_PAGE_DISTANCE_DP = 32f
     const val UNFOLD_ROOT_DISTANCE_DP = 16f
     const val UNFOLD_TITLE_DISTANCE_DP = 18f
-    const val UNFOLD_REVEAL_END = 0.65f
     const val UNFOLD_CONTENT_START = 0.28f
     const val UNFOLD_CONTENT_END = 0.9f
     const val UNFOLD_ROOT_END = 0.4f
