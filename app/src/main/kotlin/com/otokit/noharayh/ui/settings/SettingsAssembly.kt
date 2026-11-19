@@ -9,11 +9,16 @@ import android.widget.FrameLayout
 import com.otokit.noharayh.ui.animation.common.TransitionProgress
 import com.otokit.noharayh.ui.animation.common.SettingsPageFrames
 import com.otokit.noharayh.ui.animation.settings.SettingsPageTransitionRunner
+import com.otokit.noharayh.ui.chrome.SettingsHeading
+import com.otokit.noharayh.ui.chrome.TitleTexts
+import com.otokit.noharayh.composition.scoreArchiveQueries
 import com.otokit.noharayh.ui.constants.display.DisplayScaleOption
 import com.otokit.noharayh.ui.shell.navigation.SettingsSection
 import com.otokit.noharayh.ui.shell.selection.GameSelectionState
 import com.otokit.noharayh.ui.settings.subPages.PersonalizationSettingsPage
 import com.otokit.noharayh.ui.settings.subPages.AppSettingsPage
+import com.otokit.noharayh.ui.settings.subPages.ScoreArchiveKind
+import com.otokit.noharayh.ui.settings.subPages.ScoreArchivePage
 import com.otokit.noharayh.ui.shell.background.BackgroundRenderingOptions
 import com.otokit.noharayh.ui.theme.NoneThemeColorRole
 import com.otokit.noharayh.ui.theme.GameLine
@@ -42,20 +47,25 @@ class SettingsAssembly(
     private val onNoneThemeBackgroundSelected: (Boolean) -> Unit,
     private val onNoneThemeWallpaperSelected: (Boolean) -> Unit,
     private val onNoneThemeColorSelected: (NoneThemeColorRole, Int) -> Unit,
-    private val onTransitionStart: (SettingsSection?, SettingsSection?, Float, Boolean) -> Unit,
+    private val onTransitionStart: (SettingsHeading, SettingsHeading, Float, Boolean) -> Unit,
     private val onTransitionFrame: (TransitionProgress) -> Unit,
+    private val onArchiveChanged: () -> Unit,
 ) : FrameLayout(context) {
+    private data class Page(val section: SettingsSection?, val archive: ScoreArchiveKind? = null) {
+        val heading get() = SettingsHeading(archive?.title ?: TitleTexts.forSettings(section), TitleTexts.colorForSettings(section))
+    }
+
     private val rootPage = SettingsHome(context, onOpenSection)
     private val childHost = FrameLayout(context)
     private val divider = View(context).apply { setBackgroundColor(Color.WHITE) }
     private val options = rootPage.options
-    private var renderedSection: SettingsSection? = null
-    private var fromSection: SettingsSection? = null
-    private var toSection: SettingsSection? = null
+    private var current = Page(null)
+    private var fromPage = current
+    private var toPage = current
     private var fromView: View? = null
     private var toView: View? = null
     private var transitioning = false
-    private var unfold = false
+    private var forward = true
     private var split = false
     private var margin = dp(20)
     private var disposed = false
@@ -128,25 +138,35 @@ class SettingsAssembly(
         split = useSplit
         margin = nextMargin
         updatePadding()
-        settle(renderedSection, rebuild = true)
+        settle(current.section, rebuild = true)
         requestLayout()
     }
 
     fun render(section: SettingsSection?) {
-        if (disposed) return
-        if (transitioning && toSection == section) {
-            renderedSection = section
-            runner.play(1f) { settle(section) }
-        } else if (renderedSection != section) {
-            settle(renderedSection)
-            prepare(renderedSection, section)
-            renderedSection = section
-            runner.play(1f) { settle(section) }
+        if (!disposed && current.section != section) goTo(Page(section))
+    }
+
+    val archiveTitle get() = current.archive?.title
+
+    private fun goTo(target: Page) {
+        if (!transitioning || toPage != target) {
+            settlePage(current)
+            prepare(current, target)
         }
+        val titleChanged = current.archive != target.archive
+        current = target
+        if (titleChanged) onArchiveChanged()
+        runner.play(1f) { settlePage(target) }
+    }
+
+    fun closeArchive(): Boolean {
+        if (current.archive == null) return false
+        goTo(Page(current.section))
+        return true
     }
 
     private fun personalizationPage(): PersonalizationSettingsPage? =
-        if (renderedSection == SettingsSection.Personalization && !transitioning)
+        if (current.section == SettingsSection.Personalization && !transitioning)
             childHost.getChildAt(childHost.childCount - 1) as? PersonalizationSettingsPage else null
 
     fun closeThemePanel(): Boolean = personalizationPage()?.closeThemePanel() == true
@@ -156,30 +176,45 @@ class SettingsAssembly(
     fun finishThemePanelBack() { personalizationPage()?.finishThemePanelBack() }
 
     fun beginBackPreview(): Boolean {
-        val current = renderedSection ?: return false
-        settle(current)
-        prepare(current, null)
+        if (current.section == null) return false
+        settlePage(current)
+        prepare(current, Page(current.section.takeIf { current.archive != null }))
         return true
     }
     fun preview(progress: Float) { if (transitioning) runner.preview(progress) }
     fun cancelPreview() {
         if (!transitioning) return
-        val restore = renderedSection
-        runner.play(0f) { settle(restore) }
+        val restore = current
+        runner.play(0f) { settlePage(restore) }
     }
 
     /** 窗口/生命周期接管：无回调提交，无延迟布局任务。 */
     fun settle(section: SettingsSection?, rebuild: Boolean = false) {
+        settlePage(if (current.section == section) current else Page(section), rebuild)
+    }
+
+    private fun settlePage(page: Page, rebuild: Boolean = false) {
         if (disposed) return
         runner.stop()
-        if (transitioning) onTransitionFrame(TransitionProgress(if (section == toSection) 1f else 0f, false))
+        val keep = when {
+            rebuild || page.section == null -> null
+            transitioning && page == toPage -> toView
+            transitioning && page == fromPage -> fromView
+            !transitioning && page == current -> childHost.getChildAt(0)
+            else -> null
+        }
+        if (transitioning) onTransitionFrame(TransitionProgress(if (page == toPage) 1f else 0f, false))
         transitioning = false
         fromView = null
         toView = null
-        val keep = if (!rebuild && section == renderedSection && childHost.childCount > 0) childHost.getChildAt(childHost.childCount - 1) else null
-        childHost.removeAllViews()
-        if (section != null) childHost.addView(keep ?: buildChild(section), LayoutParams(-1, -1))
-        renderedSection = section
+        for (index in childHost.childCount - 1 downTo 0) {
+            if (childHost.getChildAt(index) !== keep) childHost.removeViewAt(index)
+        }
+        if (page.section != null && keep == null) childHost.addView(buildPage(page), LayoutParams(-1, -1))
+        val titleChanged = current.archive != page.archive
+        current = page
+        if (titleChanged) onArchiveChanged()
+        val section = page.section
         reset(rootPage)
         for (index in 0 until childHost.childCount) reset(childHost.getChildAt(index))
         rootPage.visibility = if (split || section == null) VISIBLE else INVISIBLE
@@ -197,49 +232,46 @@ class SettingsAssembly(
         toView = null
     }
 
-    private fun prepare(from: SettingsSection?, to: SettingsSection?) {
-        fromSection = from
-        toSection = to
-        fromView = if (from == null) rootPage else childHost.getChildAt(0)
-        toView = if (to == null) rootPage else buildChild(to).also { childHost.addView(it, LayoutParams(-1, -1)) }
-        rootPage.visibility = VISIBLE
+    private fun prepare(from: Page, to: Page) {
+        fromPage = from
+        toPage = to
+        fromView = if (from.section == null) rootPage else childHost.getChildAt(0)
+        toView = if (to.section == null) rootPage else buildPage(to).also { childHost.addView(it, LayoutParams(-1, -1)) }
+        rootPage.visibility = if (split || from.section == null || to.section == null) VISIBLE else INVISIBLE
         childHost.visibility = VISIBLE
         transitioning = true
-        unfold = true
-        runner.reset(unfold)
-        onTransitionStart(from, to, width.toFloat(), unfold)
+        forward = to.section != null && (from.section != to.section || from.archive == null)
+        runner.reset(unfold = true)
+        onTransitionStart(from.heading, to.heading, width.toFloat(), forward)
         renderFrame(TransitionProgress(0f, true))
         updateAccessibility()
     }
 
     private fun renderFrame(frame: TransitionProgress) {
         if (!transitioning || disposed) return
-        val forward = toSection != null
-        val distance = width.toFloat()
-        val phoneUnfold = unfold && !split
+        val phoneUnfold = !split
         val pageProgress = if (phoneUnfold) SettingsPageFrames.phoneUnfoldProgress(frame.value, forward)
             else frame.value
         fromView?.let {
-            if (!split || it !== rootPage) applyPageFrame(it, pageProgress, false, forward, distance)
+            if (!split || it !== rootPage) applyPageFrame(it, pageProgress, false)
         }
         toView?.let {
-            if (!split || it !== rootPage) applyPageFrame(it, pageProgress, true, forward, distance)
+            if (!split || it !== rootPage) applyPageFrame(it, pageProgress, true)
         }
         val changed = if (phoneUnfold) SettingsPageFrames.phoneSelectionChange(frame.value, forward)
             else SettingsPageFrames.selectionChange(frame.value)
         options.forEach { (key, option) ->
-            val start = if (key == fromSection) 1f else 0f
-            val end = if (key == toSection) 1f else 0f
+            val start = if (key == fromPage.section) 1f else 0f
+            val end = if (key == toPage.section) 1f else 0f
             option.setSelectionProgress(start + (end - start) * changed)
         }
         onTransitionFrame(TransitionProgress(pageProgress, frame.running))
     }
 
-    private fun applyPageFrame(view: View, progress: Float, entering: Boolean, forward: Boolean, distance: Float) {
-        val visual = if (unfold) SettingsPageFrames.unfoldPage(progress, entering, forward, resources.displayMetrics.density)
-            else SettingsPageFrames.page(progress, entering, forward, split, distance)
+    private fun applyPageFrame(view: View, progress: Float, entering: Boolean) {
+        val visual = SettingsPageFrames.unfoldPage(progress, entering, forward, resources.displayMetrics.density)
         // 分栏中直接换子页时，旧子页完整退场；仅展开侧使用揭示裁剪。
-        val reveal = if (unfold && view !== rootPage && entering == forward)
+        val reveal = if (view !== rootPage && entering == forward)
             SettingsPageFrames.unfoldReveal(progress, forward) else 1f
         runner.apply(view, visual, reveal)
     }
@@ -267,18 +299,24 @@ class SettingsAssembly(
     }
 
     private fun updateAccessibility() {
-        rootPage.importantForAccessibility = if (!transitioning && (split || renderedSection == null)) IMPORTANT_FOR_ACCESSIBILITY_AUTO else IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
-        childHost.importantForAccessibility = if (!transitioning && renderedSection != null) IMPORTANT_FOR_ACCESSIBILITY_AUTO else IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
-        rootPage.descendantFocusability = if (!transitioning && (split || renderedSection == null)) ViewGroup.FOCUS_AFTER_DESCENDANTS else ViewGroup.FOCUS_BLOCK_DESCENDANTS
-        childHost.descendantFocusability = if (!transitioning && renderedSection != null) ViewGroup.FOCUS_AFTER_DESCENDANTS else ViewGroup.FOCUS_BLOCK_DESCENDANTS
+        rootPage.importantForAccessibility = if (!transitioning && (split || current.section == null)) IMPORTANT_FOR_ACCESSIBILITY_AUTO else IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        childHost.importantForAccessibility = if (!transitioning && current.section != null) IMPORTANT_FOR_ACCESSIBILITY_AUTO else IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        rootPage.descendantFocusability = if (!transitioning && (split || current.section == null)) ViewGroup.FOCUS_AFTER_DESCENDANTS else ViewGroup.FOCUS_BLOCK_DESCENDANTS
+        childHost.descendantFocusability = if (!transitioning && current.section != null) ViewGroup.FOCUS_AFTER_DESCENDANTS else ViewGroup.FOCUS_BLOCK_DESCENDANTS
     }
     private fun updatePadding() = rootPage.setContentMargins(margin, split)
+
+    private fun buildPage(page: Page): View = page.archive?.let { archive ->
+        ScoreArchivePage(context, archive, margin, split, scoreArchiveQueries(context)) { closeArchive() }
+    } ?: buildChild(requireNotNull(page.section))
+
     private fun buildChild(section: SettingsSection) = SettingsPages.child(
         context = context,
         section = section,
         margin = margin,
         split = split,
         openLink = onOpenLink,
+        openArchive = { goTo(Page(SettingsSection.ScoreSync, it)) },
         displayScale = displayScale,
         onDisplayScaleSelected = onDisplayScaleSelected,
         rendering = renderingProvider(),

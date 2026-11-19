@@ -9,6 +9,7 @@ import com.otokit.noharayh.ui.theme.GameLine
 
 /** 标题的一对文案：上英文、下中文。 */
 data class TitleText(@StringRes val english: Int, @StringRes val chinese: Int)
+data class SettingsHeading(val title: TitleText, val color: Int)
 
 /**
  * 功能标题映射，文案来自旧 `NavText`，不由主题展示名推导。

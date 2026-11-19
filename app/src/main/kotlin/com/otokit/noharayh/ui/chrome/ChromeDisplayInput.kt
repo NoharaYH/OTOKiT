@@ -18,4 +18,5 @@ data class ChromeDisplayInput(
     val gameFrame: GameFrame?,
     val navDirection: Int,
     val settingsSection: SettingsSection? = null,
+    val settingsTitle: TitleText? = null,
 )

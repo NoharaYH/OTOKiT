@@ -25,7 +25,7 @@ internal class SettingsButton(context: Context, label: String, private val kind:
     private val selectedTextColor: Int = Colors.SELECTED,
     onClick: () -> Unit,
 ) : PressSurface(context) {
-    enum class ActionIcon { Next, ExternalLink }
+    enum class ActionIcon { Next, ExternalLink, Back }
     enum class Kind { Action, Choice }
     private val labelView = ViewPrimitives.text(context, label, Dimensions.TEXT_SP, Colors.TEXT).apply {
         gravity = Gravity.CENTER_VERTICAL
@@ -60,7 +60,11 @@ internal class SettingsButton(context: Context, label: String, private val kind:
                 if (choiceIndicatorVisible) addView(indicator,
                     LinearLayout.LayoutParams(dp(Dimensions.ICON_DP), dp(Dimensions.ICON_DP)))
             } else addView(ImageView(context).apply {
-                setImageResource(if (trailingIcon == ActionIcon.ExternalLink) R.drawable.ic_open_in_new_24 else R.drawable.ic_chevron_right_24)
+                setImageResource(when (trailingIcon) {
+                    ActionIcon.Next -> R.drawable.ic_chevron_right_24
+                    ActionIcon.ExternalLink -> R.drawable.ic_open_in_new_24
+                    ActionIcon.Back -> R.drawable.ic_arrow_back_24
+                })
                 setColorFilter(Colors.MUTED)
             }, LinearLayout.LayoutParams(dp(Dimensions.ICON_DP), dp(Dimensions.ICON_DP)).apply { marginStart = dp(Dimensions.ICON_GAP_DP) })
         }

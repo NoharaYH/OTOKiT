@@ -19,6 +19,7 @@ internal object SettingsPages {
         margin: Int,
         split: Boolean,
         openLink: (String) -> Unit,
+        openArchive: (ScoreArchiveKind) -> Unit,
         displayScale: DisplayScaleOption,
         onDisplayScaleSelected: (DisplayScaleOption) -> Unit,
         rendering: BackgroundRenderingOptions,
@@ -35,7 +36,7 @@ internal object SettingsPages {
         onNoneThemeWallpaperSelected: (Boolean) -> Unit,
         onNoneThemeColorSelected: (NoneThemeColorRole, Int) -> Unit,
     ) = when (section) {
-        SettingsSection.ScoreSync -> ScoreSyncSettingsPage.create(context, margin, split, openLink)
+        SettingsSection.ScoreSync -> ScoreSyncSettingsPage.create(context, margin, split, openLink, openArchive)
         SettingsSection.App -> AppSettingsPage(
             context = context,
             margin = margin,

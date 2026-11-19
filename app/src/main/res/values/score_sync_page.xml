@@ -9,7 +9,7 @@
     <string name="sync_copy_log">复制传分日志</string>
     <string name="sync_log_copied">已复制传分日志</string>
     <string name="sync_log_empty">暂无传分日志</string>
-    <string name="sync_log_auth">请在「成绩同步设置」确认%1$s授权。</string>
+    <string name="sync_log_auth">请在「数据与同步设置」确认%1$s授权。</string>
     <string name="sync_log_scope">%1$s授权缺少成绩写入权限。</string>
     <string name="sync_log_select">请选择至少一个难度。</string>
     <string name="sync_log_vpn">等待允许 VPN 连接；允许后将打开微信。</string>

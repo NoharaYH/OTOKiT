@@ -25,10 +25,11 @@ object TitleBarStateFactory {
         maiDecorColor: Int,
         chuDecorColor: Int,
         settingsSection: SettingsSection? = null,
+        settingsTitle: TitleText? = null,
     ): TitleBarState = TitleBarState(
         maiTitle = TitleTexts.forDestination(destination, GameLine.Mai),
         chuTitle = TitleTexts.forDestination(destination, GameLine.Chu),
-        settingTitle = TitleTexts.forSettings(settingsSection),
+        settingTitle = settingsTitle ?: TitleTexts.forSettings(settingsSection),
         currentGame = currentGame,
         gameFrame = gameFrame,
         navDirection = navDirection,

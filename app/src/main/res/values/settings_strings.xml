@@ -1,6 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="settings_tile_sync">成绩同步设置</string>
+    <string name="settings_tile_sync">数据与同步设置</string>
+    <string name="settings_html_records">HTML 记录</string>
+    <string name="settings_json_records">JSON 记录</string>
+    <string name="title_settings_html_records">HTML Records</string>
+    <string name="title_settings_json_records">JSON Records</string>
+    <string name="settings_archive_view">查看记录</string>
+    <string name="settings_archive_view_named">查看%1$s</string>
+    <string name="settings_archive_info">查看%1$s的说明</string>
+    <string name="settings_archive_html_plain">这里保存的是传分时从服务器获取到的你的个人数据，采用HTML格式保存在此处，用于上传至水鱼&amp;落雪服务器。\nApp也会对你的数据进行解析，存储为JSON文件和表格，供其他功能使用。</string>
+    <string name="settings_archive_json_plain">这里保存的是由HTML解析后得到的JSON文件，用于写入应用专属数据库及备份留档，格式不同于水鱼&amp;落雪的格式，采用应用自己的专属格式储存。</string>
+    <string name="settings_archive_html_technical">传分时获取的游戏 NET 页面以原始 HTML 保存于应用私有目录。文件按采集批次归档，各难度保留独立文件。向水鱼或落雪传分时，应用读取相应页面提交。同时，HTML 存档也是生成或重新解析本地成绩快照的输入。</string>
+    <string name="settings_archive_json_technical">应用将同一采集批次的 HTML 解析为一份带格式版本的 OTOKiT JSON 快照。最佳成绩按曲目和谱面组织，最近游玩单独记录。快照保存后由 SQLite 导入，供应用查询。保留快照可用于备份和重建本地成绩索引。</string>
+    <string name="settings_archive_back">返回同步设置</string>
+    <string name="settings_archive_loading">正在读取记录…</string>
+    <string name="settings_archive_empty">暂无记录</string>
+    <string name="settings_archive_read_error">读取记录失败</string>
+    <string name="settings_archive_more">加载更多</string>
+    <string name="settings_archive_scroll">记录滚动条</string>
+    <string name="settings_archive_group">%1$s · %2$s</string>
+    <string name="settings_archive_html_batch">%1$s · %2$d 份</string>
+    <string name="settings_archive_mai">舞萌 DX</string>
+    <string name="settings_archive_chu">中二节奏</string>
+    <string name="settings_archive_utage">宴会场</string>
+    <string name="settings_archive_player">玩家信息</string>
+    <string name="settings_archive_recent">最近游玩</string>
+    <string name="settings_archive_preview_truncated">已显示文件开头的部分内容。</string>
     <string name="settings_capture_keep_callback">登录期间保持回调拦截</string>
     <string name="settings_capture_keep_callback_info">查看登录期间保持回调拦截的说明</string>
     <string name="settings_info_dismiss">已阅</string>
@@ -12,7 +37,7 @@
     <string name="settings_tile_personalize">个性化设置</string>
     <string name="settings_tile_about">应用信息</string>
     <string name="settings_child_placeholder">%1$s（占位）</string>
-    <string name="title_settings_sync">ScoreSyncSettings</string>
+    <string name="title_settings_sync">DataAndSyncSettings</string>
     <string name="title_settings_app">AppSettings</string>
     <string name="title_settings_personalization">PersonalizationSettings</string>
     <string name="title_settings_about">ApplicationInfo</string>

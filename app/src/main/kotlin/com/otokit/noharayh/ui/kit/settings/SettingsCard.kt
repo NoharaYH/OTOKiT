@@ -13,14 +13,20 @@ import com.otokit.noharayh.ui.constants.dimensions.SettingsCardDimensions as Dim
 import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors as Colors
 import com.otokit.noharayh.ui.kit.common.GroupedSurface
 import com.otokit.noharayh.ui.kit.common.GroupPosition
+import com.otokit.noharayh.ui.kit.common.InfoIconButton
 import com.otokit.noharayh.ui.animation.common.GroupShape
 
 /** 非交互复合容器，提供可选内容及尾部槽位；无内容时不留下间距。 */
 @android.annotation.SuppressLint("ViewConstructor") // 纯代码组件，需要显式内容与回调。
 internal class SettingsCard(context: Context, icon: Int, title: Int,
     content: View? = null, trailing: View? = null,
+    private val fillContent: Boolean = false,
+    headerInfo: InfoIconButton? = null,
 ) : LinearLayout(context), GroupedSurface {
     private val shape = ContinuousCornerDrawable(Colors.SURFACE, 0f)
+    private val inset = dp(Dimensions.CONTENT_INSET_DP)
+    // The title row and its two existing insets already fit the full info-button target.
+    private val headerInset = if (headerInfo != null) inset else 0
     private var contentView: View? = null
     private var animatedSlot: ExpandableContent? = null
     private var contentExpanded = true
@@ -42,18 +48,20 @@ internal class SettingsCard(context: Context, icon: Int, title: Int,
         orientation = VERTICAL
         clipChildren = false; clipToPadding = false
         background = shape
-        val pad = dp(Dimensions.CONTENT_INSET_DP)
-        setPadding(pad, pad, pad, pad)
+        setPadding(inset, inset - headerInset, inset, inset - headerInset)
         val header = LinearLayout(context).apply {
             gravity = Gravity.CENTER_VERTICAL
-            minimumHeight = dp(Dimensions.HEADER_HEIGHT_DP)
+            minimumHeight = dp(Dimensions.HEADER_HEIGHT_DP) + 2 * headerInset
             clipChildren = false; clipToPadding = false
             addView(ImageView(context).apply { setImageResource(icon); setColorFilter(Colors.TEXT) },
                 LayoutParams(dp(Dimensions.ICON_DP), dp(Dimensions.ICON_DP)))
             addView(ViewPrimitives.text(context, context.getString(title), Dimensions.TITLE_SP, Colors.TITLE, true).apply {
                 letterSpacing = Dimensions.TITLE_LETTER_SPACING
-            }, LayoutParams(-2, -2).apply { marginStart = dp(Dimensions.HEADER_GAP_DP) })
-            if (trailing != null) addView(trailing, LayoutParams(0, -2, 1f).apply { marginStart = dp(Dimensions.HEADER_GAP_DP) })
+            }, headerSpacing(LayoutParams(-2, -2)))
+            if (headerInfo != null) addView(headerInfo, LayoutParams(-2, -2).apply {
+                marginStart = dp(Dimensions.HEADER_GAP_DP)
+            })
+            if (trailing != null) addView(trailing, headerSpacing(LayoutParams(0, -2, 1f)))
         }
         addView(header, LayoutParams(-1, -2))
         setContent(content)
@@ -69,7 +77,10 @@ internal class SettingsCard(context: Context, icon: Int, title: Int,
         animatedSlot = null
         contentView?.let(::removeView)
         contentView = content
-        if (content != null) addView(content, LayoutParams(-1, -2).apply { topMargin = dp(Dimensions.CONTENT_INSET_DP) })
+        if (content != null) addView(content, LayoutParams(-1, if (fillContent) 0 else -2).apply {
+            if (fillContent) weight = 1f
+            spaceContent(1f)
+        })
         if (!contentExpanded) setContentExpanded(false, false)
     }
 
@@ -81,14 +92,23 @@ internal class SettingsCard(context: Context, icon: Int, title: Int,
             removeView(view)
             next.setContent(view)
             next.onProgress = { progress ->
-                (next.layoutParams as? LayoutParams)?.let { params ->
-                    params.topMargin = (dp(Dimensions.CONTENT_INSET_DP) * progress).toInt()
-                }
+                (next.layoutParams as? LayoutParams)?.spaceContent(progress)
             }
-            addView(next, LayoutParams(-1, -2).apply { topMargin = dp(Dimensions.CONTENT_INSET_DP) })
+            addView(next, LayoutParams(-1, -2).apply { spaceContent(1f) })
             animatedSlot = next
         }
         slot.setExpanded(expanded, animate)
+    }
+
+    private fun headerSpacing(params: LayoutParams) = params.apply {
+        marginStart = dp(Dimensions.HEADER_GAP_DP)
+        topMargin = headerInset
+        bottomMargin = headerInset
+    }
+
+    private fun LayoutParams.spaceContent(progress: Float) {
+        topMargin = ((inset - headerInset) * progress).toInt()
+        bottomMargin = (headerInset * progress).toInt()
     }
 
     fun replaceContent(content: View?, animate: Boolean = true) {

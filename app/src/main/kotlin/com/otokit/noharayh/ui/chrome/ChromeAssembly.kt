@@ -178,13 +178,13 @@ class ChromeAssembly(
     }
 
     fun prepareSettingsPageTransition(
-        from: SettingsSection?,
-        to: SettingsSection?,
+        from: SettingsHeading,
+        to: SettingsHeading,
         distancePx: Float,
-        unfold: Boolean,
+        forward: Boolean,
     ) {
         if (attached && !disposed) {
-            titleBar?.prepareSettingsPageTransition(from, to, split = !compact, distancePx = distancePx, unfold = unfold)
+            titleBar?.prepareSettingsPageTransition(from, to, split = !compact, distancePx = distancePx, forward = forward)
         }
     }
 
@@ -347,6 +347,7 @@ class ChromeAssembly(
             TitleBarStateFactory.create(
                 destination = input.destination,
                 settingsSection = input.settingsSection,
+                settingsTitle = input.settingsTitle,
                 currentGame = input.currentGame,
                 settingsOpen = input.settingsOpen,
                 menuEnabled = compact,

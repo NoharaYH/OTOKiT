@@ -351,22 +351,22 @@ class TitleBar(context: Context) : FrameLayout(context) {
     }
 
     fun prepareSettingsPageTransition(
-        from: SettingsSection?,
-        to: SettingsSection?,
+        from: SettingsHeading,
+        to: SettingsHeading,
         split: Boolean,
         distancePx: Float,
-        unfold: Boolean,
+        forward: Boolean,
     ) {
-        fun show(section: SettingsSection?) {
-            settingsColumn.setTexts(TitleTexts.forSettings(section))
-            setColumnColor(settingsColumn, TitleTexts.colorForSettings(section))
+        fun show(heading: SettingsHeading) {
+            settingsColumn.setTexts(heading.title)
+            setColumnColor(settingsColumn, heading.color)
         }
         show(from)
         settingsPageMotion.prepare(
-            forward = to != null,
+            forward = forward,
             split = split,
             distanceWidth = distancePx,
-            unfold = unfold,
+            unfold = true,
             restoreSource = { show(from) },
             showTarget = { show(to) },
         )

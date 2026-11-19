@@ -16,10 +16,12 @@ import com.otokit.noharayh.composition.capturePreferences
 import com.otokit.noharayh.composition.oauthConnections
 import com.otokit.noharayh.preferences.CapturePreferences
 import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors
+import com.otokit.noharayh.ui.kit.common.InfoIconButton
 import com.otokit.noharayh.ui.kit.common.toggle.GroupedSwitchRow
 import com.otokit.noharayh.ui.kit.common.dialog.MessageDialog
 import com.otokit.noharayh.ui.kit.common.dialog.AlternateExplanation
 import com.otokit.noharayh.ui.kit.settings.SettingsButton
+import com.otokit.noharayh.ui.kit.settings.SettingsCard
 import com.otokit.noharayh.ui.kit.settings.SettingsCheckButton
 import com.otokit.noharayh.ui.kit.settings.SettingsCheckButton.State
 import com.otokit.noharayh.ui.kit.settings.SettingsGroup
@@ -30,36 +32,45 @@ import java.util.Date
 
 /** 页面装配连接授权与采集偏好；组件只接收展示内容和操作意图。 */
 internal object ScoreSyncSettingsPage {
-    fun create(context: Context, margin: Int, split: Boolean, openLink: (String) -> Unit): ScrollView {
+    fun create(
+        context: Context,
+        margin: Int,
+        split: Boolean,
+        openLink: (String) -> Unit,
+        openArchive: (ScoreArchiveKind) -> Unit,
+    ): ScrollView {
         val state = ScoreSyncSettingsState(capturePreferences(context))
         val oauth = oauthConnections(context)
-        var infoDialog: MessageDialog? = null
-        lateinit var toggle: GroupedSwitchRow
-        toggle = GroupedSwitchRow(context, context.getString(R.string.settings_capture_keep_callback),
-            true, true, state.keepCallbackCaptureUntilLogin, { enabled ->
-                state.selectKeepCallbackCapture(enabled)
-                toggle.isChecked = state.keepCallbackCaptureUntilLogin
-            }, infoDescription = context.getString(R.string.settings_capture_keep_callback_info), onInfoClick = {
-                if (infoDialog == null) {
-                    infoDialog = MessageDialog(context, R.drawable.ic_info_outline_24,
-                        context.getString(R.string.settings_capture_keep_callback_description),
-                        context.getString(R.string.settings_info_dismiss), null,
-                        accentColor = SettingsComponentColors.TEXT,
-                        alternateExplanation = AlternateExplanation(
-                            context.getString(R.string.settings_capture_keep_callback_plain),
-                            context.getString(R.string.settings_info_plain),
-                            context.getString(R.string.settings_info_technical)), onConfirmed = {}).also { dialog ->
-                        dialog.setOnDismissListener { infoDialog = null }
-                        dialog.showWithin(toggle.rootView.width)
-                    }
-                }
-            })
         val body = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
             clipChildren = false
             clipToPadding = false
             setPadding(if (split) 0 else margin, margin, margin, margin)
         }
+        var infoDialog: MessageDialog? = null
+        fun showInfo(@StringRes technical: Int, @StringRes plain: Int) {
+            if (infoDialog != null) return
+            infoDialog = MessageDialog(context, R.drawable.ic_info_outline_24,
+                context.getString(technical),
+                context.getString(R.string.settings_info_dismiss), null,
+                accentColor = SettingsComponentColors.TEXT,
+                alternateExplanation = AlternateExplanation(
+                    context.getString(plain),
+                    context.getString(R.string.settings_info_plain),
+                    context.getString(R.string.settings_info_technical)), onConfirmed = {}).also { dialog ->
+                dialog.setOnDismissListener { infoDialog = null }
+                dialog.showWithin(body.rootView.width)
+            }
+        }
+
+        lateinit var toggle: GroupedSwitchRow
+        toggle = GroupedSwitchRow(context, context.getString(R.string.settings_capture_keep_callback),
+            true, true, state.keepCallbackCaptureUntilLogin, { enabled ->
+                state.selectKeepCallbackCapture(enabled)
+                toggle.isChecked = state.keepCallbackCaptureUntilLogin
+            }, infoDescription = context.getString(R.string.settings_capture_keep_callback_info), onInfoClick = {
+                showInfo(R.string.settings_capture_keep_callback_description, R.string.settings_capture_keep_callback_plain)
+            })
         val authorizationGroup = SettingsGroup(context)
         val noExpiry = context.getString(R.string.oauth_expiry_unknown)
         val dateFormat = DateFormat.getDateFormat(context)
@@ -90,6 +101,24 @@ internal object ScoreSyncSettingsPage {
             AuthorizationControls(check, expiry)
         }
         body.addView(authorizationGroup, LinearLayout.LayoutParams(-1, -2))
+        body.addView(SettingsGroup(context).apply {
+            for (kind in ScoreArchiveKind.entries) {
+                val title = context.getString(kind.title.chinese)
+                val action = SettingsPageViews.action(context, context.getString(R.string.settings_archive_view)) {
+                    openArchive(kind)
+                }.apply {
+                    contentDescription = context.getString(R.string.settings_archive_view_named, title)
+                }
+                val info = InfoIconButton(context, context.getString(R.string.settings_archive_info, title)) {
+                    when (kind) {
+                        ScoreArchiveKind.Html -> showInfo(R.string.settings_archive_html_technical, R.string.settings_archive_html_plain)
+                        ScoreArchiveKind.Json -> showInfo(R.string.settings_archive_json_technical, R.string.settings_archive_json_plain)
+                    }
+                }
+                addView(SettingsCard(context, R.drawable.ic_archive_record_24, kind.title.chinese,
+                    content = action, headerInfo = info), LinearLayout.LayoutParams(-1, -2))
+            }
+        }, SettingsPageViews.gap(context))
         body.addView(SettingsGroup(context).apply {
             addView(toggle, LinearLayout.LayoutParams(-1, -2))
         }, SettingsPageViews.gap(context))
