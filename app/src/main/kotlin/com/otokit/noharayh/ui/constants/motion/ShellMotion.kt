@@ -88,6 +88,7 @@ object SettingsTransition {
     val KIND: TransitionKind = TransitionKind.ScaleFadeSlide
     const val ENTER_DURATION_MS: Long = 420L
     const val EXIT_DURATION_MS: Long = 300L
+    const val SCRIM_MAX_ALPHA: Float = 0.20f
 
     /** 功能页缩小到的比例。 */
     const val CONTENT_SCALE: Float = 0.70f

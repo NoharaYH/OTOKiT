@@ -13,7 +13,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <!-- 内容场景：原有四层宿主按原顺序放在这里，坐标不变。 -->
+        <!-- 内容场景位于抽屉和外围 UI 下方，坐标不变。 -->
         <FrameLayout
             android:id="@+id/side_bar_content_scene"
             android:layout_width="match_parent"
@@ -31,13 +31,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent" />
 
-            <!-- 外围 UI 宿主：01 阶段为空，不设点击或焦点拦截。 -->
-            <FrameLayout
-                android:id="@+id/chrome_host"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent" />
-
-            <!-- 覆盖层宿主：设置占位使用，初始隐藏。 -->
+            <!-- 设置页面与遮罩共用内容区边界。 -->
             <FrameLayout
                 android:id="@+id/overlay_host"
                 android:layout_width="match_parent"
@@ -45,4 +39,10 @@
                 android:visibility="gone" />
         </FrameLayout>
     </com.otokit.noharayh.ui.chrome.SideBarHost>
+
+    <!-- 手机标题栏位于抽屉上方，宽屏导航栏位于内容区上方。 -->
+    <FrameLayout
+        android:id="@+id/chrome_host"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
 </FrameLayout>
