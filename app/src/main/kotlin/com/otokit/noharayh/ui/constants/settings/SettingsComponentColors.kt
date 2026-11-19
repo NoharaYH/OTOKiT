@@ -9,6 +9,8 @@ internal object SettingsComponentColors {
     const val CONTENT = 0xFFF5F5F5.toInt()
     const val ARCHIVE_SCROLLBAR_TRACK = 0xFFECECEC.toInt()
     const val ARCHIVE_SELECTED_FILL = 0xFFE3F2FD.toInt()
+    const val ARCHIVE_DESELECT_ANCHOR_FILL = 0xFFBBDEFB.toInt()
+    const val ARCHIVE_DESELECT_ANCHOR_TEXT = 0xFF0D47A1.toInt()
     const val TEXT = 0xFF616161.toInt()
     const val TITLE = 0xFF323232.toInt()
     const val MUTED = 0xFFBDBDBD.toInt()

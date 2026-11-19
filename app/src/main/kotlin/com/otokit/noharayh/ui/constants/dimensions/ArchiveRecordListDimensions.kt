@@ -5,4 +5,7 @@ internal object ArchiveRecordListDimensions {
     const val STRIP_ENTRY_WIDTH_FRACTION = .70f
     const val SCROLLBAR_TRACK_INSET_DP = 2
     const val SELECTION_INSET_DP = 2
+    const val RANGE_REVEAL_DP = 48
+    const val RANGE_OVERSHOOT_DP = 14
+    const val RANGE_ICON_DP = 24
 }

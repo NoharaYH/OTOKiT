@@ -53,7 +53,7 @@ internal class ScoreArchivePage(
     private val actions: ScoreArchiveActions,
     onBack: () -> Unit,
 ) : FrameLayout(context) {
-    private val list = ArchiveRecordList(context, context.getString(R.string.settings_archive_scroll))
+    private val list = ArchiveRecordList(context, context.getString(R.string.settings_archive_scroll), ::updateRangeSelection)
     private val status = ViewPrimitives.text(context, "", 14f, SettingsComponentColors.TEXT)
     private var worker: ExecutorService? = null
     private var loaded = false
@@ -88,6 +88,7 @@ internal class ScoreArchivePage(
             deferClick = true, action = ::confirmExport)
         addHeaderAction(R.string.settings_archive_cancel, SettingsComponentColors.TEXT) {
             selected.clear()
+            list.clearRangeAnchor()
             renderSelection()
         }
         card = SettingsCard(context, R.drawable.ic_archive_record_24, kind.title.chinese,
@@ -111,7 +112,18 @@ internal class ScoreArchivePage(
         renderSelection()
     }
 
+    private fun updateRangeSelection(rows: Set<ArchiveRecordList.Row>, select: Boolean) {
+        if (busy) return
+        records.forEach { (batch, row) ->
+            if (row in rows) {
+                if (select) selected.add(batch) else selected.remove(batch)
+            }
+        }
+        renderSelection()
+    }
+
     private fun renderSelection() {
+        list.rangeSelectionEnabled = !busy
         list.setSelection(selected.mapNotNull(records::get).toSet())
         card.setTitle(if (selected.isEmpty()) context.getString(kind.title.chinese)
             else context.getString(R.string.settings_archive_selected, selected.size))
