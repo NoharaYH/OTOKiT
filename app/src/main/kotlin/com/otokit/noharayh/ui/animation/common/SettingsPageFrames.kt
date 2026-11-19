@@ -23,6 +23,21 @@ object SettingsPageFrames {
             width - shown, archiveWidth)
     }
 
+    /** A section switch presents each section at its own settled width. */
+    internal fun splitArchiveProgress(
+        progress: Float,
+        fromArchive: Boolean,
+        toArchive: Boolean,
+        switchesSection: Boolean,
+        entering: Boolean,
+    ): Float {
+        val from = if (fromArchive) 1f else 0f
+        val to = if (toArchive) 1f else 0f
+        return if (switchesSection) {
+            if (entering) to else from
+        } else from + (to - from) * progress
+    }
+
     /** 用父页=0、子页=1 描述同一空间；返回和取消都反向采样，避免两套端点。 */
     fun unfoldPage(progress: Float, entering: Boolean, forward: Boolean, density: Float): TransitionFrame {
         val p = if (forward) progress else 1f - progress

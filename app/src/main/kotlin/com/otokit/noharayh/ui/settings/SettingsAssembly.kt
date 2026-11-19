@@ -260,7 +260,7 @@ class SettingsAssembly(
         childHost.visibility = VISIBLE
         transitioning = true
         forward = to.section != null && (from.section != to.section || from.archive == null || to.archive != null)
-        val resizesSplit = split && ((from.archive == null) != (to.archive == null))
+        val resizesSplit = split && from.section == to.section && ((from.archive == null) != (to.archive == null))
         when {
             resizesSplit && to.archive != null -> runner.reset(SettingsTransition.ENTER_DURATION_MS, SettingsTransition.CURVE)
             resizesSplit -> runner.reset()
@@ -298,33 +298,48 @@ class SettingsAssembly(
     }
 
     private fun renderSplitArchiveFrame(progress: Float) {
-        if (fromPage.section != toPage.section) {
-            childPages[Page(fromPage.section)]?.let { applyPageFrame(it, progress, false) }
-            childPages[Page(toPage.section)]?.let { applyPageFrame(it, progress, true) }
-        }
-        if (fromPage.archive != null && toPage.archive != null) {
-            childPages[fromPage]?.let { applyPageFrame(it, progress, false) }
-            childPages[toPage]?.let { applyPageFrame(it, progress, true) }
-        } else {
-            if (fromPage.archive != null) childPages[fromPage]?.alpha = 1f - progress
-            if (toPage.archive != null) childPages[toPage]?.alpha = progress
+        when {
+            fromPage.section != toPage.section -> {
+                applySplitSectionFrame(fromPage, progress, entering = false)
+                applySplitSectionFrame(toPage, progress, entering = true)
+            }
+            fromPage.archive != null && toPage.archive != null -> {
+                childPages[fromPage]?.let { applyPageFrame(it, progress, false) }
+                childPages[toPage]?.let { applyPageFrame(it, progress, true) }
+            }
+            else -> {
+                if (fromPage.archive != null) childPages[fromPage]?.alpha = 1f - progress
+                if (toPage.archive != null) childPages[toPage]?.alpha = progress
+            }
         }
         layoutSplitPages()
     }
 
-    private fun archiveProgress(): Float = when {
-        !transitioning -> if (current.archive != null) 1f else 0f
-        fromPage.archive != null && toPage.archive != null -> 1f
-        toPage.archive != null -> runner.progress
-        fromPage.archive != null -> 1f - runner.progress
-        else -> 0f
+    private fun applySplitSectionFrame(page: Page, progress: Float, entering: Boolean) {
+        val frame = SettingsPageFrames.unfoldPage(progress, entering, forward, resources.displayMetrics.density)
+        childPages[Page(page.section)]?.let { runner.apply(it, frame) }
+        if (page.archive != null) childPages[page]?.let { runner.apply(it, frame) }
     }
 
     private fun layoutSplitPages() {
         if (width == 0 || childHost.height == 0) return
-        val progress = archiveProgress()
-        val panes = SettingsPageFrames.splitPanes(width, dp(SPLIT_GAP_DP), progress)
+        val from = if (transitioning) fromPage else current
+        val to = if (transitioning) toPage else current
+        val switchesSection = from.section != to.section
+        val outgoingProgress = SettingsPageFrames.splitArchiveProgress(runner.progress, from.archive != null,
+            to.archive != null, switchesSection, entering = false)
+        val incomingProgress = if (switchesSection) {
+            SettingsPageFrames.splitArchiveProgress(runner.progress, from.archive != null,
+                to.archive != null, switchesSection, entering = true)
+        } else outgoingProgress
+        val gap = dp(SPLIT_GAP_DP)
+        val outgoingPanes = SettingsPageFrames.splitPanes(width, gap, outgoingProgress)
+        val incomingPanes = if (incomingProgress == outgoingProgress) outgoingPanes
+            else SettingsPageFrames.splitPanes(width, gap, incomingProgress)
         childPages.forEach { (page, view) ->
+            val enteringSection = switchesSection && page.section == to.section
+            val progress = if (enteringSection) incomingProgress else outgoingProgress
+            val panes = if (enteringSection) incomingPanes else outgoingPanes
             val archive = page.archive != null
             val paneWidth = if (archive) panes.archiveWidth else panes.secondaryWidth
             val left = if (archive) panes.archiveLeft - panes.secondaryLeft else 0
@@ -335,7 +350,7 @@ class SettingsAssembly(
             view.measure(exact(paneWidth), exact(childHost.height))
             view.layout(left, 0, left + paneWidth, childHost.height)
             val shift = view.translationX.roundToInt()
-            view.clipBounds = if (archive && (progress < 1f || shift != 0)) {
+            view.clipBounds = if (archive && !switchesSection && (progress < 1f || shift != 0)) {
                 val clipLeft = (-shift).coerceIn(0, paneWidth)
                 val clipRight = (width - panes.archiveLeft - shift).coerceIn(clipLeft, paneWidth)
                 Rect(clipLeft, 0, clipRight, childHost.height)

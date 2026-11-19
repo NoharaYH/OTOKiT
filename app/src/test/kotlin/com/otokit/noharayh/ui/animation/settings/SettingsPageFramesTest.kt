@@ -5,6 +5,22 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class SettingsPageFramesTest {
+    @Test fun switchingSectionsKeepsTheOutgoingPairCompactAndTheIncomingSectionWide() {
+        val compact = SettingsPageFrames.splitPanes(901, 12, 1f)
+        val wide = SettingsPageFrames.splitPanes(901, 12, 0f)
+        for (step in 0..100) {
+            val progress = step / 100f
+            val departing = SettingsPageFrames.splitArchiveProgress(progress, fromArchive = true,
+                toArchive = false, switchesSection = true, entering = false)
+            val arriving = SettingsPageFrames.splitArchiveProgress(progress, fromArchive = true,
+                toArchive = false, switchesSection = true, entering = true)
+            assertEquals(compact, SettingsPageFrames.splitPanes(901, 12, departing))
+            assertEquals(wide, SettingsPageFrames.splitPanes(901, 12, arriving))
+            assertEquals(1f - progress, SettingsPageFrames.splitArchiveProgress(progress, fromArchive = true,
+                toArchive = false, switchesSection = false, entering = false), 0.00001f)
+        }
+    }
+
     @Test fun archiveAndSecondaryShareTheSameHorizontalBoundaryThroughoutTheTransition() {
         val width = 901
         val gap = 12
