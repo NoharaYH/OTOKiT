@@ -32,6 +32,7 @@ open class NetCaptureService : VpnService() {
         private set
     private lateinit var coordinator: CaptureTaskCoordinator
     private var observation: Closeable? = null
+    @Volatile private var destroyed = false
     private val main = Handler(Looper.getMainLooper())
     private val timeout = Runnable { coordinator.cancel(timedOut = true) }
 
@@ -71,12 +72,18 @@ open class NetCaptureService : VpnService() {
             } catch (error: Exception) { proxy.close(); descriptor?.close(); throw error }
         })
         observation = coordinator.observe { snapshot ->
-            if (snapshot.request.uploadTargets.isNotEmpty() && (snapshot.stage == CaptureStage.UPLOADING || snapshot.terminal)) {
-                val report = UploadReport(snapshot.request.launchId, snapshot.startedAt, snapshot.stage, snapshot.uploads)
-                main.post { UploadReports.publish(snapshot.request.game, report) }
+            if (snapshot.request.uploadTargets.isNotEmpty()) {
+                val at = java.time.Instant.now()
+                main.post { UploadReports.publish(snapshot, at) }
             }
-            runCatching { onSnapshot(snapshot) }.onFailure { Log.w("NetCapture", "Diagnostic projection failed: ${it.javaClass.simpleName}") }
-            if (snapshot.terminal) main.post { main.removeCallbacks(timeout); stopSelf() }
+            if (!destroyed) runCatching { onSnapshot(snapshot) }.onFailure { Log.w("NetCapture", "Diagnostic projection failed: ${it.javaClass.simpleName}") }
+            if (snapshot.terminal) main.post {
+                if (destroyed) observation?.close()
+                else if (coordinator.snapshot()?.request?.launchId == snapshot.request.launchId) {
+                    main.removeCallbacks(timeout)
+                    stopSelf()
+                }
+            }
         }
     }
 
@@ -95,11 +102,14 @@ open class NetCaptureService : VpnService() {
                     intent?.getStringExtra("upload.${provider.name}")?.let { UploadTarget(provider, it) }
                 })
         }.getOrNull()
-        if (request == null) { if (coordinator.snapshot()?.terminal != false) stopSelf() }
-        else if (coordinator.start(request) == CaptureStartResult.ACCEPTED) {
+        val result = request?.let(coordinator::start) ?: CaptureStartResult.INVALID_REQUEST
+        @Suppress("DEPRECATION")
+        val receiver = intent?.getParcelableExtra<ResultReceiver>("startResult")
+        receiver?.send(result.ordinal, null)
+        if (result == CaptureStartResult.ACCEPTED) {
             main.removeCallbacks(timeout)
             main.postDelayed(timeout, 10 * 60_000L)
-        } else if (coordinator.snapshot() == null) stopSelf()
+        } else if (coordinator.snapshot()?.terminal != false) stopSelf()
         return START_NOT_STICKY
     }
 
@@ -121,19 +131,22 @@ open class NetCaptureService : VpnService() {
     override fun onRevoke() { coordinator.cancel(); super.onRevoke() }
     override fun onTimeout(startId: Int, fgsType: Int) { coordinator.cancel(timedOut = true) }
     override fun onDestroy() {
-        main.removeCallbacksAndMessages(null)
+        destroyed = true
+        main.removeCallbacks(timeout)
         coordinator.close()
-        observation?.close()
+        // A cancelled worker still has to publish its confirmed terminal state.
+        if (coordinator.snapshot() == null) observation?.close()
         stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()
     }
 
     companion object {
         /** Call from a visible Android entry after VpnService.prepare has been approved. */
-        fun startIntent(context: Context, request: CaptureRequest) = Intent(context, NetCaptureService::class.java)
+        fun startIntent(context: Context, request: CaptureRequest, result: ResultReceiver? = null) = Intent(context, NetCaptureService::class.java)
             .putExtra("game", request.game.key).putExtra("pageKinds", request.difficulties.map { it.name }.toTypedArray())
             .putExtra("launchId", request.launchId)
             .putExtra("keepCallbackCaptureUntilLogin", request.keepCallbackCaptureUntilLogin)
+            .putExtra("startResult", result)
             .apply {
                 request.uploadTargets.forEach { putExtra("upload.${it.provider.name}", it.subject) }
             }

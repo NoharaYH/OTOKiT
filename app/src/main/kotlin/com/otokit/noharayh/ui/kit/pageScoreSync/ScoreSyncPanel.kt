@@ -38,6 +38,7 @@ internal class ScoreSyncPanel(
     }
     private val start = ScoreSyncButton(context, context.getString(R.string.sync_start), false, onStart)
     private val log = FrameLayout(context)
+    private val logBody = PanelScroll(context)
     private val message = ViewPrimitives.text(context, "", 14f, 0xffd2d2d7.toInt())
     private val copy: ScoreSyncCopyButton
     private var wide: Boolean? = null
@@ -81,9 +82,7 @@ internal class ScoreSyncPanel(
         title.addOnLayoutChangeListener { _, _, top, _, bottom, _, _, _, _ ->
             copy.translationY = (top + bottom - hitSize) / 2f
         }
-        val logBody = PanelScroll(context).apply {
-            addView(message, LayoutParams(-1, -2))
-        }
+        logBody.addView(message, LayoutParams(-1, -2))
         logContent.addView(logBody, LinearLayout.LayoutParams(-1, 0, 1f).apply { topMargin = dp(12) })
         message.accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
         setWide(false)
@@ -129,7 +128,11 @@ internal class ScoreSyncPanel(
         grid.render(selected, interactive)
         start.render(accent, startAvailable, startAvailable, interactive)
         copy.isEnabled = interactive
-        if (message.text != status) message.text = status
+        if (message.text != status) {
+            val following = !logBody.canScrollVertically(1)
+            message.text = status
+            if (following) logBody.post { logBody.scrollTo(0, message.height) }
+        }
     }
 }
 

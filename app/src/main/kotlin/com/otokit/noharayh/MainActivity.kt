@@ -21,6 +21,8 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.otokit.noharayh.ui.shell.StartupPresentation
 import com.otokit.noharayh.databinding.ActivityMainBinding
 import com.otokit.noharayh.composition.oauthConnections
+import com.otokit.noharayh.composition.scoreSyncStartState
+import com.otokit.noharayh.platform.ScoreSyncLauncher
 import com.otokit.noharayh.platform.DisplayScaleStore
 import com.otokit.noharayh.platform.WindowOrientationController
 import com.otokit.noharayh.platform.restoreColorOsPredictiveBackProgress
@@ -48,6 +50,7 @@ class MainActivity : AppCompatActivity() {
     private var backCallback: OnBackPressedCallback? = null
     private var windowObserver: WindowEnvironmentObserver? = null
     private var orientationController: WindowOrientationController? = null
+    private var scoreSyncLauncher: ScoreSyncLauncher? = null
     private var resetTransientOnResume = false
     private var reopenSettingsAfterRecreate = false
     private var restoreSettingsAfterRecreate = false
@@ -82,6 +85,7 @@ class MainActivity : AppCompatActivity() {
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
         val systemSplash = installSplashScreen()
         super.onCreate(savedInstanceState)
+        scoreSyncLauncher = ScoreSyncLauncher(this, scoreSyncStartState(this))
         // 显式浅底深色内容，不使用按模式自动判断的另一套回调。
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
@@ -193,6 +197,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        scoreSyncLauncher?.setResumed(true)
         if (resetTransientOnResume) {
             resetTransientOnResume = false
             shell?.resetTransientSettingsAfterRestore()
@@ -208,8 +213,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onPause() {
+        scoreSyncLauncher?.setResumed(false)
         shell?.setBackgroundResumed(false)
         super.onPause()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) scoreSyncLauncher?.onWindowFocusChanged()
     }
 
     override fun onStop() {
@@ -268,6 +279,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        scoreSyncLauncher?.close()
+        scoreSyncLauncher = null
         startup?.finish()
         startup = null
         windowObserver?.dispose()
