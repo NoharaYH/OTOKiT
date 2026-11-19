@@ -259,7 +259,7 @@ class SettingsAssembly(
         rootPage.visibility = if (split || from.section == null || to.section == null) VISIBLE else INVISIBLE
         childHost.visibility = VISIBLE
         transitioning = true
-        forward = to.section != null && (from.section != to.section || from.archive == null)
+        forward = to.section != null && (from.section != to.section || from.archive == null || to.archive != null)
         val resizesSplit = split && ((from.archive == null) != (to.archive == null))
         when {
             resizesSplit && to.archive != null -> runner.reset(SettingsTransition.ENTER_DURATION_MS, SettingsTransition.CURVE)
@@ -302,8 +302,13 @@ class SettingsAssembly(
             childPages[Page(fromPage.section)]?.let { applyPageFrame(it, progress, false) }
             childPages[Page(toPage.section)]?.let { applyPageFrame(it, progress, true) }
         }
-        if (fromPage.archive != null) childPages[fromPage]?.alpha = 1f - progress
-        if (toPage.archive != null) childPages[toPage]?.alpha = progress
+        if (fromPage.archive != null && toPage.archive != null) {
+            childPages[fromPage]?.let { applyPageFrame(it, progress, false) }
+            childPages[toPage]?.let { applyPageFrame(it, progress, true) }
+        } else {
+            if (fromPage.archive != null) childPages[fromPage]?.alpha = 1f - progress
+            if (toPage.archive != null) childPages[toPage]?.alpha = progress
+        }
         layoutSplitPages()
     }
 
@@ -329,7 +334,12 @@ class SettingsAssembly(
             }
             view.measure(exact(paneWidth), exact(childHost.height))
             view.layout(left, 0, left + paneWidth, childHost.height)
-            view.clipBounds = if (archive && progress < 1f) Rect(0, 0, width - panes.archiveLeft, childHost.height) else null
+            val shift = view.translationX.roundToInt()
+            view.clipBounds = if (archive && (progress < 1f || shift != 0)) {
+                val clipLeft = (-shift).coerceIn(0, paneWidth)
+                val clipRight = (width - panes.archiveLeft - shift).coerceIn(clipLeft, paneWidth)
+                Rect(clipLeft, 0, clipRight, childHost.height)
+            } else null
         }
     }
 
