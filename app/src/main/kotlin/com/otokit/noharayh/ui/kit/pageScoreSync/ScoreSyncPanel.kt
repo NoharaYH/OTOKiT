@@ -1,15 +1,12 @@
 package com.otokit.noharayh.ui.kit.pageScoreSync
 
 import android.content.Context
-import android.content.res.ColorStateList
 import android.graphics.Color
-import android.graphics.drawable.RippleDrawable
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import com.otokit.noharayh.R
@@ -42,14 +39,7 @@ internal class ScoreSyncPanel(
     private val start = ScoreSyncButton(context, context.getString(R.string.sync_start), false, onStart)
     private val log = FrameLayout(context)
     private val message = ViewPrimitives.text(context, "", 14f, 0xffd2d2d7.toInt())
-    private val copy = ImageButton(context).apply {
-        contentDescription = context.getString(R.string.sync_copy_log)
-        setImageResource(R.drawable.ic_content_copy_24)
-        setColorFilter(Color.WHITE)
-        background = RippleDrawable(ColorStateList.valueOf(0x40ffffff), null, null)
-        scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
-        setOnClickListener { onCopy(message.text) }
-    }
+    private val copy: ScoreSyncCopyButton
     private var wide: Boolean? = null
 
     init {
@@ -84,7 +74,7 @@ internal class ScoreSyncPanel(
         // 标题先独立排版。图标按字高对齐，透明热区不参与标题测量。
         val glyphSize = title.textSize.toInt().coerceAtMost(hitSize)
         val iconInset = (hitSize - glyphSize) / 2
-        copy.setPadding(iconInset, iconInset, iconInset, iconInset)
+        copy = ScoreSyncCopyButton(context, glyphSize) { onCopy(message.text) }
         log.addView(copy, LayoutParams(hitSize, hitSize, Gravity.TOP or Gravity.END).apply {
             marginEnd = corner - iconInset
         })

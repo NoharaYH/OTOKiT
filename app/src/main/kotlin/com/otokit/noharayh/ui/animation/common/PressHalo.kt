@@ -23,10 +23,11 @@ import com.otokit.noharayh.ui.constants.motion.PressHaloSpec as Spec
  */
 internal class PressHalo(private val host: View,
     private val buildPath: (Path, RectF, Float, Float) -> Unit = ContinuousRoundedPath()::setPath,
+    color: Int = Color.argb(Spec.ALPHA, 0, 0, 0),
 ) {
     private val density = host.resources.displayMetrics.density
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.argb(Spec.ALPHA, 0, 0, 0)
+        this.color = color
     }
     private val rect = RectF()
     private val path = Path()
