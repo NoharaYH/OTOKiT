@@ -20,5 +20,8 @@ object AppFonts {
 
         /** 英文标题：ROG Sans UB，已是标题字形，不再叠加合成粗体。 */
         EnglishTitle(ENGLISH_TITLE_ASSET_PATH),
+
+        /** Flutter MorisawaUD，收录六个中二难度名称使用的字形。 */
+        ChuDifficulty("fonts/morisawa_ud_chu_labels.ttf"),
     }
 }

@@ -11,9 +11,12 @@ import android.graphics.Shader
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
+import android.widget.TextView
 import androidx.core.graphics.ColorUtils
 import com.otokit.noharayh.ui.animation.common.ContentTransition
 import com.otokit.noharayh.ui.constants.motion.ContainerMotion
+import com.otokit.noharayh.ui.constants.typography.AppFonts
+import com.otokit.noharayh.ui.kit.common.AppTypography
 import com.otokit.noharayh.ui.kit.common.PressSurface
 import com.otokit.noharayh.ui.kit.common.ViewPrimitives
 
@@ -25,7 +28,11 @@ internal enum class ChuDifficulty(val label: String, val border: Int) {
 
 internal class ChuDifficultyButton(context: Context, private val difficulty: ChuDifficulty) : PressSurface(context) {
     private val density = resources.displayMetrics.density
-    private val caption = ViewPrimitives.text(context, difficulty.label, 18f, Color.WHITE, bold = true)
+    private val caption = TextView(context).apply {
+        text = difficulty.label
+        includeFontPadding = false
+        AppTypography.apply(this, AppFonts.Role.ChuDifficulty)
+    }
     private val dimBorder = DifficultySelectionColors.dim(difficulty.border)
     private val dimText = DifficultySelectionColors.dim(Color.WHITE)
     private val selection = ContentTransition(0f, ContainerMotion.CONTENT,
