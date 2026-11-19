@@ -93,12 +93,12 @@ class ScoreSyncStartTest : UiComponentTestHost() {
                 assertFalse(report.terminal)
                 assertTrue(report.log.any { (it.event as? com.otokit.noharayh.transfer.TransferEvent.Stage)
                     ?.stage == com.otokit.noharayh.transfer.CaptureStage.WAITING_WECHAT })
-                activity.startActivity(Intent(activity, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
             }
-            instrumentation.waitForIdleSync()
+            returnToHost(awaitDeparture = true)
             main {
                 val entry = activity.getSystemService(ClipboardManager::class.java).primaryClip?.getItemAt(0)?.text?.toString()
-                assertTrue("Entry was not copied", entry?.startsWith("http://127.0.0.2:8284/") == true)
+                assertTrue("Entry was not copied: null=${entry == null}, length=${entry?.length}, " +
+                    "focused=${activity.hasWindowFocus()}", entry?.startsWith("http://127.0.0.2:8284/") == true)
                 assertNull(state.pending)
             }
         } finally {
@@ -107,15 +107,49 @@ class ScoreSyncStartTest : UiComponentTestHost() {
                 if (UploadReports.latest(game)?.taskId == id) {
                     activity.startService(Intent(activity, NetCaptureService::class.java).setAction("stop"))
                 }
-                activity.startActivity(Intent(activity, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
             }
             stopped.await(5, TimeUnit.SECONDS)
-            instrumentation.waitForIdleSync()
+            returnToHost()
             main {
                 reports?.close()
                 val clipboard = activity.getSystemService(ClipboardManager::class.java)
                 previousClip?.let(clipboard::setPrimaryClip) ?: clipboard.clearPrimaryClip()
             }
         }
+    }
+
+    private fun returnToHost(awaitDeparture: Boolean = false) {
+        if (awaitDeparture) {
+            val departed = CountDownLatch(1)
+            main {
+                if (!activity.hasWindowFocus()) departed.countDown()
+                else activity.window.decorView.viewTreeObserver.addOnWindowFocusChangeListener(
+                    object : android.view.ViewTreeObserver.OnWindowFocusChangeListener {
+                        override fun onWindowFocusChanged(hasFocus: Boolean) {
+                            if (!hasFocus) {
+                                activity.window.decorView.viewTreeObserver.removeOnWindowFocusChangeListener(this)
+                                departed.countDown()
+                            }
+                        }
+                    })
+            }
+            assertTrue("WeChat did not take window focus", departed.await(5, TimeUnit.SECONDS))
+        }
+        val focused = CountDownLatch(1)
+        main {
+            activity.startActivity(Intent(activity, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT))
+            if (activity.hasWindowFocus()) focused.countDown()
+            else activity.window.decorView.viewTreeObserver.addOnWindowFocusChangeListener(
+                object : android.view.ViewTreeObserver.OnWindowFocusChangeListener {
+                    override fun onWindowFocusChanged(hasFocus: Boolean) {
+                        if (hasFocus) {
+                            activity.window.decorView.viewTreeObserver.removeOnWindowFocusChangeListener(this)
+                            focused.countDown()
+                        }
+                    }
+                })
+        }
+        assertTrue("Host did not regain window focus", focused.await(5, TimeUnit.SECONDS))
+        instrumentation.waitForIdleSync()
     }
 }
