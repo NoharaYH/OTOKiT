@@ -46,7 +46,7 @@ data class HtmlBatchRecord(
 
 /** The score boundary owns paths and indexes. Consumers exchange stable references. */
 interface HtmlCaptures {
-    fun begin(game: ScoreGame, expected: List<HtmlPageKind>, taskId: String): HtmlBatchRef
+    fun begin(game: ScoreGame, expected: List<HtmlPageKind>, taskId: String, startedAt: Instant = Instant.now()): HtmlBatchRef
     fun save(batch: HtmlBatchRef, kind: HtmlPageKind, source: InputStream, cancelled: () -> Boolean): HtmlPageRef
     fun open(page: HtmlPageRef): InputStream
     fun recordEvidence(page: HtmlPageRef, evidence: HtmlPageEvidence)

@@ -16,9 +16,12 @@ import org.json.JSONObject
 import java.io.Closeable
 import java.io.IOException
 import java.util.concurrent.Executors
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
 
-data class OAuthAccount(val name: String?, val grantedScopes: Set<String>, val refreshExpiresAt: Long?)
+data class OAuthAccount(val name: String?, val grantedScopes: Set<String>, val refreshExpiresAt: Long?, val subject: String)
+
+class ScoreGrantUnavailable(val reason: OAuthAuthorizationCheck) : Exception()
 
 enum class OAuthFeedback {
     AUTHORIZED, CANCELLED, INVALID_CALLBACK, NETWORK_ERROR, REJECTED, LOCAL_ERROR,
@@ -56,6 +59,43 @@ class OAuthConnections internal constructor(context: Context) {
     }
 
     fun account(provider: OAuthProvider): OAuthAccount? = accounts[provider]
+
+    /** Blocking worker API. Only the access token leaves auth, scoped to the account that started the task. */
+    fun scoreAccessToken(provider: OAuthProvider, subject: String, scope: String): String {
+        val result = worker.submit<String> {
+            val key = accountKey(provider)
+            val account = store.read(key)
+            if (subject.isBlank() || account?.optString("sub") != subject) {
+                throw ScoreGrantUnavailable(OAuthAuthorizationCheck.INVALID)
+            }
+            fun checkScope() {
+                if (scope !in account.toAccount().grantedScopes) {
+                    throw ScoreGrantUnavailable(OAuthAuthorizationCheck.PERMISSION_DENIED)
+                }
+            }
+            checkScope()
+            if (account.getLong("expires") <= System.currentTimeMillis() + 30_000L) {
+                if ((account.refreshExpiry() ?: 0) <= System.currentTimeMillis()) {
+                    throw ScoreGrantUnavailable(OAuthAuthorizationCheck.INVALID)
+                }
+                try {
+                    refresh(provider, account)
+                } catch (failure: OAuthRejected) {
+                    main.post { reportAuthorizationCheck(provider, failure.checkResult) }
+                    throw ScoreGrantUnavailable(failure.checkResult)
+                }
+                store.write(key, account)
+                publish(provider, account.toAccount(), OAuthAuthorizationCheck.VALID)
+                checkScope()
+            }
+            account.getString("accessToken")
+        }
+        return try {
+            result.get()
+        } catch (failure: ExecutionException) {
+            throw (failure.cause ?: failure)
+        }
+    }
 
     fun authorizationCheck(provider: OAuthProvider): OAuthAuthorizationCheck =
         authorizationChecks[provider] ?: OAuthAuthorizationCheck.UNCHECKED
@@ -285,6 +325,7 @@ class OAuthConnections internal constructor(context: Context) {
         name = optString("name").takeIf(String::isNotBlank),
         grantedScopes = optString("scope").split(' ').filter(String::isNotBlank).toSet(),
         refreshExpiresAt = refreshExpiry(),
+        subject = optString("sub"),
     )
 
     private fun JSONObject.refreshExpiry(): Long? {

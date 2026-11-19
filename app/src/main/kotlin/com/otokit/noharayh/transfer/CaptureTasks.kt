@@ -2,21 +2,24 @@ package com.otokit.noharayh.transfer
 
 import com.otokit.noharayh.score.*
 import java.io.Closeable
+import java.time.Instant
 
 data class CaptureRequest(
     val game: ScoreGame,
     val difficulties: List<HtmlPageKind>,
     val launchId: String,
     val keepCallbackCaptureUntilLogin: Boolean = false,
+    val uploadTargets: List<UploadTarget> = emptyList(),
 )
-enum class CaptureStage { PREPARING, WAITING_WECHAT, LOGIN, FETCHING, COMPLETED, FAILED, CANCELLED, TIMED_OUT }
-enum class CaptureFailure { NETWORK, BUSINESS, INVALID_PAGE, STORAGE, PLATFORM, INTERRUPTED }
+enum class CaptureStage { PREPARING, WAITING_WECHAT, LOGIN, FETCHING, UPLOADING, COMPLETED, PARTIAL, FAILED, CANCELLED, TIMED_OUT }
+enum class CaptureFailure { NETWORK, BUSINESS, INVALID_PAGE, STORAGE, PLATFORM, INTERRUPTED, UPLOAD }
 enum class CaptureProtocolIssue { FORM_TOKEN_MISSING, FORM_TOKEN_VALUE_MISSING, UNEXPECTED_PAGE_REDIRECT, NON_HTML_RESPONSE, AUTOMATIC_REPLAY_BLOCKED, REDIRECT_LOOP }
 data class CaptureHttpTrace(val method: String, val endpoint: String, val status: Int, val protocol: String,
                             val tlsVersion: String?, val redirectEndpoint: String?, val elapsedMs: Long)
 data class CapturedHtml(val page: HtmlPageRef, val evidence: HtmlPageEvidence, val responseStatus: Int)
 data class CaptureSnapshot(
     val request: CaptureRequest,
+    val startedAt: Instant,
     val stage: CaptureStage = CaptureStage.PREPARING,
     val batch: HtmlBatchRef? = null,
     val pages: List<CapturedHtml> = emptyList(),
@@ -35,8 +38,9 @@ data class CaptureSnapshot(
     val failureLocation: String? = null,
     val protocolIssue: CaptureProtocolIssue? = null,
     val httpStatus: Int? = null,
+    val uploads: List<UploadPageResult> = emptyList(),
 ) {
-    val terminal: Boolean get() = stage in listOf(CaptureStage.COMPLETED, CaptureStage.FAILED, CaptureStage.CANCELLED, CaptureStage.TIMED_OUT)
+    val terminal: Boolean get() = stage in listOf(CaptureStage.COMPLETED, CaptureStage.PARTIAL, CaptureStage.FAILED, CaptureStage.CANCELLED, CaptureStage.TIMED_OUT)
 }
 enum class CaptureStartResult { ACCEPTED, ALREADY_RUNNING, INVALID_REQUEST }
 

@@ -5,6 +5,7 @@ import com.otokit.noharayh.transfer.*
 import com.otokit.noharayh.transfer.net.*
 import java.io.Closeable
 import java.net.URI
+import java.time.Instant
 import java.util.Collections
 import java.util.UUID
 import java.util.concurrent.ArrayBlockingQueue
@@ -24,8 +25,10 @@ internal class CaptureTaskCoordinator(
     private val newSession: (() -> NetSession)? = null,
     private val loginDelayMs: Long = 6000,
     private val pageDelayMs: Long = 1200,
+    private val newUploadTask: (((Closeable) -> Unit) -> BatchUploadTask)? = null,
 ) : CaptureTasks, Closeable {
     private class Job(val request: CaptureRequest) {
+        val startedAt: Instant = Instant.now()
         val lease = UUID.randomUUID().toString()
         val cancelled = AtomicBoolean(false)
         val callbacks = ArrayBlockingQueue<URI>(1)
@@ -33,6 +36,7 @@ internal class CaptureTaskCoordinator(
         var finishing = false
         @Volatile var channel: CaptureChannel? = null
         @Volatile var session: NetSession? = null
+        @Volatile var uploadCall: Closeable? = null
         lateinit var thread: Thread
     }
     private val lock = Any()
@@ -51,15 +55,21 @@ internal class CaptureTaskCoordinator(
 
     override fun start(request: CaptureRequest): CaptureStartResult {
         val allowed = GameNetPages.difficulties(request.game)
+        if (request.uploadTargets.isNotEmpty() && (newUploadTask == null ||
+                request.uploadTargets.any { it.subject.isBlank() } ||
+                request.uploadTargets.distinctBy { it.provider }.size != request.uploadTargets.size)) {
+            return CaptureStartResult.INVALID_REQUEST
+        }
         if (request.launchId.isBlank() || request.difficulties.isEmpty() || request.difficulties.distinct().size != request.difficulties.size ||
             request.difficulties.any { it !in allowed }) return CaptureStartResult.INVALID_REQUEST
         synchronized(lock) {
             if (closed || job != null) return CaptureStartResult.ALREADY_RUNNING
-            val fixed = request.copy(difficulties = Collections.unmodifiableList(request.difficulties.toList()))
+            val fixed = request.copy(difficulties = Collections.unmodifiableList(request.difficulties.toList()),
+                uploadTargets = Collections.unmodifiableList(request.uploadTargets.toList()))
             val current = Job(fixed)
             if (!lease.compareAndSet(null, current.lease)) return CaptureStartResult.ALREADY_RUNNING
             job = current
-            state = CaptureSnapshot(fixed, totalPages = fixed.difficulties.size + 2)
+            state = CaptureSnapshot(fixed, current.startedAt, totalPages = fixed.difficulties.size + 2)
             current.thread = Thread({ execute(current) }, "NetCaptureTask")
             current.thread.start()
         }
@@ -77,11 +87,13 @@ internal class CaptureTaskCoordinator(
         }
         runCatching { current.channel?.close() }
         runCatching { current.session?.close() }
+        current.uploadCall?.close()
         current.thread.interrupt()
     }
 
     private fun execute(current: Job) {
         var batch: HtmlBatchRef? = null
+        var archiveCompleted = false
         var stage = CaptureStage.COMPLETED
         var failure: CaptureFailure? = null
         var code: String? = null
@@ -92,7 +104,8 @@ internal class CaptureTaskCoordinator(
         try {
             checkActive(current)
             archives.recoverInterrupted()
-            batch = archives.begin(current.request.game, listOf(HtmlPageKind.PLAYER, HtmlPageKind.RECENT) + current.request.difficulties, current.request.launchId)
+            batch = archives.begin(current.request.game, listOf(HtmlPageKind.PLAYER, HtmlPageKind.RECENT) + current.request.difficulties,
+                current.request.launchId, current.startedAt)
             update(current) { it.copy(batch = batch) }
             val session = (newSession?.invoke() ?: GameNetClient(
                 onRetry = { update(current) { it.copy(networkRetries = it.networkRetries + 1) } },
@@ -136,6 +149,24 @@ internal class CaptureTaskCoordinator(
                 if (index < plan.lastIndex) Thread.sleep(pageDelayMs)
             }
             checkActive(current)
+            if (current.request.uploadTargets.isNotEmpty()) {
+                archives.finish(batch, HtmlBatchStatus.COMPLETED)
+                archiveCompleted = true
+                session.close()
+                current.session = null
+                update(current) { it.copy(stage = CaptureStage.UPLOADING, currentPage = null) }
+                val uploads = requireNotNull(newUploadTask).invoke { call ->
+                    current.uploadCall = call
+                    if (current.cancelled.get()) call.close()
+                }
+                stage = uploads.run(current.request, archives.read(batch), { checkActive(current) }) { result ->
+                    update(current) { state ->
+                        val prior = state.uploads.filterNot { it.provider == result.provider && it.page == result.page }
+                        state.copy(uploads = Collections.unmodifiableList(prior + result))
+                    }
+                }
+                if (stage == CaptureStage.FAILED) failure = CaptureFailure.UPLOAD
+            }
         } catch (error: Exception) {
             val causes = generateSequence<Throwable>(error) { it.cause }.take(5).toList()
             failureClass = causes.joinToString("/") { it.javaClass.simpleName }
@@ -165,7 +196,7 @@ internal class CaptureTaskCoordinator(
             runCatching { current.session?.close() }; current.session = null
             // Interrupted threads must still persist their terminal index.
             Thread.interrupted()
-            batch?.let {
+            batch?.takeUnless { archiveCompleted }?.let {
                 runCatching { archives.finish(it, when (stage) {
                     CaptureStage.COMPLETED -> HtmlBatchStatus.COMPLETED
                     CaptureStage.CANCELLED -> HtmlBatchStatus.CANCELLED

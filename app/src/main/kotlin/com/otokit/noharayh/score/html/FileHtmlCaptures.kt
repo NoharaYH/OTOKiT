@@ -18,9 +18,9 @@ import java.util.Collections
 class FileHtmlCaptures(private val root: File) : HtmlCaptures {
     private val stamp = DateTimeFormatter.ofPattern("yyyyMMddHHmmss").withZone(ZoneId.systemDefault())
 
-    @Synchronized override fun begin(game: ScoreGame, expected: List<HtmlPageKind>, taskId: String): HtmlBatchRef {
+    @Synchronized override fun begin(game: ScoreGame, expected: List<HtmlPageKind>, taskId: String, startedAt: Instant): HtmlBatchRef {
         require(expected.isNotEmpty() && expected.distinct().size == expected.size)
-        val batch = HtmlBatchRef("${System.currentTimeMillis()}-${UUID.randomUUID().toString().take(8)}", game, Instant.now())
+        val batch = HtmlBatchRef("${startedAt.toEpochMilli()}-${UUID.randomUUID().toString().take(8)}", game, startedAt)
         val directory = directory(batch)
         check(directory.mkdirs())
         writeIndex(directory, Properties().apply {
@@ -28,7 +28,7 @@ class FileHtmlCaptures(private val root: File) : HtmlCaptures {
             setProperty("game", game.name)
             setProperty("taskId", taskId)
             setProperty("startedAt", batch.startedAt.toString())
-            setProperty("fileStamp", stamp.format(batch.startedAt))
+            setProperty("fileStamp", stamp.format(startedAt))
             setProperty("identity", "UNIDENTIFIED")
             setProperty("status", HtmlBatchStatus.RUNNING.name)
             setProperty("expected", expected.joinToString(",") { it.name })
@@ -41,8 +41,9 @@ class FileHtmlCaptures(private val root: File) : HtmlCaptures {
         val index = readIndex(directory)
         check(index.getProperty("status") == HtmlBatchStatus.RUNNING.name)
         require(kind.isDiagnostic || kind.name in index.getProperty("expected").split(','))
-        val prefix = if (batch.game == ScoreGame.MAIMAI) "MaiRecord" else "ChuniRecord"
-        val name = "${prefix}_HTML_${index.getProperty("fileStamp")}_${kind.suffix}.html"
+        val prefix = if (batch.game == ScoreGame.MAIMAI) "MaiRecord" else "ChuRecord"
+        val fileStamp = index.getProperty("fileStamp")
+        val name = "${prefix}_HTML_${fileStamp}_${kind.suffix}.html"
         val saved = RawHtmlArchive(directory).save(name, source, cancelled)
         val page = HtmlPageRef(batch, kind, name, saved.bytes, saved.sha256, Instant.now())
         index.setProperty("page.${kind.name}.file", name)

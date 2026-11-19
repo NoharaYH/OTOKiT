@@ -41,6 +41,7 @@ class CaptureTaskCoordinatorTest {
             val result = tasks.snapshot()!!
             assertEquals(CaptureStage.COMPLETED, result.stage)
             assertEquals(3, result.pages.size)
+            assertEquals(result.startedAt, result.batch!!.startedAt)
             assertEquals(1, result.pages.last().evidence.scoreCount)
             assertEquals(1, closes.get())
             assertTrue(session.closed)

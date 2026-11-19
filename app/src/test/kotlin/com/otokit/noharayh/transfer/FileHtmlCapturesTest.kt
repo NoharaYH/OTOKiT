@@ -7,6 +7,8 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.File
+import java.time.LocalDateTime
+import java.time.ZoneId
 import java.util.Properties
 
 class FileHtmlCapturesTest {
@@ -16,10 +18,11 @@ class FileHtmlCapturesTest {
 
     @Test fun canonicalNamesRoundTripAndIndexRequireVerifiedPages() {
         val store = FileHtmlCaptures(temp.root)
-        val batch = store.begin(ScoreGame.CHUNITHM, listOf(HtmlPageKind.MASTER, HtmlPageKind.ULTIMA), "task")
+        val startedAt = LocalDateTime.of(2026, 11, 19, 14, 31, 18).atZone(ZoneId.systemDefault()).toInstant()
+        val batch = store.begin(ScoreGame.CHUNITHM, listOf(HtmlPageKind.MASTER, HtmlPageKind.ULTIMA), "task", startedAt)
         val master = store.save(batch, HtmlPageKind.MASTER, "<html>score</html>".byteInputStream()) { false }
         val ultima = store.save(batch, HtmlPageKind.ULTIMA, "<html>empty</html>".byteInputStream()) { false }
-        assertTrue(master.fileName.matches(Regex("ChuniRecord_HTML_[0-9]{14}_Master.html")))
+        assertEquals("ChuRecord_HTML_20261119143118_Master.html", master.fileName)
         assertEquals(master.fileName.substringBeforeLast('_'), ultima.fileName.substringBeforeLast('_'))
         assertEquals("<html>score</html>", store.open(master).bufferedReader().use { it.readText() })
         assertThrows(IllegalStateException::class.java) { store.finish(batch, HtmlBatchStatus.COMPLETED) }

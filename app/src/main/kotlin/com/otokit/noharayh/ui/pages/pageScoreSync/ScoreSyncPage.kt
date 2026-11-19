@@ -13,6 +13,8 @@ import com.otokit.noharayh.auth.OAuthAuthorizationCheck
 import com.otokit.noharayh.auth.OAuthConnections
 import com.otokit.noharayh.auth.OAuthProvider
 import com.otokit.noharayh.composition.oauthConnections
+import com.otokit.noharayh.score.ScoreGame
+import com.otokit.noharayh.transfer.UploadReports
 import com.otokit.noharayh.ui.kit.common.PageContent
 import com.otokit.noharayh.ui.kit.pageScoreSync.ChuDifficulty
 import com.otokit.noharayh.ui.kit.pageScoreSync.ChuDifficultyButton
@@ -40,6 +42,10 @@ internal object ScoreSyncPage {
             mai.render()
             chu.render()
         }
+        val reports = UploadReports.observe {
+            mai.render()
+            chu.render()
+        }
         val root = ScoreSyncSwipeLayout(context, pageSwipe).apply { addView(pair) }
         // 字标使用标准显示档。窗口真实尺寸改变时仍可切换手机／平板字号。
         val standardDensity = DisplayScale.densityDpi(
@@ -62,7 +68,7 @@ internal object ScoreSyncPage {
                 mai.setAccent(left)
                 chu.setAccent(right)
             },
-            disposeAction = subscription::close,
+            disposeAction = { reports.close(); subscription.close() },
         )
     }
 }
@@ -130,7 +136,9 @@ private class GameForm(private val context: Context, private val oauth: OAuthCon
             SyncTarget.Snow -> snow
             SyncTarget.Both -> null
         }
+        val report = UploadReports.latest(if (mai) ScoreGame.MAIMAI else ScoreGame.CHUNITHM)
         val status = when {
+            report != null && !previewStart -> formatUploadReport(report)
             issue != null -> context.getString(issue, context.getString(target.label))
             selected.isEmpty() -> context.getString(R.string.sync_log_select)
             previewStart -> context.getString(R.string.sync_log_pending)

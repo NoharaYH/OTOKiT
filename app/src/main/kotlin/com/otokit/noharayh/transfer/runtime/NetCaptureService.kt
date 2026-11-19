@@ -10,6 +10,8 @@ import android.os.*
 import android.system.OsConstants
 import android.util.Log
 import com.otokit.noharayh.R
+import com.otokit.noharayh.auth.OAuthProvider
+import com.otokit.noharayh.composition.scoreUploadFactory
 import com.otokit.noharayh.score.HtmlCaptures
 import com.otokit.noharayh.score.ScoreGame
 import com.otokit.noharayh.score.HtmlPageKind
@@ -43,7 +45,7 @@ open class NetCaptureService : VpnService() {
     override fun onCreate() {
         super.onCreate()
         archives = FileHtmlCaptures(File(filesDir, "score/html"))
-        coordinator = CaptureTaskCoordinator(archives, openChannel = { authorize, callback, event ->
+        coordinator = CaptureTaskCoordinator(archives, newUploadTask = scoreUploadFactory(this, archives), openChannel = { authorize, callback, event ->
             if (Build.VERSION.SDK_INT < 29) error("Capture requires Android 10")
             check(prepare(this) == null) { "VPN permission required" }
             val path = "/${UUID.randomUUID().toString().replace("-", "").take(10)}"
@@ -69,6 +71,10 @@ open class NetCaptureService : VpnService() {
             } catch (error: Exception) { proxy.close(); descriptor?.close(); throw error }
         })
         observation = coordinator.observe { snapshot ->
+            if (snapshot.request.uploadTargets.isNotEmpty() && (snapshot.stage == CaptureStage.UPLOADING || snapshot.terminal)) {
+                val report = UploadReport(snapshot.request.launchId, snapshot.startedAt, snapshot.stage, snapshot.uploads)
+                main.post { UploadReports.publish(snapshot.request.game, report) }
+            }
             runCatching { onSnapshot(snapshot) }.onFailure { Log.w("NetCapture", "Diagnostic projection failed: ${it.javaClass.simpleName}") }
             if (snapshot.terminal) main.post { main.removeCallbacks(timeout); stopSelf() }
         }
@@ -84,7 +90,10 @@ open class NetCaptureService : VpnService() {
             val game = ScoreGame.entries.first { it.key == intent?.getStringExtra("game") }
             val kinds = requireNotNull(intent?.getStringArrayExtra("pageKinds")).map { HtmlPageKind.valueOf(it) }
             CaptureRequest(game, kinds, intent?.getStringExtra("launchId") ?: UUID.randomUUID().toString(),
-                intent?.getBooleanExtra("keepCallbackCaptureUntilLogin", false) ?: false)
+                intent?.getBooleanExtra("keepCallbackCaptureUntilLogin", false) ?: false,
+                OAuthProvider.entries.mapNotNull { provider ->
+                    intent?.getStringExtra("upload.${provider.name}")?.let { UploadTarget(provider, it) }
+                })
         }.getOrNull()
         if (request == null) { if (coordinator.snapshot()?.terminal != false) stopSelf() }
         else if (coordinator.start(request) == CaptureStartResult.ACCEPTED) {
@@ -125,5 +134,8 @@ open class NetCaptureService : VpnService() {
             .putExtra("game", request.game.key).putExtra("pageKinds", request.difficulties.map { it.name }.toTypedArray())
             .putExtra("launchId", request.launchId)
             .putExtra("keepCallbackCaptureUntilLogin", request.keepCallbackCaptureUntilLogin)
+            .apply {
+                request.uploadTargets.forEach { putExtra("upload.${it.provider.name}", it.subject) }
+            }
     }
 }
