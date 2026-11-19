@@ -32,29 +32,42 @@ class GroupedSwitchInfoTest : UiComponentTestHost() {
         val density = activity.resources.displayMetrics.density
         assertEquals(48f * density, info.width.toFloat(), 1f)
         assertEquals(48f * density, info.height.toFloat(), 1f)
+        val backdrop = Color.rgb(226, 232, 240)
+        fun drawnIconWidth(pressed: Boolean): Int {
+            val bitmap = Bitmap.createBitmap(info.width, info.height, Bitmap.Config.ARGB_8888)
+            try {
+                val canvas = Canvas(bitmap)
+                canvas.drawColor(backdrop)
+                info.draw(canvas)
+                val midX = bitmap.width / 2
+                val midY = bitmap.height / 2
+                assertEquals(backdrop, bitmap.getPixel(midX - (18 * density).toInt(), midY))
+                if (pressed) {
+                    val distance = (11 * density).toInt()
+                    val left = Color.red(bitmap.getPixel(midX - distance, midY))
+                    val right = Color.red(bitmap.getPixel(midX + distance, midY))
+                    assertTrue(left < Color.red(backdrop))
+                    assertEquals(left.toFloat(), right.toFloat(), 2f)
+                }
+                val glyph = (0 until bitmap.width).filter { Color.red(bitmap.getPixel(it, midY)) < 128 }
+                return glyph.last() - glyph.first() + 1
+            } finally { bitmap.recycle() }
+        }
+        var restWidth = 0
+        main { restWidth = drawnIconWidth(false) }
         // 点在热区边缘；反馈必须仍从图标中心出现，父行不进入按压状态。
         touch(info, MotionEvent.ACTION_DOWN, Triple(0, 4f, 4f))
         SystemClock.sleep(220)
         main {
             assertFalse(row.isPressed)
             assertTrue(info.isPressed)
-            val bitmap = Bitmap.createBitmap(info.width, info.height, Bitmap.Config.ARGB_8888)
-            try {
-                val canvas = Canvas(bitmap)
-                canvas.drawColor(Color.WHITE)
-                info.draw(canvas)
-                val radius = (11 * density).toInt()
-                val left = bitmap.getPixel(info.width / 2 - radius, info.height / 2)
-                val right = bitmap.getPixel(info.width / 2 + radius, info.height / 2)
-                assertTrue(Color.red(left) < 250)
-                assertEquals(Color.red(left).toFloat(), Color.red(right).toFloat(), 2f)
-                assertEquals(Color.WHITE, bitmap.getPixel(4, 4))
-            } finally { bitmap.recycle() }
+            assertTrue(drawnIconWidth(true) < restWidth)
         }
         touch(info, MotionEvent.ACTION_UP, Triple(0, 4f, 4f))
         SystemClock.sleep(220)
         assertEquals(1, infoClicks)
         assertEquals(0, changes)
+        main { assertEquals(restWidth, drawnIconWidth(false)) }
         touch(row, MotionEvent.ACTION_DOWN, Triple(0, 10f, row.height / 2f))
         touch(row, MotionEvent.ACTION_UP, Triple(0, 10f, row.height / 2f))
         assertEquals(1, changes)
@@ -73,9 +86,9 @@ class GroupedSwitchInfoTest : UiComponentTestHost() {
         try {
             preferences.setKeepCallbackCaptureUntilLogin(false)
             lateinit var page: View
-            main { page = ScoreSyncSettingsPage.create(activity, 20, false) {} }
+            main { page = ScoreSyncSettingsPage.create(activity, 20, false, {}, {}) }
             mount(page, activity.resources.displayMetrics.widthPixels - 160, -1)
-            val info = findInfo(page)!!
+            val info = findInfo(page, activity.getString(R.string.settings_capture_keep_callback_info))!!
             screenshot("capture-info-row.png")
             touch(info, MotionEvent.ACTION_DOWN, Triple(0, info.width / 2f, info.height / 2f))
             SystemClock.sleep(200)
@@ -104,10 +117,10 @@ class GroupedSwitchInfoTest : UiComponentTestHost() {
         } finally { preferences.setKeepCallbackCaptureUntilLogin(original) }
     }
 
-    private fun findInfo(view: View): InfoIconButton? {
-        if (view is InfoIconButton) return view
+    private fun findInfo(view: View, description: String? = null): InfoIconButton? {
+        if (view is InfoIconButton && (description == null || view.contentDescription == description)) return view
         if (view is ViewGroup) for (index in 0 until view.childCount) {
-            findInfo(view.getChildAt(index))?.let { return it }
+            findInfo(view.getChildAt(index), description)?.let { return it }
         }
         return null
     }

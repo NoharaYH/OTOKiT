@@ -64,6 +64,7 @@ open class PressSurface @JvmOverloads constructor(
         set(value) {
             field = value
             fillPaint.color = value
+            ripplePaint.xfermode = if (Color.alpha(value) == 0) null else rippleBlend
             invalidate()
         }
     /** 静止圆角半径（px），绘制时按当前可用尺寸约束。 */
@@ -156,9 +157,10 @@ open class PressSurface @JvmOverloads constructor(
         color = Color.WHITE
         xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP)
     }
+    private val rippleBlend = PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP)
     private val ripplePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.argb(TouchIndicatorSpec.BLACK_ALPHA, 0, 0, 0)
-        xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP)
+        xfermode = rippleBlend
     }
     private val shapeRect = RectF()
     private val shapePath = Path()
@@ -168,6 +170,7 @@ open class PressSurface @JvmOverloads constructor(
     private val continuousCorners = ContinuousRoundedPath()
 
     private val press = PressProgress { invalidate() }
+    protected val pressFraction: Float get() = press.value.coerceIn(0f, 1f)
 
     private val ripples = ArrayList<TouchIndicator>()
     private var held: TouchIndicator? = null
@@ -338,9 +341,14 @@ open class PressSurface @JvmOverloads constructor(
 
         // 黑圆裁切在按钮圆角之内，按固定 dp 尺寸弹性扩张；按钮需足够大才能完整容纳。
         val restRadius = rippleRestDiameter / 2f
-        if (innerRippleEnabled) for (ripple in ripples) {
-            val radiusNow = restRadius * ripple.expansion.value
-            if (radiusNow > 0.5f) canvas.drawCircle(ripple.x, ripple.y, radiusNow, ripplePaint)
+        if (innerRippleEnabled && ripples.isNotEmpty()) {
+            // A transparent surface has no destination alpha. Clip feedback to geometry instead.
+            val clip = if (Color.alpha(fillColor) == 0) canvas.save().also { canvas.clipPath(shapePath) } else null
+            for (ripple in ripples) {
+                val radiusNow = restRadius * ripple.expansion.value
+                if (radiusNow > 0.5f) canvas.drawCircle(ripple.x, ripple.y, radiusNow, ripplePaint)
+            }
+            clip?.let(canvas::restoreToCount)
         }
         canvas.restoreToCount(layer)
         drawOutline(canvas, radius, inset)
