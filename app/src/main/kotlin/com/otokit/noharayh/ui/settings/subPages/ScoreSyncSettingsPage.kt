@@ -25,7 +25,7 @@ import com.otokit.noharayh.ui.kit.settings.SettingsCard
 import com.otokit.noharayh.ui.kit.settings.SettingsCheckButton
 import com.otokit.noharayh.ui.kit.settings.SettingsCheckButton.State
 import com.otokit.noharayh.ui.kit.settings.SettingsGroup
-import com.otokit.noharayh.ui.kit.settings.SettingsInfoRow
+import com.otokit.noharayh.ui.kit.settings.SettingsHeaderStatus
 import com.otokit.noharayh.ui.kit.settings.SettingsPageViews
 import java.io.Closeable
 import java.util.Date
@@ -89,14 +89,13 @@ internal object ScoreSyncSettingsPage {
             val check = SettingsCheckButton(context, context.getString(provider.checkLabel)) {
                 oauth.checkAuthorization(provider)
             }
-            val expiry = SettingsPageViews.info(context, context.getString(R.string.oauth_expiry_label), noExpiry)
+            val expiry = SettingsHeaderStatus(context)
             val content = SettingsGroup(context).apply {
                 addView(action, LinearLayout.LayoutParams(-1, -2))
                 addView(check, LinearLayout.LayoutParams(-1, -2))
-                addView(expiry, LinearLayout.LayoutParams(-1, -2))
             }
             authorizationGroup.addView(SettingsPageViews.card(
-                context, R.drawable.ic_sync_24, provider.authorizationTitle, content = content,
+                context, R.drawable.ic_sync_24, provider.authorizationTitle, content = content, trailing = expiry,
             ), LinearLayout.LayoutParams(-1, -2))
             AuthorizationControls(check, expiry)
         }
@@ -131,19 +130,28 @@ internal object ScoreSyncSettingsPage {
                 oauthSubscription = oauth.observe {
                     for ((provider, controls) in authorizationControls) {
                         val result = oauth.authorizationCheck(provider)
-                        val online = provider == OAuthProvider.LXNS
-                        val expiry = oauth.account(provider)?.refreshExpiresAt?.let { expiresAt ->
-                            val date = Date(expiresAt)
-                            val timestamp = "${dateFormat.format(date)} ${timeFormat.format(date)}"
-                            when {
-                                online && result == OAuthAuthorizationCheck.INVALID ->
-                                    context.getString(R.string.oauth_expiry_invalid)
-                                expiresAt <= System.currentTimeMillis() ->
-                                    context.getString(R.string.oauth_expiry_expired, timestamp)
-                                else -> timestamp
+                        val expiresAt = oauth.account(provider)?.refreshExpiresAt
+                        val invalid = provider == OAuthProvider.LXNS && result == OAuthAuthorizationCheck.INVALID
+                        val expired = expiresAt != null && expiresAt <= System.currentTimeMillis()
+                        val expiry = when {
+                            expiresAt == null -> noExpiry
+                            invalid -> context.getString(R.string.oauth_expiry_invalid)
+                            else -> {
+                                val date = Date(expiresAt)
+                                val timestamp = "${dateFormat.format(date)} ${timeFormat.format(date)}"
+                                context.getString(R.string.oauth_expiry_at, timestamp)
                             }
-                        } ?: noExpiry
-                        controls.expiry.renderValue(expiry)
+                        }
+                        val problem = expired || (invalid && expiresAt != null)
+                        val expiryIcon = if (problem || expiresAt == null) {
+                            R.drawable.ic_history_off_24
+                        } else {
+                            R.drawable.ic_history_2_24
+                        }
+                        controls.expiry.render(
+                            expiry, expiryIcon,
+                            if (problem) SettingsComponentColors.WARNING else SettingsComponentColors.TEXT,
+                        )
                         val (state, label, icon) = checkPresentation(provider, result)
                         controls.check.render(state, context.getString(label), icon)
                     }
@@ -165,7 +173,7 @@ internal object ScoreSyncSettingsPage {
         }
     }
 
-    private data class AuthorizationControls(val check: SettingsCheckButton, val expiry: SettingsInfoRow)
+    private data class AuthorizationControls(val check: SettingsCheckButton, val expiry: SettingsHeaderStatus)
 
     private data class CheckPresentation(val state: State, @StringRes val label: Int, @DrawableRes val icon: Int? = null)
 

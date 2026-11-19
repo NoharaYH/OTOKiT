@@ -9,5 +9,8 @@ internal object SettingsCardDimensions {
     const val HEADER_GAP_DP = 8
     const val TITLE_SP = 16f
     const val TITLE_LETTER_SPACING = 0.07f
+    const val HEADER_STATUS_TEXT_SP = 11f
+    const val HEADER_STATUS_ICON_DP = 18
+    const val HEADER_STATUS_ICON_GAP_DP = 4
     const val CONTENT_INSET_DP = 12
 }

@@ -18,10 +18,9 @@
     <string name="oauth_local_check_success">本地授权状态无问题</string>
     <string name="oauth_local_check_invalid">本地授权状态异常，建议重新获取</string>
     <string name="oauth_local_check_unavailable">暂时无法读取授权，请重试</string>
-    <string name="oauth_expiry_label">刷新令牌有效期</string>
+    <string name="oauth_expiry_at">%1$s 到期</string>
     <string name="oauth_expiry_unknown">—</string>
     <string name="oauth_expiry_invalid">已失效</string>
-    <string name="oauth_expiry_expired">%1$s（已过期）</string>
     <string name="oauth_success">%1$s授权完成</string>
     <string name="oauth_cancelled">已取消%1$s授权</string>
     <string name="oauth_invalid_callback">%1$s授权回调已过期、无效或已处理，请从应用内重新发起</string>
