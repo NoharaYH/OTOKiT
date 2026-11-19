@@ -9,6 +9,7 @@ import java.net.URI
 import java.util.concurrent.atomic.AtomicInteger
 
 class LoopbackCaptureProxyTest {
+    private val callbackHtml = "<!doctype html><meta charset=utf-8><p>登录信息已接收</p><a href=\"otokit://transfer/return\">返回 OTOKiT</a>"
     @Test fun repeatedRestartAndConcurrentDuplicateCallbacksDeliverExactlyOnce() {
         val clients = java.util.concurrent.Executors.newFixedThreadPool(2)
         try {
@@ -16,7 +17,7 @@ class LoopbackCaptureProxyTest {
                 val count = AtomicInteger()
                 val delivered = java.util.concurrent.CountDownLatch(1)
                 val auth = URI("https://open.weixin.qq.com/connect/oauth2/authorize?state=round$round&redirect_uri=http%3A%2F%2Ftgk-wcaime.wahlap.com%2Fwc_auth%2Foauth%2Fcallback%2Fmaimai-dx")
-                LoopbackCaptureProxy("/entry", auth, onCallback = { count.incrementAndGet(); delivered.countDown() }).use { proxy ->
+                LoopbackCaptureProxy("/entry", auth, onCallback = { count.incrementAndGet(); delivered.countDown() }, callbackHtml = callbackHtml).use { proxy ->
                     proxy.start()
                     val replies = (1..2).map {
                         clients.submit<String> {
@@ -39,7 +40,7 @@ class LoopbackCaptureProxyTest {
 
     @Test fun authorizationIsCreatedOnlyWhenTheUserOpensTheEntryAndRefreshesOnRetry() {
         val created = AtomicInteger()
-        LoopbackCaptureProxy("/entry", onCallback = {}, authorizationFactory = {
+        LoopbackCaptureProxy("/entry", onCallback = {}, callbackHtml = callbackHtml, authorizationFactory = {
             URI("https://open.weixin.qq.com/connect/oauth2/authorize?state=${created.incrementAndGet()}")
         }).use { proxy ->
             proxy.start()
@@ -64,7 +65,7 @@ class LoopbackCaptureProxyTest {
     @Test fun invalidStateIsRejectedAndValidCallbackIsConsumedOnlyOnce() {
         val callbacks = AtomicInteger()
         val auth = URI("https://open.weixin.qq.com/connect/oauth2/authorize?state=expected&redirect_uri=http%3A%2F%2Ftgk-wcaime.wahlap.com%2Fwc_auth%2Foauth%2Fcallback%2Fmaimai-dx")
-        LoopbackCaptureProxy("/start/test", auth, onCallback = { callbacks.incrementAndGet() }).use { proxy ->
+        LoopbackCaptureProxy("/start/test", auth, onCallback = { callbacks.incrementAndGet() }, callbackHtml = callbackHtml).use { proxy ->
             proxy.start()
             fun request(state: String): String = Socket("127.0.0.1", proxy.port).use { socket ->
                 socket.soTimeout = 2000
@@ -78,7 +79,11 @@ class LoopbackCaptureProxyTest {
                 socket.getInputStream().readBytes().toString(Charsets.UTF_8)
             }
             assertTrue(request("wrong").startsWith("HTTP/1.1 400"))
-            assertTrue(request("expected").startsWith("HTTP/1.1 200"))
+            val success = request("expected")
+            assertTrue(success.startsWith("HTTP/1.1 200"))
+            assertTrue(success.contains("Cache-Control: no-store"))
+            assertTrue(success.endsWith(callbackHtml))
+            assertFalse(success.contains("code=x"))
             assertTrue(request("expected").startsWith("HTTP/1.1 409"))
             assertEquals(1, callbacks.get())
         }

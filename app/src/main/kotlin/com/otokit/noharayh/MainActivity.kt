@@ -32,6 +32,7 @@ import com.otokit.noharayh.ui.constants.typography.AppFonts
 import com.otokit.noharayh.ui.settings.subPages.showOAuthFeedback
 import com.otokit.noharayh.ui.shell.MainShell
 import com.otokit.noharayh.ui.shell.navigation.NavigationStateCodec
+import com.otokit.noharayh.ui.shell.navigation.Destination
 import com.otokit.noharayh.ui.shell.navigation.SettingsSection
 import com.otokit.noharayh.ui.shell.selection.GameSelectionStateCodec
 import com.otokit.noharayh.ui.window.WindowEnvironmentObserver
@@ -163,12 +164,12 @@ class MainActivity : AppCompatActivity() {
         orientationController = WindowOrientationController(this).also {
             it.applyForCurrentWindow()
         }
-        receiveOAuthLink(intent)
+        receiveExternalLink(intent)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        receiveOAuthLink(intent)
+        receiveExternalLink(intent)
     }
 
     private fun openExternalLink(url: String) {
@@ -179,9 +180,15 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun receiveOAuthLink(intent: Intent) {
+    private fun receiveExternalLink(intent: Intent) {
         if (intent.action != Intent.ACTION_VIEW) return
         val url = intent.dataString ?: return
+        if (url == "otokit://transfer/return") {
+            setIntent(Intent(intent).setData(null))
+            showScoreSyncSettingsOnResume = false
+            shell?.navigate(Destination.ScoreSync)
+            return
+        }
         if (oauth.receive(url) { provider, result ->
             if (!isDestroyed) showOAuthFeedback(this, provider, result)
         }) {

@@ -20,6 +20,7 @@ internal class LoopbackCaptureProxy(
     private val onCallback: (URI) -> Unit,
     private val onEvent: (String) -> Unit = {},
     private val authorizationFactory: (() -> URI)? = null,
+    private val callbackHtml: String,
 ) : Closeable {
     private val authorizationLock = Any()
     private val closed = AtomicBoolean(false)
@@ -112,7 +113,7 @@ internal class LoopbackCaptureProxy(
             }
             if (accepted.compareAndSet(false, true)) {
                 onEvent("callback")
-                respond(socket, 200, "text/html; charset=utf-8", "<meta charset=utf-8><p>登录回调已接收，请返回 OTOKiT 查看采集结果。</p>")
+                respond(socket, 200, "text/html; charset=utf-8", callbackHtml, "Cache-Control: no-store\r\n")
                 onCallback(uri)
             } else respond(socket, 409, "text/plain", "Callback already consumed")
         } else {

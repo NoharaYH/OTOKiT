@@ -43,6 +43,12 @@
                 <data android:path="${divingFishCallbackPath}" />
                 <data android:path="${lxnsCallbackPath}" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="otokit" android:host="transfer" android:path="/return" />
+            </intent-filter>
         </activity>
     </application>
 </manifest>
