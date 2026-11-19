@@ -32,6 +32,9 @@ class GroupedSwitchInfoTest : UiComponentTestHost() {
         val density = activity.resources.displayMetrics.density
         assertEquals(48f * density, info.width.toFloat(), 1f)
         assertEquals(48f * density, info.height.toFloat(), 1f)
+        val icon = info.getChildAt(0)
+        val iconGap = if (info.layoutDirection == View.LAYOUT_DIRECTION_RTL) info.width - icon.right else icon.left
+        assertEquals(4f * density, iconGap.toFloat(), 1f)
         val backdrop = Color.rgb(226, 232, 240)
         fun drawnIconWidth(pressed: Boolean): Int {
             val bitmap = Bitmap.createBitmap(info.width, info.height, Bitmap.Config.ARGB_8888)
@@ -39,11 +42,12 @@ class GroupedSwitchInfoTest : UiComponentTestHost() {
                 val canvas = Canvas(bitmap)
                 canvas.drawColor(backdrop)
                 info.draw(canvas)
-                val midX = bitmap.width / 2
+                val midX = icon.left + icon.width / 2
                 val midY = bitmap.height / 2
-                assertEquals(backdrop, bitmap.getPixel(midX - (18 * density).toInt(), midY))
+                val outerX = if (info.layoutDirection == View.LAYOUT_DIRECTION_RTL) 4 else bitmap.width - 5
+                assertEquals(backdrop, bitmap.getPixel(outerX, midY))
                 if (pressed) {
-                    val distance = (11 * density).toInt()
+                    val distance = (12 * density).toInt()
                     val left = Color.red(bitmap.getPixel(midX - distance, midY))
                     val right = Color.red(bitmap.getPixel(midX + distance, midY))
                     assertTrue(left < Color.red(backdrop))

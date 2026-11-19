@@ -1,7 +1,7 @@
 package com.otokit.noharayh.ui.constants.dimensions
 
 internal object GroupedSwitchDimensions {
-    const val ROW_HEIGHT_DP = 52
+    const val ROW_HEIGHT_DP = 48
     const val TEXT_SP = 16f
     const val WARNING_ICON_DP = 18f
     const val WARNING_GAP_DP = 6f

@@ -15,7 +15,6 @@ import android.widget.ScrollView
 import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.animation.common.ContentTransition
 import com.otokit.noharayh.ui.constants.dimensions.ThemeSelectionDimensions
-import com.otokit.noharayh.ui.constants.dimensions.SettingsCardDimensions
 import com.otokit.noharayh.ui.constants.motion.ThemeSelectionMotion
 import com.otokit.noharayh.ui.kit.settings.ThemeSelectorPanel
 import com.otokit.noharayh.ui.kit.settings.LabeledDropdownField
@@ -269,12 +268,7 @@ internal class ThemeSettingsContent(
         val firstExtra = firstPanel.extraHeight * frame.first
         val secondExtra = secondPanel.extraHeight * frame.second
         val height = (frame.height + firstExtra + secondExtra).roundToInt()
-        val gap = (dp(context, SettingsCardDimensions.CONTENT_INSET_DP) * frame.first).roundToInt()
-        (content.layoutParams as? LinearLayout.LayoutParams)?.let { params ->
-            if (params.height != height || params.topMargin != gap) {
-                content.layoutParams = params.apply { this.height = height; topMargin = gap }
-            }
-        }
+        themeCard.setContentLayout(height, frame.first)
         panels.forEachIndexed { index, panel ->
             val params = panel.layoutParams as? FrameLayout.LayoutParams ?: return@forEachIndexed
             val panelHeight = rowHeight + panel.extraHeight.roundToInt()

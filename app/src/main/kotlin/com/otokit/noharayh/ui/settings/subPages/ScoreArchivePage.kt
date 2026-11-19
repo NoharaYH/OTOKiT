@@ -17,6 +17,7 @@ import com.otokit.noharayh.score.ScoreArchiveQueries
 import com.otokit.noharayh.score.ScoreGame
 import com.otokit.noharayh.score.ScoreTextPreview
 import com.otokit.noharayh.ui.chrome.TitleText
+import com.otokit.noharayh.ui.constants.dimensions.SettingsCardDimensions
 import com.otokit.noharayh.ui.constants.dimensions.ThemeSelectionDimensions
 import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors
 import com.otokit.noharayh.ui.kit.common.ViewPrimitives
@@ -73,8 +74,9 @@ internal class ScoreArchivePage(
             addView(scroll, LayoutParams(-1, -1).apply { marginEnd = hitWidth / 2 + dp(8) })
             addView(scrollbar, LayoutParams(hitWidth, -1, Gravity.END))
         }
-        val back = if (split) SettingsPageViews.action(context, context.getString(R.string.settings_archive_back),
-            SettingsButton.ActionIcon.Back, onClick = onBack) else null
+        val back = if (split) SettingsButton(context, context.getString(R.string.settings_archive_back),
+            SettingsButton.Kind.Action, trailingIcon = SettingsButton.ActionIcon.Back,
+            contentHeight = dp(SettingsCardDimensions.HEADER_HEIGHT_DP), onClick = onBack) else null
         addView(SettingsCard(context, R.drawable.ic_archive_record_24, kind.title.chinese,
             content = viewport, trailing = back, fillContent = true),
             LayoutParams(-1, -1))

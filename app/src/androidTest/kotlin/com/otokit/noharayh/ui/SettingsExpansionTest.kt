@@ -102,7 +102,7 @@ class SettingsExpansionTest : UiComponentTestHost() {
         main { card = SettingsCard(activity, R.drawable.ic_wallpaper_40, R.string.settings_theme_selection,
             View(activity).apply { minimumHeight = 180 }) }
         mount(card, 800, -2)
-        val header = (52 * activity.resources.displayMetrics.density + 0.5f).toInt()
+        val header = (44 * activity.resources.displayMetrics.density + 0.5f).toInt()
         main { card.setContentExpanded(false) }
         awaitState { card.height == header }
         main { card.setContentExpanded(true) }
@@ -263,13 +263,14 @@ class SettingsExpansionTest : UiComponentTestHost() {
             row = descendants(content).filterIsInstance<ExpandableSettingsRow>().single()
             content.renderSelection(state.copy(themeMode = ThemeSelectionMode.None))
         }
-        val header = (52 * activity.resources.displayMetrics.density + 0.5f).toInt()
+        val header = (44 * activity.resources.displayMetrics.density + 0.5f).toInt()
+        val switchHeight = (48 * activity.resources.displayMetrics.density + 0.5f).toInt()
         awaitState { card.height == header && row.isEnabled }
         main { content.renderSelection(state.copy(themeMode = ThemeSelectionMode.None, noneThemeUseWallpaper = false)) }
-        awaitState { row.height > header + 250 }
+        awaitState { row.height > switchHeight + 250 }
         main { content.renderSelection(state.copy(themeMode = ThemeSelectionMode.Merged)) }
         SystemClock.sleep(80)
         main { content.renderSelection(state.copy(themeMode = ThemeSelectionMode.None)) }
-        awaitState { card.height == header && row.height == header && row.isEnabled }
+        awaitState { card.height == header && row.height == switchHeight && row.isEnabled }
     }
 }

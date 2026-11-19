@@ -21,12 +21,13 @@ import com.otokit.noharayh.ui.animation.common.GroupShape
 internal class SettingsCard(context: Context, icon: Int, title: Int,
     content: View? = null, trailing: View? = null,
     private val fillContent: Boolean = false,
-    headerInfo: InfoIconButton? = null,
+    private val headerInfo: InfoIconButton? = null,
 ) : LinearLayout(context), GroupedSurface {
     private val shape = ContinuousCornerDrawable(Colors.SURFACE, 0f)
     private val inset = dp(Dimensions.CONTENT_INSET_DP)
-    // The title row and its two existing insets already fit the full info-button target.
-    private val headerInset = if (headerInfo != null) inset else 0
+    private val headerGap = dp(Dimensions.HEADER_CONTENT_GAP_DP)
+    private val infoAnchor = headerInfo?.let { View(context).apply { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO } }
+    private val header = LinearLayout(context)
     private var contentView: View? = null
     private var animatedSlot: ExpandableContent? = null
     private var contentExpanded = true
@@ -48,22 +49,25 @@ internal class SettingsCard(context: Context, icon: Int, title: Int,
         orientation = VERTICAL
         clipChildren = false; clipToPadding = false
         background = shape
-        setPadding(inset, inset - headerInset, inset, inset - headerInset)
-        val header = LinearLayout(context).apply {
+        setPadding(inset, dp(Dimensions.HEADER_TOP_INSET_DP), inset, headerGap)
+        header.apply {
             gravity = Gravity.CENTER_VERTICAL
-            minimumHeight = dp(Dimensions.HEADER_HEIGHT_DP) + 2 * headerInset
+            minimumHeight = dp(Dimensions.HEADER_HEIGHT_DP)
             clipChildren = false; clipToPadding = false
             addView(ImageView(context).apply { setImageResource(icon); setColorFilter(Colors.TEXT) },
                 LayoutParams(dp(Dimensions.ICON_DP), dp(Dimensions.ICON_DP)))
             addView(ViewPrimitives.text(context, context.getString(title), Dimensions.TITLE_SP, Colors.TITLE, true).apply {
                 letterSpacing = Dimensions.TITLE_LETTER_SPACING
-            }, headerSpacing(LayoutParams(-2, -2)))
-            if (headerInfo != null) addView(headerInfo, LayoutParams(-2, -2).apply {
-                marginStart = dp(Dimensions.HEADER_GAP_DP)
-            })
-            if (trailing != null) addView(trailing, headerSpacing(LayoutParams(0, -2, 1f)))
+            }, LayoutParams(-2, -2).apply { marginStart = dp(Dimensions.HEADER_GAP_DP) })
+            if (infoAnchor != null && headerInfo != null) addView(infoAnchor, LayoutParams(headerInfo.minimumWidth, 0))
+            if (trailing != null) addView(trailing, LayoutParams(0, -2, 1f).apply { marginStart = dp(Dimensions.HEADER_GAP_DP) })
         }
         addView(header, LayoutParams(-1, -2))
+        headerInfo?.let { button ->
+            // Overlay the full hit target on the header without adding to the vertical layout.
+            addView(button, LayoutParams(button.minimumWidth, button.minimumHeight).apply { bottomMargin = -height })
+            button.translationZ = 1f
+        }
         setContent(content)
         renderGroupEdges(1f, 1f)
     }
@@ -100,15 +104,31 @@ internal class SettingsCard(context: Context, icon: Int, title: Int,
         slot.setExpanded(expanded, animate)
     }
 
-    private fun headerSpacing(params: LayoutParams) = params.apply {
-        marginStart = dp(Dimensions.HEADER_GAP_DP)
-        topMargin = headerInset
-        bottomMargin = headerInset
+    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+        super.onLayout(changed, left, top, right, bottom)
+        val button = headerInfo ?: return
+        val anchor = checkNotNull(infoAnchor)
+        val x = header.left + anchor.left
+        val y = header.top + (header.height - button.measuredHeight) / 2
+        button.layout(x, y, x + button.measuredWidth, y + button.measuredHeight)
     }
 
     private fun LayoutParams.spaceContent(progress: Float) {
-        topMargin = ((inset - headerInset) * progress).toInt()
-        bottomMargin = (headerInset * progress).toInt()
+        topMargin = (headerGap * progress).toInt()
+        bottomMargin = ((inset - headerGap) * progress).toInt()
+    }
+
+    /** 布置由内容自身驱动高度的槽位，间距仍由卡片统一计算。 */
+    fun setContentLayout(height: Int, progress: Float) {
+        val view = contentView ?: return
+        val params = view.layoutParams as LayoutParams
+        val previousTop = params.topMargin
+        val previousBottom = params.bottomMargin
+        params.spaceContent(progress)
+        if (params.height != height || params.topMargin != previousTop || params.bottomMargin != previousBottom) {
+            params.height = height
+            view.layoutParams = params
+        }
     }
 
     fun replaceContent(content: View?, animate: Boolean = true) {

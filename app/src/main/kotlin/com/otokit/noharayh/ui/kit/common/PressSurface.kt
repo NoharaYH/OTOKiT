@@ -86,6 +86,7 @@ open class PressSurface @JvmOverloads constructor(
         set(value) { if (field != value) { field = value; invalidate() } }
     /** 图标操作可固定反馈中心；手势命中仍使用真实触点。 */
     var centeredRipple = false
+    protected open val rippleCenterX: Float get() = width / 2f
     /** 白色反馈层的峰值不透明度（0..1）。 */
     var whiteMaxAlpha = PressOverlaySpec.WHITE_ALPHA
         set(value) { if (field != value) { field = value; invalidate() } }
@@ -229,7 +230,7 @@ open class PressSurface @JvmOverloads constructor(
                 val time = now()
                 lastFrame = time
                 val ripple = TouchIndicator(this, time,
-                    if (centeredRipple) width / 2f else event.x,
+                    if (centeredRipple) rippleCenterX else event.x,
                     if (centeredRipple) height / 2f else event.y, rippleMaxScale, rippleExpandMs)
                 ripples += ripple
                 held = ripple
@@ -248,7 +249,7 @@ open class PressSurface @JvmOverloads constructor(
                     release()
                     return true
                 }
-                ripple.targetX = if (centeredRipple) width / 2f else event.getX(index)
+                ripple.targetX = if (centeredRipple) rippleCenterX else event.getX(index)
                 ripple.targetY = if (centeredRipple) height / 2f else event.getY(index)
                 if (!inside(event.getX(index), event.getY(index))) release()
                 invalidate()
@@ -260,7 +261,7 @@ open class PressSurface @JvmOverloads constructor(
             MotionEvent.ACTION_UP -> {
                 val ripple = held
                 if (ripple != null) {
-                    ripple.targetX = if (centeredRipple) width / 2f else event.x
+                    ripple.targetX = if (centeredRipple) rippleCenterX else event.x
                     ripple.targetY = if (centeredRipple) height / 2f else event.y
                 }
                 val clicked = ripple != null && inside(event.x, event.y)
