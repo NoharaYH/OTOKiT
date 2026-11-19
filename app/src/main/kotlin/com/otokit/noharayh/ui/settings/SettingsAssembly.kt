@@ -1,7 +1,7 @@
 package com.otokit.noharayh.ui.settings
 
 import android.content.Context
-import android.graphics.Color
+import android.graphics.Rect
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -14,6 +14,8 @@ import com.otokit.noharayh.ui.chrome.TitleTexts
 import com.otokit.noharayh.composition.scoreArchiveQueries
 import com.otokit.noharayh.composition.scoreArchiveActions
 import com.otokit.noharayh.ui.constants.display.DisplayScaleOption
+import com.otokit.noharayh.ui.constants.motion.SettingsPageTransition
+import com.otokit.noharayh.ui.constants.motion.SettingsTransition
 import com.otokit.noharayh.ui.shell.navigation.SettingsSection
 import com.otokit.noharayh.ui.shell.selection.GameSelectionState
 import com.otokit.noharayh.ui.settings.subPages.PersonalizationSettingsPage
@@ -26,6 +28,7 @@ import com.otokit.noharayh.ui.theme.GameLine
 import com.otokit.noharayh.ui.theme.ThemeOption
 import com.otokit.noharayh.ui.theme.ThemeSelectionMode
 import com.otokit.noharayh.ui.theme.ThemeColors
+import kotlin.math.roundToInt
 
 /** 设置展示宿主。section 只是最后渲染值；所有稳定页面命令交回导航控制器。 */
 @android.annotation.SuppressLint("ViewConstructor") // 由主壳传入明确事件构造，不提供 XML 入口。
@@ -57,14 +60,22 @@ class SettingsAssembly(
     }
 
     private val rootPage = SettingsHome(context, onOpenSection)
-    private val childHost = FrameLayout(context)
-    private val divider = View(context).apply { setBackgroundColor(Color.WHITE) }
+    private val childHost = object : FrameLayout(context) {
+        override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+            if (split) setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), MeasureSpec.getSize(heightMeasureSpec))
+            else super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+        }
+
+        override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+            if (split) layoutSplitPages()
+            else super.onLayout(changed, left, top, right, bottom)
+        }
+    }
+    private val childPages = linkedMapOf<Page, View>()
     private val options = rootPage.options
     private var current = Page(null)
     private var fromPage = current
     private var toPage = current
-    private var fromView: View? = null
-    private var toView: View? = null
     private var transitioning = false
     private var forward = true
     private var split = false
@@ -121,12 +132,10 @@ class SettingsAssembly(
         isClickable = true
         isFocusable = true
         isFocusableInTouchMode = true
-        // Split 时卡片外环会越出左右列；分隔线必须垫在内容下面，不能反遮按压效果。
         clipChildren = false
         clipToPadding = false
         childHost.clipChildren = false
         childHost.clipToPadding = false
-        addView(divider)
         addView(rootPage)
         addView(childHost)
         updatePadding()
@@ -150,6 +159,7 @@ class SettingsAssembly(
     val archiveTitle get() = current.archive?.title
 
     private fun goTo(target: Page) {
+        if (current == target) return
         if (!transitioning || toPage != target) {
             settlePage(current)
             prepare(current, target)
@@ -168,7 +178,7 @@ class SettingsAssembly(
 
     private fun personalizationPage(): PersonalizationSettingsPage? =
         if (current.section == SettingsSection.Personalization && !transitioning)
-            childHost.getChildAt(childHost.childCount - 1) as? PersonalizationSettingsPage else null
+            childPages[current] as? PersonalizationSettingsPage else null
 
     fun closeThemePanel(): Boolean = personalizationPage()?.closeThemePanel() == true
     fun beginThemePanelBack(): Boolean = personalizationPage()?.beginThemePanelBack() == true
@@ -197,30 +207,26 @@ class SettingsAssembly(
     private fun settlePage(page: Page, rebuild: Boolean = false) {
         if (disposed) return
         runner.stop()
-        val keep = when {
-            rebuild || page.section == null -> null
-            transitioning && page == toPage -> toView
-            transitioning && page == fromPage -> fromView
-            !transitioning && page == current -> childHost.getChildAt(0)
-            else -> null
-        }
         if (transitioning) onTransitionFrame(TransitionProgress(if (page == toPage) 1f else 0f, false))
         transitioning = false
-        fromView = null
-        toView = null
-        for (index in childHost.childCount - 1 downTo 0) {
-            if (childHost.getChildAt(index) !== keep) childHost.removeViewAt(index)
+        val keep = panesFor(page)
+        val entries = childPages.iterator()
+        while (entries.hasNext()) {
+            val (key, view) = entries.next()
+            if (rebuild || key !in keep) {
+                childHost.removeView(view)
+                entries.remove()
+            }
         }
-        if (page.section != null && keep == null) childHost.addView(buildPage(page), LayoutParams(-1, -1))
+        mount(page)
         val titleChanged = current.archive != page.archive
         current = page
         if (titleChanged) onArchiveChanged()
         val section = page.section
         reset(rootPage)
-        for (index in 0 until childHost.childCount) reset(childHost.getChildAt(index))
+        childPages.values.forEach(::reset)
         rootPage.visibility = if (split || section == null) VISIBLE else INVISIBLE
         childHost.visibility = if (section != null) VISIBLE else INVISIBLE
-        divider.visibility = if (split) VISIBLE else GONE
         options.forEach { (key, option) -> option.setSelectionProgress(if (key == section) 1f else 0f) }
         updateAccessibility()
     }
@@ -229,20 +235,37 @@ class SettingsAssembly(
         runner.stop()
         disposed = true
         removeAllViews()
-        fromView = null
-        toView = null
+        childPages.clear()
     }
+
+    private fun panesFor(page: Page): List<Page> = when {
+        page.section == null -> emptyList()
+        split && page.archive != null -> listOf(Page(page.section), page)
+        else -> listOf(page)
+    }
+
+    private fun mount(page: Page) {
+        panesFor(page).forEach { pane ->
+            childPages.getOrPut(pane) { buildPage(pane).also { childHost.addView(it, LayoutParams(-1, -1)) } }
+        }
+    }
+
+    private fun viewFor(page: Page): View? = if (page.section == null) rootPage else childPages[page]
 
     private fun prepare(from: Page, to: Page) {
         fromPage = from
         toPage = to
-        fromView = if (from.section == null) rootPage else childHost.getChildAt(0)
-        toView = if (to.section == null) rootPage else buildPage(to).also { childHost.addView(it, LayoutParams(-1, -1)) }
+        mount(to)
         rootPage.visibility = if (split || from.section == null || to.section == null) VISIBLE else INVISIBLE
         childHost.visibility = VISIBLE
         transitioning = true
         forward = to.section != null && (from.section != to.section || from.archive == null)
-        runner.reset(unfold = true)
+        val resizesSplit = split && ((from.archive == null) != (to.archive == null))
+        when {
+            resizesSplit && to.archive != null -> runner.reset(SettingsTransition.ENTER_DURATION_MS, SettingsTransition.CURVE)
+            resizesSplit -> runner.reset()
+            else -> runner.reset(SettingsPageTransition.UNFOLD_DURATION_MS, SettingsPageTransition.UNFOLD_CURVE)
+        }
         onTransitionStart(from.heading, to.heading, width.toFloat(), forward)
         renderFrame(TransitionProgress(0f, true))
         updateAccessibility()
@@ -253,11 +276,11 @@ class SettingsAssembly(
         val phoneUnfold = !split
         val pageProgress = if (phoneUnfold) SettingsPageFrames.phoneUnfoldProgress(frame.value, forward)
             else frame.value
-        fromView?.let {
-            if (!split || it !== rootPage) applyPageFrame(it, pageProgress, false)
-        }
-        toView?.let {
-            if (!split || it !== rootPage) applyPageFrame(it, pageProgress, true)
+        if (split && (fromPage.archive != null || toPage.archive != null)) {
+            renderSplitArchiveFrame(frame.value)
+        } else {
+            viewFor(fromPage)?.let { if (!split || it !== rootPage) applyPageFrame(it, pageProgress, false) }
+            viewFor(toPage)?.let { if (!split || it !== rootPage) applyPageFrame(it, pageProgress, true) }
         }
         val changed = if (phoneUnfold) SettingsPageFrames.phoneSelectionChange(frame.value, forward)
             else SettingsPageFrames.selectionChange(frame.value)
@@ -274,25 +297,59 @@ class SettingsAssembly(
         runner.apply(view, visual)
     }
 
+    private fun renderSplitArchiveFrame(progress: Float) {
+        if (fromPage.section != toPage.section) {
+            childPages[Page(fromPage.section)]?.let { applyPageFrame(it, progress, false) }
+            childPages[Page(toPage.section)]?.let { applyPageFrame(it, progress, true) }
+        }
+        if (fromPage.archive != null) childPages[fromPage]?.alpha = 1f - progress
+        if (toPage.archive != null) childPages[toPage]?.alpha = progress
+        layoutSplitPages()
+    }
+
+    private fun archiveProgress(): Float = when {
+        !transitioning -> if (current.archive != null) 1f else 0f
+        fromPage.archive != null && toPage.archive != null -> 1f
+        toPage.archive != null -> runner.progress
+        fromPage.archive != null -> 1f - runner.progress
+        else -> 0f
+    }
+
+    private fun layoutSplitPages() {
+        if (width == 0 || childHost.height == 0) return
+        val progress = archiveProgress()
+        val panes = SettingsPageFrames.splitPanes(width, dp(SPLIT_GAP_DP), progress)
+        childPages.forEach { (page, view) ->
+            val archive = page.archive != null
+            val paneWidth = if (archive) panes.archiveWidth else panes.secondaryWidth
+            val left = if (archive) panes.archiveLeft - panes.secondaryLeft else 0
+            if (!archive && page.section == SettingsSection.ScoreSync) {
+                val endInset = (margin * (1f - progress)).roundToInt()
+                if (view.paddingRight != endInset) view.setPadding(0, 0, endInset, 0)
+            }
+            view.measure(exact(paneWidth), exact(childHost.height))
+            view.layout(left, 0, left + paneWidth, childHost.height)
+            view.clipBounds = if (archive && progress < 1f) Rect(0, 0, width - panes.archiveLeft, childHost.height) else null
+        }
+    }
+
     override fun onInterceptTouchEvent(event: MotionEvent): Boolean = transitioning || super.onInterceptTouchEvent(event)
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val w = MeasureSpec.getSize(widthMeasureSpec)
         val h = MeasureSpec.getSize(heightMeasureSpec)
-        val gap = if (split) dp(24) else 0
-        val left = if (split) ((w - gap).coerceAtLeast(0) / 3) else w
+        val panes = if (split) SettingsPageFrames.splitPanes(w, dp(SPLIT_GAP_DP), 0f) else null
+        val left = panes?.rootWidth ?: w
         rootPage.measure(exact(left), exact(h))
-        childHost.measure(exact(if (split) (w - left - gap).coerceAtLeast(0) else w), exact(h))
-        divider.measure(exact(dp(2)), exact((h - dp(64)).coerceAtLeast(0)))
+        childHost.measure(exact(w - (panes?.secondaryLeft ?: 0)), exact(h))
         setMeasuredDimension(w, h)
     }
 
     @android.annotation.SuppressLint("DrawAllocation") // 几何变化时重算纯帧，未持有延迟布局回调。
     override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
         rootPage.layout(0, 0, rootPage.measuredWidth, b - t)
-        val childLeft = if (split) rootPage.measuredWidth + dp(24) else 0
+        val childLeft = if (split) rootPage.measuredWidth + dp(SPLIT_GAP_DP) else 0
         childHost.layout(childLeft, 0, r - l, b - t)
-        divider.layout(rootPage.measuredWidth + dp(11), dp(32), rootPage.measuredWidth + dp(13), b - t - dp(32))
         if (transitioning) renderFrame(TransitionProgress(runner.progress, true))
     }
 
@@ -349,6 +406,7 @@ class SettingsAssembly(
         }
     }
     private fun reset(view: View) {
+        view.clipBounds = null
         view.alpha = 1f
         view.scaleX = 1f
         view.scaleY = 1f
@@ -357,4 +415,8 @@ class SettingsAssembly(
     }
     private fun dp(value: Int) = (value * resources.displayMetrics.density + 0.5f).toInt()
     private fun exact(value: Int) = MeasureSpec.makeMeasureSpec(value.coerceAtLeast(0), MeasureSpec.EXACTLY)
+
+    private companion object {
+        const val SPLIT_GAP_DP = 12
+    }
 }

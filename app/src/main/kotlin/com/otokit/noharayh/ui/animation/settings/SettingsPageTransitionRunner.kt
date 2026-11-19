@@ -9,11 +9,13 @@ import com.otokit.noharayh.ui.animation.common.TransitionFrame
 import com.otokit.noharayh.ui.animation.common.TransitionProgress
 import com.otokit.noharayh.ui.animation.common.TransitionTiming
 import com.otokit.noharayh.ui.constants.motion.SettingsPageTransition
+import com.otokit.noharayh.ui.constants.motion.MotionCurve
 
 /** 唯一父子页时钟；状态提交和 View 挂载由调用方负责。 */
 class SettingsPageTransitionRunner(private val onFrame: (TransitionProgress) -> Unit) {
     private var animator: ValueAnimator? = null
-    private var unfold = false
+    private var durationMs = SettingsPageTransition.DURATION_MS
+    private var curve = SettingsPageTransition.CURVE
     var progress = 0f
         private set
 
@@ -30,9 +32,8 @@ class SettingsPageTransitionRunner(private val onFrame: (TransitionProgress) -> 
             return
         }
         val next = ValueAnimator.ofFloat(progress, to).apply {
-            duration = TransitionTiming.remainingDuration(if (unfold) SettingsPageTransition.UNFOLD_DURATION_MS
-                else SettingsPageTransition.DURATION_MS, progress, to)
-            interpolator = MotionInterpolators.of(if (unfold) SettingsPageTransition.UNFOLD_CURVE else SettingsPageTransition.CURVE)
+            duration = TransitionTiming.remainingDuration(durationMs, progress, to)
+            interpolator = MotionInterpolators.of(curve)
             addUpdateListener { emit(it.animatedValue as Float, true) }
             addListener(object : AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: Animator) {
@@ -47,7 +48,15 @@ class SettingsPageTransitionRunner(private val onFrame: (TransitionProgress) -> 
         next.start()
     }
 
-    fun reset(unfold: Boolean = false) { stop(); this.unfold = unfold; progress = 0f }
+    fun reset(
+        durationMs: Long = SettingsPageTransition.DURATION_MS,
+        curve: MotionCurve = SettingsPageTransition.CURVE,
+    ) {
+        stop()
+        this.durationMs = durationMs
+        this.curve = curve
+        progress = 0f
+    }
     fun stop() {
         val old = animator
         animator = null

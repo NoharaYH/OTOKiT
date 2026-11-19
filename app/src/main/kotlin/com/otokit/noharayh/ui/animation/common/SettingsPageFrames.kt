@@ -1,9 +1,28 @@
 package com.otokit.noharayh.ui.animation.common
 
 import com.otokit.noharayh.ui.constants.motion.SettingsPageTransition as Spec
+import kotlin.math.roundToInt
 
 /** 无状态映射；自动播放、真实手势与取消回弹共同消费。 */
 object SettingsPageFrames {
+    internal data class SplitPanes(
+        val rootWidth: Int,
+        val secondaryLeft: Int,
+        val secondaryWidth: Int,
+        val archiveLeft: Int,
+        val archiveWidth: Int,
+    )
+
+    internal fun splitPanes(width: Int, gap: Int, archiveProgress: Float): SplitPanes {
+        val column = ((width - 2 * gap) / 3).coerceAtLeast(0)
+        val secondaryLeft = column + gap
+        val archiveWidth = (width - 2 * secondaryLeft).coerceAtLeast(0)
+        val shown = (archiveWidth * archiveProgress).roundToInt()
+        val openingGap = (gap * archiveProgress).roundToInt()
+        return SplitPanes(column, secondaryLeft, (width - secondaryLeft - shown - openingGap).coerceAtLeast(0),
+            width - shown, archiveWidth)
+    }
+
     /** 用父页=0、子页=1 描述同一空间；返回和取消都反向采样，避免两套端点。 */
     fun unfoldPage(progress: Float, entering: Boolean, forward: Boolean, density: Float): TransitionFrame {
         val p = if (forward) progress else 1f - progress

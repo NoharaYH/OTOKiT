@@ -5,6 +5,29 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class SettingsPageFramesTest {
+    @Test fun archiveAndSecondaryShareTheSameHorizontalBoundaryThroughoutTheTransition() {
+        val width = 901
+        val gap = 12
+        val closed = SettingsPageFrames.splitPanes(width, gap, 0f)
+        val open = SettingsPageFrames.splitPanes(width, gap, 1f)
+        assertEquals(width, closed.archiveLeft)
+        assertEquals(width, closed.secondaryLeft + closed.secondaryWidth)
+        assertEquals(gap, open.secondaryLeft - open.rootWidth)
+        assertEquals(gap, open.archiveLeft - open.secondaryLeft - open.secondaryWidth)
+        assertEquals(width, open.archiveLeft + open.archiveWidth)
+        assertEquals(open.rootWidth, open.secondaryWidth)
+        val frames = (0..100).map { SettingsPageFrames.splitPanes(width, gap, it / 100f) }
+        frames.forEach {
+            assertEquals(closed.secondaryLeft, it.secondaryLeft)
+            assertEquals(open.archiveWidth, it.archiveWidth)
+            assertTrue(it.archiveLeft - it.secondaryLeft - it.secondaryWidth in 0..gap)
+        }
+        frames.zipWithNext().forEach { (before, after) ->
+            assertTrue(after.secondaryWidth <= before.secondaryWidth)
+            assertTrue(after.archiveLeft <= before.archiveLeft)
+        }
+    }
+
     @Test fun unfoldBackRetracesTheSamePageAndTitleFrames() {
         for (step in 0..100) {
             val p = step / 100f

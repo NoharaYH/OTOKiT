@@ -45,7 +45,8 @@ internal object ScoreSyncSettingsPage {
             orientation = LinearLayout.VERTICAL
             clipChildren = false
             clipToPadding = false
-            setPadding(if (split) 0 else margin, margin, margin, margin)
+            val horizontal = if (split) 0 else margin
+            setPadding(horizontal, margin, horizontal, margin)
         }
         var infoDialog: MessageDialog? = null
         fun showInfo(@StringRes technical: Int, @StringRes plain: Int) {
@@ -169,6 +170,7 @@ internal object ScoreSyncSettingsPage {
             isFillViewport = true
             clipChildren = false
             clipToPadding = false
+            if (split) setPadding(0, 0, margin, 0)
             addView(body, FrameLayout.LayoutParams(-1, -2))
         }
     }
