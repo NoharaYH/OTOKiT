@@ -11,6 +11,9 @@ import android.graphics.Shader
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.View
+import androidx.core.graphics.ColorUtils
+import com.otokit.noharayh.ui.animation.common.ContentTransition
+import com.otokit.noharayh.ui.constants.motion.ContainerMotion
 import com.otokit.noharayh.ui.kit.common.PressSurface
 import com.otokit.noharayh.ui.kit.common.ViewPrimitives
 
@@ -23,6 +26,12 @@ internal enum class ChuDifficulty(val label: String, val border: Int) {
 internal class ChuDifficultyButton(context: Context, private val difficulty: ChuDifficulty) : PressSurface(context) {
     private val density = resources.displayMetrics.density
     private val caption = ViewPrimitives.text(context, difficulty.label, 18f, Color.WHITE, bold = true)
+    private val dimBorder = DifficultySelectionColors.dim(difficulty.border)
+    private val dimText = DifficultySelectionColors.dim(Color.WHITE)
+    private val selection = ContentTransition(0f, ContainerMotion.CONTENT,
+        interpolate = { from, to, progress -> from + (to - from) * progress },
+        onFrame = ::renderSelection,
+    )
     private val ink = Paint(Paint.ANTI_ALIAS_FLAG)
     private val tile = Path()
     private val ultima = LinearGradient(0f, 0f, 0f, 1f, intArrayOf(
@@ -42,7 +51,7 @@ internal class ChuDifficultyButton(context: Context, private val difficulty: Chu
         whiteMaxAlpha = 0f
         contentDescription = difficulty.label
         surfaceContent = { canvas, bounds, _ -> drawFace(canvas, bounds) }
-        renderSelection(isSelected)
+        renderSelection(0f)
         val inset = ViewPrimitives.dp(context, 7)
         addView(caption.apply {
             gravity = Gravity.CENTER
@@ -56,17 +65,26 @@ internal class ChuDifficultyButton(context: Context, private val difficulty: Chu
     override fun setSelected(selected: Boolean) {
         if (selected == isSelected) return
         super.setSelected(selected)
-        renderSelection(selected)
+        selection.play(if (selected) 1f else 0f, isShown && isLaidOut)
     }
 
-    private fun renderSelection(selected: Boolean) {
-        ink.colorFilter = if (selected) null else DifficultySelectionColors.dimFilter
-        caption.setTextColor(if (selected) Color.WHITE else DifficultySelectionColors.dim(Color.WHITE))
-        fillColor = if (selected) difficulty.border else DifficultySelectionColors.dim(difficulty.border)
+    private fun renderSelection(progress: Float) {
+        ink.colorFilter = when (progress) {
+            1f -> null
+            0f -> DifficultySelectionColors.dimFilter
+            else -> DifficultySelectionColors.filter(progress)
+        }
+        caption.setTextColor(ColorUtils.blendARGB(dimText, Color.WHITE, progress))
+        fillColor = ColorUtils.blendARGB(dimBorder, difficulty.border, progress)
     }
 
     fun setWide(wide: Boolean) {
         caption.setAutoSizeTextTypeUniformWithConfiguration(8, if (wide) 27 else 18, 1, TypedValue.COMPLEX_UNIT_SP)
+    }
+
+    override fun onDetachedFromWindow() {
+        selection.finish()
+        super.onDetachedFromWindow()
     }
 
     override fun buildSurfacePath(path: Path, bounds: RectF, top: Float, bottom: Float) {
