@@ -7,6 +7,17 @@ import org.junit.Test
 
 class NoneThemePaletteTest {
     @Test
+    fun interpolatedThemeFramesRemainOpaque() {
+        val from = 0xFF008060.toInt()
+        val to = 0xFFF0C020.toInt()
+        assertEquals(from, blendOpaqueRgb(from, to, 0f))
+        assertEquals(to, blendOpaqueRgb(from, to, 1f))
+        assertEquals(0xFF78A040.toInt(), blendOpaqueRgb(from, to, 0.5f))
+        // At 0.008, a float blend of two alpha channels equal to 255 truncates to 254.
+        assertEquals(0xFF, blendOpaqueRgb(from, to, 0.008f) ushr 24)
+    }
+
+    @Test
     fun chromaticSeedsProduceReadableAccentsAndSlightlyMutedLightBackgrounds() {
         val seeds = listOf(0xFF6750A4, 0xFFE53935, 0xFF43A047, 0xFF1E88E5, 0xFFFFC107)
         val backgrounds = seeds.map { seed ->

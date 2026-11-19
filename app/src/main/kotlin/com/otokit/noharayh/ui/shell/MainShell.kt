@@ -3,7 +3,6 @@ package com.otokit.noharayh.ui.shell
 import com.otokit.noharayh.ui.constants.motion.ColorPickerMotion
 
 import android.animation.ValueAnimator
-import androidx.core.graphics.ColorUtils
 import com.otokit.noharayh.ui.animation.common.MotionInterpolators
 import com.otokit.noharayh.ui.constants.motion.MotionDefaults
 import android.annotation.SuppressLint
@@ -65,6 +64,7 @@ import com.otokit.noharayh.ui.theme.ThemeOption
 import com.otokit.noharayh.ui.theme.ThemeOptions
 import com.otokit.noharayh.ui.theme.ThemeRegistry
 import com.otokit.noharayh.ui.theme.ThemeSelectionMode
+import com.otokit.noharayh.ui.theme.blendOpaqueRgb
 import com.otokit.noharayh.ui.window.PixelRect
 import com.otokit.noharayh.ui.window.WindowSnapshot
 import com.otokit.noharayh.ui.window.metrics.WindowMetricsSnapshot
@@ -121,8 +121,8 @@ class MainShell(
         materkitColors,
         TransitionTiming(ColorPickerMotion.TRANSITION_MS, MotionDefaults.EMPHASIZED_CURVE),
         { from, to, progress -> ThemeColors(
-            ColorUtils.blendARGB(from.primaryColor, to.primaryColor, progress),
-            ColorUtils.blendARGB(from.secondaryColor, to.secondaryColor, progress),
+            blendOpaqueRgb(from.primaryColor, to.primaryColor, progress),
+            blendOpaqueRgb(from.secondaryColor, to.secondaryColor, progress),
         ) },
         ::renderMaterkitColors,
     )
@@ -542,9 +542,9 @@ class MainShell(
                 addUpdateListener {
                     val p = it.animatedValue as Float
                     noneThemePalette = NoneThemePalette(
-                        ThemeColors(ColorUtils.blendARGB(from.colors.primaryColor, target.colors.primaryColor, p),
-                            ColorUtils.blendARGB(from.colors.secondaryColor, target.colors.secondaryColor, p)),
-                        ColorUtils.blendARGB(from.backgroundColor, target.backgroundColor, p))
+                        ThemeColors(blendOpaqueRgb(from.colors.primaryColor, target.colors.primaryColor, p),
+                            blendOpaqueRgb(from.colors.secondaryColor, target.colors.secondaryColor, p)),
+                        blendOpaqueRgb(from.backgroundColor, target.backgroundColor, p))
                     renderNoneColors()
                 }
                 start()

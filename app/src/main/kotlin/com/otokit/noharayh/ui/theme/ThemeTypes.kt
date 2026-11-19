@@ -13,6 +13,17 @@ data class ThemeColors(
     val secondaryColor: Int,
 )
 
+/** Theme frames interpolate RGB only so opaque fills stay opaque at every animation fraction. */
+internal fun blendOpaqueRgb(from: Int, to: Int, fraction: Float): Int {
+    val remaining = 1f - fraction
+    fun channel(shift: Int): Int {
+        val start = from ushr shift and 0xFF
+        val end = to ushr shift and 0xFF
+        return (start * remaining + end * fraction).toInt() shl shift
+    }
+    return 0xFF000000.toInt() or channel(16) or channel(8) or channel(0)
+}
+
 /** 主题自身提供的描述：HTML 相对入口、颜色与可选原生预览，不含运行对象或加载函数。 */
 data class ThemeDefinition(
     val htmlAssetPath: String,
