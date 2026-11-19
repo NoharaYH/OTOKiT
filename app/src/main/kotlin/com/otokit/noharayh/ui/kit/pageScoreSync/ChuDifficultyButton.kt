@@ -85,8 +85,8 @@ internal class ChuDifficultyButton(context: Context, private val difficulty: Chu
         fillColor = ColorUtils.blendARGB(dimBorder, difficulty.border, progress)
     }
 
-    fun setWide(wide: Boolean) {
-        caption.setAutoSizeTextTypeUniformWithConfiguration(8, if (wide) 27 else 18, 1, TypedValue.COMPLEX_UNIT_SP)
+    fun setLabelSize(maxPx: Int) {
+        caption.setAutoSizeTextTypeUniformWithConfiguration(1, maxPx.coerceAtLeast(2), 1, TypedValue.COMPLEX_UNIT_PX)
     }
 
     override fun onDetachedFromWindow() {

@@ -19,6 +19,7 @@ internal class DifficultyGrid(
     private var aspect = 3.125f
     private var gap = ViewPrimitives.dp(context, 12)
     private var cellHeight = 0
+    private var glyphSizePx = 0
 
     init {
         setWide(false)
@@ -51,13 +52,18 @@ internal class DifficultyGrid(
         columns = if (compactMai) 3 else 2
         aspect = if (compactMai) 2.2f else 3.125f
         gap = ViewPrimitives.dp(context, if (compactMai) 8 else 12)
+        requestLayout()
+    }
+
+    fun setGlyphSize(px: Int) {
+        if (glyphSizePx == px) return
+        glyphSizePx = px
         for (button in buttons) {
             when (button) {
-                is MaiDifficultyButton -> button.setWide(wide)
-                is ChuDifficultyButton -> button.setWide(wide)
+                is MaiDifficultyButton -> button.setArtworkHeight(px)
+                is ChuDifficultyButton -> button.setLabelSize(px)
             }
         }
-        requestLayout()
     }
 
     private fun cellLeft(column: Int, available: Int) =

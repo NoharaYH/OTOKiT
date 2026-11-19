@@ -19,8 +19,7 @@ internal enum class MaiDifficulty(val label: String, val artwork: Int, val color
 
 internal class MaiDifficultyButton(context: Context, private val difficulty: MaiDifficulty) : PressSurface(context) {
     private val artwork = ImageView(context)
-    fun setWide(wide: Boolean) {
-        val height = dp(context, if (wide) 51 else 34)
+    fun setArtworkHeight(height: Int) {
         val params = artwork.layoutParams
         if (params.height != height) {
             params.height = height
