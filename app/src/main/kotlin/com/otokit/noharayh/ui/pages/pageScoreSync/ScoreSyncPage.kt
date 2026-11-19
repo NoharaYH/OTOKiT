@@ -69,7 +69,7 @@ internal object ScoreSyncPage {
                 chu.panel.setWide(frame.wideLayout)
                 val wideGlyphs = WindowBreakpointPolicy.classify(frame.windowWidthPx / standardDensity) != WindowLayoutClass.Compact
                 mai.setGlyphSize(((if (wideGlyphs) 51 else 34) * standardDensity).roundToInt())
-                chu.setGlyphSize(((if (wideGlyphs) 27 else 18) * standardDensity).roundToInt())
+                chu.setGlyphSize(((if (wideGlyphs) 21.6f else 18f) * standardDensity).roundToInt())
                 pair.render(frame)
             },
             interactiveUpdater = { allowed ->

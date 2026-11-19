@@ -2,7 +2,6 @@ package com.otokit.noharayh.ui.kit.common
 
 import android.content.Context
 import android.graphics.Typeface
-import android.os.Build
 import android.util.Log
 import android.text.SpannableString
 import android.text.Spanned
@@ -57,8 +56,7 @@ object AppTypography {
 
         val base = load(context, role.assetPath) ?: return null
         val styled = when {
-            role == AppFonts.Role.ChuDifficulty && Build.VERSION.SDK_INT >= 28 -> Typeface.create(base, 900, false)
-            bold || role == AppFonts.Role.ChuDifficulty -> Typeface.create(base, Typeface.BOLD)
+            bold -> Typeface.create(base, Typeface.BOLD)
             else -> base
         }
         synchronized(cache) { cache[key] = styled }
