@@ -117,6 +117,7 @@ class MainActivity : AppCompatActivity() {
         val shell = MainShell(
             backgroundHost = binding.backgroundHost,
             contentHost = binding.contentHost,
+            settingsScrim = binding.settingsScrim,
             chromeHost = binding.chromeHost,
             overlayHost = binding.overlayHost,
             sidebarHost = binding.sideBarHost,

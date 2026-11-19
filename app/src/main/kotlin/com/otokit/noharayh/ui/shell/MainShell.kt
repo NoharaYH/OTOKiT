@@ -80,6 +80,7 @@ import java.lang.ref.WeakReference
 class MainShell(
     private val backgroundHost: FrameLayout,
     private val contentHost: FrameLayout,
+    private val settingsScrim: View,
     private val chromeHost: FrameLayout,
     private val overlayHost: FrameLayout,
     private val sidebarHost: SideBarHost,
@@ -336,6 +337,7 @@ class MainShell(
         }
         settingsRunner = SettingsTransitionRunner(
             overlayHost = overlayHost,
+            scrim = settingsScrim,
             featureProvider = { mountedContent?.view },
             settingsProvider = { settingsContent?.view },
             onProgress = { frame -> chrome.renderSettingsProgress(frame) },
@@ -783,6 +785,7 @@ class MainShell(
         val snapshot = latestWindowSnapshot ?: return
         val rects = ContentGeometry.compute(snapshot, chromeInsets)
         applyContentRect(backgroundHost, rects.base, snapshot.metrics)
+        applyContentRect(settingsScrim, rects.base, snapshot.metrics)
         val backgroundRect = rects.base.relativeToRoot(
             snapshot.metrics.rootLeftPx,
             snapshot.metrics.rootTopPx,

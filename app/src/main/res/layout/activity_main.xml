@@ -31,7 +31,16 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent" />
 
-            <!-- 设置页面与遮罩共用内容区边界。 -->
+            <!-- 设置遮罩沿背景延伸到系统手势条背后。 -->
+            <View
+                android:id="@+id/settings_scrim"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:alpha="0"
+                android:background="@android:color/black"
+                android:importantForAccessibility="no" />
+
+            <!-- 设置页面按可交互内容区布局。 -->
             <FrameLayout
                 android:id="@+id/overlay_host"
                 android:layout_width="match_parent"

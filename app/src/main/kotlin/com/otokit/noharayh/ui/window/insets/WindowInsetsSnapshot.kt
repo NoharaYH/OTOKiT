@@ -50,7 +50,7 @@ data class WindowInsetsSnapshot(
      * 背景可延伸到的安全区：与 [systemSafeEdges] 相同，但忽略导航栏底边。
      *
      * 手势导航的系统条是透明的，背景若在导航栏上边就停住，会留下一条白色空带；
-     * 内容与覆盖层仍按 [systemSafeEdges] 避让，不进入手势区域。
+     * 设置遮罩使用相同的背景范围，页面布局继续使用 [systemSafeEdges]。
      */
     val backgroundSafeEdges: EdgeInsets
         get() = EdgeInsets(

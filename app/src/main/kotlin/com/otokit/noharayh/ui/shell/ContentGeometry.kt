@@ -5,7 +5,7 @@ import com.otokit.noharayh.ui.window.PixelRect
 import com.otokit.noharayh.ui.window.WindowSnapshot
 import com.otokit.noharayh.ui.window.relativeToRoot
 
-/** 基础内容矩形（背景使用）与避让 IME 后的交互矩形（内容/覆盖层使用）。 */
+/** 背景与设置遮罩使用基础矩形，功能和设置页面使用避让系统栏及 IME 的交互矩形。 */
 data class ContentRects(
     val base: PixelRect,
     val interactive: PixelRect,

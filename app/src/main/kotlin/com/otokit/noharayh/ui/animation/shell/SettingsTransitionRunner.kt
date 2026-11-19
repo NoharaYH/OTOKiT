@@ -3,9 +3,7 @@ package com.otokit.noharayh.ui.animation.shell
 import android.animation.ValueAnimator
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.ColorDrawable
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -14,7 +12,6 @@ import com.otokit.noharayh.ui.animation.common.TransitionFrame
 import com.otokit.noharayh.ui.animation.common.TransitionProgress
 import com.otokit.noharayh.ui.animation.common.TransitionTiming
 import com.otokit.noharayh.ui.constants.motion.SettingsTransition
-import kotlin.math.roundToInt
 
 /**
  * 设置覆盖层的进出与预测预览执行器。
@@ -24,22 +21,17 @@ import kotlin.math.roundToInt
  */
 class SettingsTransitionRunner(
     private val overlayHost: FrameLayout,
+    private val scrim: View,
     private val featureProvider: () -> View?,
     private val settingsProvider: () -> View?,
     private val onProgress: (TransitionProgress) -> Unit,
 ) {
 
-    private val scrim = ColorDrawable(Color.TRANSPARENT)
     private var animator: ValueAnimator? = null
     private var ghost: ImageView? = null
     private var token = 0
     private var progress = 0f
     private var pendingLayout: Pair<android.view.ViewTreeObserver, android.view.ViewTreeObserver.OnGlobalLayoutListener>? = null
-
-    init {
-        // overlayHost 的尺寸由主壳按设置内容区计算，背景和页面共用该边界。
-        overlayHost.background = scrim
-    }
 
     /** 当前呈现进度：0=功能态，1=设置态；关闭接续预览的最后一帧。 */
     val openProgress: Float get() = progress
@@ -169,7 +161,7 @@ class SettingsTransitionRunner(
 
     fun dispose() {
         cancel()
-        overlayHost.background = null
+        scrim.alpha = 0f
         featureProvider()?.let {
             it.alpha = 1f
             it.scaleX = 1f
@@ -218,8 +210,7 @@ class SettingsTransitionRunner(
 
     private fun applyOpenState(value: Float, ghostVisible: Boolean, running: Boolean = true) {
         progress = value
-        val scrimAlpha = (255f * SettingsTransition.SCRIM_MAX_ALPHA * value).roundToInt()
-        scrim.color = Color.argb(scrimAlpha, 0, 0, 0)
+        scrim.alpha = SettingsTransition.SCRIM_MAX_ALPHA * value
         featureProvider()?.let { view ->
             applyFrame(view, SettingsTransitionFrames.feature(value, presentationHeight(view).toFloat()))
         }
