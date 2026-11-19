@@ -102,7 +102,7 @@ class FileHtmlCaptures(private val root: File) : HtmlCaptures {
         }.toMap()
         return HtmlBatchRecord(batch, index.getProperty("taskId"), HtmlBatchStatus.valueOf(index.getProperty("status")),
             Collections.unmodifiableList(index.getProperty("expected").split(',').map { HtmlPageKind.valueOf(it) }),
-            Collections.unmodifiableList(pages), Collections.unmodifiableMap(evidence))
+            Collections.unmodifiableList(pages), Collections.unmodifiableMap(evidence), index.getProperty("fileStamp"))
     }
 
     @Synchronized override fun finish(batch: HtmlBatchRef, status: HtmlBatchStatus) {

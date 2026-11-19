@@ -21,6 +21,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.otokit.noharayh.ui.shell.StartupPresentation
 import com.otokit.noharayh.databinding.ActivityMainBinding
 import com.otokit.noharayh.composition.oauthConnections
+import com.otokit.noharayh.composition.initializeScoreData
 import com.otokit.noharayh.composition.scoreSyncStartState
 import com.otokit.noharayh.platform.ScoreSyncLauncher
 import com.otokit.noharayh.platform.DisplayScaleStore
@@ -86,6 +87,7 @@ class MainActivity : AppCompatActivity() {
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
         val systemSplash = installSplashScreen()
         super.onCreate(savedInstanceState)
+        initializeScoreData(this)
         scoreSyncLauncher = ScoreSyncLauncher(this, scoreSyncStartState(this))
         // 显式浅底深色内容，不使用按模式自动判断的另一套回调。
         enableEdgeToEdge(

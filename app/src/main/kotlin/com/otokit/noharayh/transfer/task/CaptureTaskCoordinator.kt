@@ -231,7 +231,9 @@ internal class CaptureTaskCoordinator(
         }
         val evidence = try { archives.open(ref).use { NetHtmlInspector.inspect(current.request.game, kind, it) { current.cancelled.get() } } }
         catch (error: Exception) { if (current.cancelled.get()) throw InterruptedException(); throw ArchiveException(error) }
-        try { archives.recordEvidence(ref, evidence) } catch (error: Exception) { throw ArchiveException(error) }
+        val archivedEvidence = if (response.status == 200 || evidence.validity == HtmlValidity.BUSINESS_ERROR) evidence
+            else evidence.copy(validity = HtmlValidity.UNRECOGNIZED)
+        try { archives.recordEvidence(ref, archivedEvidence) } catch (error: Exception) { throw ArchiveException(error) }
         val captured = CapturedHtml(ref, evidence, response.status)
         update(current) { state ->
             if (kind == HtmlPageKind.LOGIN_DIAGNOSTIC) state.copy(loginDiagnostic = captured)

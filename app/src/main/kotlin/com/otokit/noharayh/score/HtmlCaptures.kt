@@ -12,6 +12,16 @@ enum class HtmlPageKind(val suffix: String) {
 
     val isDiagnostic: Boolean get() = this in listOf(LOGIN_DIAGNOSTIC, FAILED_RESPONSE)
     val isDifficulty: Boolean get() = this !in listOf(PLAYER, RECENT) && !isDiagnostic
+
+    internal val chartIndex: Int get() = when (this) {
+        BASIC -> 0
+        ADVANCED -> 1
+        EXPERT -> 2
+        MASTER -> 3
+        REMASTER, ULTIMA -> 4
+        UTAGE, WORLDS_END -> 5
+        else -> error("Page does not represent a chart difficulty")
+    }
 }
 
 enum class HtmlBatchStatus { RUNNING, COMPLETED, FAILED, CANCELLED, TIMED_OUT, INTERRUPTED }
@@ -42,6 +52,7 @@ data class HtmlBatchRecord(
     val expectedPages: List<HtmlPageKind>,
     val pages: List<HtmlPageRef>,
     val evidence: Map<HtmlPageKind, HtmlPageEvidence>,
+    val fileStamp: String,
 )
 
 /** The score boundary owns paths and indexes. Consumers exchange stable references. */

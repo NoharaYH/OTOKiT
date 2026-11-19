@@ -12,17 +12,16 @@ import android.util.Log
 import com.otokit.noharayh.R
 import com.otokit.noharayh.auth.OAuthProvider
 import com.otokit.noharayh.composition.scoreUploadFactory
+import com.otokit.noharayh.composition.scoreCaptures
 import com.otokit.noharayh.score.HtmlCaptures
 import com.otokit.noharayh.score.ScoreGame
 import com.otokit.noharayh.score.HtmlPageKind
-import com.otokit.noharayh.score.html.FileHtmlCaptures
 import com.otokit.noharayh.transfer.*
 import com.otokit.noharayh.transfer.capture.LoopbackCaptureProxy
 import com.otokit.noharayh.transfer.net.GameNetPages
 import com.otokit.noharayh.transfer.task.CaptureChannel
 import com.otokit.noharayh.transfer.task.CaptureTaskCoordinator
 import java.io.Closeable
-import java.io.File
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -45,7 +44,7 @@ open class NetCaptureService : VpnService() {
 
     override fun onCreate() {
         super.onCreate()
-        archives = FileHtmlCaptures(File(filesDir, "score/html"))
+        archives = scoreCaptures(this)
         val callbackHtml = assets.open("transfer/wechat-callback.html").bufferedReader().use { it.readText() }
         coordinator = CaptureTaskCoordinator(archives, newUploadTask = scoreUploadFactory(this, archives), openChannel = { authorize, callback, event ->
             if (Build.VERSION.SDK_INT < 29) error("Capture requires Android 10")
