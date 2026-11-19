@@ -26,6 +26,36 @@ class ContentGeometryTest {
         assertEquals(24 + 72, rects.interactive.top)
     }
 
+    @Test
+    fun railContentKeepsItsViewportWhenTheStatusBarAppears() {
+        for (width in listOf(700, 1000)) {
+            val hidden = snapshot(width = width, height = 1200, density = 1f,
+                insets = WindowInsetsSnapshot(navigationBars = EdgeInsets(bottom = 24)))
+            val revealed = hidden.copy(insets = hidden.insets.copy(
+                statusBars = EdgeInsets(top = 32), statusBarsVisible = true))
+            val rail = ChromeInsets(left = 88)
+            val original = ContentGeometry.compute(hidden, rail)
+
+            assertEquals(PixelRect(88, 0, width, 1200), original.base)
+            assertEquals(PixelRect(88, 0, width, 1176), original.interactive)
+            assertEquals(original, ContentGeometry.compute(revealed, rail))
+        }
+    }
+
+    @Test
+    fun railStillReservesTheTopInsetsFromACutoutOrWindowCaption() {
+        for ((cutout, caption) in listOf(24 to 0, 0 to 32)) {
+            val snapshot = snapshot(width = 1000, density = 1f, insets = WindowInsetsSnapshot(
+                statusBars = EdgeInsets(top = 64),
+                displayCutout = EdgeInsets(top = cutout),
+                captionBar = EdgeInsets(top = caption),
+            ))
+            val rects = ContentGeometry.compute(snapshot, ChromeInsets(left = 88))
+            assertEquals(maxOf(cutout, caption), rects.base.top)
+            assertEquals(rects.base.top, rects.interactive.top)
+        }
+    }
+
     /** 状态栏与开孔同边重叠时取最大占用，不是相加。 */
     @Test
     fun mergesOverlappingTopInsets() {

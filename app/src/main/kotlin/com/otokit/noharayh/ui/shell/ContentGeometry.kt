@@ -1,6 +1,7 @@
 package com.otokit.noharayh.ui.shell
 
 import com.otokit.noharayh.ui.chrome.ChromeInsets
+import com.otokit.noharayh.ui.chrome.ChromeLayoutPolicy
 import com.otokit.noharayh.ui.window.PixelRect
 import com.otokit.noharayh.ui.window.WindowSnapshot
 import com.otokit.noharayh.ui.window.relativeToRoot
@@ -26,7 +27,9 @@ object ContentGeometry {
     fun compute(snapshot: WindowSnapshot, chrome: ChromeInsets = ChromeInsets.Zero): ContentRects {
         val width = snapshot.metrics.widthPx
         val height = snapshot.metrics.heightPx
-        val safe = snapshot.insets.systemSafeEdges
+        val safe = snapshot.insets.systemSafeEdges(
+            reserveStatusBarTop = !ChromeLayoutPolicy.usesRail(snapshot.layoutClass),
+        )
         val backgroundSafe = snapshot.insets.backgroundSafeEdges
 
         val left = (safe.left + chrome.left).coerceIn(0, width)

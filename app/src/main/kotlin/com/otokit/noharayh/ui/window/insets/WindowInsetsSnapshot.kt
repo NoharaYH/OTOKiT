@@ -39,12 +39,14 @@ data class WindowInsetsSnapshot(
      * 不含 systemGestures 与 IME。
      */
     val systemSafeEdges: EdgeInsets
-        get() = EdgeInsets(
-            left = maxOf(statusBars.left, navigationBars.left, displayCutout.left, captionBar.left),
-            top = maxOf(statusBars.top, navigationBars.top, displayCutout.top, captionBar.top),
-            right = maxOf(statusBars.right, navigationBars.right, displayCutout.right, captionBar.right),
-            bottom = maxOf(statusBars.bottom, navigationBars.bottom, displayCutout.bottom, captionBar.bottom),
-        )
+        get() = systemSafeEdges(reserveStatusBarTop = true)
+
+    fun systemSafeEdges(reserveStatusBarTop: Boolean): EdgeInsets = EdgeInsets(
+        left = maxOf(statusBars.left, navigationBars.left, displayCutout.left, captionBar.left),
+        top = maxOf(if (reserveStatusBarTop) statusBars.top else 0, navigationBars.top, displayCutout.top, captionBar.top),
+        right = maxOf(statusBars.right, navigationBars.right, displayCutout.right, captionBar.right),
+        bottom = maxOf(statusBars.bottom, navigationBars.bottom, displayCutout.bottom, captionBar.bottom),
+    )
 
     /**
      * 背景可延伸到的安全区：与 [systemSafeEdges] 相同，但忽略导航栏底边。
