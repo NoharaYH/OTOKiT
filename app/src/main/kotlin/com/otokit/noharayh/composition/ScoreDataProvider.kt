@@ -6,6 +6,7 @@ import com.otokit.noharayh.score.*
 import com.otokit.noharayh.score.html.FileHtmlCaptures
 import com.otokit.noharayh.score.json.ScoreDatabase
 import com.otokit.noharayh.score.json.ScoreSnapshots
+import com.otokit.noharayh.transfer.task.CaptureTaskCoordinator
 import java.io.File
 
 private var data: ScoreData? = null
@@ -19,6 +20,7 @@ private fun scoreData(context: Context): ScoreData {
             ScoreCatalog(app.assets.open("musicData/${game.key}-catalog.json"))
         },
         ScoreDatabase(app),
+        CaptureTaskCoordinator::isActive,
     ).also {
         data = it
         it.startRecovery()
@@ -28,4 +30,5 @@ private fun scoreData(context: Context): ScoreData {
 internal fun initializeScoreData(context: Context) { scoreData(context) }
 internal fun scoreCaptures(context: Context): HtmlCaptures = scoreData(context)
 internal fun scoreArchiveQueries(context: Context): ScoreArchiveQueries = scoreData(context)
+internal fun scoreArchiveActions(context: Context): ScoreArchiveActions = scoreData(context)
 internal fun personalScoreQueries(context: Context): PersonalScoreQueries = scoreData(context)

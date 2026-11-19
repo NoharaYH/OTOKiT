@@ -2,20 +2,24 @@ package com.otokit.noharayh.score
 
 import android.database.sqlite.SQLiteException
 import android.util.Log
+import com.otokit.noharayh.score.html.FileHtmlCaptures
 import com.otokit.noharayh.score.json.ScoreDatabase
 import com.otokit.noharayh.score.json.ScoreSnapshots
 import org.json.JSONException
 import java.io.InputStream
 import java.io.IOException
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 
 /** Score-owned derivative work, independent of the transfer service's lifetime. */
 internal class ScoreData(
-    private val html: HtmlCaptures,
+    private val html: FileHtmlCaptures,
     private val snapshots: ScoreSnapshots,
     private val database: ScoreDatabase,
-) : HtmlCaptures by html, ScoreArchiveQueries, PersonalScoreQueries by database {
+    private val taskActive: (String) -> Boolean = { false },
+) : HtmlCaptures by html, ScoreArchiveQueries, ScoreArchiveActions, PersonalScoreQueries by database {
     private val worker = Executors.newSingleThreadExecutor { Thread(it, "ScoreImport") }
     private val failed = ConcurrentHashMap.newKeySet<HtmlBatchRef>()
     private var recovered = false
@@ -56,7 +60,7 @@ internal class ScoreData(
             if (file != null) {
                 database.importFile(record.batch, file)
                 failed.remove(batch)
-            } else if (record.status != HtmlBatchStatus.RUNNING) {
+            } else if (record.status != HtmlBatchStatus.RUNNING && !record.htmlRemoved && !snapshots.wasRemoved(batch)) {
                 failed.add(batch)
             }
         } catch (error: IOException) {
@@ -97,8 +101,70 @@ internal class ScoreData(
     override fun previewJson(snapshot: ScoreSnapshotRef): ScoreTextPreview {
         val batch = html.read(snapshot.batch)
         val file = snapshots.finalFile(batch)
-        require(snapshot.id == ScoreSnapshots.id(batch.batch) && snapshot.name == file.name)
+        require(snapshot == snapshots.reference(batch))
         return preview(file.inputStream())
+    }
+
+    override fun remove(format: ScoreArchiveFormat, batches: Set<HtmlBatchRef>, done: (ScoreArchiveRemoval) -> Unit) {
+        worker.execute {
+            val removed = mutableSetOf<HtmlBatchRef>()
+            var cleanupPending = 0
+            for (batch in batches) {
+                archiveOperation {
+                    val record = html.read(batch)
+                    if (record.status == HtmlBatchStatus.RUNNING || taskActive(record.taskId)) return@archiveOperation
+                    val cleaned = when (format) {
+                        ScoreArchiveFormat.Html -> html.removeArchive(batch)
+                        ScoreArchiveFormat.Json -> snapshots.removeArchive(record)
+                    }
+                    removed += batch
+                    failed.remove(batch)
+                    if (!cleaned) cleanupPending++
+                }
+            }
+            done(ScoreArchiveRemoval(removed, cleanupPending))
+        }
+    }
+
+    override fun export(format: ScoreArchiveFormat, batches: Set<HtmlBatchRef>,
+                        destination: ((java.io.OutputStream) -> Unit) -> Unit, done: (Boolean) -> Unit) {
+        worker.execute {
+            done(archiveOperation {
+                destination { output ->
+                    ZipOutputStream(output.buffered()).use { zip ->
+                        for (batch in batches) {
+                            val record = html.read(batch)
+                            val directory = "${batch.game.key}/${batch.id}"
+                            when (format) {
+                                ScoreArchiveFormat.Html -> {
+                                    val pages = record.pages.filterNot { it.kind.isDiagnostic }
+                                    check(pages.isNotEmpty())
+                                    pages.forEach { page -> zip.add("$directory/${page.fileName}", html.open(page)) }
+                                }
+                                ScoreArchiveFormat.Json -> {
+                                    val snapshot = checkNotNull(snapshots.reference(record))
+                                    zip.add("$directory/${snapshot.name}", snapshots.finalFile(record).inputStream())
+                                }
+                            }
+                        }
+                    }
+                }
+            })
+        }
+    }
+
+    private fun ZipOutputStream.add(name: String, source: InputStream) = source.use {
+        putNextEntry(ZipEntry(name))
+        it.copyTo(this)
+        closeEntry()
+    }
+
+    private inline fun archiveOperation(action: () -> Unit): Boolean = try {
+        action()
+        true
+    } catch (error: Exception) {
+        Log.w("ScoreArchive", error.javaClass.simpleName)
+        false
     }
 
     override fun importProgress(batch: HtmlBatchRef): ScoreImportProgress =

@@ -1,10 +1,13 @@
 package com.otokit.noharayh.ui.kit.settings
 
+import android.animation.ValueAnimator
+import androidx.core.animation.doOnEnd
 import android.content.Context
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
+import android.view.animation.LinearInterpolator
 import android.widget.FrameLayout
 import android.widget.ScrollView
 import com.otokit.noharayh.ui.constants.dimensions.ArchiveRecordListDimensions as Dimensions
@@ -12,6 +15,8 @@ import com.otokit.noharayh.ui.constants.dimensions.SettingsButtonDimensions
 import com.otokit.noharayh.ui.constants.dimensions.SettingsGroupDimensions
 import com.otokit.noharayh.ui.constants.dimensions.ThemeSelectionDimensions
 import com.otokit.noharayh.ui.constants.motion.ArchiveRecordListMotion as Motion
+import com.otokit.noharayh.ui.constants.motion.SettingsChoiceMotion
+import com.otokit.noharayh.ui.animation.common.MotionInterpolators
 import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors
 import com.otokit.noharayh.ui.kit.common.ContinuousCornerDrawable
 import com.otokit.noharayh.ui.kit.common.PressFrontColumn
@@ -23,7 +28,12 @@ internal class ArchiveRecordList(
     context: Context,
     scrollbarDescription: String,
 ) : FrameLayout(context) {
-    data class Row(val label: String, val onClick: () -> Unit)
+    class Row(val label: String, val onClick: () -> Unit)
+
+    private data class RowFrame(
+        val top: Float, val height: Float, val width: Float, val alpha: Float, val expansion: Float,
+        val topRadius: Float, val bottomRadius: Float,
+    )
 
     private val rowHeight = dp(context, SettingsButtonDimensions.HEIGHT_DP)
     private val gap = dp(context, SettingsGroupDimensions.GAP_DP)
@@ -39,6 +49,13 @@ internal class ArchiveRecordList(
         + 2 * dp(context, Dimensions.SCROLLBAR_TRACK_INSET_DP)).roundToInt()
     private var items = emptyList<Row>()
     private val buttons = mutableMapOf<Int, SettingsButton>()
+    private var selected = emptySet<Row>()
+    private val selectionInset = dp(context, Dimensions.SELECTION_INSET_DP).toFloat()
+    private var removalAnimation: ValueAnimator? = null
+    private var removing = emptySet<Row>()
+    private var shrink = 0f
+    private var previousFrames = emptyMap<Row, RowFrame>()
+    private var refill = 1f
     private var slots = 1
     private var maximum = 0
     private var touching = false
@@ -128,6 +145,94 @@ internal class ArchiveRecordList(
         scroll.scrollTo(0, 0)
     }
 
+    fun setSelection(selection: Set<Row>) {
+        val changed = (selected - selection) + (selection - selected)
+        selected = selection
+        buttons.forEach { (index, button) ->
+            val item = items[index]
+            if (item in changed) highlight(button, item in selected, animate = true)
+        }
+    }
+
+    private fun highlight(button: SettingsButton, selected: Boolean, animate: Boolean) =
+        button.setHighlight(selected, selectionInset, SettingsComponentColors.ARCHIVE_SELECTED_FILL, animate)
+
+    fun removeRows(removed: Set<Row>, finished: () -> Unit) {
+        if (removed.isEmpty()) {
+            finished()
+            return
+        }
+        scroll.fling(0)
+        removeCallbacks(settle)
+        removing = removed
+        if (buttons.keys.any { items[it] in removed }) {
+            animateRemoval(Motion.REMOVE_SHRINK_MS, linear = true, { shrink = it; renderRows() }) {
+                refillRows(removed, finished)
+            }
+        } else refillRows(removed, finished)
+    }
+
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean =
+        removing.isNotEmpty() || super.dispatchTouchEvent(event)
+
+    private fun refillRows(removed: Set<Row>, finished: () -> Unit) {
+        val oldPosition = scroll.scrollY
+        val first = oldPosition / stride
+        val start = (0 until minOf(first, items.size)).count { items[it] !in removed }
+        previousFrames = buttons.entries.mapNotNull { (index, button) ->
+            val row = items[index]
+            if (row in removed || button.height == 0) null else row to RowFrame(
+                (button.top - oldPosition).toFloat(), button.height.toFloat(),
+                button.width.toFloat() / rows.width.coerceAtLeast(1), button.alpha,
+                ((button.height - stripHeight).toFloat() / (rowHeight - stripHeight)).coerceIn(0f, 1f)
+                    .let { if (button.isClickable) 1f else it },
+                button.topCornerRadius ?: inner, button.bottomCornerRadius ?: inner,
+            )
+        }.toMap()
+        val retained = items - removed
+        val oldButtons = buttons.toMap()
+        buttons.clear()
+        var index = 0
+        items.forEachIndexed { oldIndex, row ->
+            val button = oldButtons[oldIndex]
+            if (row in removed) {
+                if (button != null) rows.removeView(button)
+            } else {
+                if (button != null) buttons[index] = button
+                index++
+            }
+        }
+        items = retained
+        selected = selected - removed
+        expansionFeedback = ListExpansionFeedback()
+        updateRange()
+        refill = 0f
+        scroll.scrollTo(0, (start * stride + oldPosition % stride).coerceAtMost(maximum))
+        animateRemoval(SettingsChoiceMotion.DURATION_MS, linear = false, { refill = it; renderRows() }) {
+            previousFrames = emptyMap()
+            removing = emptySet()
+            shrink = 0f
+            renderRows()
+            finished()
+        }
+    }
+
+    private fun animateRemoval(durationMs: Long, linear: Boolean, frame: (Float) -> Unit, finished: () -> Unit) {
+        val animator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = durationMs
+            interpolator = if (linear) LinearInterpolator() else MotionInterpolators.of(SettingsChoiceMotion.CURVE)
+            addUpdateListener { frame(it.animatedValue as Float) }
+            doOnEnd {
+                if (removalAnimation === it) {
+                    removalAnimation = null
+                    finished()
+                }
+            }
+        }
+        removalAnimation = animator
+        animator.start()
+    }
+
     private fun updateRange() {
         scrollFeedbackActive = false
         slots = ((scroll.height - 2 * edgeSpace + gap) / stride).coerceAtLeast(1)
@@ -144,7 +249,7 @@ internal class ArchiveRecordList(
 
     private fun scheduleSettle() {
         removeCallbacks(settle)
-        if (!touching && !draggingThumb) postDelayed(settle, Motion.IDLE_SNAP_DELAY_MS)
+        if (!touching && !draggingThumb && removing.isEmpty()) postDelayed(settle, Motion.IDLE_SNAP_DELAY_MS)
     }
 
     private fun renderRows(playFeedback: Boolean = false) {
@@ -206,24 +311,31 @@ internal class ArchiveRecordList(
 
     private fun place(index: Int, top: Float, height: Float, topRadius: Float, bottomRadius: Float,
         expansion: Float, widthFraction: Float = 1f, alpha: Float = 1f, fullHeight: Float = 0f): Boolean {
+        val item = items[index]
         val button = buttons.getOrPut(index) {
-            val item = items[index]
             SettingsButton(context, item.label, SettingsButton.Kind.Action,
-                contentHeight = LayoutParams.MATCH_PARENT, onClick = item.onClick).also {
+                trailingIcon = null, contentHeight = LayoutParams.MATCH_PARENT, onClick = item.onClick).also {
+                highlight(it, item in selected, animate = false)
                 rows.addView(it, if (expansion == 0f) 0 else rows.childCount)
             }
         }
-        val rowTop = top.roundToInt()
-        val h = (top + height).roundToInt() - rowTop
-        val w = (rows.width * widthFraction).roundToInt()
+        val previous = previousFrames[item]
+        val visualTop = mix(previous?.top ?: (scroll.height - stripHeight).toFloat(), top, refill)
+        val rowTop = visualTop.roundToInt()
+        val h = (visualTop + mix(previous?.height ?: stripHeight.toFloat(), height, refill)).roundToInt() - rowTop
+        val w = (rows.width * mix(previous?.width ?: narrowStrip, widthFraction, refill)).roundToInt()
         val left = (rows.width - w) / 2
         val y = scroll.scrollY + rowTop
         val complete = expansion >= 1f
+        val removal = if (item in removing) shrink else 0f
         button.visibility = if (h > 0) VISIBLE else INVISIBLE
-        button.alpha = alpha
-        button.topCornerRadius = topRadius
-        button.bottomCornerRadius = bottomRadius
-        button.setContentAlpha(((expansion - Motion.CONTENT_FADE_START) / (1f - Motion.CONTENT_FADE_START)).coerceIn(0f, 1f))
+        button.alpha = mix(previous?.alpha ?: 0f, alpha, refill) * (1f - removal)
+        // The short side reaches half size; both axes lose the same number of pixels per edge.
+        button.removalInset = (minOf(w, h) / 4f - selectionInset / 2f).coerceAtLeast(0f) * removal
+        button.topCornerRadius = mix(previous?.topRadius ?: stripInner, topRadius, refill)
+        button.bottomCornerRadius = mix(previous?.bottomRadius ?: stripOuter, bottomRadius, refill)
+        val visibleExpansion = mix(previous?.expansion ?: 0f, expansion, refill)
+        button.setContentAlpha(((visibleExpansion - Motion.CONTENT_FADE_START) / (1f - Motion.CONTENT_FADE_START)).coerceIn(0f, 1f))
         button.isClickable = complete
         button.isFocusable = complete
         button.importantForAccessibility = if (complete) IMPORTANT_FOR_ACCESSIBILITY_YES else IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
@@ -234,6 +346,13 @@ internal class ArchiveRecordList(
 
     override fun onDetachedFromWindow() {
         removeCallbacks(settle)
+        val animator = removalAnimation
+        removalAnimation = null
+        animator?.cancel()
+        removing = emptySet()
+        previousFrames = emptyMap()
+        shrink = 0f
+        refill = 1f
         touching = false
         draggingThumb = false
         scrollFeedbackActive = false

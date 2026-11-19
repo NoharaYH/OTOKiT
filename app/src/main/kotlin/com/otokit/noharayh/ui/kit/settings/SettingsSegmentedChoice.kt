@@ -14,6 +14,7 @@ import com.otokit.noharayh.ui.constants.dimensions.SettingsChoiceDimensions as D
 import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors as Colors
 import com.otokit.noharayh.ui.kit.common.AppTypography
 import com.otokit.noharayh.ui.kit.common.PressSurface
+import com.otokit.noharayh.ui.kit.common.ViewPrimitives
 
 /**
  * 三态分段选择：自身持有三个 PressSurface，不随页面重建。
@@ -52,40 +53,19 @@ internal class SettingsSegmentedChoice(context: Context) : LinearLayout(context)
         this.selectedIndex = selectedIndex
 
         labels.forEachIndexed { index, label ->
-            val text = TextView(context).apply {
-                text = label
-                textSize = Dimensions.TEXT_SP
-                maxLines = 1
-                gravity = Gravity.CENTER
-                includeFontPadding = false
-                setTextColor(if (index == selectedIndex) Colors.SELECTED else Colors.TEXT)
-                AppTypography.applyAppTypeface(this, bold = true)
-                importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-            }
-            text.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED)
-            val buttonHeight = dp(Dimensions.HEIGHT_DP)
-            val textPadding = ((buttonHeight - text.measuredHeight) / 2).coerceAtLeast(0)
-            val buttonWidth = text.measuredWidth + textPadding * 2
-            val surface = PressSurface(context).apply {
+            val color = if (index == selectedIndex) Colors.SELECTED else Colors.TEXT
+            val surface = SettingsCompactButton(context, label, color) {
+                if (this.selectedIndex != index) this.onSelected?.invoke(index)
+            }.apply {
                 configureSingleChoiceSemantics(index == selectedIndex, column = index)
-                outerHaloEnabled = true
-                deferClickUntilReleaseFeedback = false
-                fillColor = Colors.CONTENT
                 baseRadius = radiusFor(index == selectedIndex)
-                contentDescription = label
-                setPadding(textPadding, textPadding, textPadding, textPadding)
-                addView(text, FrameLayout.LayoutParams(-1, -1))
-                setOnClickListener {
-                    if (this@SettingsSegmentedChoice.selectedIndex == index) return@setOnClickListener
-                    this@SettingsSegmentedChoice.onSelected?.invoke(index)
-                }
             }
-            textColors += if (index == selectedIndex) Colors.SELECTED else Colors.TEXT
+            textColors += color
             buttons += surface
-            this.labels += text
+            this.labels += surface.textView
             addView(
                 surface,
-                LayoutParams(buttonWidth, buttonHeight).apply {
+                LayoutParams(surface.minimumWidth, surface.minimumHeight).apply {
                     if (index > 0) marginStart = dp(Dimensions.GAP_DP)
                 },
             )
@@ -168,4 +148,33 @@ internal class SettingsSegmentedChoice(context: Context) : LinearLayout(context)
     private fun dp(value: Int): Int =
         (value * resources.displayMetrics.density + 0.5f).toInt()
 
+}
+
+internal class SettingsCompactButton(context: Context, label: String, color: Int, onClick: () -> Unit) :
+    PressSurface(context) {
+    val textView = TextView(context).apply {
+        text = label
+        textSize = Dimensions.TEXT_SP
+        maxLines = 1
+        gravity = Gravity.CENTER
+        includeFontPadding = false
+        setTextColor(color)
+        AppTypography.applyAppTypeface(this, bold = true)
+        importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+    }
+
+    init {
+        textView.measure(MeasureSpec.UNSPECIFIED, MeasureSpec.UNSPECIFIED)
+        minimumHeight = ViewPrimitives.dp(context, Dimensions.HEIGHT_DP)
+        val padding = ((minimumHeight - textView.measuredHeight) / 2).coerceAtLeast(0)
+        minimumWidth = textView.measuredWidth + padding * 2
+        outerHaloEnabled = true
+        deferClickUntilReleaseFeedback = false
+        fillColor = Colors.CONTENT
+        baseRadius = ViewPrimitives.dp(context, Dimensions.UNSELECTED_RADIUS_DP).toFloat()
+        contentDescription = label
+        setPadding(padding, padding, padding, padding)
+        addView(textView, FrameLayout.LayoutParams(-1, -1))
+        setOnClickListener { onClick() }
+    }
 }

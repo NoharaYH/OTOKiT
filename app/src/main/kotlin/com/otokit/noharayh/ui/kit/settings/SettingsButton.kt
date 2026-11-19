@@ -19,7 +19,7 @@ import com.otokit.noharayh.ui.kit.common.PressSurface
 /** 成品操作/单选按钮；只发意图，由 renderSelection 接收确认状态。 */
 @android.annotation.SuppressLint("ViewConstructor") // 纯代码组件，需要显式内容与回调。
 internal class SettingsButton(context: Context, label: String, private val kind: Kind,
-    selected: Boolean = false, trailingIcon: ActionIcon = ActionIcon.Next,
+    selected: Boolean = false, trailingIcon: ActionIcon? = ActionIcon.Next,
     contentHeight: Int = ViewPrimitives.dp(context, Dimensions.HEIGHT_DP),
     private val choiceIndicatorVisible: Boolean = true,
     private val selectedTextColor: Int = Colors.SELECTED,
@@ -37,6 +37,31 @@ internal class SettingsButton(context: Context, label: String, private val kind:
     private val transition = SettingsChoiceTransitionRunner()
     private var confirmed = selected
     private var contentColor: Int? = null
+    private var highlightInset = 0f
+    var removalInset = 0f
+        set(value) {
+            if (field == value) return
+            field = value
+            invalidate()
+        }
+    override val surfaceFillInset get() = highlightInset + removalInset
+
+    fun setHighlight(selected: Boolean, inset: Float, fill: Int, animate: Boolean) {
+        isSelected = selected
+        setContentColor(if (selected) Colors.SELECTED else null)
+        val targetInset = if (selected) inset else 0f
+        val targetColor = if (selected) fill else Colors.CONTENT
+        if (animate) transition.play(0, highlightInset, targetInset, fillColor, targetColor) { nextInset, nextColor ->
+            highlightInset = nextInset
+            fillColor = nextColor
+            invalidate()
+        } else {
+            transition.stop()
+            highlightInset = targetInset
+            fillColor = targetColor
+            invalidate()
+        }
+    }
     fun textExtentFor(label: String, widthScale: Float): Float =
         dp(Dimensions.INSET_DP) + labelView.paint.measureText(label) * widthScale
 
@@ -59,7 +84,7 @@ internal class SettingsButton(context: Context, label: String, private val kind:
             if (kind == Kind.Choice) {
                 if (choiceIndicatorVisible) addView(indicator,
                     LinearLayout.LayoutParams(dp(Dimensions.ICON_DP), dp(Dimensions.ICON_DP)))
-            } else addView(ImageView(context).apply {
+            } else if (trailingIcon != null) addView(ImageView(context).apply {
                 setImageResource(when (trailingIcon) {
                     ActionIcon.Next -> R.drawable.ic_chevron_right_24
                     ActionIcon.ExternalLink -> R.drawable.ic_open_in_new_24

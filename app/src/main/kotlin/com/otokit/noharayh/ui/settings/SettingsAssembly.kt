@@ -12,6 +12,7 @@ import com.otokit.noharayh.ui.animation.settings.SettingsPageTransitionRunner
 import com.otokit.noharayh.ui.chrome.SettingsHeading
 import com.otokit.noharayh.ui.chrome.TitleTexts
 import com.otokit.noharayh.composition.scoreArchiveQueries
+import com.otokit.noharayh.composition.scoreArchiveActions
 import com.otokit.noharayh.ui.constants.display.DisplayScaleOption
 import com.otokit.noharayh.ui.shell.navigation.SettingsSection
 import com.otokit.noharayh.ui.shell.selection.GameSelectionState
@@ -304,7 +305,7 @@ class SettingsAssembly(
     private fun updatePadding() = rootPage.setContentMargins(margin, split)
 
     private fun buildPage(page: Page): View = page.archive?.let { archive ->
-        ScoreArchivePage(context, archive, margin, split, scoreArchiveQueries(context)) { closeArchive() }
+        ScoreArchivePage(context, archive, margin, split, scoreArchiveQueries(context), scoreArchiveActions(context)) { closeArchive() }
     } ?: buildChild(requireNotNull(page.section))
 
     private fun buildChild(section: SettingsSection) = SettingsPages.child(

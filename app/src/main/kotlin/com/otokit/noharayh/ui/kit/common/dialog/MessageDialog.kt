@@ -23,6 +23,7 @@ import kotlin.math.roundToInt
 
 /** 平级的另一种说明；不表示导航层级，也不持久化用户的阅读选择。 */
 internal data class AlternateExplanation(val message: CharSequence, val showLabel: String, val returnLabel: String)
+internal data class MessageDialogAction(val label: String, val color: Int, val onClick: () -> Unit)
 
 /** 应用共用消息窗：确认操作或说明切换，组件拥有测量和过渡，页面只提供内容与事件。 */
 internal class MessageDialog(
@@ -33,6 +34,7 @@ internal class MessageDialog(
     cancelLabel: String?,
     private val accentColor: Int = 0xFFE57373.toInt(),
     private val alternateExplanation: AlternateExplanation? = null,
+    additionalAction: MessageDialogAction? = null,
     private val onConfirmed: () -> Unit,
 ) : Dialog(context) {
     private val content = DialogMessageContent(context, message, alternateExplanation?.message)
@@ -58,14 +60,23 @@ internal class MessageDialog(
         }, LinearLayout.LayoutParams(dp(Dimensions.ICON_SIZE_DP), dp(Dimensions.ICON_SIZE_DP)))
         body.addView(content, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(Dimensions.CONTENT_GAP_DP) })
         val actions = PressFrontColumn(context).apply { orientation = LinearLayout.HORIZONTAL }
-        actions.addView(DialogButton(context, confirmLabel, accentColor) {
+        fun addAction(button: DialogButton) = actions.addView(button,
+            LinearLayout.LayoutParams(0, -2, 1f).apply {
+                if (actions.childCount > 0) marginStart = dp(Dimensions.BUTTON_GAP_DP)
+            })
+        val cancel = cancelLabel?.let { DialogButton(context, it, 0xFF757575.toInt()) { dismiss() } }
+        if (additionalAction != null && cancel != null) addAction(cancel)
+        addAction(DialogButton(context, confirmLabel, accentColor) {
             if (isShowing) { dismiss(); onConfirmed() }
-        }, LinearLayout.LayoutParams(0, -2, 1f))
+        })
         val right = if (alternateExplanation != null) {
             DialogButton(context, alternateExplanation.showLabel, accentColor, ::switchExplanation).also { toggle = it }
-        } else cancelLabel?.let { DialogButton(context, it, 0xFF757575.toInt()) { dismiss() } }
-        if (right != null) actions.addView(right,
-            LinearLayout.LayoutParams(0, -2, 1f).apply { marginStart = dp(Dimensions.BUTTON_GAP_DP) })
+        } else if (additionalAction != null) {
+            DialogButton(context, additionalAction.label, additionalAction.color) {
+                if (isShowing) { dismiss(); additionalAction.onClick() }
+            }
+        } else cancel
+        right?.let(::addAction)
         body.addView(actions, LinearLayout.LayoutParams(-1, -2).apply {
             topMargin = dp(Dimensions.CONTENT_GAP_DP)
         })

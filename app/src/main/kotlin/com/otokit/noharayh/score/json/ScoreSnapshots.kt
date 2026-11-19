@@ -24,11 +24,24 @@ internal class ScoreSnapshots(
         return File(directory(batch.batch), prefix + "_Json_" + batch.fileStamp + ".json")
     }
 
-    fun reference(batch: HtmlBatchRecord): ScoreSnapshotRef? = finalFile(batch).takeIf(File::isFile)?.let {
+    fun reference(batch: HtmlBatchRecord): ScoreSnapshotRef? = finalFile(batch).takeIf { it.isFile && !wasRemoved(batch.batch) }?.let {
         ScoreSnapshotRef(batch.batch, id(batch.batch), it.name, it.length())
     }
 
+    private fun removedMarker(batch: HtmlBatchRef) = File(directory(batch), ".snapshot-removed")
+    fun wasRemoved(batch: HtmlBatchRef): Boolean = removedMarker(batch).isFile
+
+    fun removeArchive(batch: HtmlBatchRecord): Boolean {
+        val file = finalFile(batch)
+        if (file.exists()) removedMarker(batch.batch).createNewFile()
+        return !file.exists() || file.delete()
+    }
+
     fun advance(batch: HtmlBatchRecord, open: (HtmlPageRef) -> InputStream): File? {
+        if (wasRemoved(batch.batch)) {
+            removeArchive(batch)
+            return null
+        }
         val final = finalFile(batch)
         if (final.isFile) return final
         val draftFile = File(directory(batch.batch), "draft.json")

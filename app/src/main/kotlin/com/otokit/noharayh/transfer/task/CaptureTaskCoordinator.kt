@@ -7,7 +7,6 @@ import java.io.Closeable
 import java.net.URI
 import java.time.Instant
 import java.util.Collections
-import java.util.UUID
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicBoolean
@@ -29,7 +28,6 @@ internal class CaptureTaskCoordinator(
 ) : CaptureTasks, Closeable {
     private class Job(val request: CaptureRequest) {
         val startedAt: Instant = Instant.now()
-        val lease = UUID.randomUUID().toString()
         val cancelled = AtomicBoolean(false)
         val callbacks = ArrayBlockingQueue<URI>(1)
         @Volatile var timeout = false
@@ -67,7 +65,7 @@ internal class CaptureTaskCoordinator(
             val fixed = request.copy(difficulties = Collections.unmodifiableList(request.difficulties.toList()),
                 uploadTargets = Collections.unmodifiableList(request.uploadTargets.toList()))
             val current = Job(fixed)
-            if (!lease.compareAndSet(null, current.lease)) return CaptureStartResult.ALREADY_RUNNING
+            if (!lease.compareAndSet(null, current)) return CaptureStartResult.ALREADY_RUNNING
             job = current
             state = CaptureSnapshot(fixed, current.startedAt, totalPages = fixed.difficulties.size + 2)
             current.thread = Thread({ execute(current) }, "NetCaptureTask")
@@ -209,7 +207,7 @@ internal class CaptureTaskCoordinator(
                     state = state!!.copy(stage = stage, failure = failure, businessErrorCode = code, failureClass = failureClass,
                         failureLocation = failureLocation, protocolIssue = protocolIssue, httpStatus = httpStatus, entryUrl = null, proxyPort = null)
                     job = null
-                    lease.compareAndSet(current.lease, null)
+                    lease.compareAndSet(current, null)
                 }
             }
             deliver()
@@ -259,6 +257,7 @@ internal class CaptureTaskCoordinator(
 
     companion object {
         /** Shared only to exclude simultaneous capture runtimes, never to retain a login/session. */
-        private val lease = AtomicReference<String?>(null)
+        private val lease = AtomicReference<Job?>(null)
+        fun isActive(taskId: String): Boolean = lease.get()?.request?.launchId == taskId
     }
 }

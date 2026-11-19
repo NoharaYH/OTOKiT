@@ -1,6 +1,7 @@
 package com.otokit.noharayh.score
 
 import java.time.Instant
+import java.io.OutputStream
 
 data class ScorePage<T>(val items: List<T>, val nextOffset: Int?)
 data class ScoreProfile(val game: ScoreGame, val id: String, val displayName: String?)
@@ -26,6 +27,16 @@ interface ScoreArchiveQueries {
     fun previewHtml(page: HtmlPageRef): ScoreTextPreview
     fun previewJson(snapshot: ScoreSnapshotRef): ScoreTextPreview
     fun importProgress(batch: HtmlBatchRef): ScoreImportProgress
+}
+
+internal enum class ScoreArchiveFormat { Html, Json }
+
+internal data class ScoreArchiveRemoval(val removed: Set<HtmlBatchRef>, val cleanupPending: Int)
+
+internal interface ScoreArchiveActions {
+    fun remove(format: ScoreArchiveFormat, batches: Set<HtmlBatchRef>, done: (ScoreArchiveRemoval) -> Unit)
+    fun export(format: ScoreArchiveFormat, batches: Set<HtmlBatchRef>,
+               destination: ((OutputStream) -> Unit) -> Unit, done: (Boolean) -> Unit)
 }
 
 enum class ScoreRecordKind { BEST, RECENT }

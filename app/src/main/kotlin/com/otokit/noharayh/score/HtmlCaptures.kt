@@ -53,6 +53,7 @@ data class HtmlBatchRecord(
     val pages: List<HtmlPageRef>,
     val evidence: Map<HtmlPageKind, HtmlPageEvidence>,
     val fileStamp: String,
+    val htmlRemoved: Boolean = false,
 )
 
 /** The score boundary owns paths and indexes. Consumers exchange stable references. */

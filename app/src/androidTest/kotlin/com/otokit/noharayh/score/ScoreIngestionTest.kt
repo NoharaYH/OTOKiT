@@ -14,9 +14,13 @@ import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import java.io.ByteArrayOutputStream
 import java.nio.file.Files
 import java.time.Instant
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.TimeUnit
+import java.util.zip.ZipInputStream
 
 @RunWith(AndroidJUnit4::class)
 class ScoreIngestionTest {
@@ -76,6 +80,43 @@ class ScoreIngestionTest {
                 assertEquals(record, db.scoreDetail(profile, record.id))
                 assertNull(db.scoreDetail(profile.copy(id = "other"), record.id))
                 assertEquals(ScoreImportState.IMPORTED, db.importProgress(batch)?.state)
+
+                val playerPage = html.read(batch).pages.single { it.kind == HtmlPageKind.PLAYER }
+                var taskActive = true
+                val archives = ScoreData(html, resumed, db) { taskActive }
+                fun remove(format: ScoreArchiveFormat): Set<HtmlBatchRef> {
+                    val completion = CompletableFuture<ScoreArchiveRemoval>()
+                    archives.remove(format, setOf(batch)) { completion.complete(it) }
+                    val removal = completion.get(5, TimeUnit.SECONDS)
+                    assertEquals(0, removal.cleanupPending)
+                    return removal.removed
+                }
+                fun zip(format: ScoreArchiveFormat): Map<String, String> {
+                    val completion = CompletableFuture<Boolean>()
+                    val output = ByteArrayOutputStream()
+                    archives.export(format, setOf(batch), { it(output) }) { completion.complete(it) }
+                    assertTrue(completion.get(5, TimeUnit.SECONDS))
+                    return ZipInputStream(output.toByteArray().inputStream()).use { stream ->
+                        buildMap {
+                            while (true) {
+                                val entry = stream.nextEntry ?: break
+                                put(entry.name.substringAfterLast('/'), String(stream.readBytes(), Charsets.UTF_8))
+                            }
+                        }
+                    }
+                }
+                assertEquals(setOf(player, score), zip(ScoreArchiveFormat.Html).values.toSet())
+                assertEquals(mapOf(file.name to data), zip(ScoreArchiveFormat.Json))
+                assertTrue(remove(ScoreArchiveFormat.Html).isEmpty())
+                taskActive = false
+                assertEquals(setOf(batch), remove(ScoreArchiveFormat.Json))
+                assertNull(snapshots().advance(html.read(batch), html::open))
+                assertFalse(file.exists())
+                assertEquals(player, html.open(playerPage).bufferedReader().use { it.readText() })
+                assertEquals(setOf(batch), remove(ScoreArchiveFormat.Html))
+                assertTrue(archives.detail(batch).html.isEmpty())
+                assertTrue(File(root, "html").walkTopDown().none { it.extension == "html" })
+                assertEquals(record, db.scoreDetail(profile, record.id))
             }
         } finally {
             context.deleteDatabase(databaseName)
@@ -91,7 +132,7 @@ class ScoreIngestionTest {
         val archives = scoreArchiveQueries(context)
         val scores = personalScoreQueries(context)
         for ((game, id) in listOf(ScoreGame.MAIMAI to mai, ScoreGame.CHUNITHM to chu)) {
-            val batch = archives.list(game, limit = 200).items.single { it.ref.id == id }.ref
+            val batch = archives.listBatches().single { it.ref.game == game && it.ref.id == id }.ref
             val deadline = System.nanoTime() + 50_000_000_000
             var progress = archives.importProgress(batch)
             while (progress.state == ScoreImportState.WAITING && System.nanoTime() < deadline) {

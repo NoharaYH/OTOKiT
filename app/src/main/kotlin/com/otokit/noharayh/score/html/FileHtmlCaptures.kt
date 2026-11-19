@@ -102,7 +102,8 @@ class FileHtmlCaptures(private val root: File) : HtmlCaptures {
         }.toMap()
         return HtmlBatchRecord(batch, index.getProperty("taskId"), HtmlBatchStatus.valueOf(index.getProperty("status")),
             Collections.unmodifiableList(index.getProperty("expected").split(',').map { HtmlPageKind.valueOf(it) }),
-            Collections.unmodifiableList(pages), Collections.unmodifiableMap(evidence), index.getProperty("fileStamp"))
+            Collections.unmodifiableList(pages), Collections.unmodifiableMap(evidence), index.getProperty("fileStamp"),
+            index.getProperty("archive.htmlRemoved").toBoolean())
     }
 
     @Synchronized override fun finish(batch: HtmlBatchRef, status: HtmlBatchStatus) {
@@ -116,6 +117,28 @@ class FileHtmlCaptures(private val root: File) : HtmlCaptures {
         }
         index.setProperty("status", status.name)
         writeIndex(directory, index)
+    }
+
+    /** Commit logical removal first so recovery can finish unlinking any orphaned pages. */
+    @Synchronized internal fun removeArchive(batch: HtmlBatchRef): Boolean {
+        val directory = directory(batch)
+        val index = readIndex(directory)
+        check(index.getProperty("status") != HtmlBatchStatus.RUNNING.name)
+        val pages = HtmlPageKind.entries.filterNot { it.isDiagnostic }.mapNotNull { kind ->
+            val prefix = "page.${kind.name}."
+            val name = index.getProperty(prefix + "file") ?: return@mapNotNull null
+            val file = File(directory, name)
+            require(file.extension == "html" && file.canonicalFile.parentFile == directory.canonicalFile)
+            index.keys.removeAll { it.toString().startsWith(prefix) }
+            file
+        }
+        index.setProperty("archive.htmlRemoved", "true")
+        writeIndex(directory, index)
+        var cleaned = true
+        for (file in pages) {
+            if (file.exists() && !file.delete()) cleaned = false
+        }
+        return cleaned
     }
 
     /** Called only after acquiring the application's single capture lease. Never replays OAuth. */

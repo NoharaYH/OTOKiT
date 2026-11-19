@@ -15,6 +15,8 @@ import com.otokit.noharayh.ui.kit.common.GroupedSurface
 import com.otokit.noharayh.ui.kit.common.GroupPosition
 import com.otokit.noharayh.ui.kit.common.InfoIconButton
 import com.otokit.noharayh.ui.animation.common.GroupShape
+import com.otokit.noharayh.ui.animation.common.ContentTransition
+import com.otokit.noharayh.ui.constants.motion.ContainerMotion
 
 /** 非交互复合容器，提供可选内容及尾部槽位；无内容时不留下间距。 */
 @android.annotation.SuppressLint("ViewConstructor") // 纯代码组件，需要显式内容与回调。
@@ -28,6 +30,14 @@ internal class SettingsCard(context: Context, icon: Int, title: Int,
     private val headerGap = dp(Dimensions.HEADER_CONTENT_GAP_DP)
     private val infoAnchor = headerInfo?.let { View(context).apply { importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO } }
     private val header = LinearLayout(context)
+    private val titleView = ViewPrimitives.text(context, context.getString(title), Dimensions.TITLE_SP, Colors.TITLE, true).apply {
+        letterSpacing = Dimensions.TITLE_LETTER_SPACING
+    }
+    private var pendingTitle = titleView.text
+    private var titleStartAlpha = 1f
+    private var titleChanging = false
+    private val titleTransition = ContentTransition(1f, ContainerMotion.CONTENT,
+        { a, b, t -> a + (b - a) * t }, ::renderTitle)
     private var contentView: View? = null
     private var animatedSlot: ExpandableContent? = null
     private var contentExpanded = true
@@ -56,9 +66,7 @@ internal class SettingsCard(context: Context, icon: Int, title: Int,
             clipChildren = false; clipToPadding = false
             addView(ImageView(context).apply { setImageResource(icon); setColorFilter(Colors.TEXT) },
                 LayoutParams(dp(Dimensions.ICON_DP), dp(Dimensions.ICON_DP)))
-            addView(ViewPrimitives.text(context, context.getString(title), Dimensions.TITLE_SP, Colors.TITLE, true).apply {
-                letterSpacing = Dimensions.TITLE_LETTER_SPACING
-            }, LayoutParams(-2, -2).apply { marginStart = dp(Dimensions.HEADER_GAP_DP) })
+            addView(titleView, LayoutParams(-2, -2).apply { marginStart = dp(Dimensions.HEADER_GAP_DP) })
             if (infoAnchor != null && headerInfo != null) addView(infoAnchor, LayoutParams(headerInfo.minimumWidth, 0))
             if (trailing != null) addView(trailing, LayoutParams(0, -2, 1f).apply { marginStart = dp(Dimensions.HEADER_GAP_DP) })
         }
@@ -70,6 +78,26 @@ internal class SettingsCard(context: Context, icon: Int, title: Int,
         }
         setContent(content)
         renderGroupEdges(1f, 1f)
+    }
+
+    fun setTitle(title: CharSequence) {
+        if (title == pendingTitle) return
+        pendingTitle = title
+        titleStartAlpha = titleView.alpha
+        titleChanging = titleView.text != title
+        titleTransition.play(1f, animate = isAttachedToWindow, from = 0f)
+    }
+
+    private fun renderTitle(progress: Float) {
+        val handoff = .4f
+        titleView.alpha = when {
+            !titleChanging -> titleStartAlpha + (1f - titleStartAlpha) * progress
+            progress < handoff -> titleStartAlpha * (1f - progress / handoff)
+            else -> {
+                if (titleView.text != pendingTitle) titleView.text = pendingTitle
+                (progress - handoff) / (1f - handoff)
+            }
+        }
     }
 
     fun setContent(content: View?) {
@@ -154,6 +182,7 @@ internal class SettingsCard(context: Context, icon: Int, title: Int,
     private fun renderCorners() = shape.setRadii(groupTopRadius, groupBottomRadius + bottomCornerExtension)
 
     override fun onDetachedFromWindow() {
+        titleTransition.finish()
         groupShape.finish()
         super.onDetachedFromWindow()
     }
