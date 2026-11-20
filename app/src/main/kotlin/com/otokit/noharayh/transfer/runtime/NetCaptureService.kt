@@ -13,6 +13,7 @@ import com.otokit.noharayh.R
 import com.otokit.noharayh.auth.OAuthProvider
 import com.otokit.noharayh.composition.scoreUploadFactory
 import com.otokit.noharayh.composition.scoreCaptures
+import com.otokit.noharayh.composition.scoreSyncRecording
 import com.otokit.noharayh.score.HtmlCaptures
 import com.otokit.noharayh.score.ScoreGame
 import com.otokit.noharayh.score.HtmlPageKind
@@ -46,7 +47,8 @@ open class NetCaptureService : VpnService() {
         super.onCreate()
         archives = scoreCaptures(this)
         val callbackHtml = assets.open("transfer/wechat-callback.html").bufferedReader().use { it.readText() }
-        coordinator = CaptureTaskCoordinator(archives, newUploadTask = scoreUploadFactory(this, archives), openChannel = { authorize, callback, event ->
+        coordinator = CaptureTaskCoordinator(archives, newUploadTask = scoreUploadFactory(this, archives),
+            startRecording = { request, at -> scoreSyncRecording(this, request, at) }, openChannel = { authorize, callback, event ->
             if (Build.VERSION.SDK_INT < 29) error("Capture requires Android 10")
             check(prepare(this) == null) { "VPN permission required" }
             val path = "/${UUID.randomUUID().toString().replace("-", "").take(10)}"
@@ -65,6 +67,7 @@ open class NetCaptureService : VpnService() {
                     private val closed = AtomicBoolean(false)
                     override val entryUrl = "http://127.0.0.2:8284$path"
                     override val proxyPort = proxy.port
+                    override fun observeHttp(observer: (CaptureLocalHttpExchange) -> Unit) = proxy.observeHttp(observer)
                     override fun close() {
                         if (!closed.compareAndSet(false, true)) return
                         try { proxy.close() } finally { vpn.close() }
@@ -101,7 +104,7 @@ open class NetCaptureService : VpnService() {
                 intent?.getBooleanExtra("keepCallbackCaptureUntilLogin", false) ?: false,
                 OAuthProvider.entries.mapNotNull { provider ->
                     intent?.getStringExtra("upload.${provider.name}")?.let { UploadTarget(provider, it) }
-                })
+                }, saveSyncLog = intent?.getBooleanExtra("saveSyncLog", false) ?: false)
         }.getOrNull()
         val result = request?.let(coordinator::start) ?: CaptureStartResult.INVALID_REQUEST
         @Suppress("DEPRECATION")
@@ -147,6 +150,7 @@ open class NetCaptureService : VpnService() {
             .putExtra("game", request.game.key).putExtra("pageKinds", request.difficulties.map { it.name }.toTypedArray())
             .putExtra("launchId", request.launchId)
             .putExtra("keepCallbackCaptureUntilLogin", request.keepCallbackCaptureUntilLogin)
+            .putExtra("saveSyncLog", request.saveSyncLog)
             .putExtra("startResult", result)
             .apply {
                 request.uploadTargets.forEach { putExtra("upload.${it.provider.name}", it.subject) }

@@ -1,5 +1,6 @@
 package com.otokit.noharayh.transfer.capture
 
+import com.otokit.noharayh.transfer.CaptureLocalHttpExchange
 import java.io.ByteArrayOutputStream
 import java.io.Closeable
 import java.io.InputStream
@@ -23,6 +24,7 @@ internal class LoopbackCaptureProxy(
     private val callbackHtml: String,
 ) : Closeable {
     private val authorizationLock = Any()
+    @Volatile private var httpObserver: (CaptureLocalHttpExchange) -> Unit = {}
     private val closed = AtomicBoolean(false)
     private val accepted = AtomicBoolean(false)
     private val sockets = ConcurrentHashMap.newKeySet<Socket>()
@@ -44,6 +46,8 @@ internal class LoopbackCaptureProxy(
         accept(server)
         accept(entryServer)
     }
+
+    fun observeHttp(observer: (CaptureLocalHttpExchange) -> Unit) { httpObserver = observer }
 
     private fun accept(listener: ServerSocket) {
         Thread({
@@ -86,12 +90,20 @@ internal class LoopbackCaptureProxy(
             ?.substringAfter(':')?.trim() ?: error("Missing Host")
         val uri = if (target.startsWith("http://")) URI(target) else URI("http://$host$target")
         require(uri.scheme == "http" && uri.rawUserInfo == null)
+        val requestHeaders = lines.drop(1).filter { it.contains(':') }.map {
+            it.substringBefore(':') to it.substringAfter(':').trim()
+        }
+        fun respond(status: Int, type: String, body: String, extra: String = "") {
+            this.respond(socket, status, type, body, extra) { headers, bytes ->
+                httpObserver(CaptureLocalHttpExchange(method, uri.toString(), requestHeaders, status, headers, bytes))
+            }
+        }
         if ((uri.host == "127.0.0.1" && uri.port == port) || (uri.host == "127.0.0.2" && uri.port == 8284)) {
             when (uri.rawPath) {
-                "/health" -> respond(socket, 200, "text/plain", "ready")
+                "/health" -> respond(200, "text/plain", "ready")
                 entryPath -> {
                     if (method == "HEAD") {
-                        respond(socket, 200, "text/html", "", "Cache-Control: no-store\r\n")
+                        respond(200, "text/html", "", "Cache-Control: no-store\r\n")
                         return
                     }
                     onEvent("entry")
@@ -100,22 +112,22 @@ internal class LoopbackCaptureProxy(
                         authorizationFactory?.invoke()?.also { authorization = it }
                             ?: authorization ?: error("Authorization unavailable")
                     }
-                    respond(socket, 302, "text/html; charset=utf-8", "", "Location: $current\r\nCache-Control: no-store\r\nPragma: no-cache\r\nExpires: 0\r\n")
+                    respond(302, "text/html; charset=utf-8", "", "Location: $current\r\nCache-Control: no-store\r\nPragma: no-cache\r\nExpires: 0\r\n")
                 }
-                else -> respond(socket, 404, "text/plain", "Not found")
+                else -> respond(404, "text/plain", "Not found")
             }
         } else if (NetCaptureProtocol.isCallback(uri)) {
             val current = authorization
             if (method != "GET" || current == null || !NetCaptureProtocol.matchesAuthorization(uri, current)) {
                 onEvent("callback_mismatch")
-                respond(socket, 400, "text/plain", "Callback does not match this session")
+                respond(400, "text/plain", "Callback does not match this session")
                 return
             }
             if (accepted.compareAndSet(false, true)) {
                 onEvent("callback")
-                respond(socket, 200, "text/html; charset=utf-8", callbackHtml, "Cache-Control: no-store\r\n")
+                respond(200, "text/html; charset=utf-8", callbackHtml, "Cache-Control: no-store\r\n")
                 onCallback(uri)
-            } else respond(socket, 409, "text/plain", "Callback already consumed")
+            } else respond(409, "text/plain", "Callback already consumed")
         } else {
             require(uri.host != null && uri.port in listOf(-1, 80))
             val path = uri.rawPath.ifEmpty { "/" } + (uri.rawQuery?.let { "?$it" } ?: "")
@@ -150,13 +162,18 @@ internal class LoopbackCaptureProxy(
         } finally { sockets.remove(remote); remote.close() }
     }
 
-    private fun respond(socket: Socket, status: Int, type: String, body: String, extra: String = "") {
+    private fun respond(socket: Socket, status: Int, type: String, body: String, extra: String,
+                        record: (List<Pair<String, String>>, ByteArray) -> Unit) {
         val bytes = body.toByteArray(Charsets.UTF_8)
+        val header = "HTTP/1.1 $status Response\r\nContent-Type: $type\r\nContent-Length: ${bytes.size}\r\n" +
+            "Connection: close\r\n${extra}\r\n"
         socket.getOutputStream().apply {
-            write(("HTTP/1.1 $status Response\r\nContent-Type: $type\r\nContent-Length: ${bytes.size}\r\n" +
-                "Connection: close\r\n${extra}\r\n").toByteArray(Charsets.UTF_8))
+            write(header.toByteArray(Charsets.UTF_8))
             write(bytes); flush()
         }
+        record(header.split("\r\n").drop(1).filter { it.contains(':') }.map {
+            it.substringBefore(':') to it.substringAfter(':').trim()
+        }, bytes)
     }
 
     override fun close() {

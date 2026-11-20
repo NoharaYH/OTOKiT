@@ -3,6 +3,7 @@ package com.otokit.noharayh.transfer.net
 import com.otokit.noharayh.transfer.capture.NetCaptureProtocol
 import com.otokit.noharayh.transfer.CaptureHttpTrace
 import com.otokit.noharayh.transfer.CaptureProtocolIssue
+import com.otokit.noharayh.transfer.TransferRecording
 import okhttp3.Call
 import okhttp3.ConnectionSpec
 import okhttp3.Cookie
@@ -26,6 +27,7 @@ internal class GameNetClient(
     private val onRetry: () -> Unit = {},
     private val onTrace: (CaptureHttpTrace) -> Unit = {},
     private val onRejectedResponse: (NetSession.Page) -> Unit = {},
+    recording: TransferRecording? = null,
 ) : NetSession {
     private val closed = AtomicBoolean(false)
     @Volatile private var active: Call? = null
@@ -53,7 +55,7 @@ internal class GameNetClient(
                     response.header("Location")?.let { runCatching { NetTraceEndpoint.classify(uri.resolve(it)) }.getOrDefault("INVALID_LOCATION") },
                     (System.nanoTime() - started) / 1_000_000))
             }
-        }.build()
+        }.apply { recording?.let { addNetworkInterceptor(it.interceptor("NET")) } }.build()
 
     override fun authorizationUrl(game: String): URI {
         require(game in listOf("maimai", "chunithm"))

@@ -2,6 +2,7 @@ package com.otokit.noharayh.ui.settings.subPages
 
 import android.content.Context
 import android.text.format.DateFormat
+import android.view.View
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -19,6 +20,7 @@ import com.otokit.noharayh.preferences.CapturePreferences
 import com.otokit.noharayh.preferences.ExportPreferences
 import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors
 import com.otokit.noharayh.ui.kit.common.InfoIconButton
+import com.otokit.noharayh.ui.kit.common.ContentScrollView
 import com.otokit.noharayh.ui.kit.common.toggle.GroupedSwitchRow
 import com.otokit.noharayh.ui.kit.common.dialog.MessageDialog
 import com.otokit.noharayh.ui.kit.common.dialog.AlternateExplanation
@@ -40,6 +42,7 @@ internal object ScoreSyncSettingsPage {
         split: Boolean,
         openLink: (String) -> Unit,
         openArchive: (ScoreArchiveKind) -> Unit,
+        openLogs: () -> Unit = {},
     ): ScrollView {
         val state = ScoreSyncSettingsState(capturePreferences(context), exportPreferences(context))
         val oauth = oauthConnections(context)
@@ -81,6 +84,23 @@ internal object ScoreSyncSettingsPage {
                 redactToggle.isChecked = state.redactExports
             }, infoDescription = context.getString(R.string.settings_export_redact_info), onInfoClick = {
                 showInfo(R.string.settings_export_redact_description, R.string.settings_export_redact_plain)
+            })
+        lateinit var htmlToggle: GroupedSwitchRow
+        htmlToggle = GroupedSwitchRow(context, context.getString(R.string.settings_export_logs_html),
+            true, true, state.includeHtmlWithLogs, { enabled ->
+                state.selectIncludeHtmlWithLogs(enabled)
+                htmlToggle.isChecked = state.includeHtmlWithLogs
+            }, infoDescription = context.getString(R.string.settings_export_logs_html_info), onInfoClick = {
+                showInfo(R.string.settings_export_logs_html_technical, R.string.settings_export_logs_html_plain)
+            }).apply { visibility = if (state.recordScoreSyncLogs) View.VISIBLE else View.GONE }
+        lateinit var logToggle: GroupedSwitchRow
+        logToggle = GroupedSwitchRow(context, context.getString(R.string.settings_sync_logs_save),
+            true, true, state.recordScoreSyncLogs, { enabled ->
+                state.selectRecordScoreSyncLogs(enabled)
+                logToggle.isChecked = state.recordScoreSyncLogs
+                htmlToggle.visibility = if (state.recordScoreSyncLogs) View.VISIBLE else View.GONE
+            }, infoDescription = context.getString(R.string.settings_sync_logs_save_info), onInfoClick = {
+                showInfo(R.string.settings_sync_logs_save_technical, R.string.settings_sync_logs_save_plain)
             })
         val authorizationGroup = SettingsGroup(context)
         val noExpiry = context.getString(R.string.oauth_expiry_unknown)
@@ -128,13 +148,26 @@ internal object ScoreSyncSettingsPage {
                 addView(SettingsCard(context, R.drawable.ic_archive_record_24, kind.title.chinese,
                     content = action, headerInfo = info), LinearLayout.LayoutParams(-1, -2))
             }
+            val logContent = SettingsPageViews.action(context, context.getString(R.string.settings_archive_view),
+                deferClick = true, onClick = openLogs).apply {
+                contentDescription = context.getString(R.string.settings_archive_view_named,
+                    context.getString(R.string.settings_sync_logs))
+            }
+            val logInfo = InfoIconButton(context, context.getString(R.string.settings_archive_info,
+                context.getString(R.string.settings_sync_logs))) {
+                showInfo(R.string.settings_sync_logs_technical, R.string.settings_sync_logs_plain)
+            }
+            addView(SettingsCard(context, R.drawable.ic_archive_record_24, R.string.settings_sync_logs,
+                content = logContent, headerInfo = logInfo), LinearLayout.LayoutParams(-1, -2))
         }, SettingsPageViews.gap(context))
         body.addView(SettingsGroup(context).apply {
             addView(toggle, LinearLayout.LayoutParams(-1, -2))
             addView(redactToggle, LinearLayout.LayoutParams(-1, -2))
+            addView(logToggle, LinearLayout.LayoutParams(-1, -2))
+            addView(htmlToggle, LinearLayout.LayoutParams(-1, -2))
         }, SettingsPageViews.gap(context))
 
-        return object : ScrollView(context) {
+        return object : ContentScrollView(context) {
             private var oauthSubscription: Closeable? = null
 
             override fun onWindowFocusChanged(hasWindowFocus: Boolean) {
@@ -142,6 +175,9 @@ internal object ScoreSyncSettingsPage {
                 if (hasWindowFocus) {
                     state.refreshRedactExports()
                     redactToggle.isChecked = state.redactExports
+                    htmlToggle.isChecked = state.includeHtmlWithLogs
+                    logToggle.isChecked = state.recordScoreSyncLogs
+                    htmlToggle.visibility = if (state.recordScoreSyncLogs) View.VISIBLE else View.GONE
                 }
             }
 
@@ -229,6 +265,10 @@ internal class ScoreSyncSettingsState(
         private set
     var redactExports = exports.redactExports()
         private set
+    var includeHtmlWithLogs = exports.includeHtmlWithLogs()
+        private set
+    var recordScoreSyncLogs = preferences.recordScoreSyncLogs()
+        private set
 
     fun selectKeepCallbackCapture(enabled: Boolean) {
         preferences.setKeepCallbackCaptureUntilLogin(enabled)
@@ -242,6 +282,18 @@ internal class ScoreSyncSettingsState(
 
     fun refreshRedactExports() {
         redactExports = exports.redactExports()
+        includeHtmlWithLogs = exports.includeHtmlWithLogs()
+        recordScoreSyncLogs = preferences.recordScoreSyncLogs()
+    }
+
+    fun selectIncludeHtmlWithLogs(enabled: Boolean) {
+        exports.setIncludeHtmlWithLogs(enabled)
+        includeHtmlWithLogs = exports.includeHtmlWithLogs()
+    }
+
+    fun selectRecordScoreSyncLogs(enabled: Boolean) {
+        preferences.setRecordScoreSyncLogs(enabled)
+        recordScoreSyncLogs = preferences.recordScoreSyncLogs()
     }
 }
 

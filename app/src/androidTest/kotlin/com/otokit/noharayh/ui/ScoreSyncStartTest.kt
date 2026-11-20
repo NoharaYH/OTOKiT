@@ -25,6 +25,17 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 class ScoreSyncStartTest : UiComponentTestHost() {
+    @Test fun launchIntentKeepsTheChosenRecordingSnapshot() {
+        val request = CaptureRequest(ScoreGame.MAIMAI, listOf(HtmlPageKind.MASTER), "recording-snapshot", saveSyncLog = true)
+        val intent = NetCaptureService.startIntent(activity, request)
+        val copied = Intent(intent)
+        assertTrue(copied.getBooleanExtra("saveSyncLog", false))
+        assertTrue(request.saveSyncLog)
+        val next = NetCaptureService.startIntent(activity, request.copy(saveSyncLog = false))
+        assertFalse(next.getBooleanExtra("saveSyncLog", true))
+        assertTrue(copied.getBooleanExtra("saveSyncLog", false))
+    }
+
     @Test fun serviceRejectsInvalidRequestThroughTheProductionAcknowledgement() {
         val done = CountDownLatch(1)
         var received: Int? = null

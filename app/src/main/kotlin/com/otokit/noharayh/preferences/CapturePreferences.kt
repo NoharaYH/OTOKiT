@@ -7,6 +7,11 @@ class CapturePreferences(
 ) {
     fun keepCallbackCaptureUntilLogin(): Boolean = readBoolean(KEY) ?: false
     fun setKeepCallbackCaptureUntilLogin(enabled: Boolean) { writeBoolean(KEY, enabled) }
+    fun recordScoreSyncLogs(): Boolean = readBoolean(LOG_KEY) ?: false
+    fun setRecordScoreSyncLogs(enabled: Boolean) { writeBoolean(LOG_KEY, enabled) }
 
-    private companion object { const val KEY = "keep_callback_capture_until_login" }
+    private companion object {
+        const val KEY = "keep_callback_capture_until_login"
+        const val LOG_KEY = "record_score_sync_logs"
+    }
 }

@@ -13,6 +13,9 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
+import java.util.concurrent.CopyOnWriteArrayList
+import okhttp3.Interceptor
 
 class CaptureTaskCoordinatorTest {
     @get:Rule val temp = TemporaryFolder()
@@ -26,6 +29,34 @@ class CaptureTaskCoordinatorTest {
         override val entryUrl = "http://127.0.0.2:8284/test"
         override val proxyPort = 12345
         override fun close() { if (closed.compareAndSet(false, true)) closes.incrementAndGet() }
+    }
+
+    @Test fun onlyAcceptedTasksStartRecordingAndCancellationAlwaysFinishesIt() {
+        val starts = AtomicInteger()
+        val bound = AtomicReference<HtmlBatchRef>()
+        val finished = AtomicReference<String>()
+        val events = CopyOnWriteArrayList<String>()
+        CaptureTaskCoordinator(FileHtmlCaptures(temp.root), { _, _, _ -> channel(AtomicInteger()) },
+            { FakeSession() }, 0, 0, startRecording = { request, _ ->
+                assertTrue(request.saveSyncLog)
+                starts.incrementAndGet()
+                TransferRecording({ stage, message, _ -> events += "$stage:$message" },
+                    { Interceptor { chain -> chain.proceed(chain.request()) } }, bound::set, finished::set, {})
+            }).use { tasks ->
+            val request = CaptureRequest(ScoreGame.MAIMAI, listOf(HtmlPageKind.MASTER), "logged", saveSyncLog = true)
+            assertEquals(CaptureStartResult.INVALID_REQUEST, tasks.start(request.copy(difficulties = emptyList())))
+            assertEquals(0, starts.get())
+            assertEquals(CaptureStartResult.ACCEPTED, tasks.start(request))
+            await { tasks.snapshot()?.stage == CaptureStage.WAITING_WECHAT }
+            assertEquals(1, starts.get())
+            assertEquals(tasks.snapshot()!!.batch, bound.get())
+            assertEquals(CaptureStartResult.ALREADY_RUNNING, tasks.start(request.copy(launchId = "duplicate")))
+            assertEquals(1, starts.get())
+            tasks.cancel()
+            await { finished.get() != null }
+            assertEquals(CaptureStage.CANCELLED.name, finished.get())
+            assertTrue(events.any { it.startsWith("CLEANUP:") })
+        }
     }
 
     @Test fun taskSavesEvidenceAndKeepsObserversIndependentOfLifetime() {

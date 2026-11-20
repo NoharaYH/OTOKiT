@@ -137,6 +137,104 @@ class ScoreSyncSettingsTest : UiComponentTestHost() {
         }
     }
 
+    @Test fun loggingAndHtmlAttachmentDefaultOffAndKeepTheirOwnSavedValues() {
+        val capture = activity.getSharedPreferences("capture_preferences", 0)
+        val exports = activity.getSharedPreferences("export_preferences", 0)
+        val logKey = "record_score_sync_logs"
+        val htmlKey = "include_html_with_logs"
+        val previousLog = if (capture.contains(logKey)) capture.getBoolean(logKey, false) else null
+        val previousHtml = if (exports.contains(htmlKey)) exports.getBoolean(htmlKey, false) else null
+        var overlay: Dialog? = null
+        try {
+            capture.edit().remove(logKey).commit()
+            exports.edit().remove(htmlKey).commit()
+            lateinit var page: View
+            main { page = ScoreSyncSettingsPage.create(activity, 20, false, {}, {}) }
+            mount(page, activity.resources.displayMetrics.widthPixels - 160, -1)
+            main {
+                val html = switchIn(page, R.string.settings_export_logs_html)!!
+                val redaction = switchIn(page, R.string.settings_export_redact)!!
+                val log = switchIn(page, R.string.settings_sync_logs_save)!!
+                assertFalse((page as android.widget.ScrollView).isVerticalScrollBarEnabled)
+                assertFalse((page as android.widget.ScrollView).isHorizontalScrollBarEnabled)
+                assertFalse(html.isChecked)
+                assertFalse(log.isChecked)
+                assertEquals(View.GONE, html.visibility)
+                val group = html.parent as SettingsGroup
+                assertSame(group, redaction.parent)
+                assertSame(group, log.parent)
+                val callback = switchIn(page, R.string.settings_capture_keep_callback)!!
+                assertEquals(group.indexOfChild(callback) + 1, group.indexOfChild(redaction))
+                assertEquals(group.indexOfChild(redaction) + 1, group.indexOfChild(log))
+                assertEquals(group.indexOfChild(log) + 1, group.indexOfChild(html))
+                log.performClick()
+            }
+            awaitHtmlVisibility(page, true)
+            main {
+                val html = switchIn(page, R.string.settings_export_logs_html)!!
+                val log = switchIn(page, R.string.settings_sync_logs_save)!!
+                html.performClick()
+                assertTrue(exportPreferences(activity).includeHtmlWithLogs())
+                assertTrue(capturePreferences(activity).recordScoreSyncLogs())
+                log.performClick()
+                assertTrue(exportPreferences(activity).includeHtmlWithLogs())
+            }
+            awaitHtmlVisibility(page, false)
+            main {
+                val html = switchIn(page, R.string.settings_export_logs_html)!!
+                val log = switchIn(page, R.string.settings_sync_logs_save)!!
+                log.performClick()
+                assertTrue(html.isChecked)
+            }
+            awaitHtmlVisibility(page, true)
+            main {
+                host.removeView(page)
+                page = ScoreSyncSettingsPage.create(activity, 20, false, {}, {})
+            }
+            mount(page, activity.resources.displayMetrics.widthPixels - 160, -1)
+            awaitHtmlVisibility(page, true)
+            main {
+                assertTrue(switchIn(page, R.string.settings_export_logs_html)!!.isChecked)
+                assertTrue(switchIn(page, R.string.settings_sync_logs_save)!!.isChecked)
+                assertEquals(View.VISIBLE, switchIn(page, R.string.settings_export_logs_html)!!.visibility)
+            }
+            awaitWindowCondition { page.hasWindowFocus() }
+            main {
+                overlay = Dialog(activity).apply {
+                    setContentView(TextView(activity).apply { text = "临时窗口" })
+                    show()
+                }
+            }
+            awaitWindowCondition { overlay!!.window!!.decorView.hasWindowFocus() }
+            main { capturePreferences(activity).setRecordScoreSyncLogs(false); overlay!!.dismiss() }
+            awaitWindowCondition { page.hasWindowFocus() }
+            awaitHtmlVisibility(page, false)
+            main {
+                val html = switchIn(page, R.string.settings_export_logs_html)!!
+                val log = switchIn(page, R.string.settings_sync_logs_save)!!
+                assertFalse(log.isChecked)
+                assertEquals(View.GONE, html.visibility)
+                assertTrue(exportPreferences(activity).includeHtmlWithLogs())
+                log.performClick()
+                assertTrue(html.isChecked)
+            }
+            awaitHtmlVisibility(page, true)
+            assertPlainExplanation(page, R.string.settings_export_logs_html_info, "我想要说的前人们都说过了——")
+            assertTrue(exportPreferences(activity).includeHtmlWithLogs())
+            assertTrue(capturePreferences(activity).recordScoreSyncLogs())
+        } finally {
+            main { overlay?.dismiss() }
+            capture.edit().apply { if (previousLog == null) remove(logKey) else putBoolean(logKey, previousLog) }.commit()
+            exports.edit().apply { if (previousHtml == null) remove(htmlKey) else putBoolean(htmlKey, previousHtml) }.commit()
+        }
+    }
+
+    private fun awaitHtmlVisibility(page: View, visible: Boolean) {
+        awaitWindowCondition {
+            switchIn(page, R.string.settings_export_logs_html)!!.visibility == if (visible) View.VISIBLE else View.GONE
+        }
+    }
+
     private fun awaitWindowCondition(condition: () -> Boolean) {
         val deadline = SystemClock.uptimeMillis() + 3000
         do {
@@ -149,9 +247,15 @@ class ScoreSyncSettingsTest : UiComponentTestHost() {
     }
 
     private fun assertRedactionPlainExplanation(page: View) {
+        assertPlainExplanation(page, R.string.settings_export_redact_info,
+            "HTML记录和同步日志内包含您在微信内登录舞萌|中二时所需的敏感信息，脱敏将会在导出时将这些信息进行混淆。")
+        assertTrue(exportPreferences(activity).redactExports())
+    }
+
+    private fun assertPlainExplanation(page: View, infoLabel: Int, expected: String) {
         main {
             page.allViews.filterIsInstance<InfoIconButton>().single {
-                it.contentDescription == activity.getString(R.string.settings_export_redact_info)
+                it.contentDescription == activity.getString(infoLabel)
             }.performClick()
         }
         instrumentation.waitForIdleSync()
@@ -159,7 +263,6 @@ class ScoreSyncSettingsTest : UiComponentTestHost() {
             it.isVisibleToUser && it.isClickable && it.isEnabled
         }
         assertTrue(action.performAction(AccessibilityNodeInfo.ACTION_CLICK))
-        val expected = "HTML记录和同步日志内包含您在微信内登录舞萌|中二时所需的敏感信息，脱敏将会在导出时将这些信息进行混淆。"
         awaitActiveNode(activity.getString(R.string.settings_info_technical)) {
             it.isVisibleToUser && it.isClickable && it.isEnabled
         }
@@ -167,7 +270,6 @@ class ScoreSyncSettingsTest : UiComponentTestHost() {
             it.isVisibleToUser && it.className == "android.widget.TextView"
         }
         assertEquals(expected, text.text.toString())
-        assertTrue(exportPreferences(activity).redactExports())
     }
 
     private fun awaitActiveNode(text: String, matches: (AccessibilityNodeInfo) -> Boolean): AccessibilityNodeInfo {

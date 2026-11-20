@@ -10,6 +10,7 @@ data class CaptureRequest(
     val launchId: String,
     val keepCallbackCaptureUntilLogin: Boolean = false,
     val uploadTargets: List<UploadTarget> = emptyList(),
+    val saveSyncLog: Boolean = false,
 )
 enum class CaptureStage { PREPARING, WAITING_WECHAT, LOGIN, FETCHING, UPLOADING, COMPLETED, PARTIAL, FAILED, CANCELLED, TIMED_OUT }
 enum class CaptureFailure { NETWORK, BUSINESS, INVALID_PAGE, STORAGE, PLATFORM, INTERRUPTED, UPLOAD }

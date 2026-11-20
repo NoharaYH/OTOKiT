@@ -9,16 +9,24 @@ import com.otokit.noharayh.score.json.ScoreSnapshots
 import org.json.JSONException
 import java.io.InputStream
 import java.io.IOException
+import java.io.Closeable
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
+
+/** 成绩功能报告自己的排队与处理事实，不依赖传分或日志实现。 */
+internal class ScoreProcessingObserver(
+    val queued: (HtmlBatchRecord) -> Closeable?,
+    val event: (HtmlBatchRecord, String, Map<String, String>) -> Unit,
+)
 
 /** Score-owned derivative work, independent of the transfer service's lifetime. */
 internal class ScoreData(
     private val html: FileHtmlCaptures,
     private val snapshots: ScoreSnapshots,
     private val database: ScoreDatabase,
+    private val processing: ScoreProcessingObserver? = null,
     private val taskActive: (String) -> Boolean = { false },
 ) : HtmlCaptures by html, ScoreArchiveQueries, ScoreArchiveActions, PersonalScoreQueries by database {
     private val worker = Executors.newSingleThreadExecutor { Thread(it, "ScoreImport") }
@@ -29,7 +37,7 @@ internal class ScoreData(
         worker.execute {
             recoverInterrupted()
             ScoreGame.entries.forEach { game ->
-                html.list(game).asReversed().forEach(::process)
+                html.list(game).asReversed().forEach { process(it, recovering = true) }
             }
         }
     }
@@ -52,18 +60,33 @@ internal class ScoreData(
         submit(batch)
     }
 
-    private fun submit(batch: HtmlBatchRef) = worker.execute { process(batch) }
+    private fun submit(batch: HtmlBatchRef) {
+        // 排队时同步保留写入者，不能等 worker 开始才延长日志的生命周期。
+        val retained = processing?.let { observeProcessing { it.queued(html.read(batch)) } }
+        worker.execute {
+            try { process(batch) }
+            finally { retained?.let { observeProcessing(it::close) } }
+        }
+    }
 
-    private fun process(batch: HtmlBatchRef) {
+    private fun process(batch: HtmlBatchRef, recovering: Boolean = false) {
+        var recoveredRetention: Closeable? = null
         try {
             val record = html.read(batch)
+            val observe = !recovering || processing != null && observeProcessing { database.importProgress(batch) == null } != false
+            if (recovering && observe) recoveredRetention = processing?.let { observeProcessing { it.queued(record) } }
+            if (observe) processingEvent(record, "开始检查并推进 HTML 成绩派生")
             val file = snapshots.advance(record, html::open)
             if (file != null) {
+                if (observe) processingEvent(record, "JSON 快照已可用", mapOf("file" to file.name, "bytes" to file.length().toString()))
+                if (observe) processingEvent(record, "开始 SQLite 入库")
                 database.importFile(record.batch, file)
+                if (observe) processingEvent(record, "SQLite 入库操作完成")
                 failed.remove(batch)
             } else if (record.status != HtmlBatchStatus.RUNNING && !record.htmlRemoved && !snapshots.wasRemoved(batch)) {
                 failed.add(batch)
-            }
+                if (observe) processingEvent(record, "本地成绩派生未能发布快照", mapOf("outcome" to "FAILED"))
+            } else if (observe) processingEvent(record, "解析草稿已检查，等待批次页面或终态", mapOf("outcome" to "WAITING"))
         } catch (error: IOException) {
             fail(batch, error)
         } catch (error: JSONException) {
@@ -74,13 +97,23 @@ internal class ScoreData(
             fail(batch, error)
         } catch (error: IllegalStateException) {
             fail(batch, error)
+        } finally {
+            recoveredRetention?.let { observeProcessing(it::close) }
         }
     }
 
     private fun fail(batch: HtmlBatchRef, error: Exception) {
         failed.add(batch)
+        processing?.let { observeProcessing { it.event(html.read(batch), "本地成绩处理失败", mapOf("type" to error.javaClass.name)) } }
         Log.w("ScoreImport", batch.game.key + "/" + batch.id + ": " + error.javaClass.simpleName)
     }
+
+    private fun processingEvent(record: HtmlBatchRecord, message: String, data: Map<String, String> = emptyMap()) {
+        processing?.let { observeProcessing { it.event(record, message, data) } }
+    }
+
+    private inline fun <T> observeProcessing(action: () -> T): T? = try { action() }
+    catch (error: Exception) { Log.w("ScoreSyncLog", "Local processing observation failed: ${error.javaClass.simpleName}"); null }
 
     override fun listBatches(): List<ScoreArchiveBatch> =
         ScoreGame.entries.flatMap { html.list(it) }.sortedByDescending { it.startedAt }.map { detail(it).batch }

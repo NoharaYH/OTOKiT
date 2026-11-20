@@ -13,6 +13,7 @@ import com.otokit.noharayh.ui.chrome.SettingsHeading
 import com.otokit.noharayh.ui.chrome.TitleTexts
 import com.otokit.noharayh.composition.scoreArchiveQueries
 import com.otokit.noharayh.composition.scoreArchiveActions
+import com.otokit.noharayh.composition.scoreSyncLogs
 import com.otokit.noharayh.ui.constants.display.DisplayScaleOption
 import com.otokit.noharayh.ui.constants.motion.SettingsPageTransition
 import com.otokit.noharayh.ui.constants.motion.SettingsTransition
@@ -20,8 +21,8 @@ import com.otokit.noharayh.ui.shell.navigation.SettingsSection
 import com.otokit.noharayh.ui.shell.selection.GameSelectionState
 import com.otokit.noharayh.ui.settings.subPages.PersonalizationSettingsPage
 import com.otokit.noharayh.ui.settings.subPages.AppSettingsPage
-import com.otokit.noharayh.ui.settings.subPages.ScoreArchiveKind
 import com.otokit.noharayh.ui.settings.subPages.ScoreArchivePage
+import com.otokit.noharayh.ui.settings.subPages.ScoreSyncLogPage
 import com.otokit.noharayh.ui.shell.background.BackgroundRenderingOptions
 import com.otokit.noharayh.ui.theme.NoneThemeColorRole
 import com.otokit.noharayh.ui.theme.GameLine
@@ -55,7 +56,7 @@ class SettingsAssembly(
     private val onTransitionFrame: (TransitionProgress) -> Unit,
     private val onArchiveChanged: () -> Unit,
 ) : FrameLayout(context) {
-    private data class Page(val section: SettingsSection?, val archive: ScoreArchiveKind? = null) {
+    private data class Page(val section: SettingsSection?, val archive: SyncRecordPage? = null) {
         val heading get() = SettingsHeading(archive?.title ?: TitleTexts.forSettings(section), TitleTexts.colorForSettings(section))
     }
 
@@ -81,6 +82,7 @@ class SettingsAssembly(
     private var split = false
     private var margin = dp(20)
     private var disposed = false
+    private var logDetailBack = false
     private var themeControlsEnabled = true
     private var themeDisabledProgress = 0f
 
@@ -171,6 +173,8 @@ class SettingsAssembly(
     }
 
     fun closeArchive(): Boolean {
+        logDetailBack = false
+        if ((childPages[current] as? ScoreSyncLogPage)?.closeDetail() == true) return true
         if (current.archive == null) return false
         goTo(Page(current.section))
         return true
@@ -188,12 +192,17 @@ class SettingsAssembly(
 
     fun beginBackPreview(): Boolean {
         if (current.section == null) return false
+        if ((childPages[current] as? ScoreSyncLogPage)?.showingDetail == true) {
+            logDetailBack = true
+            return true
+        }
         settlePage(current)
         prepare(current, Page(current.section.takeIf { current.archive != null }))
         return true
     }
-    fun preview(progress: Float) { if (transitioning) runner.preview(progress) }
+    fun preview(progress: Float) { if (!logDetailBack && transitioning) runner.preview(progress) }
     fun cancelPreview() {
+        if (logDetailBack) { logDetailBack = false; return }
         if (!transitioning) return
         val restore = current
         runner.play(0f) { settlePage(restore) }
@@ -386,9 +395,12 @@ class SettingsAssembly(
     }
     private fun updatePadding() = rootPage.setContentMargins(margin, split)
 
-    private fun buildPage(page: Page): View = page.archive?.let { archive ->
-        ScoreArchivePage(context, archive, margin, split, scoreArchiveQueries(context), scoreArchiveActions(context)) { closeArchive() }
-    } ?: buildChild(requireNotNull(page.section))
+    private fun buildPage(page: Page): View = when (val record = page.archive) {
+        is SyncRecordPage.Archive -> ScoreArchivePage(context, record.kind, margin, split,
+            scoreArchiveQueries(context), scoreArchiveActions(context)) { closeArchive() }
+        SyncRecordPage.Logs -> ScoreSyncLogPage(context, margin, split, scoreSyncLogs(context)) { closeArchive() }
+        null -> buildChild(requireNotNull(page.section))
+    }
 
     private fun buildChild(section: SettingsSection) = SettingsPages.child(
         context = context,
@@ -396,7 +408,8 @@ class SettingsAssembly(
         margin = margin,
         split = split,
         openLink = onOpenLink,
-        openArchive = { goTo(Page(SettingsSection.ScoreSync, it)) },
+        openArchive = { goTo(Page(SettingsSection.ScoreSync, SyncRecordPage.Archive(it))) },
+        openLogs = { goTo(Page(SettingsSection.ScoreSync, SyncRecordPage.Logs)) },
         displayScale = displayScale,
         onDisplayScaleSelected = onDisplayScaleSelected,
         rendering = renderingProvider(),

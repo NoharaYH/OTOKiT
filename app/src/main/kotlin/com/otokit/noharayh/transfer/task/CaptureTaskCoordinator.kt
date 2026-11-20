@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicReference
 internal interface CaptureChannel : Closeable {
     val entryUrl: String
     val proxyPort: Int
+    fun observeHttp(observer: (CaptureLocalHttpExchange) -> Unit) = Unit
 }
 
 /** One mutable task owner; transport, archive and Android platform are injected executors. */
@@ -24,7 +25,8 @@ internal class CaptureTaskCoordinator(
     private val newSession: (() -> NetSession)? = null,
     private val loginDelayMs: Long = 6000,
     private val pageDelayMs: Long = 1200,
-    private val newUploadTask: (((Closeable) -> Unit) -> BatchUploadTask)? = null,
+    private val newUploadTask: (((Closeable) -> Unit, TransferRecording?) -> BatchUploadTask)? = null,
+    private val startRecording: (CaptureRequest, Instant) -> TransferRecording? = { _, _ -> null },
 ) : CaptureTasks, Closeable {
     private class Job(val request: CaptureRequest) {
         val startedAt: Instant = Instant.now()
@@ -32,6 +34,7 @@ internal class CaptureTaskCoordinator(
         val callbacks = ArrayBlockingQueue<URI>(1)
         @Volatile var timeout = false
         var finishing = false
+        var recording: TransferRecording? = null
         @Volatile var channel: CaptureChannel? = null
         @Volatile var session: NetSession? = null
         @Volatile var uploadCall: Closeable? = null
@@ -68,6 +71,7 @@ internal class CaptureTaskCoordinator(
             if (!lease.compareAndSet(null, current)) return CaptureStartResult.ALREADY_RUNNING
             job = current
             state = CaptureSnapshot(fixed, current.startedAt, totalPages = fixed.difficulties.size + 2)
+            current.recording = try { startRecording(fixed, current.startedAt) } catch (_: Exception) { null }
             current.thread = Thread({ execute(current) }, "NetCaptureTask")
             current.thread.start()
         }
@@ -83,6 +87,7 @@ internal class CaptureTaskCoordinator(
             active.cancelled.set(true)
             active
         }
+        current.recording?.event("CANCEL", if (timedOut) "任务超时，开始取消" else "用户取消任务")
         runCatching { current.channel?.close() }
         runCatching { current.session?.close() }
         current.uploadCall?.close()
@@ -100,20 +105,28 @@ internal class CaptureTaskCoordinator(
         var protocolIssue: CaptureProtocolIssue? = null
         var httpStatus: Int? = null
         try {
+            current.recording?.event("PREPARING", "任务已受理，准备采集")
             checkActive(current)
             archives.recoverInterrupted()
             batch = archives.begin(current.request.game, listOf(HtmlPageKind.PLAYER, HtmlPageKind.RECENT) + current.request.difficulties,
                 current.request.launchId, current.startedAt)
+            current.recording?.bindBatch(batch)
             update(current) { it.copy(batch = batch) }
             val session = (newSession?.invoke() ?: GameNetClient(
                 onRetry = { update(current) { it.copy(networkRetries = it.networkRetries + 1) } },
                 onTrace = { trace -> update(current) { it.copy(httpTrace = Collections.unmodifiableList((it.httpTrace + trace).takeLast(32))) } },
                 onRejectedResponse = { save(current, batch, HtmlPageKind.FAILED_RESPONSE, it) },
+                recording = current.recording,
             )).also { current.session = it }
             checkActive(current)
-            val channel = openChannel({ session.authorizationUrl(current.request.game.key) }, { current.callbacks.offer(it) }, { event ->
+            val channel = openChannel({ session.authorizationUrl(current.request.game.key) }, {
+                current.recording?.event("CALLBACK", "收到微信登录回调")
+                current.callbacks.offer(it)
+            }, { event ->
+                current.recording?.event("CAPTURE", if (event == "connect") "HTTPS CONNECT 仅作 TLS 透传，不包含微信内部明文" else event)
                 update(current) { it.copy(proxyEvents = Collections.unmodifiableMap(it.proxyEvents + (event to ((it.proxyEvents[event] ?: 0) + 1)))) }
             }).also { current.channel = it }
+            current.recording?.let { channel.observeHttp(it::recordHttp) }
             checkActive(current)
             update(current) { it.copy(stage = CaptureStage.WAITING_WECHAT, entryUrl = channel.entryUrl, proxyPort = channel.proxyPort) }
             val callback = current.callbacks.take()
@@ -153,10 +166,10 @@ internal class CaptureTaskCoordinator(
                 session.close()
                 current.session = null
                 update(current) { it.copy(stage = CaptureStage.UPLOADING, currentPage = null) }
-                val uploads = requireNotNull(newUploadTask).invoke { call ->
+                val uploads = requireNotNull(newUploadTask).invoke({ call ->
                     current.uploadCall = call
                     if (current.cancelled.get()) call.close()
-                }
+                }, current.recording)
                 stage = uploads.run(current.request, archives.read(batch), { checkActive(current) }) { result ->
                     update(current) { state ->
                         val prior = state.uploads.filterNot { it.provider == result.provider && it.page == result.page }
@@ -166,6 +179,7 @@ internal class CaptureTaskCoordinator(
                 if (stage == CaptureStage.FAILED) failure = CaptureFailure.UPLOAD
             }
         } catch (error: Exception) {
+            current.recording?.event("ERROR", "传分执行异常", mapOf("type" to error.javaClass.name))
             val causes = generateSequence<Throwable>(error) { it.cause }.take(5).toList()
             failureClass = causes.joinToString("/") { it.javaClass.simpleName }
             // Code locations only: exception messages may contain OAuth URLs or cookies.
@@ -211,11 +225,14 @@ internal class CaptureTaskCoordinator(
                 }
             }
             deliver()
+            current.recording?.event("CLEANUP", "采集通道和网络会话已释放")
+            current.recording?.finish(stage.name)
         }
     }
 
     private fun save(current: Job, batch: HtmlBatchRef, kind: HtmlPageKind, response: NetSession.Page) {
         checkActive(current)
+        current.recording?.event("HTML", "开始保存页面", mapOf("page" to kind.name, "status" to response.status.toString()))
         val source = object : java.io.FilterInputStream(response.stream) {
             override fun read(): Int = try { `in`.read() } catch (error: java.io.IOException) { throw NetworkSourceException(error) }
             override fun read(buffer: ByteArray, offset: Int, length: Int): Int = try { `in`.read(buffer, offset, length) }
@@ -232,6 +249,9 @@ internal class CaptureTaskCoordinator(
         val archivedEvidence = if (response.status == 200 || evidence.validity == HtmlValidity.BUSINESS_ERROR) evidence
             else evidence.copy(validity = HtmlValidity.UNRECOGNIZED)
         try { archives.recordEvidence(ref, archivedEvidence) } catch (error: Exception) { throw ArchiveException(error) }
+        current.recording?.event("HTML", "页面保存与校验完成", mapOf("page" to kind.name,
+            "file" to ref.fileName, "bytes" to ref.bytes.toString(), "validity" to archivedEvidence.validity.name,
+            "chartCount" to archivedEvidence.chartCount.toString(), "scoreCount" to archivedEvidence.scoreCount.toString()))
         val captured = CapturedHtml(ref, evidence, response.status)
         update(current) { state ->
             if (kind == HtmlPageKind.LOGIN_DIAGNOSTIC) state.copy(loginDiagnostic = captured)
@@ -247,6 +267,15 @@ internal class CaptureTaskCoordinator(
     private fun checkActive(current: Job) { if (current.cancelled.get() || Thread.currentThread().isInterrupted) throw InterruptedException() }
     private fun update(current: Job, change: (CaptureSnapshot) -> CaptureSnapshot) {
         synchronized(lock) { if (job !== current || current.cancelled.get()) return; state = change(state!!) }
+        snapshot()?.let { value -> current.recording?.event(value.stage.name, "任务状态更新", buildMap {
+            value.currentPage?.let { put("page", it.name) }
+            put("savedPages", value.pages.size.toString())
+            put("networkRetries", value.networkRetries.toString())
+            value.uploads.lastOrNull()?.let { result ->
+                put("provider", result.provider.name); put("uploadPage", result.page.name)
+                put("uploadOutcome", result.receipt.outcome.name)
+            }
+        }) }
         deliver()
     }
     private fun deliver() = synchronized(deliveryLock) { snapshot()?.let { value -> observers.forEach { runCatching { it(value) } } } }

@@ -10,6 +10,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
+import okhttp3.Interceptor
 import okio.BufferedSink
 import org.json.JSONException
 import org.json.JSONObject
@@ -18,10 +19,14 @@ import java.io.IOException
 import java.util.concurrent.Executors
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.RejectedExecutionException
 
 data class OAuthAccount(val name: String?, val grantedScopes: Set<String>, val refreshExpiresAt: Long?, val subject: String)
 
 class ScoreGrantUnavailable(val reason: OAuthAuthorizationCheck) : Exception()
+
+/** 仅本次传分取票的观察入口；设置页授权和检查不继承此上下文。 */
+internal class ScoreTokenObserver(val interceptor: Interceptor, val event: (String) -> Unit)
 
 enum class OAuthFeedback {
     AUTHORIZED, CANCELLED, INVALID_CALLBACK, NETWORK_ERROR, REJECTED, LOCAL_ERROR,
@@ -62,7 +67,16 @@ class OAuthConnections internal constructor(context: Context) {
 
     /** Blocking worker API. Only the access token leaves auth, scoped to the account that started the task. */
     fun scoreAccessToken(provider: OAuthProvider, subject: String, scope: String): String {
-        val result = worker.submit<String> {
+        return scoreAccessToken(provider, subject, scope, null)
+    }
+
+    internal fun scoreAccessToken(provider: OAuthProvider, subject: String, scope: String,
+                                  observer: ScoreTokenObserver?, retain: (() -> Closeable)? = null): String {
+        // caller 被中断后，已经排队的取票仍由 auth worker 完成，记录端也必须等到它真正退出。
+        val retained = retain?.invoke()
+        val result = try { worker.submit<String> {
+            try {
+            observer?.event?.invoke("检查 ${provider.name} 上传授权及所需 scope")
             val key = accountKey(provider)
             val account = store.read(key)
             if (subject.isBlank() || account?.optString("sub") != subject) {
@@ -79,7 +93,8 @@ class OAuthConnections internal constructor(context: Context) {
                     throw ScoreGrantUnavailable(OAuthAuthorizationCheck.INVALID)
                 }
                 try {
-                    refresh(provider, account)
+                    observer?.event?.invoke("刷新 ${provider.name} 上传票据")
+                    refresh(provider, account, observer)
                 } catch (failure: OAuthRejected) {
                     main.post { reportAuthorizationCheck(provider, failure.checkResult) }
                     throw ScoreGrantUnavailable(failure.checkResult)
@@ -87,8 +102,13 @@ class OAuthConnections internal constructor(context: Context) {
                 store.write(key, account)
                 publish(provider, account.toAccount(), OAuthAuthorizationCheck.VALID)
                 checkScope()
-            }
+                observer?.event?.invoke("${provider.name} 上传票据已刷新并保存")
+            } else observer?.event?.invoke("复用 ${provider.name} 有效上传票据")
             account.getString("accessToken")
+            } finally { retained?.close() }
+        } } catch (failure: RejectedExecutionException) {
+            retained?.close()
+            throw failure
         }
         return try {
             result.get()
@@ -227,15 +247,15 @@ class OAuthConnections internal constructor(context: Context) {
             .apply { updateTokens(token, endpoint, issuedAt) }
     }
 
-    private fun refresh(provider: OAuthProvider, account: JSONObject): JSONObject {
+    private fun refresh(provider: OAuthProvider, account: JSONObject, observer: ScoreTokenObserver? = null): JSONObject {
         val endpoint = account.optString("tokenEndpoint").takeIf(String::isNotBlank)
-            ?.let { ProviderOAuth.endpoint(provider.issuer, it) } ?: discover(provider).token
+            ?.let { ProviderOAuth.endpoint(provider.issuer, it) } ?: discover(provider, observer).token
         val form = FormBody.Builder()
             .add("grant_type", "refresh_token")
             .add("client_id", provider.clientId)
             .add("refresh_token", account.getString("refreshToken"))
             .build()
-        val token = requestToken(endpoint, form)
+        val token = requestToken(endpoint, form, observer)
         check(token.optString("refresh_token").isNotBlank())
         return account.apply { updateTokens(token, endpoint, System.currentTimeMillis()) }
     }
@@ -252,19 +272,19 @@ class OAuthConnections internal constructor(context: Context) {
         if (token.has("scope")) put("scope", token.getString("scope"))
     }
 
-    private fun requestToken(endpoint: HttpUrl, form: FormBody): JSONObject {
+    private fun requestToken(endpoint: HttpUrl, form: FormBody, observer: ScoreTokenObserver? = null): JSONObject {
         val oneShot = object : RequestBody() {
             override fun contentType() = form.contentType()
             override fun contentLength() = form.contentLength()
             override fun writeTo(sink: BufferedSink) = form.writeTo(sink)
             override fun isOneShot() = true
         }
-        return readJson(Request.Builder().url(endpoint).post(oneShot).build(), tokenRequest = true)
+        return readJson(Request.Builder().url(endpoint).post(oneShot).build(), tokenRequest = true, observer = observer)
     }
 
-    private fun discover(provider: OAuthProvider): Endpoints {
+    private fun discover(provider: OAuthProvider, observer: ScoreTokenObserver? = null): Endpoints {
         val url = (provider.issuer + "/.well-known/openid-configuration").toHttpUrl()
-        val json = readJson(Request.Builder().url(url).build())
+        val json = readJson(Request.Builder().url(url).build(), observer = observer)
         require(json.getString("issuer") == provider.issuer)
         return Endpoints(
             ProviderOAuth.endpoint(provider.issuer, json.getString("authorization_endpoint")),
@@ -273,14 +293,17 @@ class OAuthConnections internal constructor(context: Context) {
         )
     }
 
-    private fun readJson(request: Request, tokenRequest: Boolean = false): JSONObject = client.newCall(request).execute().use { response ->
-        if (!response.isSuccessful) {
-            val error = if (tokenRequest && response.code in 400..499) {
-                readOAuthError(response.body?.string().orEmpty())
-            } else null
-            throw OAuthRejected(response.code, ProviderOAuth.checkFailure(response.code, error, tokenRequest))
+    private fun readJson(request: Request, tokenRequest: Boolean = false, observer: ScoreTokenObserver? = null): JSONObject {
+        val transport = observer?.let { client.newBuilder().addNetworkInterceptor(it.interceptor).build() } ?: client
+        return transport.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                val error = if (tokenRequest && response.code in 400..499) {
+                    readOAuthError(response.body?.string().orEmpty())
+                } else null
+                throw OAuthRejected(response.code, ProviderOAuth.checkFailure(response.code, error, tokenRequest))
+            }
+            JSONObject(requireNotNull(response.body).string())
         }
-        JSONObject(requireNotNull(response.body).string())
     }
 
     private fun readOAuthError(body: String): String? = try {

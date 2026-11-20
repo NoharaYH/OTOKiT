@@ -8,6 +8,7 @@ import com.otokit.noharayh.score.HtmlPageRef
 import com.otokit.noharayh.score.ScoreGame
 import com.otokit.noharayh.transfer.UploadOutcome
 import com.otokit.noharayh.transfer.UploadReceipt
+import com.otokit.noharayh.transfer.TransferRecording
 import okhttp3.Call
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -25,10 +26,14 @@ internal class PlatformHtmlUpload(
     private val archives: HtmlCaptures,
     private val accessToken: (OAuthProvider, String, String) -> String,
     private val client: OkHttpClient = OkHttpClient.Builder().followRedirects(false).followSslRedirects(false)
-        .retryOnConnectionFailure(false).callTimeout(30, TimeUnit.SECONDS).build()
+        .retryOnConnectionFailure(false).callTimeout(30, TimeUnit.SECONDS).build(),
+    private val recording: TransferRecording? = null,
 ) {
+    private val transport = recording?.let { client.newBuilder().addNetworkInterceptor(it.interceptor("UPLOAD")).build() } ?: client
 
     fun send(provider: OAuthProvider, subject: String, page: HtmlPageRef, onCall: (Call) -> Unit): UploadReceipt {
+        recording?.event("UPLOAD", "准备上传 HTML", mapOf("provider" to provider.name, "page" to page.kind.name,
+            "file" to page.fileName, "bytes" to page.bytes.toString()))
         val mai = page.batch.game == ScoreGame.MAIMAI
         val token = try {
             accessToken(provider, subject, provider.scoreWriteScope(mai))
@@ -53,7 +58,7 @@ internal class PlatformHtmlUpload(
                 override fun isOneShot() = true
                 override fun writeTo(sink: BufferedSink) { sink.writeAll(html.source()) }
             }
-            val call = client.newCall(Request.Builder().url(endpoint).header("Authorization", "Bearer $token").post(body).build())
+            val call = transport.newCall(Request.Builder().url(endpoint).header("Authorization", "Bearer $token").post(body).build())
             onCall(call)
             try {
                 call.execute().use { response ->

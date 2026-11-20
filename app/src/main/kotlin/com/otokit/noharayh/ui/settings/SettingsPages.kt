@@ -35,8 +35,9 @@ internal object SettingsPages {
         onNoneThemeBackgroundSelected: (Boolean) -> Unit,
         onNoneThemeWallpaperSelected: (Boolean) -> Unit,
         onNoneThemeColorSelected: (NoneThemeColorRole, Int) -> Unit,
+        openLogs: () -> Unit = {},
     ) = when (section) {
-        SettingsSection.ScoreSync -> ScoreSyncSettingsPage.create(context, margin, split, openLink, openArchive)
+        SettingsSection.ScoreSync -> ScoreSyncSettingsPage.create(context, margin, split, openLink, openArchive, openLogs)
         SettingsSection.App -> AppSettingsPage(
             context = context,
             margin = margin,

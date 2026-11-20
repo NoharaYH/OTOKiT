@@ -58,12 +58,15 @@ class HtmlExportFlowTest : UiComponentTestHost() {
             })
             val text = warning.window!!.decorView.allViews.filterIsInstance<TextView>()
                 .single { it.text.toString() == WARNING }.text as Spanned
-            val spans = text.getSpans(0, text.length, ForegroundColorSpan::class.java)
+            val colors = text.getSpans(0, text.length, ForegroundColorSpan::class.java)
+            val spans = colors.filter { it.foregroundColor == SettingsComponentColors.WARNING }
             assertEquals(setOf("账号的敏感数据", "脱敏处理"), spans.map {
                 assertEquals(SettingsComponentColors.WARNING, it.foregroundColor)
                 text.subSequence(text.getSpanStart(it), text.getSpanEnd(it)).toString()
             }.toSet())
             assertEquals(2, spans.size)
+            val link = colors.single { it.foregroundColor == SettingsComponentColors.SELECTED }
+            assertEquals("数据与同步设置-导出内容脱敏", text.subSequence(text.getSpanStart(link), text.getSpanEnd(link)).toString())
         }
         click(warning, R.string.settings_export_warning_enable)
         main {
@@ -201,6 +204,6 @@ class HtmlExportFlowTest : UiComponentTestHost() {
     }
 
     private companion object {
-        const val WARNING = "请注意！导出的内容涉及您账号的敏感数据。如不希望被不法分子利用，请选择对导出内容进行脱敏处理！\n\n该选项后续可在数据与同步设置-导出内容脱敏进行开关。"
+        const val WARNING = "请注意！导出的内容涉及您账号的敏感数据。如不希望被不法分子利用，请选择对导出内容进行脱敏处理！\n\n可在数据与同步设置-导出内容脱敏进行开关。"
     }
 }

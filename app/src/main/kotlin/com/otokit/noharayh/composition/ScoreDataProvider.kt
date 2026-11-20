@@ -20,7 +20,16 @@ private fun scoreData(context: Context): ScoreData {
             ScoreCatalog(app.assets.open("musicData/${game.key}-catalog.json"))
         },
         ScoreDatabase(app),
-        CaptureTaskCoordinator::isActive,
+        processing = ScoreProcessingObserver(queued = { record ->
+            scoreSyncLogs(app).find(record.taskId)?.let { log ->
+                val retained = log.retain()
+                log.event("LOCAL_PROCESSING", "本地成绩处理已排队", mapOf("batchId" to record.batch.id))
+                retained
+            }
+        }, event = { record, message, details ->
+            scoreSyncLogs(app).find(record.taskId)?.event("LOCAL_PROCESSING", message, details + ("batchId" to record.batch.id))
+        }),
+        taskActive = CaptureTaskCoordinator::isActive,
     ).also {
         data = it
         it.startRecovery()

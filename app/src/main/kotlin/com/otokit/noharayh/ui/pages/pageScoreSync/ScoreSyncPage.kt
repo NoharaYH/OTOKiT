@@ -118,7 +118,8 @@ private class GameForm(private val context: Context, private val oauth: OAuthCon
             else listOf(HtmlPageKind.BASIC, HtmlPageKind.ADVANCED, HtmlPageKind.EXPERT,
                 HtmlPageKind.MASTER, HtmlPageKind.ULTIMA, HtmlPageKind.WORLDS_END)
             start.start(CaptureRequest(game, kinds.filterIndexed { index, _ -> index in selected }, UUID.randomUUID().toString(),
-                preferences.keepCallbackCaptureUntilLogin(), providers.map { UploadTarget(it, oauth.account(it)!!.subject) }))
+                preferences.keepCallbackCaptureUntilLogin(), providers.map { UploadTarget(it, oauth.account(it)!!.subject) },
+                saveSyncLog = preferences.recordScoreSyncLogs()))
         }
     }, onCopy = { text ->
         context.getSystemService(ClipboardManager::class.java)?.setPrimaryClip(

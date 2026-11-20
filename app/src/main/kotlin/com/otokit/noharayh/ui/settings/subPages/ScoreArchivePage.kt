@@ -4,10 +4,6 @@ import android.content.Context
 import android.content.ActivityNotFoundException
 import android.os.Handler
 import android.os.Looper
-import android.text.Annotation
-import android.text.SpannableString
-import android.text.Spanned
-import android.text.style.ForegroundColorSpan
 import android.text.format.DateFormat
 import android.util.Log
 import android.view.Gravity
@@ -25,6 +21,7 @@ import com.otokit.noharayh.score.ScoreArchiveFormat
 import com.otokit.noharayh.score.ScoreArchiveQueries
 import com.otokit.noharayh.score.ScoreGame
 import com.otokit.noharayh.ui.chrome.TitleText
+import com.otokit.noharayh.ui.settings.components.ExportPrompts
 import com.otokit.noharayh.ui.constants.dimensions.SettingsCardDimensions
 import com.otokit.noharayh.ui.constants.dimensions.SettingsChoiceDimensions
 import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors
@@ -169,30 +166,10 @@ internal class ScoreArchivePage(
     private fun confirmExport() {
         if (dialog != null) return
         val batches = selected.toSet()
-        if (kind == ScoreArchiveKind.Html && !exportPreferences.exportWarningAcknowledged()) {
-            val warning = SpannableString(context.getText(R.string.settings_export_warning)).apply {
-                getSpans(0, length, Annotation::class.java).filter {
-                    it.key == "color" && it.value == "warning"
-                }.forEach {
-                    setSpan(ForegroundColorSpan(SettingsComponentColors.WARNING), getSpanStart(it), getSpanEnd(it),
-                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-                }
-            }
-            showDialog(MessageDialog(context, R.drawable.ic_error_40, warning,
-                context.getString(R.string.settings_export_warning_enable), null,
-                additionalAction = MessageDialogAction(context.getString(R.string.settings_export_warning_disable),
-                    SettingsComponentColors.TEXT) { chooseExportRedaction(batches, false) },
-                cancelOnTouchOutside = false) {
-                chooseExportRedaction(batches, true)
-            })
+        if (kind == ScoreArchiveKind.Html) {
+            ExportPrompts(context, exportPreferences, ::showDialog, { isAttachedToWindow })
+                .start(forLog = false) { showExportChoices(batches) }
         } else showExportChoices(batches)
-    }
-
-    private fun chooseExportRedaction(batches: Set<HtmlBatchRef>, enabled: Boolean) {
-        if (!isAttachedToWindow) return
-        exportPreferences.setRedactExports(enabled)
-        exportPreferences.acknowledgeExportWarning()
-        showExportChoices(batches)
     }
 
     private fun showExportChoices(batches: Set<HtmlBatchRef>) {
