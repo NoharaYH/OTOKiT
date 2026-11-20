@@ -15,7 +15,6 @@ import com.otokit.noharayh.ui.theme.BackgroundPalette
 import com.otokit.noharayh.ui.theme.GameLine
 import com.otokit.noharayh.ui.theme.BackgroundSelection
 import com.otokit.noharayh.ui.theme.ThemeColors
-import kotlin.math.abs
 
 /** 双背景的运行所有者；稳定选择由 shell 确认，归位期间不接受新选择。 */
 class BackgroundHost(
@@ -66,6 +65,8 @@ class BackgroundHost(
     private var disposed = false
     private var committedGame = GameLine.Mai
     private var progress = 0f
+    private var foregroundProgress: Float? = null
+    private var sameBackground = false
     private var phase = BackgroundPhase.Idle
     private var gate = BackgroundInputGate()
     private var requiredLayoutEpoch = 0L
@@ -135,7 +136,7 @@ class BackgroundHost(
         attached = true
         committedGame = initialGame
         progress = BackgroundPagerMapping.endpointProgress(initialGame)
-        updateMediaVisibility()
+        renderBackgroundFrame()
         publisher.publish(BackgroundSnapshot(initialGame, progress, BackgroundPhase.Idle))
 
         try {
@@ -166,7 +167,6 @@ class BackgroundHost(
                 this.adapter = adapter
                 setPageTransformer { page, position ->
                     page.translationX = -position * page.width
-                    page.alpha = (1f - abs(position)).coerceIn(0f, 1f)
                 }
                 registerOnPageChangeCallback(pageCallback)
             }
@@ -192,13 +192,24 @@ class BackgroundHost(
         chuBackground: BackgroundSelection,
     ) {
         if (!attached || disposed) return
+        sameBackground = maiBackground == chuBackground ||
+            (maiBackground is BackgroundSelection.Html && chuBackground is BackgroundSelection.Html &&
+                maiBackground.theme.definition.htmlAssetPath == chuBackground.theme.definition.htmlAssetPath)
         // 冷启动先加载当前页；切页必须主动加载目标，不能依赖旧页迟到的首帧。
         sources.render(currentGame, maiBackground, chuBackground)
         if (currentGame != committedGame) {
             committedGame = currentGame
             beginAlignment(requireNextLayout = true)
         }
+        renderBackgroundFrame()
         deliverInitialVisualReady()
+    }
+
+    /** 前景手势只更新背景透明度，背景页仍各自固定在视口原点。 */
+    internal fun renderGameProgress(value: Float) {
+        if (!attached || disposed || foregroundProgress == value) return
+        foregroundProgress = value
+        renderBackgroundFrame()
     }
 
     /** shell 已更新背景宿主的几何；同步关门，确认本次真实布局后再开放。 */
@@ -224,6 +235,7 @@ class BackgroundHost(
     private fun onPageVisualReady(game: GameLine) {
         if (disposed) return
         sources.onVisualReady(game, committedGame)
+        renderBackgroundFrame()
         deliverInitialVisualReady()
     }
 
@@ -401,14 +413,21 @@ class BackgroundHost(
 
     private fun publishCurrent() {
         if (!disposed && !gate.barrierActive) {
-            updateMediaVisibility()
+            renderBackgroundFrame()
             publisher.publish(BackgroundSnapshot(committedGame, progress, phase))
         }
     }
 
-    private fun updateMediaVisibility() {
-        pages.getValue(GameLine.Mai).setMediaVisible(progress < 1f)
-        pages.getValue(GameLine.Chu).setMediaVisible(progress > 0f)
+    private fun renderBackgroundFrame() {
+        val endpoint = BackgroundPagerMapping.endpointProgress(committedGame)
+        val requested = foregroundProgress ?: progress
+        val incoming = if (committedGame == GameLine.Mai) GameLine.Chu else GameLine.Mai
+        val blend = if (sameBackground || (foregroundProgress != null && !sources.isReady(incoming))) endpoint else requested
+        for ((game, page) in pages) {
+            val opacity = if (game == GameLine.Mai) 1f - blend else blend
+            page.view.alpha = opacity
+            page.setMediaVisible(opacity > 0f)
+        }
     }
 
     private fun matchParentParams() = FrameLayout.LayoutParams(

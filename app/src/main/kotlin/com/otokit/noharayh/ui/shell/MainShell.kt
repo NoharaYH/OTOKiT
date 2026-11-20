@@ -930,6 +930,7 @@ class MainShell(
             edgePullPx = contentHost.edgePull,
         )
         latestGameFrame = frame
+        background?.renderGameProgress(frame.normalizedProgress)
         mountedContent?.updateGameFrame(frame)
         chrome.renderGameFrame(frame)
     }
