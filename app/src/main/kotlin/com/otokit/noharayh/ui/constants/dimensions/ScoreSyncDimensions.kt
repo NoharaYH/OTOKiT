@@ -5,4 +5,5 @@ internal object ScoreSyncDimensions {
     const val WIDE_MIN_MARGIN_DP = 32
     const val WIDE_WIDTH_DP = 1040
     const val WIDE_HEIGHT_DP = 480
+    const val LOG_EDGE_OVERSHOOT_DP = 48
 }

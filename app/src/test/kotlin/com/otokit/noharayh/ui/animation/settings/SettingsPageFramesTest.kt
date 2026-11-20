@@ -5,6 +5,15 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class SettingsPageFramesTest {
+    @Test fun predictiveBackProgressGetsHeavierNearTheEnd() {
+        assertEquals(0f, SettingsPageFrames.resistedBackProgress(0f), 0f)
+        assertEquals(.6f, SettingsPageFrames.resistedBackProgress(.6f), 0f)
+        val middle = SettingsPageFrames.resistedBackProgress(.8f)
+        val end = SettingsPageFrames.resistedBackProgress(1f)
+        assertTrue(middle > .6f && end > middle && end < 1f)
+        assertTrue(end - middle < middle - .6f)
+    }
+
     @Test fun switchingSectionsKeepsTheOutgoingPairCompactAndTheIncomingSectionWide() {
         val compact = SettingsPageFrames.splitPanes(901, 12, 1f)
         val wide = SettingsPageFrames.splitPanes(901, 12, 0f)

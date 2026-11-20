@@ -1,7 +1,6 @@
 package com.otokit.noharayh.ui.kit.settings
 
 import android.animation.ValueAnimator
-import androidx.core.animation.doOnEnd
 import android.content.Context
 import android.view.Gravity
 import android.view.HapticFeedbackConstants
@@ -10,22 +9,24 @@ import android.view.View
 import android.view.ViewConfiguration
 import android.view.animation.LinearInterpolator
 import android.widget.FrameLayout
-import android.widget.ScrollView
+import androidx.core.animation.doOnEnd
+import com.otokit.noharayh.ui.animation.common.MotionInterpolators
+import com.otokit.noharayh.ui.animation.common.resistedDragDistance
 import com.otokit.noharayh.ui.constants.dimensions.ArchiveRecordListDimensions as Dimensions
 import com.otokit.noharayh.ui.constants.dimensions.SettingsButtonDimensions
 import com.otokit.noharayh.ui.constants.dimensions.SettingsGroupDimensions
 import com.otokit.noharayh.ui.constants.dimensions.ThemeSelectionDimensions
 import com.otokit.noharayh.ui.constants.motion.ArchiveRecordListMotion as Motion
 import com.otokit.noharayh.ui.constants.motion.SettingsChoiceMotion
-import com.otokit.noharayh.ui.animation.common.MotionInterpolators
 import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors
 import com.otokit.noharayh.ui.kit.common.ContinuousCornerDrawable
+import com.otokit.noharayh.ui.kit.common.EdgePullScrollView
 import com.otokit.noharayh.ui.kit.common.PressFrontColumn
 import com.otokit.noharayh.ui.kit.common.ViewPrimitives.dp
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-/** 记录行跟随一个滚动位置在边缘交接，列表只挂载这一帧涉及的行。 */
+/** 记录以完整行高滚动，边缘拖动只移动固定视口内的记录内容。 */
 internal class ArchiveRecordList(
     context: Context,
     scrollbarDescription: String,
@@ -33,10 +34,7 @@ internal class ArchiveRecordList(
 ) : FrameLayout(context) {
     class Row(val label: String, val onClick: () -> Unit)
 
-    private data class RowFrame(
-        val top: Float, val height: Float, val width: Float, val alpha: Float, val expansion: Float,
-        val topRadius: Float, val bottomRadius: Float,
-    )
+    private data class RowFrame(val top: Int, val topRadius: Float, val bottomRadius: Float)
     private class Swipe(val row: Row, val view: ArchiveRecordRow, val pointer: Int, val x: Float, val y: Float) {
         var rejected = false
     }
@@ -44,14 +42,9 @@ internal class ArchiveRecordList(
 
     private val rowHeight = dp(context, SettingsButtonDimensions.HEIGHT_DP)
     private val gap = dp(context, SettingsGroupDimensions.GAP_DP)
-    private val stripHeight = dp(context, Dimensions.STRIP_HEIGHT_DP)
-    private val narrowStrip = Dimensions.STRIP_ENTRY_WIDTH_FRACTION
     private val stride = rowHeight + gap
-    private val edgeSpace = stripHeight + gap
     private val inner = dp(context, SettingsGroupDimensions.INNER_RADIUS_DP).toFloat()
     private val outer = dp(context, SettingsGroupDimensions.OUTER_RADIUS_DP).toFloat()
-    private val stripInner = minOf(inner, stripHeight / 2f)
-    private val stripOuter = minOf(outer, stripHeight / 2f)
     private val trackWidth = (ThemeSelectionDimensions.SCROLLBAR_WIDTH_DP * resources.displayMetrics.density
         + 2 * dp(context, Dimensions.SCROLLBAR_TRACK_INSET_DP)).roundToInt()
     private var items = emptyList<Row>()
@@ -75,9 +68,7 @@ internal class ArchiveRecordList(
     private var shrink = 0f
     private var previousFrames = emptyMap<Row, RowFrame>()
     private var refill = 1f
-    private var slots = 1
     private var maximum = 0
-    private var touching = false
     private var draggingThumb = false
     private var scrollFeedbackActive = false
     private var expansionFeedback = ListExpansionFeedback()
@@ -92,25 +83,25 @@ internal class ArchiveRecordList(
         }
     }
     private val settle: Runnable = Runnable {
-        if (!touching && !draggingThumb) {
-            val target = ((scroll.scrollY.toFloat() / stride).roundToInt() * stride).coerceAtMost(maximum)
+        if (!scroll.isTouchActive && !draggingThumb) {
+            val position = scroll.scrollY
+            val before = position / stride * stride
+            val after = minOf(before + stride, maximum)
+            val target = if (position - before < after - position) before else after
             if (scroll.scrollY != target) scroll.smoothScrollTo(0, target)
             else scrollFeedbackActive = false
         }
     }
-    private val scroll: ScrollView = object : ScrollView(context) {
+    private val scroll: EdgePullScrollView = object : EdgePullScrollView(context, dp(context, Dimensions.EDGE_OVERSHOOT_DP).toFloat()) {
         override fun dispatchTouchEvent(event: MotionEvent): Boolean {
-            when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN -> {
-                    touching = true
-                    this@ArchiveRecordList.removeCallbacks(settle)
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    touching = false
-                    scheduleSettle()
-                }
+            if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                this@ArchiveRecordList.removeCallbacks(settle)
             }
-            return super.dispatchTouchEvent(event)
+            val handled = super.dispatchTouchEvent(event)
+            if (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL) {
+                scheduleSettle()
+            }
+            return handled
         }
     }
     private val track = View(context).apply {
@@ -120,6 +111,7 @@ internal class ArchiveRecordList(
     }
     private val scrollbar = ThemeScrollbar(context, {
         draggingThumb = true
+        scroll.resetEdgePull()
         scroll.fling(0)
         removeCallbacks(settle)
     }, { fraction ->
@@ -135,7 +127,6 @@ internal class ArchiveRecordList(
         clipToPadding = false
         val hitWidth = dp(context, ThemeSelectionDimensions.SCROLLBAR_HIT_WIDTH_DP)
         scroll.isVerticalScrollBarEnabled = false
-        scroll.overScrollMode = OVER_SCROLL_NEVER
         scroll.clipChildren = false
         scroll.clipToPadding = false
         scroll.addView(rows, FrameLayout.LayoutParams(-1, -2))
@@ -149,7 +140,7 @@ internal class ArchiveRecordList(
             if (bottom - top != oldBottom - oldTop) updateRange()
         }
         scroll.setOnScrollChangeListener { _, _, y, _, oldY ->
-            if (y != oldY && (touching || draggingThumb)) scrollFeedbackActive = true
+            if (y != oldY && (scroll.isTouchActive || draggingThumb)) scrollFeedbackActive = true
             renderRows(playFeedback = y != oldY && scrollFeedbackActive)
             scheduleSettle()
         }
@@ -206,6 +197,7 @@ internal class ArchiveRecordList(
             return
         }
         scroll.fling(0)
+        scroll.resetEdgePull()
         removeCallbacks(settle)
         cancelRangeGesture()
         if (rangeAnchor?.row in removed) updateRangeAnchor(null)
@@ -286,7 +278,7 @@ internal class ArchiveRecordList(
 
     private fun findSwipeRow(event: MotionEvent): Swipe? {
         val x = event.x - scroll.left - rows.left
-        val y = event.y - scroll.top + scroll.scrollY - rows.top
+        val y = event.y - scroll.top + scroll.scrollY - rows.top - rows.translationY
         val hit = rowViews.entries.firstOrNull { (_, view) ->
             view.button.isClickable && view.button.isEnabled &&
                 x >= view.left && x < view.right && y >= view.top && y < view.bottom
@@ -297,12 +289,7 @@ internal class ArchiveRecordList(
     private fun dragDistance(dx: Float): Float = (abs(dx) - touchSlop).coerceAtLeast(0f)
 
     private fun updateReveal(swipe: Swipe, dx: Float) {
-        val distance = dragDistance(dx)
-        // Continuous at the knee, with progressively less movement per pixel beyond it.
-        val shown = if (distance <= revealWidth) distance else {
-            val extra = distance - revealWidth
-            revealWidth + revealOvershoot * extra / (revealOvershoot + extra)
-        }
+        val shown = resistedDragDistance(dragDistance(dx), revealWidth, revealOvershoot)
         swipe.view.dragReveal(if (dx < 0f) -shown else shown)
     }
 
@@ -340,18 +327,10 @@ internal class ArchiveRecordList(
         val oldPosition = scroll.scrollY
         val first = oldPosition / stride
         val start = (0 until minOf(first, items.size)).count { items[it] !in removed }
-        previousFrames = rowViews.entries.mapNotNull { (index, view) ->
-            val button = view.button
-            val row = items[index]
-            if (row in removed || view.height == 0) null else row to RowFrame(
-                (view.top - oldPosition).toFloat(), view.height.toFloat(),
-                view.width.toFloat() / rows.width.coerceAtLeast(1), view.alpha,
-                ((view.height - stripHeight).toFloat() / (rowHeight - stripHeight)).coerceIn(0f, 1f)
-                    .let { if (button.isClickable) 1f else it },
-                button.topCornerRadius ?: inner, button.bottomCornerRadius ?: inner,
-            )
-        }.toMap()
         val retained = items - removed
+        val position = (start * stride + oldPosition % stride).coerceAtMost(maximumFor(retained.size))
+        val visible = visibleIndices(position, retained.lastIndex)
+        val frames = mutableMapOf<Row, RowFrame>()
         val oldViews = rowViews.toMap()
         rowViews.clear()
         var index = 0
@@ -360,16 +339,19 @@ internal class ArchiveRecordList(
             if (row in removed) {
                 if (view != null) rows.removeView(view)
             } else {
+                if (index in visible) frames[row] = RowFrame(oldIndex * stride - oldPosition,
+                    if (oldIndex == 0) outer else inner, if (oldIndex == items.lastIndex) outer else inner)
                 if (view != null) rowViews[index] = view
                 index++
             }
         }
+        previousFrames = frames
+        refill = 0f
         items = retained
         selected = selected - removed
         expansionFeedback = ListExpansionFeedback()
         updateRange()
-        refill = 0f
-        scroll.scrollTo(0, (start * stride + oldPosition % stride).coerceAtMost(maximum))
+        scroll.scrollTo(0, position)
         animateRemoval(SettingsChoiceMotion.DURATION_MS, linear = false, { refill = it; renderRows() }) {
             previousFrames = emptyMap()
             removing = emptySet()
@@ -396,9 +378,9 @@ internal class ArchiveRecordList(
     }
 
     private fun updateRange() {
+        scroll.resetEdgePull()
         scrollFeedbackActive = false
-        slots = ((scroll.height - 2 * edgeSpace + gap) / stride).coerceAtLeast(1)
-        maximum = (items.size - slots).coerceAtLeast(0) * stride
+        maximum = maximumFor(items.size)
         track.visibility = if (maximum > 0) VISIBLE else INVISIBLE
         val rowEndMargin = if (maximum > 0) trackWidth + gap else 0
         val params = scroll.layoutParams as LayoutParams
@@ -409,102 +391,66 @@ internal class ArchiveRecordList(
         rows.requestLayout()
     }
 
+    private fun maximumFor(count: Int) = (count * stride - gap - scroll.height).coerceAtLeast(0)
+
+    private fun visibleIndices(position: Int, lastIndex: Int): IntRange =
+        (position / stride - 1).coerceAtLeast(0)..minOf((position + scroll.height) / stride + 1, lastIndex)
+
     private fun scheduleSettle() {
         removeCallbacks(settle)
-        if (!touching && !draggingThumb && activeSwipe == null && removing.isEmpty()) postDelayed(settle, Motion.IDLE_SNAP_DELAY_MS)
+        if (!scroll.isTouchActive && !draggingThumb && activeSwipe == null && removing.isEmpty()) postDelayed(settle, Motion.IDLE_SNAP_DELAY_MS)
     }
 
     private fun renderRows(playFeedback: Boolean = false) {
         val position = scroll.scrollY.coerceIn(0, maximum)
-        val first = position / stride
-        val p = (position % stride).toFloat() / stride
-        val last = minOf(first + slots - 1, items.lastIndex)
-        val incoming = last + 1
-        val next = incoming + 1
-        val topSpace = if (first == 0) 0 else edgeSpace
-        val advancing = p > 0f
-        val hasIncoming = incoming < items.size
-        val hasNext = next < items.size
-        val currentRowHeight = fittedRowHeight(topSpace, if (hasIncoming) edgeSpace else 0)
-        val nextRowHeight = fittedRowHeight(edgeSpace, if (hasNext) edgeSpace else 0)
-        val visible = (maxOf(0, first - 1)..minOf(if (advancing) next else incoming, items.lastIndex))
+        val visible = visibleIndices(position, items.lastIndex)
         for (index in rowViews.keys.toList()) {
             if (index !in visible) {
                 rows.removeView(rowViews.remove(index))
                 expansionFeedback.forget(index)
             }
         }
-        val movingTop = topSpace * (1f - p)
-        val movingHeight = mix(currentRowHeight, stripHeight.toFloat(), p)
-        val middleHeight = mix(currentRowHeight, nextRowHeight, p)
-        if (first > 0) {
-            val retiringHeight = stripHeight * (1f - p)
-            place(first - 1, movingTop - edgeGap(1f - p) - retiringHeight, retiringHeight, stripOuter, stripInner,
-                expansion = 0f, widthFraction = mix(1f, narrowStrip, p), alpha = 1f - p)
-        }
-        var expanded = false
-        for (index in first..last) {
-            val firstRow = index == first
-            val top = if (firstRow) movingTop else movingTop + movingHeight + gap + (index - first - 1) * (middleHeight + gap)
-            val topRadius = if (firstRow) mix(if (first == 0) outer else inner, stripOuter, p) else inner
-            val bottomRadius = if (index == last && !hasIncoming) outer
-                else if (firstRow) mix(inner, stripInner, p) else inner
-            expanded = place(index, top, if (firstRow) movingHeight else middleHeight, topRadius, bottomRadius,
-                expansion = if (firstRow) 1f - p else 1f,
-                fullHeight = if (firstRow) currentRowHeight else middleHeight) || expanded
-        }
-        if (hasIncoming) {
-            val incomingTop = movingTop + movingHeight + gap + (last - first) * (middleHeight + gap)
-            val incomingHeight = mix(stripHeight.toFloat(), nextRowHeight, p)
-            if (advancing && hasNext) {
-                place(next, incomingTop + incomingHeight + edgeGap(p), stripHeight * p,
-                    stripInner, stripOuter, expansion = 0f, widthFraction = mix(narrowStrip, 1f, p), alpha = p)
-            }
-            expanded = place(incoming, incomingTop, incomingHeight, mix(stripInner, inner, p),
-                mix(stripOuter, if (hasNext) inner else outer, p), expansion = p, fullHeight = nextRowHeight) || expanded
+        var revealed = false
+        for (index in visible) {
+            val top = index * stride - position
+            val visibleHeight = (minOf(scroll.height, top + rowHeight) - maxOf(0, top)).coerceAtLeast(0)
+            val fullyVisible = visibleHeight == rowHeight
+            place(index, top, fullyVisible)
+            revealed = expansionFeedback.update(index, visibleHeight.toFloat() / rowHeight, fullyVisible) || revealed
         }
         scrollbar.render(0f, scroll.height.toFloat(), if (maximum > 0) 1f else 0f,
             if (maximum > 0) position.toFloat() / maximum else 0f,
             canScroll = maximum > 0, enabled = maximum > 0, progress = 1f, retracting = false)
-        if (expanded && playFeedback && isAttachedToWindow && isShown && hasWindowFocus()) {
+        if (revealed && playFeedback && isAttachedToWindow && isShown && hasWindowFocus()) {
             performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
         }
     }
 
-    private fun place(index: Int, top: Float, height: Float, topRadius: Float, bottomRadius: Float,
-        expansion: Float, widthFraction: Float = 1f, alpha: Float = 1f, fullHeight: Float = 0f): Boolean {
+    private fun place(index: Int, top: Int, fullyVisible: Boolean) {
         val item = items[index]
         val view = rowViews.getOrPut(index) {
             ArchiveRecordRow(context, item.label, item.onClick).also {
                 highlight(it.button, item, animate = false)
-                rows.addView(it, if (expansion == 0f) 0 else rows.childCount)
+                rows.addView(it)
                 rows.bind(it.button)
             }
         }
         val button = view.button
         val previous = previousFrames[item]
-        val visualTop = mix(previous?.top ?: (scroll.height - stripHeight).toFloat(), top, refill)
-        val rowTop = visualTop.roundToInt()
-        val h = (visualTop + mix(previous?.height ?: stripHeight.toFloat(), height, refill)).roundToInt() - rowTop
-        val w = (rows.width * mix(previous?.width ?: narrowStrip, widthFraction, refill)).roundToInt()
-        val left = (rows.width - w) / 2
-        val y = scroll.scrollY + rowTop
-        val complete = expansion >= 1f
+        val y = scroll.scrollY + mix((previous?.top ?: top).toFloat(), top.toFloat(), refill).roundToInt()
+        val topRadius = if (index == 0) outer else inner
+        val bottomRadius = if (index == items.lastIndex) outer else inner
         val removal = if (item in removing) shrink else 0f
-        view.visibility = if (h > 0) VISIBLE else INVISIBLE
-        view.alpha = mix(previous?.alpha ?: 0f, alpha, refill) * (1f - removal)
+        view.alpha = 1f - removal
         // The short side reaches half size; both axes lose the same number of pixels per edge.
-        button.removalInset = (minOf(w, h) / 4f - selectionInset / 2f).coerceAtLeast(0f) * removal
-        view.setGroupCorners(mix(previous?.topRadius ?: stripInner, topRadius, refill),
-            mix(previous?.bottomRadius ?: stripOuter, bottomRadius, refill))
-        val visibleExpansion = mix(previous?.expansion ?: 0f, expansion, refill)
-        button.setContentAlpha(((visibleExpansion - Motion.CONTENT_FADE_START) / (1f - Motion.CONTENT_FADE_START)).coerceIn(0f, 1f))
-        button.isClickable = complete
-        button.isFocusable = complete
-        button.importantForAccessibility = if (complete) IMPORTANT_FOR_ACCESSIBILITY_YES else IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
-        view.measure(MeasureSpec.makeMeasureSpec(w, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(h, MeasureSpec.EXACTLY))
-        view.layout(left, y, left + w, y + h)
-        return expansionFeedback.update(index, expansion, fullHeight > 0f && h >= (top + fullHeight).roundToInt() - rowTop)
+        button.removalInset = (minOf(rows.width, rowHeight) / 4f - selectionInset / 2f).coerceAtLeast(0f) * removal
+        view.setGroupCorners(mix(previous?.topRadius ?: topRadius, topRadius, refill),
+            mix(previous?.bottomRadius ?: bottomRadius, bottomRadius, refill))
+        button.isClickable = fullyVisible
+        button.isFocusable = fullyVisible
+        button.importantForAccessibility = if (fullyVisible) IMPORTANT_FOR_ACCESSIBILITY_YES else IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        view.measure(MeasureSpec.makeMeasureSpec(rows.width, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(rowHeight, MeasureSpec.EXACTLY))
+        view.layout(0, y, rows.width, y + rowHeight)
     }
 
     override fun onDetachedFromWindow() {
@@ -517,18 +463,10 @@ internal class ArchiveRecordList(
         previousFrames = emptyMap()
         shrink = 0f
         refill = 1f
-        touching = false
         draggingThumb = false
         scrollFeedbackActive = false
         super.onDetachedFromWindow()
     }
 
-    private fun fittedRowHeight(topSpace: Int, bottomSpace: Int): Float {
-        if (items.size < slots) return rowHeight.toFloat()
-        val total = scroll.height - topSpace - bottomSpace - (slots - 1) * gap
-        return (total.toFloat() / slots).coerceAtLeast(0f)
-    }
-
     private fun mix(a: Float, b: Float, p: Float): Float = a + (b - a) * p
-    private fun edgeGap(p: Float): Float = mix(-stripHeight / 2f, gap.toFloat(), p)
 }

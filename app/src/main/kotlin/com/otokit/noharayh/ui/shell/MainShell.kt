@@ -28,10 +28,10 @@ import com.otokit.noharayh.ui.animation.shell.BackgroundSwitchRunner
 import com.otokit.noharayh.ui.animation.shell.BackgroundVeilRunner
 import com.otokit.noharayh.ui.animation.shell.ContentTransitionRunner
 import com.otokit.noharayh.ui.animation.shell.SettingsTransitionRunner
-import com.otokit.noharayh.ui.animation.common.GamePhase
 import com.otokit.noharayh.ui.chrome.SideBarHost
 import com.otokit.noharayh.ui.kit.common.PageContent
 import com.otokit.noharayh.ui.pages.ComingSoonPlaceholder
+import com.otokit.noharayh.ui.pages.GameSwipeLayout
 import com.otokit.noharayh.ui.pages.pageMusicData.MusicDataPlaceholder
 import com.otokit.noharayh.ui.pages.pageScoreSync.ScoreSyncPage
 import com.otokit.noharayh.ui.settings.SettingsAssembly
@@ -39,8 +39,6 @@ import com.otokit.noharayh.ui.shell.navigation.SettingsSection
 import com.otokit.noharayh.ui.window.breakpoints.WindowLayoutClass
 import com.otokit.noharayh.ui.shell.background.BackgroundHost
 import com.otokit.noharayh.ui.shell.background.BackgroundRenderingOptions
-import com.otokit.noharayh.ui.shell.background.BackgroundPhase
-import com.otokit.noharayh.ui.shell.background.BackgroundSnapshot
 import com.otokit.noharayh.ui.shell.background.BackgroundVeilView
 import com.otokit.noharayh.ui.constants.motion.BackgroundVeilTransition
 import com.otokit.noharayh.ui.shell.navigation.Destination
@@ -79,7 +77,7 @@ import java.lang.ref.WeakReference
  */
 class MainShell(
     private val backgroundHost: FrameLayout,
-    private val contentHost: FrameLayout,
+    private val contentHost: GameSwipeLayout,
     private val settingsScrim: View,
     private val chromeHost: FrameLayout,
     private val overlayHost: FrameLayout,
@@ -174,9 +172,7 @@ class MainShell(
     private var backgroundSwitching = false
     private var lastMaiBackground: BackgroundSelection? = null
     private var lastChuBackground: BackgroundSelection? = null
-    private var backgroundSubscription: AutoCloseable? = null
     private var latestWindowSnapshot: WindowSnapshot? = null
-    private var latestBackgroundSnapshot: BackgroundSnapshot? = null
     private var latestGameFrame: GameFrame? = null
     private var lastChromeDestination: Destination? = null
     private var contentWidthPx = 0
@@ -223,9 +219,10 @@ class MainShell(
         check(chromeHost.childCount == 0) { "外围 UI 由 ChromeAssembly 挂载，开始时必须为空" }
         lifecycleState = LifecycleState.Attached
         val current = selection.state
-        background = BackgroundHost(backgroundHost, backgroundRendering) { gameLine ->
-            onBackgroundSelectionConfirmed(gameLine)
-        }.also { host ->
+        contentHost.selectedGame = { selection.state.currentGame }
+        contentHost.onSelection = ::selectGame
+        contentHost.onFrameChanged = ::applyGameFrame
+        background = BackgroundHost(backgroundHost, backgroundRendering) { selection.state.currentGame }.also { host ->
             host.setNoneBackgroundColor(noneBackgroundColor())
             host.setMaterkitColors(materkitColors)
             host.attach(current.currentGame)
@@ -236,11 +233,6 @@ class MainShell(
             )
             lastMaiBackground = backgroundFor(current, GameLine.Mai)
             lastChuBackground = backgroundFor(current, GameLine.Chu)
-            host.setInputEnabled(!(controller.state.settingsOpen || chrome.blocksUnderlyingInput))
-            backgroundSubscription = host.subscribe { snapshot ->
-                latestBackgroundSnapshot = snapshot
-                applyGameFrame()
-            }
         }
         val veilView = BackgroundVeilView(backgroundHost.context)
         backgroundHost.addView(
@@ -365,8 +357,9 @@ class MainShell(
         cancelBackgroundSwitch()
 
         backPreview.reset()
-        backgroundSubscription?.close()
-        backgroundSubscription = null
+        contentHost.onFrameChanged = null
+        contentHost.onSelection = null
+        contentHost.setGameSwipeEnabled(false)
         restoreContentIsolation(restoreFocus = false)
         appliedSettingsOpen = false
         contentRunner?.dispose()
@@ -379,7 +372,6 @@ class MainShell(
         outgoingContent = null
         mountedContent?.dispose()
         settingsContent?.dispose()
-        latestBackgroundSnapshot = null
         latestGameFrame = null
         contentWidthPx = 0
         contentHeightPx = 0
@@ -488,6 +480,8 @@ class MainShell(
         if (lifecycleState != LifecycleState.Attached) return
         invalidateBackPreview()
         if (!selection.selectGame(gameLine)) return
+        contentHost.cancelGameSwipe()
+        applyGameFrame()
         applySelection()
     }
 
@@ -734,27 +728,9 @@ class MainShell(
             invalidateBackPreview()
         }
         chrome.setResumed(resumed)
+        contentHost.setGameSwipeEnabled(resumed && !appliedModal)
         background?.setResumed(resumed)
         if (!resumed) settleTransitions()
-    }
-
-    /**
-     * 背景确认了用户翻页：只提交选择、更新颜色并落盘。
-     *
-     * 此时 Pager 已在该页，不能再调用 renderSelection 触发定位或截断 Settling。
-     */
-    private fun onBackgroundSelectionConfirmed(gameLine: GameLine): GameLine {
-        if (lifecycleState != LifecycleState.Attached) return selection.state.currentGame
-        if (!selection.selectGame(gameLine)) return selection.state.currentGame
-
-        val current = selection.state
-        settingsPage?.renderThemeSelection(current)
-        val color = placeholderTextColor()
-        mountedContent?.updateColor(color)
-        settingsContent?.updateColor(color)
-        chrome.render(chromeDisplay())
-        selectionPreferences.write(current)
-        return current.currentGame
     }
 
     /** 应用最新窗口快照：chrome 先决定形态与占用，再由唯一几何入口落布局。 */
@@ -890,6 +866,7 @@ class MainShell(
     }
 
     private fun showContent(destination: Destination) {
+        contentHost.cancelGameSwipe()
         val previous = mountedContent
         val runner = contentRunner
         val content = createContent(contentHost.context, destination)
@@ -928,7 +905,7 @@ class MainShell(
     private fun createContent(context: Context, destination: Destination): PageContent =
         when (destination) {
             // 两个宿主均从 ContentGeometry 的同一安全区左上角起算。
-            Destination.ScoreSync -> ScoreSyncPage.create(context, backgroundHost::dispatchTouchEvent)
+            Destination.ScoreSync -> ScoreSyncPage.create(context)
             Destination.MusicData -> MusicDataPlaceholder.create(context)
             Destination.ComingSoon -> ComingSoonPlaceholder.create(context)
         }.also(::updatePageThemeColors)
@@ -940,24 +917,17 @@ class MainShell(
         content.updateGameColors(maiColor, chuColor)
     }
 
-    /** 背景是唯一进度源；shell 把它转成纯帧，页面和 chrome 只消费帧。 */
+    /** 前景宿主提供瞬时手势帧，壳层只组装已确认游戏和窗口信息。 */
     private fun applyGameFrame() {
-        val snapshot = latestBackgroundSnapshot
-        val game = snapshot?.selectedGame ?: selection.state.currentGame
-        val phase = when (snapshot?.phase) {
-            BackgroundPhase.Dragging -> GamePhase.Dragging
-            BackgroundPhase.Settling -> GamePhase.Settling
-            BackgroundPhase.Idle, null -> GamePhase.Idle
-        }
-        val progress = snapshot?.progress ?: if (game == GameLine.Mai) 0f else 1f
         val frame = GameFrame(
-            selectedMai = game == GameLine.Mai,
-            progress = progress,
-            phase = phase,
+            selectedMai = selection.state.currentGame == GameLine.Mai,
+            progress = contentHost.progress,
+            phase = contentHost.phase,
             windowWidthPx = latestWindowSnapshot?.metrics?.widthPx ?: 0,
             contentWidthPx = contentWidthPx,
             contentHeightPx = contentHeightPx,
             wideLayout = latestWindowSnapshot?.layoutClass?.let { it != WindowLayoutClass.Compact } ?: false,
+            edgePullPx = contentHost.edgePull,
         )
         latestGameFrame = frame
         mountedContent?.updateGameFrame(frame)
@@ -1011,7 +981,7 @@ class MainShell(
             enteringSettings -> overlayHost.requestFocus()
             enteringModal && !settingsOpen -> chrome.requestPanelFocus()
         }
-        background?.setInputEnabled(!modal)
+        contentHost.setGameSwipeEnabled(resumed && !modal)
     }
 
     /** 平台预测返回：开始只锁定目标，不提交任何业务状态。 */

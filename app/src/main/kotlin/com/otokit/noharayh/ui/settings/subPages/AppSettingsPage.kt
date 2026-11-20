@@ -8,7 +8,7 @@ import android.text.Spanned
 import android.text.style.ForegroundColorSpan
 import android.widget.FrameLayout
 import android.widget.LinearLayout
-import com.otokit.noharayh.ui.kit.common.ContentScrollView
+import com.otokit.noharayh.ui.kit.settings.SettingsPageScrollView
 import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.constants.display.DisplayScaleOption
 import com.otokit.noharayh.ui.kit.common.PressFrontColumn
@@ -36,7 +36,7 @@ internal class AppSettingsPage(
     private val onHardwareAccelerationSelected: (Boolean) -> Unit,
     onHtmlAnimationsSelected: (Boolean) -> Unit,
     private val takeHardwareWarning: () -> Boolean,
-) : ContentScrollView(context) {
+) : SettingsPageScrollView(context) {
     private var warningDialog: MessageDialog? = null
     private val startupSwitch = GroupedSwitchRow(context,
         context.getString(R.string.settings_startup_animation), false, true,

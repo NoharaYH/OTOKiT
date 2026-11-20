@@ -65,10 +65,11 @@ object NavTitleTransition {
     const val TRANSLATION_MAX_DP: Float = 44f
 }
 
-/** 双页联动只映射 Pager 进度到属性；不在消费者中增加第二份计时或曲线。 */
+/** 双页联动由同一前景进度驱动。 */
 object PagerPairTransition {
     val KIND: TransitionKind = TransitionKind.ScaleFadeSlide
     val CURVE: MotionCurve = MotionDefaults.EMPHASIZED_CURVE
+    const val SWIPE_SETTLE_MS = 260L
 
     /** 横移距离占容器宽度的比例。 */
     const val TRANSLATION_RATIO: Float = 0.7f

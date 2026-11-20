@@ -10,7 +10,6 @@ import android.text.format.DateFormat
 import android.view.Gravity
 import android.widget.FrameLayout
 import android.widget.LinearLayout
-import com.otokit.noharayh.ui.kit.common.ContentScrollView
 import android.widget.Toast
 import com.otokit.noharayh.R
 import com.otokit.noharayh.composition.exportPreferences
@@ -18,9 +17,11 @@ import com.otokit.noharayh.logged.scoresync.ScoreSyncLogRef
 import com.otokit.noharayh.logged.scoresync.ScoreSyncLogSummary
 import com.otokit.noharayh.logged.scoresync.ScoreSyncLogs
 import com.otokit.noharayh.platform.DocumentZipExport
+import com.otokit.noharayh.ui.constants.dimensions.ScoreSyncDimensions
 import com.otokit.noharayh.ui.constants.dimensions.SettingsCardDimensions
 import com.otokit.noharayh.ui.constants.dimensions.SettingsChoiceDimensions
 import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors
+import com.otokit.noharayh.ui.kit.common.EdgePullScrollView
 import com.otokit.noharayh.ui.kit.common.PressFrontColumn
 import com.otokit.noharayh.ui.kit.common.ViewPrimitives
 import com.otokit.noharayh.ui.kit.common.dialog.MessageDialog
@@ -61,8 +62,11 @@ internal class ScoreSyncLogPage(
         setTextIsSelectable(true)
         contentDescription = context.getString(R.string.settings_sync_logs_preview)
     }
-    private val preview = ContentScrollView(context).apply {
+    private val preview = EdgePullScrollView(context, dp(ScoreSyncDimensions.LOG_EDGE_OVERSHOOT_DP).toFloat()).apply {
         visibility = GONE
+        isVerticalScrollBarEnabled = false
+        isHorizontalScrollBarEnabled = false
+        clipToPadding = false
         addView(previewText, FrameLayout.LayoutParams(-1, -2))
     }
     private val viewAction = SettingsButton(context, context.getString(R.string.settings_sync_logs_view),
@@ -247,6 +251,7 @@ internal class ScoreSyncLogPage(
     fun closeDetail(): Boolean {
         if (!showingDetail) return false
         showingDetail = false
+        preview.resetEdgePull()
         previewText.text = ""
         renderSelection()
         renderStatus()

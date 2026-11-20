@@ -17,6 +17,7 @@ data class GameFrame(
     val contentWidthPx: Int,
     val contentHeightPx: Int,
     val wideLayout: Boolean = false,
+    val edgePullPx: Float = 0f,
 ) {
     val normalizedProgress: Float
         get() = when (phase) {

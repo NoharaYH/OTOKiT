@@ -8,7 +8,6 @@ import android.widget.Toast
 import android.graphics.Color
 import android.text.SpannableStringBuilder
 import android.util.DisplayMetrics
-import android.view.MotionEvent
 import com.otokit.noharayh.R
 import com.otokit.noharayh.auth.OAuthAuthorizationCheck
 import com.otokit.noharayh.auth.OAuthConnections
@@ -39,7 +38,7 @@ import kotlin.math.roundToInt
 import java.util.UUID
 
 internal object ScoreSyncPage {
-    fun create(context: Context, pageSwipe: (MotionEvent) -> Boolean): PageContent {
+    fun create(context: Context): PageContent {
         val oauth = oauthConnections(context)
         val start = scoreSyncStartState(context)
         val preferences = capturePreferences(context)
@@ -58,12 +57,11 @@ internal object ScoreSyncPage {
             chu.render()
         }
         val starts = start.observe { mai.render(); chu.render() }
-        val root = ScoreSyncSwipeLayout(context, pageSwipe).apply { addView(pair) }
         // 字标使用标准显示档。窗口真实尺寸改变时仍可切换手机／平板字号。
         val standardDensity = DisplayScale.densityDpi(
             DisplayMetrics.DENSITY_DEVICE_STABLE, context.applicationContext.resources.displayMetrics.densityDpi,
         ).toFloat() / DisplayMetrics.DENSITY_DEFAULT
-        return PageContent(root,
+        return PageContent(pair,
             frameUpdater = { frame ->
                 mai.panel.setWide(frame.wideLayout)
                 chu.panel.setWide(frame.wideLayout)
@@ -72,10 +70,7 @@ internal object ScoreSyncPage {
                 chu.setGlyphSize(((if (wideGlyphs) 21.6f else 18f) * standardDensity).roundToInt())
                 pair.render(frame)
             },
-            interactiveUpdater = { allowed ->
-                root.setInteractive(allowed)
-                pair.setInteractive(allowed)
-            },
+            interactiveUpdater = pair::setInteractive,
             gameColorsUpdater = { left, right ->
                 mai.setAccent(left)
                 chu.setAccent(right)

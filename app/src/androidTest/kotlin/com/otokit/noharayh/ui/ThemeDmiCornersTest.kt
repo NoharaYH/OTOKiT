@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.os.SystemClock
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -63,6 +64,53 @@ class ThemeDmiCornersTest : UiComponentTestHost() {
         assertEquals(first.size, second.size)
         // 高度变化后底边的浮点坐标会改变 Skia 边缘覆盖取整，只比较明确的内外区域。
         assertFalse("非抗锯齿区域的轮廓应保持一致", cornersDiffer(first, second))
+    }
+
+    @Test fun draggingPastEitherEndResistsWithoutChangingTheMenuShape() {
+        lateinit var dropdown: ThemeDropdownMenu
+        val options = (1..12).map { ThemeOption.Placeholder("pull-$it", "Choice $it") }
+        main {
+            dropdown = ThemeDropdownMenu(activity, options, null, (360f * density).roundToInt(), {}, {}) {}
+            dropdown.setInteractionEnabled(true)
+        }
+        mount(dropdown, 800, dropdown.contentHeight)
+        for (direction in listOf(1, -1)) {
+            lateinit var row: View
+            var restingTop = 0
+            val edge = if (direction > 0) 0f else 1f
+            main {
+                assertTrue(dropdown.canScroll)
+                dropdown.beginScrollbarDrag()
+                dropdown.dragScrollbarTo(edge)
+                dropdown.endScrollbarDrag()
+                dropdown.stopMotion()
+                val viewport = dropdown.getChildAt(0) as ViewGroup
+                row = viewport.getChildAt(if (direction > 0) 0 else viewport.childCount - 1)
+                restingTop = row.top
+                val rowHeight = row.height
+                val y = row.top + rowHeight / 2f
+                val step = 64f * density
+                val downTime = SystemClock.uptimeMillis()
+                var time = downTime
+                fun send(action: Int, distance: Float) {
+                    val event = MotionEvent.obtain(downTime, time, action, 380f, y + direction * distance, 0)
+                    time += 16
+                    try { dropdown.dispatchTouchEvent(event) } finally { event.recycle() }
+                }
+                send(MotionEvent.ACTION_DOWN, 0f)
+                send(MotionEvent.ACTION_MOVE, step)
+                send(MotionEvent.ACTION_MOVE, step)
+                val shortPull = (row.top - restingTop) * direction
+                send(MotionEvent.ACTION_MOVE, 2f * step)
+                val longPull = (row.top - restingTop) * direction
+                assertTrue("End pull offsets were $shortPull and $longPull", shortPull > 0 && longPull > shortPull)
+                assertTrue(longPull - shortPull < shortPull)
+                assertEquals(rowHeight, row.height)
+                assertEquals(edge, dropdown.scrollFraction, 0f)
+                send(MotionEvent.ACTION_CANCEL, 2f * step)
+            }
+            awaitState { row.top == restingTop && row.isEnabled }
+        }
     }
 
     @Test fun collapsedCornersExpandAndPredictiveBackCancelsWithoutLosingTheLastRowTarget() {

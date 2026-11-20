@@ -10,7 +10,9 @@ import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.widget.ImageView
+import android.widget.ScrollView
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.otokit.noharayh.ui.constants.dimensions.SettingsButtonDimensions
 import com.otokit.noharayh.ui.constants.dimensions.SettingsGroupDimensions
 import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors
 import com.otokit.noharayh.ui.kit.common.ContinuousCornerDrawable
@@ -21,9 +23,75 @@ import org.junit.Assert.*
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import kotlin.math.abs
 
 @RunWith(AndroidJUnit4::class)
 class ArchiveRecordListTest : UiComponentTestHost() {
+    @Test fun recordContentResistsPullingPastEitherEndAndReturnsInPlace() {
+        val records = (0 until 24).map { ArchiveRecordList.Row("Fixture $it") { fail("Drag became a tap") } }
+        lateinit var list: ArchiveRecordList
+        main { list = ArchiveRecordList(activity, "Records").apply { setRows(records) } }
+        mount(list, width = 800, height = 900)
+        val scroll = list.getChildAt(0) as ScrollView
+        val content = scroll.getChildAt(0) as ViewGroup
+        val step = dp(activity, 40)
+        val slop = ViewConfiguration.get(activity).scaledTouchSlop + 2f
+        val height = dp(activity, SettingsButtonDimensions.HEIGHT_DP)
+        var bottom = 0
+        main { bottom = content.height - scroll.height }
+        assertTrue(bottom > step)
+
+        fun testPull(direction: Int, y: Float, edge: Int, endAction: Int) {
+            val downTime = SystemClock.uptimeMillis()
+            var time = downTime
+            fun send(action: Int, distance: Float) = main {
+                // Keep the sampled distances exact through the View hierarchy's normal dispatch.
+                val event = MotionEvent.obtain(downTime, time, action, 380f, y + direction * distance, 0)
+                time += 16
+                try { list.dispatchTouchEvent(event) } finally { event.recycle() }
+            }
+            fun sample(distance: Float): Float {
+                send(MotionEvent.ACTION_MOVE, distance)
+                var offset = 0f
+                main {
+                    assertEquals(edge, scroll.scrollY)
+                    assertEquals(0f, scroll.translationY, 0f)
+                    for (index in 0 until content.childCount) {
+                        val row = content.getChildAt(index)
+                        assertEquals(height, row.height)
+                        assertEquals(content.width, row.width)
+                    }
+                    offset = direction * content.translationY
+                }
+                return offset
+            }
+            send(MotionEvent.ACTION_DOWN, 0f)
+            send(MotionEvent.ACTION_MOVE, slop)
+            val first = sample(slop + step)
+            val second = sample(slop + 2 * step)
+            val third = sample(slop + 3 * step)
+            assertTrue("Pull offsets: $first, $second, $third", first > 0f && second > first && third > second)
+            assertTrue("Expected increasing resistance: $first, $second, $third", third - second < second - first)
+            val reverse = sample(slop + step)
+            assertEquals(first, reverse, 1f)
+            send(endAction, slop + step)
+
+            val deadline = SystemClock.uptimeMillis() + 1500L
+            var rest = false
+            do {
+                main { rest = abs(content.translationY) < 0.1f }
+                if (!rest) SystemClock.sleep(12)
+            } while (!rest && SystemClock.uptimeMillis() < deadline)
+            assertTrue("Content did not return to the viewport", rest)
+            main { assertEquals(edge, scroll.scrollY) }
+        }
+
+        testPull(1, 250f, 0, MotionEvent.ACTION_CANCEL)
+        // The first move after interception crosses the bottom within the same gesture.
+        main { scroll.scrollTo(0, bottom - step / 2) }
+        testPull(-1, 650f, bottom, MotionEvent.ACTION_UP)
+    }
+
     @Test fun selectedRowsShrinkInPlaceBeforeRemainingRowsMove() {
         assumeTrue(ValueAnimator.areAnimatorsEnabled())
         val records = (0 until 18).map { ArchiveRecordList.Row("Fixture $it") {} }

@@ -57,7 +57,7 @@ class ScoreSyncTaskResponseTest : UiComponentTestHost() {
         val saved = CapturedHtml(pageRef, HtmlPageEvidence(HtmlValidity.VALID), 200)
         val frame = GameFrame(true, 0f, GamePhase.Idle, 1200, 1200, 800, true)
         fun publish(snapshot: CaptureSnapshot) = UploadReports.publish(snapshot, at)
-        fun open() = ScoreSyncPage.create(activity) { false }.also {
+        fun open() = ScoreSyncPage.create(activity).also {
             host.addView(it.view)
             it.updateGameFrame(frame)
         }

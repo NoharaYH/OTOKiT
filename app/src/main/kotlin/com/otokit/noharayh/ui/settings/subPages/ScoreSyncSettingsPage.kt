@@ -20,7 +20,7 @@ import com.otokit.noharayh.preferences.CapturePreferences
 import com.otokit.noharayh.preferences.ExportPreferences
 import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors
 import com.otokit.noharayh.ui.kit.common.InfoIconButton
-import com.otokit.noharayh.ui.kit.common.ContentScrollView
+import com.otokit.noharayh.ui.kit.settings.SettingsPageScrollView
 import com.otokit.noharayh.ui.kit.common.toggle.GroupedSwitchRow
 import com.otokit.noharayh.ui.kit.common.dialog.MessageDialog
 import com.otokit.noharayh.ui.kit.common.dialog.AlternateExplanation
@@ -169,7 +169,7 @@ internal object ScoreSyncSettingsPage {
             addView(logOptions, LinearLayout.LayoutParams(-1, -2))
         }, SettingsPageViews.gap(context))
 
-        return object : ContentScrollView(context) {
+        return object : SettingsPageScrollView(context) {
             private var oauthSubscription: Closeable? = null
 
             override fun onWindowFocusChanged(hasWindowFocus: Boolean) {

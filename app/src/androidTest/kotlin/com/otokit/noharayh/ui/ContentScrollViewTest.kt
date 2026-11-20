@@ -4,7 +4,9 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.os.SystemClock
+import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.widget.FrameLayout
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -12,6 +14,7 @@ import androidx.core.view.allViews
 import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.kit.common.ContentScrollView
 import com.otokit.noharayh.ui.kit.common.toggle.GroupedSwitchRow
+import com.otokit.noharayh.ui.kit.settings.SettingsPageScrollView
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -30,9 +33,17 @@ class ContentScrollViewTest : UiComponentTestHost() {
                 .filterIsInstance<ContentScrollView>().first()
             settled(scroll)
         }
-        main { scroll.fullScroll(View.FOCUS_DOWN) }
-        awaitUi { !scroll.canScrollVertically(1) }
+        var bottom = 0
         main {
+            // A focus scroll can stop short of the native touch range when bottom padding is present.
+            bottom = (scroll.getChildAt(0).height - scroll.height + scroll.paddingTop + scroll.paddingBottom).coerceAtLeast(0)
+            scroll.scrollTo(0, bottom)
+            assertEquals(bottom, scroll.scrollY)
+            assertEdgePull(scroll, direction = -1)
+        }
+        awaitUi { scroll.getChildAt(0).translationY == 0f }
+        main {
+            assertEquals(bottom, scroll.scrollY)
             val decor = activity.window.decorView
             val insets = ViewCompat.getRootWindowInsets(decor)!!
             val bottomSafe = maxOf(
@@ -48,6 +59,38 @@ class ContentScrollViewTest : UiComponentTestHost() {
             assertFalse(scroll.canScrollVertically(1))
             assertFalse(scroll.isVerticalScrollBarEnabled)
             assertFalse(scroll.isHorizontalScrollBarEnabled)
+            scroll.fullScroll(View.FOCUS_UP)
+        }
+        awaitUi { !scroll.canScrollVertically(-1) }
+        main { assertEdgePull(scroll, direction = 1) }
+        awaitUi { scroll.getChildAt(0).translationY == 0f }
+        main { assertEquals(0, scroll.scrollY) }
+    }
+
+    @Test fun shortSettingsPageKeepsChildTapsAndReturnsAfterVerticalPull() {
+        lateinit var scroll: SettingsPageScrollView
+        var clicks = 0
+        main {
+            scroll = SettingsPageScrollView(activity).apply {
+                addView(View(activity).apply {
+                    minimumHeight = 120
+                    setOnClickListener { clicks++ }
+                }, FrameLayout.LayoutParams(-1, -2))
+            }
+        }
+        mount(scroll, 300, 360)
+        main {
+            assertFalse(scroll.canScrollVertically(1))
+            val time = SystemClock.uptimeMillis()
+            sendTouch(scroll, time, 0, MotionEvent.ACTION_DOWN, 40f)
+            sendTouch(scroll, time, 16, MotionEvent.ACTION_UP, 40f)
+        }
+        awaitUi { clicks == 1 }
+        main { assertEdgePull(scroll, direction = 1, startY = 40f) }
+        awaitUi { scroll.getChildAt(0).translationY == 0f }
+        main {
+            assertEquals(1, clicks)
+            assertEquals(0, scroll.scrollY)
         }
     }
 
@@ -115,6 +158,28 @@ class ContentScrollViewTest : UiComponentTestHost() {
         scroll.getLocationOnScreen(viewport)
         body.getLocationOnScreen(content)
         assertEquals(viewport[1] + scroll.height - scroll.paddingBottom, content[1] + body.height)
+    }
+
+    private fun assertEdgePull(scroll: ContentScrollView, direction: Int, startY: Float = scroll.height / 2f) {
+        val time = SystemClock.uptimeMillis()
+        val slop = ViewConfiguration.get(scroll.context).scaledTouchSlop
+        val scrollY = scroll.scrollY
+        val viewportBottom = screenBottom(scroll)
+        val bottomPadding = scroll.paddingBottom
+        sendTouch(scroll, time, 0, MotionEvent.ACTION_DOWN, startY)
+        sendTouch(scroll, time, 16, MotionEvent.ACTION_MOVE, startY + direction * (slop + 8))
+        val endY = startY + direction * (slop + 48)
+        sendTouch(scroll, time, 32, MotionEvent.ACTION_MOVE, endY)
+        assertTrue(scroll.getChildAt(0).translationY * direction > 0f)
+        assertEquals(scrollY, scroll.scrollY)
+        assertEquals(viewportBottom, screenBottom(scroll))
+        assertEquals(bottomPadding, scroll.paddingBottom)
+        sendTouch(scroll, time, 48, MotionEvent.ACTION_UP, endY)
+    }
+
+    private fun sendTouch(scroll: ContentScrollView, time: Long, elapsed: Long, action: Int, y: Float) {
+        val event = MotionEvent.obtain(time, time + elapsed, action, scroll.width / 2f, y, 0)
+        try { scroll.dispatchTouchEvent(event) } finally { event.recycle() }
     }
 
     private fun clickVisibleAction(label: String) {

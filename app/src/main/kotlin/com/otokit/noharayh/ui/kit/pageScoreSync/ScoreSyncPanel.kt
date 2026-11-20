@@ -14,6 +14,7 @@ import com.otokit.noharayh.ui.constants.dimensions.SettingsButtonDimensions
 import com.otokit.noharayh.ui.constants.dimensions.ScoreSyncDimensions
 import com.otokit.noharayh.ui.kit.common.PressFrontColumn
 import com.otokit.noharayh.ui.kit.common.AppTypography
+import com.otokit.noharayh.ui.kit.common.EdgePullScrollView
 import com.otokit.noharayh.ui.kit.common.ViewPrimitives
 
 internal enum class SyncTarget(val label: Int) {
@@ -39,7 +40,11 @@ internal class ScoreSyncPanel(
     }
     private val start = ScoreSyncButton(context, context.getString(R.string.sync_start), false, onStart)
     private val log = FrameLayout(context)
-    private val logBody = PanelScroll(context)
+    private val logBody = object : EdgePullScrollView(context, dp(ScoreSyncDimensions.LOG_EDGE_OVERSHOOT_DP).toFloat()) {
+        init { isNestedScrollingEnabled = true }
+
+        override fun onTouchEvent(event: MotionEvent): Boolean = canHandleScrollTouch(event) && super.onTouchEvent(event)
+    }
     private val message = ViewPrimitives.text(context, "", 13f, ScoreSyncLogColors.BODY)
     private val copy: ScoreSyncCopyButton
     private var wide: Boolean? = null
@@ -137,10 +142,10 @@ internal class ScoreSyncPanel(
     }
 }
 
-/** 空白处交给背景的音游翻页；内容超出视口时正常纵向滚动。 */
+/** 空白处交给音游翻页；内容超出视口时正常纵向滚动。 */
 private class PanelScroll(context: Context) : ScrollView(context) {
-    override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (event.actionMasked == MotionEvent.ACTION_DOWN && !canScrollVertically(-1) && !canScrollVertically(1)) return false
-        return super.onTouchEvent(event)
-    }
+    override fun onTouchEvent(event: MotionEvent): Boolean = canHandleScrollTouch(event) && super.onTouchEvent(event)
 }
+
+private fun ScrollView.canHandleScrollTouch(event: MotionEvent) =
+    event.actionMasked != MotionEvent.ACTION_DOWN || canScrollVertically(-1) || canScrollVertically(1)

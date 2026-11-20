@@ -26,7 +26,7 @@
                 android:layout_height="match_parent" />
 
             <!-- 功能内容宿主：同一时刻最多一个活动的占位根 View。 -->
-            <FrameLayout
+            <com.otokit.noharayh.ui.pages.GameSwipeLayout
                 android:id="@+id/content_host"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent" />

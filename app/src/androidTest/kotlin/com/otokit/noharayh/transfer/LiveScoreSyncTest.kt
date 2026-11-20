@@ -75,7 +75,7 @@ class LiveScoreSyncTest : UiComponentTestHost() {
         lateinit var reportSubscription: Closeable
         lateinit var page: com.otokit.noharayh.ui.kit.common.PageContent
         main {
-            page = ScoreSyncPage.create(activity) { false }
+            page = ScoreSyncPage.create(activity)
             host.addView(page.view, android.widget.FrameLayout.LayoutParams(-1, -1))
             page.updateGameFrame(GameFrame(game == ScoreGame.MAIMAI, 0f, GamePhase.Idle, host.width, host.width, host.height, true))
             val labels = if (game == ScoreGame.MAIMAI) listOf("Basic", "Advanced", "Expert", "Master", "Re:Master", "U·TA·GE")

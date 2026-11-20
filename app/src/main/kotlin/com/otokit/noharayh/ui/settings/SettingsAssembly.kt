@@ -218,7 +218,9 @@ class SettingsAssembly(
         prepare(current, Page(current.section.takeIf { current.archive != null }))
         return true
     }
-    fun preview(progress: Float) { if (!logDetailBack && transitioning) runner.preview(progress) }
+    fun preview(progress: Float) {
+        if (!logDetailBack && transitioning) runner.preview(SettingsPageFrames.resistedBackProgress(progress))
+    }
     fun cancelPreview() {
         if (logDetailBack) { logDetailBack = false; return }
         if (!transitioning) return

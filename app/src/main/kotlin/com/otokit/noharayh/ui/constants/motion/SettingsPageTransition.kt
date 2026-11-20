@@ -21,4 +21,8 @@ object SettingsPageTransition {
     const val UNFOLD_TITLE_EXIT_END = 0.25f
     const val UNFOLD_TITLE_START = 0.25f
     const val UNFOLD_TITLE_END = 0.85f
+
+    // 系统返回手势走到末段时，视觉仍留一小段由确认后的动画完成。
+    const val BACK_DRAG_RESISTANCE_START = 0.60f
+    const val BACK_DRAG_RESISTANCE_OVERSHOOT = 0.60f
 }

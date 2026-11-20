@@ -5,6 +5,10 @@ import kotlin.math.roundToInt
 
 /** 无状态映射；自动播放、真实手势与取消回弹共同消费。 */
 object SettingsPageFrames {
+    internal fun resistedBackProgress(progress: Float): Float = resistedDragDistance(
+        progress.coerceIn(0f, 1f), Spec.BACK_DRAG_RESISTANCE_START, Spec.BACK_DRAG_RESISTANCE_OVERSHOOT,
+    )
+
     internal data class SplitPanes(
         val rootWidth: Int,
         val secondaryLeft: Int,

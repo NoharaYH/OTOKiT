@@ -9,6 +9,7 @@ import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.FrameLayout
+import com.otokit.noharayh.ui.animation.common.resistedDragDistance
 import com.otokit.noharayh.ui.animation.settings.ThemePreviewFrames
 import com.otokit.noharayh.ui.animation.settings.ThemePreviewRunner
 import com.otokit.noharayh.ui.animation.settings.ThemeMenuMotionRunner
@@ -22,6 +23,7 @@ import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors
 import com.otokit.noharayh.ui.constants.settings.ThemeMenuPreviewColors
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlin.math.sign
 
 /** 可挂载到卡片内部的菜单内容；不持有窗口、焦点或返回导航。 */
 @android.annotation.SuppressLint("ViewConstructor") // 由面板提供选项和视口预算，不参与 XML inflate。
@@ -260,7 +262,9 @@ private class MenuViewport(
 
     private fun layoutRows() {
         val pad = geometry.padding.roundToInt()
-        val overscroll = (offset - offset.coerceIn(0f, geometry.maximum)) * Spec.OVERSCROLL_SHIFT_FACTOR
+        val excess = offset - offset.coerceIn(0f, geometry.maximum)
+        val overscroll = excess.sign * resistedDragDistance(abs(excess), 0f, Dimensions.MENU_OVERSCROLL_DP * density) *
+            Spec.OVERSCROLL_SHIFT_FACTOR
         var enteringOrder = 0
         val textExtent = ((getChildAt(0) as? SettingsButton)?.textExtentFor(
             "UNiVERSE", Dimensions.PREVIEW_SCRIM_TEXT_WIDTH_SCALE) ?: 0f) * Dimensions.PREVIEW_SCRIM_LENGTH_SCALE
@@ -384,9 +388,7 @@ private class MenuViewport(
                 val delta = lastY - y
                 lastY = y
                 dragging = true
-                val outside = offset < 0f || offset > geometry.maximum
-                updatePosition((offset + delta * if (outside) Spec.OVERSCROLL_DRAG_FACTOR else 1f)
-                    .coerceIn(-Dimensions.MENU_OVERSCROLL_DP * density, geometry.maximum + Dimensions.MENU_OVERSCROLL_DP * density))
+                updatePosition(offset + delta)
             }
             MotionEvent.ACTION_UP -> {
                 if (!dragging && !interrupted) performClick()

@@ -1,8 +1,7 @@
 package com.otokit.noharayh.ui.constants.dimensions
 
 internal object ArchiveRecordListDimensions {
-    const val STRIP_HEIGHT_DP = 6
-    const val STRIP_ENTRY_WIDTH_FRACTION = .70f
+    const val EDGE_OVERSHOOT_DP = 48
     const val SCROLLBAR_TRACK_INSET_DP = 2
     const val SELECTION_INSET_DP = 2
     const val RANGE_REVEAL_DP = 48

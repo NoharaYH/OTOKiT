@@ -42,8 +42,8 @@ internal class GamePairLayout(
             width * PagerPairTransition.CONTENT_TRANSLATION_RATIO,
             PagerPairTransition.MIN_SCALE, PagerPairTransition.MIN_ALPHA, cardMotion = true,
         )
-        apply(mai, left, 0f)
-        apply(chu, right, chu.width.toFloat())
+        apply(mai, left, 0f, value.edgePullPx)
+        apply(chu, right, chu.width.toFloat(), value.edgePullPx)
     }
 
     private fun endpoint(panel: View, visible: Boolean) {
@@ -55,12 +55,12 @@ internal class GamePairLayout(
         panel.translationY = 0f
     }
 
-    private fun apply(panel: View, pose: TransitionFrame, pivot: Float) {
+    private fun apply(panel: View, pose: TransitionFrame, pivot: Float, edgePull: Float) {
         panel.visibility = VISIBLE
         panel.alpha = pose.alpha
         panel.scaleX = pose.scale
         panel.scaleY = pose.scale
-        panel.translationX = TransitionFrames.rebasePivotTranslation(pose.translationX, pose.scale, pivot, panel.pivotX)
+        panel.translationX = TransitionFrames.rebasePivotTranslation(pose.translationX, pose.scale, pivot, panel.pivotX) + edgePull
         panel.translationY = pose.translationY
     }
 }
