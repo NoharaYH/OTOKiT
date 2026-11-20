@@ -35,6 +35,7 @@ internal class MessageDialog(
     private val accentColor: Int = 0xFFE57373.toInt(),
     private val alternateExplanation: AlternateExplanation? = null,
     additionalAction: MessageDialogAction? = null,
+    cancelOnTouchOutside: Boolean = true,
     private val onConfirmed: () -> Unit,
 ) : Dialog(context) {
     private val content = DialogMessageContent(context, message, alternateExplanation?.message)
@@ -81,7 +82,7 @@ internal class MessageDialog(
             topMargin = dp(Dimensions.CONTENT_GAP_DP)
         })
         setContentView(body)
-        setCanceledOnTouchOutside(true)
+        setCanceledOnTouchOutside(cancelOnTouchOutside)
         window?.apply {
             setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
             addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)

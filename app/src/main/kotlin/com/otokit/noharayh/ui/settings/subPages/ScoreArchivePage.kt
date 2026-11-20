@@ -4,6 +4,10 @@ import android.content.Context
 import android.content.ActivityNotFoundException
 import android.os.Handler
 import android.os.Looper
+import android.text.Annotation
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
 import android.text.format.DateFormat
 import android.util.Log
 import android.view.Gravity
@@ -11,6 +15,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.Toast
 import com.otokit.noharayh.R
+import com.otokit.noharayh.composition.exportPreferences
 import com.otokit.noharayh.platform.ScoreArchiveExport
 import com.otokit.noharayh.platform.directoryName
 import com.otokit.noharayh.score.HtmlBatchRef
@@ -59,6 +64,7 @@ internal class ScoreArchivePage(
     private var loaded = false
     private val main = Handler(Looper.getMainLooper())
     private val exporter = ScoreArchiveExport(context, actions)
+    private val exportPreferences = exportPreferences(context)
     private var records = emptyMap<HtmlBatchRef, ArchiveRecordList.Row>()
     private val selected = linkedSetOf<HtmlBatchRef>()
     private var busy = false
@@ -161,13 +167,42 @@ internal class ScoreArchivePage(
     }
 
     private fun confirmExport() {
+        if (dialog != null) return
         val batches = selected.toSet()
+        if (kind == ScoreArchiveKind.Html && !exportPreferences.exportWarningAcknowledged()) {
+            val warning = SpannableString(context.getText(R.string.settings_export_warning)).apply {
+                getSpans(0, length, Annotation::class.java).filter {
+                    it.key == "color" && it.value == "warning"
+                }.forEach {
+                    setSpan(ForegroundColorSpan(SettingsComponentColors.WARNING), getSpanStart(it), getSpanEnd(it),
+                        Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                }
+            }
+            showDialog(MessageDialog(context, R.drawable.ic_error_40, warning,
+                context.getString(R.string.settings_export_warning_enable), null,
+                additionalAction = MessageDialogAction(context.getString(R.string.settings_export_warning_disable),
+                    SettingsComponentColors.TEXT) { chooseExportRedaction(batches, false) },
+                cancelOnTouchOutside = false) {
+                chooseExportRedaction(batches, true)
+            })
+        } else showExportChoices(batches)
+    }
+
+    private fun chooseExportRedaction(batches: Set<HtmlBatchRef>, enabled: Boolean) {
+        if (!isAttachedToWindow) return
+        exportPreferences.setRedactExports(enabled)
+        exportPreferences.acknowledgeExportWarning()
+        showExportChoices(batches)
+    }
+
+    private fun showExportChoices(batches: Set<HtmlBatchRef>) {
         val message = context.getString(R.string.settings_archive_export_message, batches.size, kind.format.directoryName)
         showDialog(MessageDialog(context, R.drawable.ic_archive_record_24, message,
             context.getString(R.string.settings_archive_export_open), context.getString(R.string.settings_archive_nevermind),
             accentColor = SettingsComponentColors.SELECTED,
             additionalAction = MessageDialogAction(context.getString(R.string.settings_archive_export_share),
-                SettingsComponentColors.SELECTED) { export(batches, share = true) }) {
+                SettingsComponentColors.SELECTED) { export(batches, share = true) },
+            cancelOnTouchOutside = false) {
             export(batches, share = false)
         })
     }
@@ -175,7 +210,8 @@ internal class ScoreArchivePage(
     private fun export(batches: Set<HtmlBatchRef>, share: Boolean) {
         busy = true
         renderSelection()
-        exporter.export(kind.format, batches, written = { file ->
+        exporter.export(kind.format, batches,
+            redact = kind == ScoreArchiveKind.Html && exportPreferences.redactExports(), written = { file ->
             main.post {
                 if (!isAttachedToWindow) return@post
                 busy = false

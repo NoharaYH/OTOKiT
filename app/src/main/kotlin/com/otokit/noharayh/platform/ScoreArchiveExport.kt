@@ -29,12 +29,13 @@ internal class ScoreArchiveExport(context: Context, private val actions: ScoreAr
     private val directory = DocumentsContract.buildDocumentUri(STORAGE, DOCUMENTS_ID)
     private var picker: ActivityResultLauncher<Uri?>? = null
 
-    fun export(format: ScoreArchiveFormat, batches: Set<HtmlBatchRef>, written: (Uri) -> Unit, stopped: (Int?) -> Unit) {
+    fun export(format: ScoreArchiveFormat, batches: Set<HtmlBatchRef>, redact: Boolean,
+               written: (Uri) -> Unit, stopped: (Int?) -> Unit) {
         val granted = resolver.persistedUriPermissions.firstOrNull {
             it.isReadPermission && it.isWritePermission && isDocuments(it.uri)
         }
         if (granted != null) {
-            write(granted.uri, format, batches, written, stopped)
+            write(granted.uri, format, batches, redact, written, stopped)
             return
         }
         picker = registry.register("score-archive-export-" + UUID.randomUUID(), ActivityResultContracts.OpenDocumentTree()) { tree ->
@@ -45,7 +46,7 @@ internal class ScoreArchiveExport(context: Context, private val actions: ScoreAr
                 else -> {
                     try {
                         resolver.takePersistableUriPermission(tree, READ_WRITE)
-                        write(tree, format, batches, written, stopped)
+                        write(tree, format, batches, redact, written, stopped)
                     } catch (_: SecurityException) {
                         stopped(R.string.settings_archive_export_error)
                     }
@@ -60,10 +61,10 @@ internal class ScoreArchiveExport(context: Context, private val actions: ScoreAr
         }
     }
 
-    private fun write(tree: Uri, format: ScoreArchiveFormat, batches: Set<HtmlBatchRef>,
+    private fun write(tree: Uri, format: ScoreArchiveFormat, batches: Set<HtmlBatchRef>, redact: Boolean,
                       written: (Uri) -> Unit, stopped: (Int?) -> Unit) {
         var file: Uri? = null
-        actions.export(format, batches, destination = { writeZip ->
+        actions.export(format, batches, redact, destination = { writeZip ->
             val root = DocumentsContract.buildDocumentUriUsingTree(tree, DOCUMENTS_ID)
             val folder = resolver.childDirectory(resolver.childDirectory(root, "OTOKiT"), format.directoryName)
             val stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS"))

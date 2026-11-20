@@ -13,8 +13,10 @@ import com.otokit.noharayh.auth.OAuthAuthorizationCheck
 import com.otokit.noharayh.auth.OAuthFeedback
 import com.otokit.noharayh.auth.OAuthProvider
 import com.otokit.noharayh.composition.capturePreferences
+import com.otokit.noharayh.composition.exportPreferences
 import com.otokit.noharayh.composition.oauthConnections
 import com.otokit.noharayh.preferences.CapturePreferences
+import com.otokit.noharayh.preferences.ExportPreferences
 import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors
 import com.otokit.noharayh.ui.kit.common.InfoIconButton
 import com.otokit.noharayh.ui.kit.common.toggle.GroupedSwitchRow
@@ -39,7 +41,7 @@ internal object ScoreSyncSettingsPage {
         openLink: (String) -> Unit,
         openArchive: (ScoreArchiveKind) -> Unit,
     ): ScrollView {
-        val state = ScoreSyncSettingsState(capturePreferences(context))
+        val state = ScoreSyncSettingsState(capturePreferences(context), exportPreferences(context))
         val oauth = oauthConnections(context)
         val body = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
@@ -71,6 +73,14 @@ internal object ScoreSyncSettingsPage {
                 toggle.isChecked = state.keepCallbackCaptureUntilLogin
             }, infoDescription = context.getString(R.string.settings_capture_keep_callback_info), onInfoClick = {
                 showInfo(R.string.settings_capture_keep_callback_description, R.string.settings_capture_keep_callback_plain)
+            })
+        lateinit var redactToggle: GroupedSwitchRow
+        redactToggle = GroupedSwitchRow(context, context.getString(R.string.settings_export_redact),
+            true, true, state.redactExports, { enabled ->
+                state.selectRedactExports(enabled)
+                redactToggle.isChecked = state.redactExports
+            }, infoDescription = context.getString(R.string.settings_export_redact_info), onInfoClick = {
+                showInfo(R.string.settings_export_redact_description, R.string.settings_export_redact_plain)
             })
         val authorizationGroup = SettingsGroup(context)
         val noExpiry = context.getString(R.string.oauth_expiry_unknown)
@@ -121,10 +131,19 @@ internal object ScoreSyncSettingsPage {
         }, SettingsPageViews.gap(context))
         body.addView(SettingsGroup(context).apply {
             addView(toggle, LinearLayout.LayoutParams(-1, -2))
+            addView(redactToggle, LinearLayout.LayoutParams(-1, -2))
         }, SettingsPageViews.gap(context))
 
         return object : ScrollView(context) {
             private var oauthSubscription: Closeable? = null
+
+            override fun onWindowFocusChanged(hasWindowFocus: Boolean) {
+                super.onWindowFocusChanged(hasWindowFocus)
+                if (hasWindowFocus) {
+                    state.refreshRedactExports()
+                    redactToggle.isChecked = state.redactExports
+                }
+            }
 
             override fun onAttachedToWindow() {
                 super.onAttachedToWindow()
@@ -202,13 +221,27 @@ internal object ScoreSyncSettingsPage {
     }
 }
 
-internal class ScoreSyncSettingsState(private val preferences: CapturePreferences) {
+internal class ScoreSyncSettingsState(
+    private val preferences: CapturePreferences,
+    private val exports: ExportPreferences,
+) {
     var keepCallbackCaptureUntilLogin = preferences.keepCallbackCaptureUntilLogin()
+        private set
+    var redactExports = exports.redactExports()
         private set
 
     fun selectKeepCallbackCapture(enabled: Boolean) {
         preferences.setKeepCallbackCaptureUntilLogin(enabled)
         keepCallbackCaptureUntilLogin = preferences.keepCallbackCaptureUntilLogin()
+    }
+
+    fun selectRedactExports(enabled: Boolean) {
+        exports.setRedactExports(enabled)
+        refreshRedactExports()
+    }
+
+    fun refreshRedactExports() {
+        redactExports = exports.redactExports()
     }
 }
 

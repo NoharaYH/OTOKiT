@@ -3,6 +3,7 @@ package com.otokit.noharayh.score
 import android.database.sqlite.SQLiteException
 import android.util.Log
 import com.otokit.noharayh.score.html.FileHtmlCaptures
+import com.otokit.noharayh.score.html.HtmlExportRedactor
 import com.otokit.noharayh.score.json.ScoreDatabase
 import com.otokit.noharayh.score.json.ScoreSnapshots
 import org.json.JSONException
@@ -126,7 +127,7 @@ internal class ScoreData(
         }
     }
 
-    override fun export(format: ScoreArchiveFormat, batches: Set<HtmlBatchRef>,
+    override fun export(format: ScoreArchiveFormat, batches: Set<HtmlBatchRef>, redact: Boolean,
                         destination: ((java.io.OutputStream) -> Unit) -> Unit, done: (Boolean) -> Unit) {
         worker.execute {
             done(archiveOperation {
@@ -139,7 +140,13 @@ internal class ScoreData(
                                 ScoreArchiveFormat.Html -> {
                                     val pages = record.pages.filterNot { it.kind.isDiagnostic }
                                     check(pages.isNotEmpty())
-                                    pages.forEach { page -> zip.add("$directory/${page.fileName}", html.open(page)) }
+                                    pages.forEach { page ->
+                                        html.open(page).use { source ->
+                                            zip.putNextEntry(ZipEntry("$directory/${page.fileName}"))
+                                            if (redact) HtmlExportRedactor.write(source, zip) else source.copyTo(zip)
+                                            zip.closeEntry()
+                                        }
+                                    }
                                 }
                                 ScoreArchiveFormat.Json -> {
                                     val snapshot = checkNotNull(snapshots.reference(record))

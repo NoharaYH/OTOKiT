@@ -94,7 +94,7 @@ class ScoreIngestionTest {
                 fun zip(format: ScoreArchiveFormat): Map<String, String> {
                     val completion = CompletableFuture<Boolean>()
                     val output = ByteArrayOutputStream()
-                    archives.export(format, setOf(batch), { it(output) }) { completion.complete(it) }
+                    archives.export(format, setOf(batch), redact = false, destination = { it(output) }) { completion.complete(it) }
                     assertTrue(completion.get(5, TimeUnit.SECONDS))
                     return ZipInputStream(output.toByteArray().inputStream()).use { stream ->
                         buildMap {

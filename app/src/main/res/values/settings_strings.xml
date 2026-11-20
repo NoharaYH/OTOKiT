@@ -41,6 +41,13 @@
     <string name="settings_archive_recent">最近游玩</string>
     <string name="settings_capture_keep_callback">登录期间保持回调拦截</string>
     <string name="settings_capture_keep_callback_info">查看登录期间保持回调拦截的说明</string>
+    <string name="settings_export_redact">导出内容脱敏</string>
+    <string name="settings_export_redact_info">查看导出内容脱敏的说明</string>
+    <string name="settings_export_redact_description">导出时遮盖 HTML 中可识别的登录凭据、玩家身份信息和敏感参数，保留成绩与页面结构。仅处理导出副本，不改写应用内的原始记录，也不影响成绩同步。</string>
+    <string name="settings_export_redact_plain">HTML记录和同步日志内包含您在微信内登录舞萌|中二时所需的敏感信息，脱敏将会在导出时将这些信息进行混淆。</string>
+    <string name="settings_export_warning">请注意！导出的内容涉及您<annotation color="warning">账号的敏感数据</annotation>。如不希望被不法分子利用，请选择对导出内容进行<annotation color="warning">脱敏处理</annotation>！\n\n该选项后续可在数据与同步设置-导出内容脱敏进行开关。</string>
+    <string name="settings_export_warning_enable">开启脱敏处理</string>
+    <string name="settings_export_warning_disable">关闭脱敏处理</string>
     <string name="settings_info_dismiss">已阅</string>
     <string name="settings_info_plain">说人话</string>
     <string name="settings_info_technical">高级点</string>

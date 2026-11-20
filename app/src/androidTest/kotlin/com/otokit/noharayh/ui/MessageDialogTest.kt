@@ -1,6 +1,9 @@
 package com.otokit.noharayh.ui
 
+import android.app.Dialog
 import android.os.SystemClock
+import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
@@ -9,6 +12,7 @@ import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.kit.common.dialog.AlternateExplanation
 import com.otokit.noharayh.ui.kit.common.dialog.DialogMessageContent
 import com.otokit.noharayh.ui.kit.common.dialog.MessageDialog
+import com.otokit.noharayh.ui.kit.common.dialog.MessageDialogAction
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -87,6 +91,80 @@ class MessageDialogTest : UiComponentTestHost() {
             assertEquals(1, confirmations)
             assertFalse(dialog.isShowing)
         }
+    }
+
+    @Test fun exportChoiceIgnoresOutsideTouchAndKeepsExplicitActions() {
+        var opened = 0
+        var shared = 0
+        main {
+            val ordinary = MessageDialog(activity, R.drawable.ic_info_outline_24, "正文", "确定", "取消") {}
+            ordinary.showWithin(activity.resources.displayMetrics.widthPixels)
+            outsideTouch(ordinary)
+            assertFalse(ordinary.isShowing)
+
+            val export = MessageDialog(activity, R.drawable.ic_archive_record_24, "导出正文", "打开", "取消",
+                additionalAction = MessageDialogAction("分享", 0xFF2196F3.toInt()) { shared++ },
+                cancelOnTouchOutside = false) { opened++ }
+            try {
+                export.showWithin(activity.resources.displayMetrics.widthPixels)
+                outsideTouch(export)
+                assertTrue(export.isShowing)
+                assertEquals(0, opened + shared)
+                descendants(export.window!!.decorView).single { it.contentDescription == "取消" }.performClick()
+                assertFalse(export.isShowing)
+                export.showWithin(activity.resources.displayMetrics.widthPixels)
+                descendants(export.window!!.decorView).single { it.contentDescription == "打开" }.performClick()
+                assertFalse(export.isShowing)
+                assertEquals(1, opened)
+                export.showWithin(activity.resources.displayMetrics.widthPixels)
+                descendants(export.window!!.decorView).single { it.contentDescription == "分享" }.performClick()
+                assertFalse(export.isShowing)
+                assertEquals(1, shared)
+            } finally { export.dismiss() }
+        }
+    }
+
+    @Test fun exportChoiceSurvivesWindowFocusLossAndBackStillDismisses() {
+        lateinit var export: MessageDialog
+        lateinit var overlay: Dialog
+        main {
+            export = MessageDialog(activity, R.drawable.ic_archive_record_24, "导出正文", "打开", "取消",
+                cancelOnTouchOutside = false) {}
+            overlay = Dialog(activity).apply { setContentView(TextView(activity).apply { text = "临时窗口" }) }
+            export.showWithin(activity.resources.displayMetrics.widthPixels)
+        }
+        try {
+            awaitFocus(export)
+            main { overlay.show() }
+            awaitFocus(overlay)
+            main {
+                assertFalse(export.window!!.decorView.hasWindowFocus())
+                assertTrue(export.isShowing)
+                overlay.dismiss()
+            }
+            awaitFocus(export)
+            main { assertTrue(export.isShowing) }
+            instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+            instrumentation.waitForIdleSync()
+            main { assertFalse(export.isShowing) }
+        } finally { main { overlay.dismiss(); export.dismiss() } }
+    }
+
+    private fun awaitFocus(dialog: Dialog) {
+        val deadline = SystemClock.uptimeMillis() + 3000
+        while (SystemClock.uptimeMillis() < deadline) {
+            var focused = false
+            main { focused = dialog.window!!.decorView.hasWindowFocus() }
+            if (focused) return
+            SystemClock.sleep(16)
+        }
+        fail("弹窗未获得窗口焦点")
+    }
+
+    private fun outsideTouch(dialog: MessageDialog) {
+        val now = SystemClock.uptimeMillis()
+        val event = MotionEvent.obtain(now, now, MotionEvent.ACTION_OUTSIDE, -1f, -1f, 0)
+        try { dialog.onTouchEvent(event) } finally { event.recycle() }
     }
 
     private data class Frame(val height: Int, val bottom: Int, val label: String, val alpha: Float, val messageAlpha: Float)

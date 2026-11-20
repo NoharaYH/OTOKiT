@@ -35,7 +35,7 @@ internal data class ScoreArchiveRemoval(val removed: Set<HtmlBatchRef>, val clea
 
 internal interface ScoreArchiveActions {
     fun remove(format: ScoreArchiveFormat, batches: Set<HtmlBatchRef>, done: (ScoreArchiveRemoval) -> Unit)
-    fun export(format: ScoreArchiveFormat, batches: Set<HtmlBatchRef>,
+    fun export(format: ScoreArchiveFormat, batches: Set<HtmlBatchRef>, redact: Boolean,
                destination: ((OutputStream) -> Unit) -> Unit, done: (Boolean) -> Unit)
 }
 
