@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.os.SystemClock
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.ViewGroup
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.otokit.noharayh.ui.kit.settings.LabeledDropdownField
@@ -89,7 +90,8 @@ class ThemeDmiCornersTest : UiComponentTestHost() {
                 restingTop = row.top
                 val rowHeight = row.height
                 val y = row.top + rowHeight / 2f
-                val step = 64f * density
+                val step = 4f * density
+                val approach = ViewConfiguration.get(activity).scaledTouchSlop + 8f * density
                 val downTime = SystemClock.uptimeMillis()
                 var time = downTime
                 fun send(action: Int, distance: Float) {
@@ -98,18 +100,34 @@ class ThemeDmiCornersTest : UiComponentTestHost() {
                     try { dropdown.dispatchTouchEvent(event) } finally { event.recycle() }
                 }
                 send(MotionEvent.ACTION_DOWN, 0f)
+                send(MotionEvent.ACTION_MOVE, -approach)
+                send(MotionEvent.ACTION_MOVE, -approach)
+                assertNotEquals(edge, dropdown.scrollFraction)
+                send(MotionEvent.ACTION_MOVE, 0f)
                 send(MotionEvent.ACTION_MOVE, step)
-                send(MotionEvent.ACTION_MOVE, step)
-                val shortPull = (row.top - restingTop) * direction
+                val shortPull = row.translationY * direction
+                assertEquals(8f / 3f * density, shortPull, 0.05f)
                 send(MotionEvent.ACTION_MOVE, 2f * step)
-                val longPull = (row.top - restingTop) * direction
+                val longPull = row.translationY * direction
                 assertTrue("End pull offsets were $shortPull and $longPull", shortPull > 0 && longPull > shortPull)
                 assertTrue(longPull - shortPull < shortPull)
                 assertEquals(rowHeight, row.height)
+                assertEquals(restingTop, row.top)
                 assertEquals(edge, dropdown.scrollFraction, 0f)
-                send(MotionEvent.ACTION_CANCEL, 2f * step)
+
+                send(MotionEvent.ACTION_MOVE, 80f * density)
+                assertTrue(row.translationY * direction < 8f * density)
+                send(MotionEvent.ACTION_MOVE, 64f * density)
+                assertNotEquals(edge, dropdown.scrollFraction)
+                assertEquals(0f, row.translationY, 0f)
+
+                send(MotionEvent.ACTION_MOVE, 96f * density)
+                val beforeRelease = row.translationY
+                assertTrue(beforeRelease * direction > 0f)
+                send(MotionEvent.ACTION_UP, 96f * density)
+                assertEquals(beforeRelease, row.translationY, 0.05f)
             }
-            awaitState { row.top == restingTop && row.isEnabled }
+            awaitState { row.top == restingTop && row.translationY == 0f && row.isEnabled }
         }
     }
 

@@ -95,6 +95,7 @@ private class MenuViewport(
 ) : ViewGroup(context) {
     private val edges = themeMenuEdges(options)
     private val density = resources.displayMetrics.density
+    private val edgeLimit = Dimensions.MENU_OVERSCROLL_DP * density
     private val descriptions = options.map { (it as? ThemeOption.Html)?.theme?.definition?.preview }
     private val previews = options.map { option ->
         ThemeMenuPreview(if (option is ThemeOption.Html) option.theme.definition.colors.primaryColor
@@ -262,9 +263,7 @@ private class MenuViewport(
 
     private fun layoutRows() {
         val pad = geometry.padding.roundToInt()
-        val excess = offset - offset.coerceIn(0f, geometry.maximum)
-        val overscroll = excess.sign * resistedDragDistance(abs(excess), 0f, Dimensions.MENU_OVERSCROLL_DP * density) *
-            Spec.OVERSCROLL_SHIFT_FACTOR
+        val edgeTranslation = (offset.coerceIn(0f, geometry.maximum) - offset).coerceIn(-edgeLimit, edgeLimit)
         var enteringOrder = 0
         val textExtent = ((getChildAt(0) as? SettingsButton)?.textExtentFor(
             "UNiVERSE", Dimensions.PREVIEW_SCRIM_TEXT_WIDTH_SCALE) ?: 0f) * Dimensions.PREVIEW_SCRIM_LENGTH_SCALE
@@ -285,8 +284,9 @@ private class MenuViewport(
                 else if (edges[index].bottom) outerRadius else Dimensions.MENU_INNER_RADIUS_DP * density
             child.measure(MeasureSpec.makeMeasureSpec((width - 2 * pad).coerceAtLeast(0), MeasureSpec.EXACTLY),
                 MeasureSpec.makeMeasureSpec(h.roundToInt(), MeasureSpec.EXACTLY))
-            child.layout(pad, (top + overscroll).roundToInt(), width - pad,
-                (top + overscroll).roundToInt() + h.roundToInt())
+            val rowTop = top.roundToInt()
+            child.layout(pad, rowTop, width - pad, rowTop + h.roundToInt())
+            child.translationY = edgeTranslation
             if (previewFrames.geometry(index, geometry.expansion(index, offset), enteringOrder) &&
                 (descriptions[index] != null || previews[index].isNative)) {
                 enteringOrder++
@@ -388,7 +388,7 @@ private class MenuViewport(
                 val delta = lastY - y
                 lastY = y
                 dragging = true
-                updatePosition(offset + delta)
+                updatePosition(draggedPosition(delta))
             }
             MotionEvent.ACTION_UP -> {
                 if (!dragging && !interrupted) performClick()
@@ -415,9 +415,27 @@ private class MenuViewport(
 
     override fun performClick(): Boolean = super.performClick()
 
+    private fun draggedPosition(delta: Float): Float {
+        val current = offset.coerceIn(-edgeLimit, geometry.maximum + edgeLimit)
+        val previousExcess = current - current.coerceIn(0f, geometry.maximum)
+        val requested = current + delta
+        val edge = requested.coerceIn(0f, geometry.maximum)
+        val excess = requested - edge
+        val sameEdge = previousExcess.sign == excess.sign
+        if (excess == 0f || (sameEdge && abs(excess) <= abs(previousExcess))) return requested
+
+        val visible = if (sameEdge) abs(previousExcess) else 0f
+        val remaining = (edgeLimit - visible).coerceAtLeast(0f)
+        val fraction = remaining / edgeLimit
+        // Continue the same resistance curve from the current visible pull without storing finger travel.
+        val extra = resistedDragDistance((abs(excess) - visible) * fraction * fraction, 0f, remaining)
+        return edge + excess.sign * (visible + extra)
+    }
+
     private fun snap(velocity: Float = 0f, target: Float = geometry.snap(offset)) {
         if (touching) return
-        motion.snap(offset, velocity, target)
+        val releaseVelocity = if (offset in 0f..geometry.maximum) velocity else 0f
+        motion.snap(offset, releaseVelocity, target)
     }
 
     fun stopMotion() {

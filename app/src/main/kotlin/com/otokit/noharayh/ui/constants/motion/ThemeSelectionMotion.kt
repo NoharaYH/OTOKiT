@@ -19,7 +19,6 @@ internal object ThemeSelectionMotion {
     const val FLING_HANDOFF_SPEED = 3f
     const val FLING_HANDOFF_DISTANCE = 0.6f
     const val SNAP_MAX_SPEED = 6f
-    const val OVERSCROLL_SHIFT_FACTOR = -0.25f
     const val LABEL_FADE_START = 0.45f
     // 连续欠阻尼运动：初速度拉出，允许一次可见的挤压回摆，不在顶点切换弹簧。
     const val SCROLLBAR_DAMPING = 0.5f

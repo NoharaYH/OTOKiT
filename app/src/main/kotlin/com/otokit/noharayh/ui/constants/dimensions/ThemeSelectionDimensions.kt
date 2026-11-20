@@ -29,7 +29,7 @@ internal object ThemeSelectionDimensions {
     const val PREVIEW_BITMAP_MAX_WIDTH_PX = 1024
     const val PREVIEW_BITMAP_MAX_HEIGHT_PX = 144
     const val PREVIEW_CACHE_BYTES = 16 * 1024 * 1024
-    const val MENU_OVERSCROLL_DP = 32
+    const val MENU_OVERSCROLL_DP = 8
     const val MENU_TRANSLATION_DP = 8
     const val SCROLLBAR_WIDTH_DP = 9f
     const val SCROLLBAR_HIT_WIDTH_DP = 48
