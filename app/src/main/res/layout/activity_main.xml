@@ -40,7 +40,7 @@
                 android:background="@android:color/black"
                 android:importantForAccessibility="no" />
 
-            <!-- 设置页面按可交互内容区布局。 -->
+            <!-- 设置滚动绘制面延伸到底边，内部安全留白约束滚动终点。 -->
             <FrameLayout
                 android:id="@+id/overlay_host"
                 android:layout_width="match_parent"

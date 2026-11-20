@@ -17,6 +17,7 @@ import com.otokit.noharayh.composition.scoreSyncLogs
 import com.otokit.noharayh.ui.constants.display.DisplayScaleOption
 import com.otokit.noharayh.ui.constants.motion.SettingsPageTransition
 import com.otokit.noharayh.ui.constants.motion.SettingsTransition
+import com.otokit.noharayh.ui.kit.common.EdgeToEdgeScrollable
 import com.otokit.noharayh.ui.shell.navigation.SettingsSection
 import com.otokit.noharayh.ui.shell.selection.GameSelectionState
 import com.otokit.noharayh.ui.settings.subPages.PersonalizationSettingsPage
@@ -64,7 +65,14 @@ class SettingsAssembly(
     private val childHost = object : FrameLayout(context) {
         override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
             if (split) setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), MeasureSpec.getSize(heightMeasureSpec))
-            else super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+            else {
+                val drawHeight = MeasureSpec.getSize(heightMeasureSpec)
+                for (index in 0 until childCount) {
+                    val child = getChildAt(index)
+                    child.layoutParams.height = paneHeight(child, drawHeight)
+                }
+                super.onMeasure(widthMeasureSpec, heightMeasureSpec)
+            }
         }
 
         override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
@@ -81,6 +89,7 @@ class SettingsAssembly(
     private var forward = true
     private var split = false
     private var margin = dp(20)
+    private var bottomSafeInset = 0
     private var disposed = false
     private var logDetailBack = false
     private var themeControlsEnabled = true
@@ -151,6 +160,15 @@ class SettingsAssembly(
         margin = nextMargin
         updatePadding()
         settle(current.section, rebuild = true)
+        requestLayout()
+    }
+
+    /** 绘制面保持延伸；滚动页用安全留白控制终点，固定记录页保留安全边界。 */
+    fun setBottomSafeInset(bottom: Int) {
+        if (disposed || bottomSafeInset == bottom) return
+        bottomSafeInset = bottom
+        rootPage.setBottomSafeInset(bottom)
+        childPages.values.filterIsInstance<EdgeToEdgeScrollable>().forEach { it.setBottomSafeInset(bottom) }
         requestLayout()
     }
 
@@ -255,7 +273,10 @@ class SettingsAssembly(
 
     private fun mount(page: Page) {
         panesFor(page).forEach { pane ->
-            childPages.getOrPut(pane) { buildPage(pane).also { childHost.addView(it, LayoutParams(-1, -1)) } }
+            childPages.getOrPut(pane) { buildPage(pane).also {
+                (it as? EdgeToEdgeScrollable)?.setBottomSafeInset(bottomSafeInset)
+                childHost.addView(it, LayoutParams(-1, -1))
+            } }
         }
     }
 
@@ -354,15 +375,16 @@ class SettingsAssembly(
             val left = if (archive) panes.archiveLeft - panes.secondaryLeft else 0
             if (!archive && page.section == SettingsSection.ScoreSync) {
                 val endInset = (margin * (1f - progress)).roundToInt()
-                if (view.paddingRight != endInset) view.setPadding(0, 0, endInset, 0)
+                if (view.paddingRight != endInset) view.setPadding(0, 0, endInset, view.paddingBottom)
             }
-            view.measure(exact(paneWidth), exact(childHost.height))
-            view.layout(left, 0, left + paneWidth, childHost.height)
+            val paneHeight = paneHeight(view, childHost.height)
+            view.measure(exact(paneWidth), exact(paneHeight))
+            view.layout(left, 0, left + paneWidth, paneHeight)
             val shift = view.translationX.roundToInt()
             view.clipBounds = if (archive && !switchesSection && (progress < 1f || shift != 0)) {
                 val clipLeft = (-shift).coerceIn(0, paneWidth)
                 val clipRight = (width - panes.archiveLeft - shift).coerceIn(clipLeft, paneWidth)
-                Rect(clipLeft, 0, clipRight, childHost.height)
+                Rect(clipLeft, 0, clipRight, paneHeight)
             } else null
         }
     }
@@ -452,6 +474,8 @@ class SettingsAssembly(
         view.translationY = 0f
     }
     private fun dp(value: Int) = (value * resources.displayMetrics.density + 0.5f).toInt()
+    private fun paneHeight(view: View, drawHeight: Int) =
+        if (view is EdgeToEdgeScrollable) drawHeight else (drawHeight - bottomSafeInset).coerceAtLeast(0)
     private fun exact(value: Int) = MeasureSpec.makeMeasureSpec(value.coerceAtLeast(0), MeasureSpec.EXACTLY)
 
     private companion object {

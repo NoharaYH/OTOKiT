@@ -6,7 +6,7 @@ import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
-import android.widget.ScrollView
+import com.otokit.noharayh.ui.kit.common.ContentScrollView
 import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.kit.common.NavRailItemView
 import com.otokit.noharayh.ui.shell.navigation.Destination
@@ -21,7 +21,7 @@ import kotlin.math.roundToInt
 class NavigationBar(context: Context) : LinearLayout(context) {
 
     private val density = resources.displayMetrics.density
-    private val scroll = ScrollView(context)
+    private val scroll = ContentScrollView(context)
     private val group = LinearLayout(context)
     private val items = LinkedHashMap<Destination, NavRailItemView>()
     private val settingsItem = NavRailItemView(context)

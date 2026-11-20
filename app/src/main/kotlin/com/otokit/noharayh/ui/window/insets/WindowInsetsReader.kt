@@ -37,6 +37,7 @@ object WindowInsetsReader {
             navigationBars = navigationBars,
             displayCutout = displayCutout,
             systemGestures = systemGestures,
+            mandatorySystemGestures = insets.edgeInsets(WindowInsetsCompat.Type.mandatorySystemGestures()),
             captionBar = captionBar,
             ime = ime,
             statusBarsVisible = insets.isVisible(WindowInsetsCompat.Type.statusBars()),

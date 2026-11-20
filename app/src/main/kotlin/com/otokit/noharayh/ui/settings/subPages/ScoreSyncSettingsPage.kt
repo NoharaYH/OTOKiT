@@ -29,6 +29,7 @@ import com.otokit.noharayh.ui.kit.settings.SettingsCard
 import com.otokit.noharayh.ui.kit.settings.SettingsCheckButton
 import com.otokit.noharayh.ui.kit.settings.SettingsCheckButton.State
 import com.otokit.noharayh.ui.kit.settings.SettingsGroup
+import com.otokit.noharayh.ui.kit.settings.ExpandableSwitchGroup
 import com.otokit.noharayh.ui.kit.settings.SettingsHeaderStatus
 import com.otokit.noharayh.ui.kit.settings.SettingsPageViews
 import java.io.Closeable
@@ -92,13 +93,14 @@ internal object ScoreSyncSettingsPage {
                 htmlToggle.isChecked = state.includeHtmlWithLogs
             }, infoDescription = context.getString(R.string.settings_export_logs_html_info), onInfoClick = {
                 showInfo(R.string.settings_export_logs_html_technical, R.string.settings_export_logs_html_plain)
-            }).apply { visibility = if (state.recordScoreSyncLogs) View.VISIBLE else View.GONE }
+            })
+        lateinit var logOptions: ExpandableSwitchGroup
         lateinit var logToggle: GroupedSwitchRow
         logToggle = GroupedSwitchRow(context, context.getString(R.string.settings_sync_logs_save),
             true, true, state.recordScoreSyncLogs, { enabled ->
                 state.selectRecordScoreSyncLogs(enabled)
                 logToggle.isChecked = state.recordScoreSyncLogs
-                htmlToggle.visibility = if (state.recordScoreSyncLogs) View.VISIBLE else View.GONE
+                logOptions.setExpanded(state.recordScoreSyncLogs)
             }, infoDescription = context.getString(R.string.settings_sync_logs_save_info), onInfoClick = {
                 showInfo(R.string.settings_sync_logs_save_technical, R.string.settings_sync_logs_save_plain)
             })
@@ -163,8 +165,8 @@ internal object ScoreSyncSettingsPage {
         body.addView(SettingsGroup(context).apply {
             addView(toggle, LinearLayout.LayoutParams(-1, -2))
             addView(redactToggle, LinearLayout.LayoutParams(-1, -2))
-            addView(logToggle, LinearLayout.LayoutParams(-1, -2))
-            addView(htmlToggle, LinearLayout.LayoutParams(-1, -2))
+            logOptions = ExpandableSwitchGroup(context, logToggle, htmlToggle, state.recordScoreSyncLogs)
+            addView(logOptions, LinearLayout.LayoutParams(-1, -2))
         }, SettingsPageViews.gap(context))
 
         return object : ContentScrollView(context) {
@@ -177,7 +179,7 @@ internal object ScoreSyncSettingsPage {
                     redactToggle.isChecked = state.redactExports
                     htmlToggle.isChecked = state.includeHtmlWithLogs
                     logToggle.isChecked = state.recordScoreSyncLogs
-                    htmlToggle.visibility = if (state.recordScoreSyncLogs) View.VISIBLE else View.GONE
+                    logOptions.setExpanded(state.recordScoreSyncLogs)
                 }
             }
 

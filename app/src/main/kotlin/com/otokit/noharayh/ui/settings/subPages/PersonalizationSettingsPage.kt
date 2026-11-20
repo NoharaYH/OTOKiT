@@ -2,6 +2,7 @@ package com.otokit.noharayh.ui.settings.subPages
 
 import android.content.Context
 import android.widget.FrameLayout
+import com.otokit.noharayh.ui.kit.common.EdgeToEdgeScrollable
 import com.otokit.noharayh.ui.settings.components.ThemeSettingsContent
 import com.otokit.noharayh.ui.shell.selection.GameSelectionState
 import com.otokit.noharayh.ui.theme.GameLine
@@ -20,10 +21,11 @@ internal class PersonalizationSettingsPage(
     onWallpaperSelected: (Boolean) -> Unit,
     onColorSelected: (NoneThemeColorRole, Int) -> Unit,
     materkitColors: ThemeColors,
-) : FrameLayout(context) {
+) : FrameLayout(context), EdgeToEdgeScrollable {
     private val content = ThemeSettingsContent(context, margin, split, selection,
         onModeSelected, onOptionSelected, onBackgroundTintSelected, onWallpaperSelected, onColorSelected, materkitColors)
     init { clipChildren = false; clipToPadding = false; addView(content, LayoutParams(-1, -1)) }
+    override fun setBottomSafeInset(bottom: Int) = content.setBottomSafeInset(bottom)
     fun renderSelection(selection: GameSelectionState) = content.renderSelection(selection)
     fun renderMaterkitColors(colors: ThemeColors) = content.renderMaterkitColors(colors)
     fun closeThemePanel() = content.closeThemePanel()

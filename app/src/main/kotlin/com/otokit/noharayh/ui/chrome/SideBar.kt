@@ -4,7 +4,7 @@ import android.content.Context
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.LinearLayout
-import android.widget.ScrollView
+import com.otokit.noharayh.ui.kit.common.ContentScrollView
 import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.constants.dimensions.ShellDimensions
 import com.otokit.noharayh.ui.kit.common.NavCapsuleView
@@ -28,7 +28,7 @@ class SideBar(context: Context) : FrameLayout(context) {
 
     init {
         isFocusableInTouchMode = true
-        val scroll = ScrollView(context).apply { isFillViewport = true }
+        val scroll = ContentScrollView(context).apply { isFillViewport = true }
         list.orientation = LinearLayout.VERTICAL
         val spacing = size(ShellDimensions.shellComponentSpacing)
         list.setPadding(spacing, size(ShellDimensions.navCapsuleListTop), spacing, spacing)

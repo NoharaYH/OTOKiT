@@ -797,7 +797,8 @@ class MainShell(
             background?.onViewportChanged()
         }
         applyContentRect(contentHost, rects.interactive, snapshot.metrics)
-        applyContentRect(overlayHost, rects.interactive, snapshot.metrics)
+        applyContentRect(overlayHost, rects.scrollable, snapshot.metrics)
+        settingsPage?.setBottomSafeInset(rects.scrollable.bottom - rects.interactive.bottom)
         contentWidthPx = rects.interactive.width
         contentHeightPx = rects.interactive.height
         applyGameFrame()

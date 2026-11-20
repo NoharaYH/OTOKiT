@@ -11,7 +11,7 @@ import android.view.View
 import android.view.MotionEvent
 import android.widget.FrameLayout
 import android.widget.LinearLayout
-import android.widget.ScrollView
+import com.otokit.noharayh.ui.kit.common.ContentScrollView
 import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.animation.common.ContentTransition
 import com.otokit.noharayh.ui.constants.dimensions.ThemeSelectionDimensions
@@ -47,7 +47,7 @@ internal class ThemeSettingsContent(
     onWallpaperSelected: (Boolean) -> Unit,
     onColorSelected: (NoneThemeColorRole, Int) -> Unit,
     materkitColors: ThemeColors = NoneThemePalette.default.colors,
-) : ScrollView(context) {
+) : ContentScrollView(context) {
     private var controlsEnabled = true
     private var renderedSelection: GameSelectionState? = null
     private val segment = SettingsSegmentedChoice(context)

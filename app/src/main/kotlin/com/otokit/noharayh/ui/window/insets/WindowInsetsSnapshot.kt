@@ -15,8 +15,8 @@ data class EdgeInsets(
 /**
  * 系统 Insets 的不可变快照。
  *
- * 六类 Insets 分别保存，不提前混合成一个数字；布局使用 [systemSafeEdges]，
- * 分类使用 [stableLeftPx]/[stableRightPx]，systemGestures 只供手势协调，IME 只用于交互内容避让。
+ * 各类 Insets 分别保存，不提前混合成一个数字；布局使用 [systemSafeEdges]，
+ * 分类使用 [stableLeftPx]/[stableRightPx]；侧边手势只供协调，底部手势与 IME 用于交互内容避让。
  */
 data class WindowInsetsSnapshot(
     val statusBars: EdgeInsets = EdgeInsets.Zero,
@@ -32,11 +32,12 @@ data class WindowInsetsSnapshot(
     val imeVisible: Boolean = false,
     val stableLeftPx: Int = 0,
     val stableRightPx: Int = 0,
+    val mandatorySystemGestures: EdgeInsets = EdgeInsets.Zero,
 ) {
     /**
      * 当前布局安全区：状态栏、导航栏、开孔、窗口标题栏逐边取最大占用，重叠不相加。
      *
-     * 不含 systemGestures 与 IME。
+     * 不含手势和 IME；交互底边由 ContentGeometry 统一合并它们的实际占用。
      */
     val systemSafeEdges: EdgeInsets
         get() = systemSafeEdges(reserveStatusBarTop = true)
@@ -52,7 +53,7 @@ data class WindowInsetsSnapshot(
      * 背景可延伸到的安全区：与 [systemSafeEdges] 相同，但忽略导航栏底边。
      *
      * 手势导航的系统条是透明的，背景若在导航栏上边就停住，会留下一条白色空带；
-     * 设置遮罩使用相同的背景范围，页面布局继续使用 [systemSafeEdges]。
+     * 设置遮罩使用相同的背景范围，页面布局由 ContentGeometry 统一避让底部手势区。
      */
     val backgroundSafeEdges: EdgeInsets
         get() = EdgeInsets(

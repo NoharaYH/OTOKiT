@@ -3,7 +3,7 @@ package com.otokit.noharayh.ui.settings.subPages
 import com.otokit.noharayh.ui.kit.settings.SettingsButton.ActionIcon
 import android.content.Context
 import android.widget.LinearLayout
-import android.widget.ScrollView
+import com.otokit.noharayh.ui.kit.common.ContentScrollView
 import android.widget.FrameLayout
 import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.kit.settings.SettingsPageViews.card
@@ -26,7 +26,7 @@ internal object AboutSettingsPage {
         body.addView(card(context, R.drawable.ic_feedback_24, R.string.about_card_feedback,
             action(context, context.getString(R.string.about_feedback_subtitle), icon = ActionIcon.ExternalLink, deferClick = true) { openLink("https://github.com/NoharaYH/OTOKiT/issues") }), gap(context))
 
-        return ScrollView(context).apply {
+        return ContentScrollView(context).apply {
             isFillViewport = true
             clipToPadding = false
             addView(body, FrameLayout.LayoutParams(-1, -2))

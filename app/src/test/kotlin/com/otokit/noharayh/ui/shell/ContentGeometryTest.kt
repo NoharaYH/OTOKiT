@@ -119,6 +119,22 @@ class ContentGeometryTest {
         assertEquals(rects.base.top, rects.interactive.top)
         assertEquals(rects.base.left, rects.interactive.left)
         assertEquals(rects.base.right, rects.interactive.right)
+        assertEquals(2400, rects.scrollable.bottom)
+        assertEquals(24, rects.scrollable.bottom - rects.interactive.bottom)
+    }
+
+    @Test fun scrollableSurfaceDrawsBehindGestureAreaButItsScrollEndStaysSafe() {
+        val window = snapshot(insets = WindowInsetsSnapshot(
+            navigationBars = EdgeInsets(bottom = 48), mandatorySystemGestures = EdgeInsets(bottom = 95)))
+        val visible = ContentGeometry.compute(window)
+        assertEquals(2400, visible.scrollable.bottom)
+        assertEquals(2305, visible.interactive.bottom)
+        assertEquals(95, visible.scrollable.bottom - visible.interactive.bottom)
+        val keyboard = ContentGeometry.compute(window.copy(insets = window.insets.copy(
+            ime = EdgeInsets(bottom = 300), imeVisible = true)))
+        assertEquals(2100, keyboard.scrollable.bottom)
+        assertEquals(keyboard.interactive, keyboard.scrollable)
+        assertEquals(visible.base, keyboard.base)
     }
 
     /** 浮动键盘可见但边缘占用为零时，不凭空收缩。 */
@@ -177,9 +193,9 @@ class ContentGeometryTest {
         assertEquals(0, rects.base.height)
     }
 
-    /** 系统手势区不进入布局安全区：只有手势边距时内容区仍是整窗。 */
+    /** 左右返回手势不缩窄页面，底部滚动终点避让手势保护区，背景仍延伸。 */
     @Test
-    fun ignoresSystemGesturesForLayout() {
+    fun reservesBottomGesturesWithoutShrinkingForSideGestures() {
         val snapshot = snapshot(
             insets = WindowInsetsSnapshot(systemGestures = EdgeInsets(left = 40, bottom = 60)),
         )
@@ -189,6 +205,29 @@ class ContentGeometryTest {
         assertEquals(0, rects.base.left)
         assertEquals(0, rects.base.top)
         assertEquals(2400, rects.base.bottom)
+        assertEquals(2340, rects.interactive.bottom)
+        assertEquals(0, rects.interactive.left)
+        assertEquals(1080, rects.interactive.right)
+    }
+
+    @Test fun usesTheLargestBottomOccupationOnceAndKeepsBackgroundUnderTheGestureBar() {
+        val snapshot = snapshot(insets = WindowInsetsSnapshot(
+            navigationBars = EdgeInsets(bottom = 48),
+            systemGestures = EdgeInsets(left = 89, right = 89, bottom = 60),
+            mandatorySystemGestures = EdgeInsets(bottom = 95),
+        ))
+        val rects = ContentGeometry.compute(snapshot)
+        assertEquals(2400, rects.base.bottom)
+        assertEquals(2305, rects.interactive.bottom)
+        assertEquals(0, rects.interactive.left)
+        assertEquals(1080, rects.interactive.right)
+        val keyboard = ContentGeometry.compute(snapshot.copy(insets = snapshot.insets.copy(
+            ime = EdgeInsets(bottom = 300), imeVisible = true)))
+        assertEquals(2100, keyboard.interactive.bottom)
+        assertEquals(rects.base, keyboard.base)
+        val threeButtons = ContentGeometry.compute(snapshot.copy(insets = snapshot.insets.copy(
+            navigationBars = EdgeInsets(bottom = 160))))
+        assertEquals(2240, threeButtons.interactive.bottom)
     }
 
     /** 根被键盘缩小后，背景仍用窗口基础尺寸，只有内容/覆盖层使用交互尺寸。 */

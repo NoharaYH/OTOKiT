@@ -6,17 +6,18 @@ import com.otokit.noharayh.ui.window.PixelRect
 import com.otokit.noharayh.ui.window.WindowSnapshot
 import com.otokit.noharayh.ui.window.relativeToRoot
 
-/** 背景与设置遮罩使用基础矩形，功能和设置页面使用避让系统栏及 IME 的交互矩形。 */
+/** 区分背景、交互边界与滚动绘制面；滚动面通过内部留白约束终点，不在手势区上沿硬裁。 */
 data class ContentRects(
     val base: PixelRect,
     val interactive: PixelRect,
+    val scrollable: PixelRect,
 )
 
 /**
  * 内容矩形的纯计算。
  *
- * 先扣合并后的系统安全区，再扣应用占用；同一边不重复相加。
- * IME 只收缩交互矩形，不改变基础矩形。
+ * 先扣合并后的系统安全区，再扣应用占用；底部避让手势区，同一边不重复相加。
+ * IME 收缩交互与滚动绘制矩形，不改变基础矩形。
  */
 object ContentGeometry {
 
@@ -37,7 +38,10 @@ object ContentGeometry {
         val right = (width - safe.right - chrome.right).coerceIn(left, width)
         // 背景延伸到导航栏下沿：手势条透明时不再留白色空带。
         val backgroundBottom = (height - backgroundSafe.bottom - chrome.bottom).coerceIn(top, height)
-        val contentBottom = (height - safe.bottom - chrome.bottom).coerceIn(top, backgroundBottom)
+        // 左右返回手势不缩窄页面；底部滚动终点及操作区必须停在手势保护区上方。
+        val bottomSafe = maxOf(safe.bottom, snapshot.insets.systemGestures.bottom,
+            snapshot.insets.mandatorySystemGestures.bottom)
+        val contentBottom = (height - bottomSafe - chrome.bottom).coerceIn(top, backgroundBottom)
         val base = PixelRect(left, top, right, backgroundBottom)
 
         val interactiveBottom = if (snapshot.insets.imeHasEdgeOccupancy) {
@@ -46,10 +50,14 @@ object ContentGeometry {
         } else {
             contentBottom
         }
+        val scrollableBottom = if (snapshot.insets.imeHasEdgeOccupancy) {
+            (height - snapshot.insets.ime.bottom).coerceIn(base.top, base.bottom)
+        } else base.bottom
 
         return ContentRects(
             base = base,
             interactive = PixelRect(base.left, base.top, base.right, interactiveBottom),
+            scrollable = PixelRect(base.left, base.top, base.right, scrollableBottom),
         )
     }
 }

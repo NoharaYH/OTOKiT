@@ -3,13 +3,13 @@ package com.otokit.noharayh.ui.settings
 import com.otokit.noharayh.ui.constants.dimensions.SettingsMenuDimensions
 import android.content.Context
 import android.widget.LinearLayout
-import android.widget.ScrollView
+import com.otokit.noharayh.ui.kit.common.ContentScrollView
 import com.otokit.noharayh.ui.kit.settings.SettingsOptionView
 import com.otokit.noharayh.ui.shell.navigation.SettingsSection
 
 /** 只组装四个分类入口，不持有选中项或动画时钟。 */
 @android.annotation.SuppressLint("ViewConstructor")
-internal class SettingsHome(context: Context, onOpenSection: (SettingsSection) -> Unit) : ScrollView(context) {
+internal class SettingsHome(context: Context, onOpenSection: (SettingsSection) -> Unit) : ContentScrollView(context) {
     private val body = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
     val options = settingsEntries.associate { entry ->
         entry.section to SettingsOptionView(context, context.getString(entry.label), entry.icon, entry.color).apply {

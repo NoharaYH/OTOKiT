@@ -1,5 +1,6 @@
 package com.otokit.noharayh.ui
 
+import android.animation.ValueAnimator
 import android.app.Dialog
 import android.os.SystemClock
 import android.view.View
@@ -17,9 +18,14 @@ import com.otokit.noharayh.transfer.CaptureRequest
 import com.otokit.noharayh.transfer.runtime.NetCaptureService
 import com.otokit.noharayh.ui.kit.common.InfoIconButton
 import com.otokit.noharayh.ui.kit.common.toggle.GroupedSwitchRow
+import com.otokit.noharayh.ui.constants.dimensions.SettingsGroupDimensions
+import com.otokit.noharayh.ui.constants.motion.ContainerMotion
+import com.otokit.noharayh.ui.kit.settings.ExpandableContent
+import com.otokit.noharayh.ui.kit.settings.ExpandableSwitchGroup
 import com.otokit.noharayh.ui.kit.settings.SettingsGroup
 import com.otokit.noharayh.ui.settings.subPages.ScoreSyncSettingsPage
 import org.junit.Assert.*
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -160,16 +166,17 @@ class ScoreSyncSettingsTest : UiComponentTestHost() {
                 assertFalse(html.isChecked)
                 assertFalse(log.isChecked)
                 assertEquals(View.GONE, html.visibility)
-                val group = html.parent as SettingsGroup
-                assertSame(group, redaction.parent)
-                assertSame(group, log.parent)
+                val group = groupOf(html)
+                assertSame(group, groupOf(redaction))
+                assertSame(group, groupOf(log))
+                assertTrue(log.parent is ExpandableSwitchGroup)
+                assertSame(log.parent, slotOf(html).parent)
                 val callback = switchIn(page, R.string.settings_capture_keep_callback)!!
                 assertEquals(group.indexOfChild(callback) + 1, group.indexOfChild(redaction))
-                assertEquals(group.indexOfChild(redaction) + 1, group.indexOfChild(log))
-                assertEquals(group.indexOfChild(log) + 1, group.indexOfChild(html))
+                assertEquals(group.indexOfChild(redaction) + 1, group.indexOfChild(log.parent as View))
                 log.performClick()
             }
-            awaitHtmlVisibility(page, true)
+            awaitHtmlExpansion(page, true)
             main {
                 val html = switchIn(page, R.string.settings_export_logs_html)!!
                 val log = switchIn(page, R.string.settings_sync_logs_save)!!
@@ -179,20 +186,20 @@ class ScoreSyncSettingsTest : UiComponentTestHost() {
                 log.performClick()
                 assertTrue(exportPreferences(activity).includeHtmlWithLogs())
             }
-            awaitHtmlVisibility(page, false)
+            awaitHtmlExpansion(page, false)
             main {
                 val html = switchIn(page, R.string.settings_export_logs_html)!!
                 val log = switchIn(page, R.string.settings_sync_logs_save)!!
                 log.performClick()
                 assertTrue(html.isChecked)
             }
-            awaitHtmlVisibility(page, true)
+            awaitHtmlExpansion(page, true)
             main {
                 host.removeView(page)
                 page = ScoreSyncSettingsPage.create(activity, 20, false, {}, {})
             }
             mount(page, activity.resources.displayMetrics.widthPixels - 160, -1)
-            awaitHtmlVisibility(page, true)
+            awaitHtmlExpansion(page, true)
             main {
                 assertTrue(switchIn(page, R.string.settings_export_logs_html)!!.isChecked)
                 assertTrue(switchIn(page, R.string.settings_sync_logs_save)!!.isChecked)
@@ -208,7 +215,7 @@ class ScoreSyncSettingsTest : UiComponentTestHost() {
             awaitWindowCondition { overlay!!.window!!.decorView.hasWindowFocus() }
             main { capturePreferences(activity).setRecordScoreSyncLogs(false); overlay!!.dismiss() }
             awaitWindowCondition { page.hasWindowFocus() }
-            awaitHtmlVisibility(page, false)
+            awaitHtmlExpansion(page, false)
             main {
                 val html = switchIn(page, R.string.settings_export_logs_html)!!
                 val log = switchIn(page, R.string.settings_sync_logs_save)!!
@@ -218,7 +225,7 @@ class ScoreSyncSettingsTest : UiComponentTestHost() {
                 log.performClick()
                 assertTrue(html.isChecked)
             }
-            awaitHtmlVisibility(page, true)
+            awaitHtmlExpansion(page, true)
             assertPlainExplanation(page, R.string.settings_export_logs_html_info, "我想要说的前人们都说过了——")
             assertTrue(exportPreferences(activity).includeHtmlWithLogs())
             assertTrue(capturePreferences(activity).recordScoreSyncLogs())
@@ -229,9 +236,85 @@ class ScoreSyncSettingsTest : UiComponentTestHost() {
         }
     }
 
-    private fun awaitHtmlVisibility(page: View, visible: Boolean) {
+    @Test fun htmlAttachmentExpansionSharesItsFramesAndReversesFromTheCurrentPosition() {
+        assumeTrue("Animation frames require enabled system animations", ValueAnimator.areAnimatorsEnabled())
+        val capture = activity.getSharedPreferences("capture_preferences", 0)
+        val exports = activity.getSharedPreferences("export_preferences", 0)
+        val logKey = "record_score_sync_logs"
+        val htmlKey = "include_html_with_logs"
+        val previousLog = if (capture.contains(logKey)) capture.getBoolean(logKey, false) else null
+        val previousHtml = if (exports.contains(htmlKey)) exports.getBoolean(htmlKey, false) else null
+        try {
+            capture.edit().putBoolean(logKey, false).commit()
+            exports.edit().putBoolean(htmlKey, true).commit()
+            lateinit var page: View
+            lateinit var html: GroupedSwitchRow
+            lateinit var log: GroupedSwitchRow
+            lateinit var slot: ExpandableContent
+            main {
+                page = ScoreSyncSettingsPage.create(activity, 20, false, {}, {})
+                html = switchIn(page, R.string.settings_export_logs_html)!!
+                log = switchIn(page, R.string.settings_sync_logs_save)!!
+                slot = slotOf(html)
+            }
+            mount(page, activity.resources.displayMetrics.widthPixels - 160, -1)
+            awaitHtmlExpansion(page, false)
+            main { log.performClick() }
+            awaitWindowCondition { slot.progress in 0.1f..0.8f && slot.height > 0 }
+            var reversingFrom = 0f
+            main {
+                val p = slot.progress
+                val density = activity.resources.displayMetrics.density
+                val gap = (SettingsGroupDimensions.GAP_DP * density + 0.5f).toInt()
+                val inner = SettingsGroupDimensions.INNER_RADIUS_DP * density
+                val outer = SettingsGroupDimensions.OUTER_RADIUS_DP * density
+                assertEquals(html.measuredHeight * p, slot.height.toFloat(), 1f)
+                assertEquals(p, html.alpha, 0.01f)
+                assertEquals(-ContainerMotion.CONTENT_SHIFT_DP * density * (1f - p), html.translationY, 0.1f)
+                assertEquals(gap * p, (slot.top - log.bottom).toFloat(), 1f)
+                assertEquals(inner + (outer - inner) * (1f - p), log.bottomCornerRadius!!, 0.1f)
+                assertEquals(inner + (outer - inner) * (1f - p), html.topCornerRadius!!, 0.1f)
+                assertEquals(outer, html.bottomCornerRadius!!, 0.1f)
+                assertEquals(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS, slot.importantForAccessibility)
+                reversingFrom = p
+                log.performClick()
+                assertEquals(p, slot.progress, 0.001f)
+            }
+            awaitWindowCondition { slot.progress > 0f && slot.progress < reversingFrom - 0.01f }
+            main {
+                val p = slot.progress
+                log.performClick()
+                assertEquals(p, slot.progress, 0.001f)
+            }
+            awaitHtmlExpansion(page, true)
+            main { log.performClick() }
+            awaitHtmlExpansion(page, false)
+            main {
+                assertEquals(0, slot.height)
+                assertEquals(0, slot.top - log.bottom)
+                assertEquals(View.GONE, html.visibility)
+                assertEquals(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS, slot.importantForAccessibility)
+                assertTrue(exportPreferences(activity).includeHtmlWithLogs())
+                assertTrue(html.isChecked)
+            }
+        } finally {
+            capture.edit().apply { if (previousLog == null) remove(logKey) else putBoolean(logKey, previousLog) }.commit()
+            exports.edit().apply { if (previousHtml == null) remove(htmlKey) else putBoolean(htmlKey, previousHtml) }.commit()
+        }
+    }
+
+    private fun groupOf(view: View): SettingsGroup = generateSequence(view.parent as? View) { it.parent as? View }
+        .filterIsInstance<SettingsGroup>().first()
+
+    private fun slotOf(view: View): ExpandableContent = generateSequence(view.parent as? View) { it.parent as? View }
+        .filterIsInstance<ExpandableContent>().first()
+
+    private fun awaitHtmlExpansion(page: View, expanded: Boolean) {
         awaitWindowCondition {
-            switchIn(page, R.string.settings_export_logs_html)!!.visibility == if (visible) View.VISIBLE else View.GONE
+            val html = switchIn(page, R.string.settings_export_logs_html)!!
+            val slot = slotOf(html)
+            if (expanded) slot.progress == 1f && slot.height > 0 && slot.height == html.measuredHeight
+            else slot.progress == 0f && slot.height == 0
         }
     }
 

@@ -6,7 +6,7 @@ import android.graphics.Color
 import android.view.View
 import android.widget.FrameLayout
 import android.widget.LinearLayout
-import android.widget.ScrollView
+import com.otokit.noharayh.ui.kit.common.ContentScrollView
 
 import com.otokit.noharayh.ui.kit.common.ViewPrimitives.dp
 import com.otokit.noharayh.ui.kit.common.ViewPrimitives.text
@@ -14,7 +14,7 @@ import com.otokit.noharayh.ui.kit.common.ViewPrimitives.shape
 
 /** 设置页面的兼容装配入口；标准组件不反向引用此工厂。 */
 internal object SettingsPageViews {
-    fun placeholder(context: Context, title: String, color: Int, margin: Int, split: Boolean): View = ScrollView(context).apply {
+    fun placeholder(context: Context, title: String, color: Int, margin: Int, split: Boolean): View = ContentScrollView(context).apply {
         isFillViewport = true
         val body = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
