@@ -5,6 +5,7 @@ object SettingsPageTransition {
     val PHONE_KIND = TransitionKind.Slide
     val SPLIT_KIND = TransitionKind.ScaleFadeSlide
     val CURVE = MotionDefaults.PAGE_CURVE
+    val SPLIT_EXIT_CURVE = MotionDefaults.EMPHASIZED_CURVE
     const val DURATION_MS = 300L
     const val SELECTION_WINDOW = 0.25f
     const val PAGE_SCALE = 1.05f

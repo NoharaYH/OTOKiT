@@ -287,7 +287,7 @@ class SettingsAssembly(
         val resizesSplit = split && from.section == to.section && ((from.archive == null) != (to.archive == null))
         when {
             resizesSplit && to.archive != null -> runner.reset(SettingsTransition.ENTER_DURATION_MS, SettingsTransition.CURVE)
-            resizesSplit -> runner.reset()
+            resizesSplit -> runner.reset(curve = SettingsPageTransition.SPLIT_EXIT_CURVE)
             else -> runner.reset(SettingsPageTransition.UNFOLD_DURATION_MS, SettingsPageTransition.UNFOLD_CURVE)
         }
         onTransitionStart(from.heading, to.heading, width.toFloat(), forward)
@@ -332,7 +332,8 @@ class SettingsAssembly(
                 childPages[toPage]?.let { applyPageFrame(it, progress, true) }
             }
             else -> {
-                if (fromPage.archive != null) childPages[fromPage]?.alpha = 1f - progress
+                // 右栏移出时已被右缘裁切，前半程保留更多不透明度，让标题随栏移动。
+                if (fromPage.archive != null) childPages[fromPage]?.alpha = 1f - progress * progress
                 if (toPage.archive != null) childPages[toPage]?.alpha = progress
             }
         }
