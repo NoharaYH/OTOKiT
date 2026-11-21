@@ -4,6 +4,7 @@ import android.os.SystemClock
 import android.util.Log
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.webkit.WebView
 import android.widget.FrameLayout
@@ -11,6 +12,7 @@ import androidx.core.view.children
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.animation.common.GamePhase
+import com.otokit.noharayh.ui.pages.GamePairLayout
 import com.otokit.noharayh.ui.pages.GameSwipeLayout
 import com.otokit.noharayh.ui.shell.background.BackgroundHost
 import com.otokit.noharayh.ui.theme.BackgroundSelection
@@ -43,9 +45,19 @@ class GameForegroundSwipeTest : UiComponentTestHost() {
             val y = foreground.height / 3f
             val cancelDrag = gesture(foreground, width / 2, y)
             cancelDrag(MotionEvent.ACTION_DOWN, 0f)
-            cancelDrag(MotionEvent.ACTION_MOVE, -direction * width / 4)
+            val slop = ViewConfiguration.get(foreground.context).scaledTouchSlop
+            cancelDrag(MotionEvent.ACTION_MOVE, -direction * (width / 2 + slop))
             assertEquals(GamePhase.Dragging, foreground.phase)
-            assertTrue(foreground.progress > 0f && foreground.progress < 1f)
+            assertEquals(0.5f, foreground.progress, 0.001f)
+            val pair = foreground.children.filterIsInstance<GamePairLayout>().single()
+            assertEquals(-pair.width / 2f, pair.getChildAt(0).translationX, 1f)
+            assertEquals(pair.width / 2f, pair.getChildAt(1).translationX, 1f)
+            pair.children.forEach { panel ->
+                assertEquals(View.VISIBLE, panel.visibility)
+                assertEquals(1f, panel.scaleX, 0f)
+                assertEquals(1f, panel.scaleY, 0f)
+                assertEquals(1f, panel.alpha, 0f)
+            }
             positions.forEach { (page, before) -> assertEquals(before, position(page)) }
 
             cancelDrag(MotionEvent.ACTION_MOVE, direction * width / 10)

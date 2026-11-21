@@ -38,9 +38,7 @@ internal class GamePairLayout(
             return
         }
         val (left, right) = TransitionFrames.pagerPair(
-            PagerPairTransition.KIND, value.normalizedProgress,
-            width * PagerPairTransition.CONTENT_TRANSLATION_RATIO,
-            PagerPairTransition.MIN_SCALE, PagerPairTransition.MIN_ALPHA, cardMotion = true,
+            PagerPairTransition.KIND, value.normalizedProgress, width.toFloat(),
         )
         apply(mai, left, 0f, value.edgePullPx)
         apply(chu, right, chu.width.toFloat(), value.edgePullPx)

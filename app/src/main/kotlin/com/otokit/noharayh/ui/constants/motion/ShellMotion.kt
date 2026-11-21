@@ -67,16 +67,9 @@ object NavTitleTransition {
 
 /** 双页联动由同一前景进度驱动。 */
 object PagerPairTransition {
-    val KIND: TransitionKind = TransitionKind.ScaleFadeSlide
+    val KIND: TransitionKind = TransitionKind.Slide
     val CURVE: MotionCurve = MotionDefaults.EMPHASIZED_CURVE
     const val SWIPE_SETTLE_MS = 260L
-
-    /** 横移距离占容器宽度的比例。 */
-    const val TRANSLATION_RATIO: Float = 0.7f
-    /** 卡片与标题均按各自宿主宽度缩短位移；横滑往返共用同一路径。 */
-    const val CONTENT_TRANSLATION_RATIO: Float = TRANSLATION_RATIO * 0.6f
-    const val MIN_SCALE: Float = 0.1f
-    const val MIN_ALPHA: Float = 0f
 }
 
 /** 仅替换抽屉收尾曲线；跟手进度与原生按距离/速度计算的时长保留。 */

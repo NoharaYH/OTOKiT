@@ -132,8 +132,8 @@ object TransitionFrames {
         kind: TransitionKind,
         progress: Float,
         slideDistancePx: Float,
-        minScale: Float,
-        minAlpha: Float,
+        minScale: Float = 1f,
+        minAlpha: Float = 1f,
         cardMotion: Boolean = false,
     ): Pair<TransitionFrame, TransitionFrame> {
         val p = progress.coerceIn(0f, 1f)

@@ -75,23 +75,20 @@ class TitleTransitionFramesTest {
     }
 
     @Test
-    fun gameTitleMatchesPageScaleFadeAndNormalizedTravelInBothDirections() {
+    fun gameTitleAndPagesSlideAtFullSizeAcrossTheirOwnWidths() {
         val titleWidth = 360f
         val pageWidth = 720f
         for (i in 0..1000) {
             val p = i / 1000f
             val title = TitleTransitionFrames.gamePair(p, titleWidth)
-            val page = TransitionFrames.pagerPair(
-                kind = PagerPairTransition.KIND,
-                progress = p,
-                slideDistancePx = pageWidth * PagerPairTransition.CONTENT_TRANSLATION_RATIO,
-                minScale = PagerPairTransition.MIN_SCALE,
-                minAlpha = PagerPairTransition.MIN_ALPHA,
-                cardMotion = true,
-            )
+            val page = TransitionFrames.pagerPair(PagerPairTransition.KIND, p, pageWidth)
+            assertEquals(-pageWidth * p, page.first.translationX, 0.0001f)
+            assertEquals(page.first.translationX + pageWidth, page.second.translationX, 0.0001f)
             for ((titleFrame, pageFrame) in listOf(title.first to page.first, title.second to page.second)) {
-                assertEquals(pageFrame.scale, titleFrame.scale, 0f)
-                assertEquals(pageFrame.alpha, titleFrame.alpha, 0f)
+                assertEquals(1f, pageFrame.scale, 0f)
+                assertEquals(1f, titleFrame.scale, 0f)
+                assertEquals(1f, pageFrame.alpha, 0f)
+                assertEquals(1f, titleFrame.alpha, 0f)
                 assertEquals(pageFrame.translationX / pageWidth, titleFrame.translationX / titleWidth, 0.0001f)
             }
         }

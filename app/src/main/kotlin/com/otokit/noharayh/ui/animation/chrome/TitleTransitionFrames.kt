@@ -21,14 +21,7 @@ object TitleTransitionFrames {
         (inkTop + inkBottom) / 2f
 
     fun gamePair(progress: Float, width: Float): Pair<TransitionFrame, TransitionFrame> =
-        TransitionFrames.pagerPair(
-            kind = PagerPairTransition.KIND,
-            progress = progress,
-            slideDistancePx = width * PagerPairTransition.CONTENT_TRANSLATION_RATIO,
-            minScale = PagerPairTransition.MIN_SCALE,
-            minAlpha = PagerPairTransition.MIN_ALPHA,
-            cardMotion = true,
-        )
+        TransitionFrames.pagerPair(PagerPairTransition.KIND, progress, width)
 
     fun navEntry(progress: Float, translationY: Float): TransitionFrame = navBetween(
         start = TransitionFrames.enter(
