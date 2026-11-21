@@ -65,11 +65,14 @@ private fun StringBuilder.appendReceipt(page: UploadPageResult) {
         UploadOutcome.PERMISSION_DENIED -> "缺少写入权限"
         UploadOutcome.RATE_LIMITED -> "平台限流"
         UploadOutcome.UNKNOWN -> "提交结果待确认"
-        UploadOutcome.REJECTED -> "平台拒绝上传"
+        UploadOutcome.REJECTED, UploadOutcome.PLAYER_NOT_FOUND -> "平台拒绝上传"
         UploadOutcome.UNSUPPORTED -> "此平台跳过该页面"
         UploadOutcome.BLOCKED -> "前置步骤未完成，已跳过"
     })
     page.receipt.httpStatus?.let { append('[').append(it).append(']') }
+    if (page.receipt.outcome == UploadOutcome.PLAYER_NOT_FOUND) {
+        append("\n[UPLOAD]您的落雪平台好像暂无分数，为保证落雪平台能正常上传成绩，请先使用落雪官网的代理上传上传一次。")
+    }
     if (page.receipt.accepted) {
         append("\n[UPLOAD]").append(when {
             page.receipt.outcome in setOf(UploadOutcome.NO_CHANGES, UploadOutcome.NO_RECORDS) ||
@@ -102,7 +105,7 @@ internal fun styledUploadReport(report: UploadReport): CharSequence {
                     UploadOutcome.SENDING -> ScoreSyncLogColors.INFO
                     UploadOutcome.ACCEPTED, UploadOutcome.UPDATED, UploadOutcome.NO_CHANGES,
                     UploadOutcome.NO_RECORDS -> ScoreSyncLogColors.SUCCESS
-                    UploadOutcome.REJECTED, UploadOutcome.AUTH_REQUIRED,
+                    UploadOutcome.REJECTED, UploadOutcome.PLAYER_NOT_FOUND, UploadOutcome.AUTH_REQUIRED,
                     UploadOutcome.PERMISSION_DENIED -> ScoreSyncLogColors.ERROR
                     UploadOutcome.UNSUPPORTED -> ScoreSyncLogColors.MUTED
                     else -> ScoreSyncLogColors.WARNING

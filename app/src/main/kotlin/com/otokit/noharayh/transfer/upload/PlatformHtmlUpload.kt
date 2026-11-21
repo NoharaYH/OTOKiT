@@ -67,6 +67,14 @@ internal class PlatformHtmlUpload(
                         response.code == 403 -> UploadReceipt(UploadOutcome.PERMISSION_DENIED, 403)
                         response.code == 429 -> UploadReceipt(UploadOutcome.RATE_LIMITED, 429)
                         response.code >= 500 -> UploadReceipt(UploadOutcome.UNKNOWN, response.code)
+                        response.code == 404 && provider == OAuthProvider.LXNS -> {
+                            val missing = try {
+                                JSONObject(response.body?.string().orEmpty()).optString("message").trim()
+                                    .equals("player not found", ignoreCase = true)
+                            } catch (_: JSONException) { false }
+                            catch (_: IOException) { false }
+                            UploadReceipt(if (missing) UploadOutcome.PLAYER_NOT_FOUND else UploadOutcome.REJECTED, 404)
+                        }
                         !response.isSuccessful -> UploadReceipt(UploadOutcome.REJECTED, response.code)
                         else -> parseReceipt(provider, response.code, response.body?.string().orEmpty())
                     }

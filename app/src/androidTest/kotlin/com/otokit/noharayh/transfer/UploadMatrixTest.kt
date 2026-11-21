@@ -136,6 +136,11 @@ class UploadMatrixTest {
         check(snow, 200, """{"success":true,"code":200,"data":[]}""", UploadOutcome.NO_CHANGES, 0)
         check(snow, 200, """{"success":true,"code":200}""", UploadOutcome.ACCEPTED)
         check(snow, 200, """{"success":false,"code":403}""", UploadOutcome.REJECTED)
+        check(snow, 404, """{"success":false,"code":404,"message":"player not found"}""", UploadOutcome.PLAYER_NOT_FOUND)
+        check(snow, 404, """{"message":"route not found"}""", UploadOutcome.REJECTED)
+        check(snow, 404, "not-json", UploadOutcome.REJECTED)
+        check(fish, 404, """{"message":"player not found"}""", UploadOutcome.REJECTED)
+        check(snow, 400, """{"message":"player not found"}""", UploadOutcome.REJECTED)
         for (target in listOf(fish, snow)) {
             check(target, 200, "not-json", UploadOutcome.UNKNOWN)
             check(target, 400, "{}", UploadOutcome.REJECTED)

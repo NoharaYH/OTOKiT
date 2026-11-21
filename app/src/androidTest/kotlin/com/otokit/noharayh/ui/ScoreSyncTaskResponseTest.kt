@@ -19,6 +19,31 @@ import java.time.Instant
 import java.util.UUID
 
 class ScoreSyncTaskResponseTest : UiComponentTestHost() {
+    @Test fun missingPlayerGuidanceAppearsOnceAndKeepsTheNextPlatformReceiptIntact() {
+        val at = Instant.now()
+        val events = listOf(
+            TransferEvent.Upload(UploadPageResult(OAuthProvider.LXNS, HtmlPageKind.PLAYER,
+                UploadReceipt(UploadOutcome.PLAYER_NOT_FOUND, 404))),
+            TransferEvent.Upload(UploadPageResult(OAuthProvider.LXNS, HtmlPageKind.BASIC,
+                UploadReceipt(UploadOutcome.BLOCKED))),
+            TransferEvent.Upload(UploadPageResult(OAuthProvider.DIVING_FISH, HtmlPageKind.BASIC,
+                UploadReceipt(UploadOutcome.ACCEPTED, 200, 1))),
+        )
+        val text = styledUploadReport(UploadReport("missing-player", at, true, listOf(HtmlPageKind.BASIC),
+            OAuthProvider.entries.toList(), events.map { TransferLogLine(at, it) })) as Spanned
+        val guidance = "您的落雪平台好像暂无分数，为保证落雪平台能正常上传成绩，请先使用落雪官网的代理上传上传一次。"
+        assertEquals(1, Regex(guidance).findAll(text).count())
+        assertTrue(text.contains("落雪·玩家资料·平台拒绝上传[404]"))
+        assertTrue(text.contains("落雪·Basic·前置步骤未完成，已跳过"))
+        assertTrue(text.contains("水鱼·Basic·已接受[200]\n[UPLOAD]平台新增成绩1条"))
+        val missing = text.toString().indexOf("您的落雪平台")
+        assertTrue(text.getSpans(missing, missing + 4, ForegroundColorSpan::class.java)
+            .any { it.foregroundColor == ScoreSyncLogColors.ERROR })
+        val accepted = text.toString().indexOf("平台新增成绩1条")
+        assertTrue(text.getSpans(accepted, accepted + 8, ForegroundColorSpan::class.java)
+            .any { it.foregroundColor == ScoreSyncLogColors.SUCCESS })
+    }
+
     @Test fun multilineReceiptsKeepFollowingEventColors() {
         val at = Instant.now()
         val events = listOf(
