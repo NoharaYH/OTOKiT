@@ -9,6 +9,7 @@ import com.otokit.noharayh.ui.chrome.SideBar
 import com.otokit.noharayh.ui.chrome.SideBarHost
 import com.otokit.noharayh.ui.window.PixelRect
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -54,6 +55,15 @@ class SideBarGestureTest : UiComponentTestHost() {
         move(MotionEvent.ACTION_MOVE, 220)
         move(MotionEvent.ACTION_MOVE, 60)
         main { assertEquals(90, panel.right) }
+        // 从收起手势反向猛拉，一次 MOVE 就跨过三分之一。
+        move(MotionEvent.ACTION_MOVE, 360)
+        main { assertTrue("reversing the drag must hand off before full width", panel.right in 100 until 300) }
+        move(MotionEvent.ACTION_UP, 360)
+        SystemClock.sleep(400)
+        main { assertEquals(300, panel.right) }
+
+        move(MotionEvent.ACTION_DOWN, 270)
+        move(MotionEvent.ACTION_MOVE, 220)
         move(MotionEvent.ACTION_MOVE, 0)
         move(MotionEvent.ACTION_UP, 0)
     }

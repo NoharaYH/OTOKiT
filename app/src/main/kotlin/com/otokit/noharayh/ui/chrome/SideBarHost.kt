@@ -47,7 +47,7 @@ class SideBarHost @JvmOverloads constructor(
     private var downY = 0f
     private var pointerId = MotionEvent.INVALID_POINTER_ID
     private var edgeCandidate = false
-    private var draggingFromClosed = false
+    private var handOffOpeningDrag = false
     private var backPreviewActive = false
     private var backPreviewStartProgress = 0f
 
@@ -230,7 +230,7 @@ class SideBarHost @JvmOverloads constructor(
         val dy = event.getY(index) - downY
         if (abs(dx) <= touchSlop && abs(dy) <= touchSlop) return false
         if (abs(dx) <= abs(dy) ||
-            (motion.progress == 0f && dx <= 0f) || (motion.progress > 0f && dx >= 0f)
+            (motion.progress == 0f && dx <= 0f) || (motion.progress == 1f && dx >= 0f)
         ) {
             edgeCandidate = false // 本轮已判给其他方向，不在中途抢回。
             return false
@@ -238,7 +238,6 @@ class SideBarHost @JvmOverloads constructor(
         val down = downEvent ?: return false
         stopHelper()
         if (!motion.beginDrag()) return false
-        draggingFromClosed = motion.progress == 0f && dx > 0f
         positionPanel()
         updateBlocking() // 先同步关闭背景选择门禁，再由框架取消旧触摸目标。
         helper.processTouchEvent(down)
@@ -252,8 +251,8 @@ class SideBarHost @JvmOverloads constructor(
         if (motion.discardUntilEnd) return true
         if (!motion.dragging) return super.onTouchEvent(event)
         helper.processTouchEvent(event)
-        if (event.actionMasked == MotionEvent.ACTION_MOVE && draggingFromClosed && sideBar.left >= autoOpenLeft) {
-            animateTo(true, DrawerSettleTiming.AUTO_OPEN_MS)
+        if (handOffOpeningDrag) {
+            animateTo(true, gestureOpenDuration())
         }
         return true
     }
@@ -296,6 +295,9 @@ class SideBarHost @JvmOverloads constructor(
         clearDown()
         startSettle(open, durationMs = durationMs)
     }
+
+    private fun gestureOpenDuration() =
+        DrawerSettleTiming.gestureOpen(interaction.left - sideBar.left, interaction.left - autoOpenLeft)
 
     private fun cancelCapturedDrag() {
         stopHelper()
@@ -345,7 +347,7 @@ class SideBarHost @JvmOverloads constructor(
         downEvent = null
         pointerId = MotionEvent.INVALID_POINTER_ID
         edgeCandidate = false
-        draggingFromClosed = false
+        handOffOpeningDrag = false
     }
 
     @SuppressLint("RtlHardcoded") // 与 shell 提供的物理窗口坐标保持一致。
@@ -401,8 +403,14 @@ class SideBarHost @JvmOverloads constructor(
 
         override fun getViewHorizontalDragRange(child: View): Int = drawerWidthPx
 
-        override fun clampViewPositionHorizontal(child: View, left: Int, dx: Int): Int =
-            left.coerceIn(closedLeft, if (draggingFromClosed) autoOpenLeft else interaction.left)
+        override fun clampViewPositionHorizontal(child: View, left: Int, dx: Int): Int {
+            if (dx > 0 && left >= autoOpenLeft) {
+                // 反向或中途接手时，面板可能已超过阈值，从当前可见位置继续展开。
+                handOffOpeningDrag = true
+                return maxOf(child.left, autoOpenLeft).coerceAtMost(interaction.left)
+            }
+            return left.coerceIn(closedLeft, interaction.left)
+        }
 
         override fun clampViewPositionVertical(child: View, top: Int, dy: Int): Int = interaction.top
 
@@ -421,7 +429,7 @@ class SideBarHost @JvmOverloads constructor(
                 else -> motion.progress >= 0.5f
             }
             motion.releaseTo(open)
-            startSettle(open, xvel)
+            if (open) startSettle(true, durationMs = gestureOpenDuration()) else startSettle(false, xvel)
         }
 
         override fun onViewDragStateChanged(state: Int) {
