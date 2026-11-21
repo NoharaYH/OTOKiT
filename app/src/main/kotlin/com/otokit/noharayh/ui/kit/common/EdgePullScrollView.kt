@@ -21,6 +21,7 @@ internal open class EdgePullScrollView(
     context: Context,
     private val overshootPx: Float,
     private val pullWhenContentFits: Boolean = false,
+    private val horizontalDrawingOutsetPx: Int = 0,
 ) : ScrollView(context) {
     private class FittedPull(val pointer: Int, val x: Float, val y: Float, val initialPull: Float) {
         var captured = false
@@ -117,8 +118,11 @@ internal open class EdgePullScrollView(
     }
 
     override fun dispatchDraw(canvas: Canvas) {
-        if (edgePullEnabled) canvas.withClip(0, scrollY, width, scrollY + height) { super.dispatchDraw(this) }
-        else super.dispatchDraw(canvas)
+        if (edgePullEnabled) {
+            canvas.withClip(-horizontalDrawingOutsetPx, scrollY, width + horizontalDrawingOutsetPx, scrollY + height) {
+                super.dispatchDraw(this)
+            }
+        } else super.dispatchDraw(canvas)
     }
 
     fun resetEdgePull() {

@@ -3,6 +3,8 @@ package com.otokit.noharayh.ui
 import android.animation.ValueAnimator
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Rect
 import android.graphics.drawable.Drawable
 import android.os.SystemClock
 import android.view.MotionEvent
@@ -12,7 +14,10 @@ import android.view.ViewGroup
 import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.ImageView
 import android.widget.ScrollView
+import androidx.core.view.allViews
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.filters.SdkSuppress
+import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.constants.dimensions.SettingsButtonDimensions
 import com.otokit.noharayh.ui.constants.dimensions.SettingsGroupDimensions
 import com.otokit.noharayh.ui.constants.motion.ContainerMotion
@@ -22,14 +27,83 @@ import com.otokit.noharayh.ui.kit.common.ViewPrimitives.dp
 import com.otokit.noharayh.ui.kit.settings.ArchiveRecordList
 import com.otokit.noharayh.ui.kit.settings.ArchiveRecordRow
 import com.otokit.noharayh.ui.kit.settings.ThemeScrollbar
+import com.otokit.noharayh.ui.kit.settings.SettingsRecordPage
 import org.junit.Assert.*
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 
 @RunWith(AndroidJUnit4::class)
 class ArchiveRecordListTest : UiComponentTestHost() {
+    @Test @SdkSuppress(minSdkVersion = 29)
+    fun selectedRecordHaloOverflowsHorizontallyButKeepsTheVerticalViewport() {
+        assumeTrue(ValueAnimator.areAnimatorsEnabled())
+        for (count in listOf(20, 3)) {
+            val records = (0 until count).map { ArchiveRecordList.Row("Fixture $it") {} }
+            lateinit var page: SettingsRecordPage
+            main {
+                page = SettingsRecordPage(activity, R.string.settings_html_records, 20, false,
+                    { _, _ -> }, {}, {}, {}, {}).apply {
+                    setRows(records)
+                    renderSelection(setOf(records[1]), false)
+                }
+            }
+            mount(page, width = 1000, height = 1000)
+            val list = page.allViews.filterIsInstance<ArchiveRecordList>().single()
+            val scroll = list.getChildAt(0) as ScrollView
+            lateinit var button: View
+            lateinit var bounds: Rect
+            var before = emptyList<Int>()
+            var probes = emptyList<Pair<Int, Int>>()
+            main {
+                button = row(list, records[1]).button
+                bounds = recordBounds(page, button)
+                probes = listOf(bounds.left - 1 to bounds.centerY(), bounds.right + 1 to bounds.centerY())
+            }
+            before = recordPixels(page, probes, "before-$count")
+            touch(button, MotionEvent.ACTION_DOWN, Triple(0, button.width / 2f, button.height / 2f))
+            SystemClock.sleep(180)
+            val after = recordPixels(page, probes, "pressed-$count")
+            main {
+                assertTrue("Selected record halo is clipped on the left", Color.red(after[0]) < Color.red(before[0]))
+                assertTrue("Selected record halo is clipped on the right", Color.red(after[1]) < Color.red(before[1]))
+                assertEquals("Feedback must not alter row layout", bounds, recordBounds(page, button))
+            }
+            touch(button, MotionEvent.ACTION_CANCEL, Triple(0, button.width / 2f, button.height / 2f))
+            if (count == 20) {
+                for (bottom in listOf(false, true)) {
+                    main {
+                        scroll.scrollTo(0, if (bottom) scroll.getChildAt(0).height - scroll.height else 0)
+                        val record = if (bottom) records.last() else records.first()
+                        page.renderSelection(setOf(record), false)
+                        button = row(list, record).button
+                        val viewport = recordBounds(page, scroll)
+                        bounds = recordBounds(page, button)
+                        assertEquals(if (bottom) viewport.bottom else viewport.top, if (bottom) bounds.bottom else bounds.top)
+                        probes = listOf(bounds.centerX() to if (bottom) viewport.bottom + 1 else viewport.top - 1)
+                    }
+                    before = recordPixels(page, probes)
+                    touch(button, MotionEvent.ACTION_DOWN, Triple(0, button.width / 2f, button.height / 2f))
+                    SystemClock.sleep(180)
+                    assertEquals("Feedback must stay inside the vertical viewport", before, recordPixels(page, probes))
+                    touch(button, MotionEvent.ACTION_CANCEL, Triple(0, button.width / 2f, button.height / 2f))
+                }
+                main {
+                    scroll.scrollTo(0, dp(activity, SettingsButtonDimensions.HEIGHT_DP) / 2)
+                    val partial = row(list, records.first()).button
+                    assertFalse(partial.isClickable)
+                    assertFalse(partial.isFocusable)
+                    assertEquals(View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS, partial.importantForAccessibility)
+                }
+            }
+            main { host.removeView(page) }
+        }
+    }
+
     @Test fun recordContentResistsPullingPastEitherEndAndReturnsInPlace() {
         val records = (0 until 24).map { ArchiveRecordList.Row("Fixture $it") { fail("Drag became a tap") } }
         lateinit var list: ArchiveRecordList
@@ -437,6 +511,37 @@ class ArchiveRecordListTest : UiComponentTestHost() {
                 drawable.draw(Canvas(bitmap))
             }
         assertTrue(render(expected).sameAs(render(chip.background)))
+    }
+
+    private fun recordBounds(parent: ViewGroup, descendant: View): Rect {
+        val origin = IntArray(2)
+        val location = IntArray(2)
+        parent.getLocationOnScreen(origin)
+        descendant.getLocationOnScreen(location)
+        val left = location[0] - origin[0]
+        val top = location[1] - origin[1]
+        return Rect(left, top, left + descendant.width, top + descendant.height)
+    }
+
+    private fun recordPixels(page: View, probes: List<Pair<Int, Int>>, snapshot: String? = null): List<Int> {
+        val location = IntArray(2)
+        val committed = CountDownLatch(1)
+        main {
+            assertTrue("The test must cover hardware rendering", page.isHardwareAccelerated)
+            page.getLocationOnScreen(location)
+            page.viewTreeObserver.registerFrameCommitCallback { committed.countDown() }
+            page.invalidate()
+        }
+        assertTrue("The hardware frame must be submitted", committed.await(2, TimeUnit.SECONDS))
+        val bitmap = requireNotNull(instrumentation.uiAutomation.takeScreenshot())
+        return try {
+            snapshot?.let { name ->
+                File(activity.cacheDir, "record-halo-$name.png").outputStream().use {
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
+                }
+            }
+            probes.map { (x, y) -> bitmap.getPixel(location[0] + x, location[1] + y) }
+        } finally { bitmap.recycle() }
     }
 
     private fun removalAnimation(list: ArchiveRecordList) = ArchiveRecordList::class.java

@@ -17,12 +17,14 @@ import com.otokit.noharayh.ui.constants.dimensions.SettingsButtonDimensions
 import com.otokit.noharayh.ui.constants.dimensions.SettingsGroupDimensions
 import com.otokit.noharayh.ui.constants.dimensions.ThemeSelectionDimensions
 import com.otokit.noharayh.ui.constants.motion.ArchiveRecordListMotion as Motion
+import com.otokit.noharayh.ui.constants.motion.PressHaloSpec
 import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors
 import com.otokit.noharayh.ui.kit.common.ContinuousCornerDrawable
 import com.otokit.noharayh.ui.kit.common.EdgePullScrollView
 import com.otokit.noharayh.ui.kit.common.PressFrontColumn
 import com.otokit.noharayh.ui.kit.common.ViewPrimitives.dp
 import kotlin.math.abs
+import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 /** 记录以完整行高滚动，边缘拖动只移动固定视口内的记录内容。 */
@@ -93,7 +95,9 @@ internal class ArchiveRecordList(
             else scrollFeedbackActive = false
         }
     }
-    private val scroll: EdgePullScrollView = object : EdgePullScrollView(context, dp(context, Dimensions.EDGE_OVERSHOOT_DP).toFloat()) {
+    private val scroll: EdgePullScrollView = object : EdgePullScrollView(context,
+        dp(context, Dimensions.EDGE_OVERSHOOT_DP).toFloat(),
+        horizontalDrawingOutsetPx = ceil(PressHaloSpec.PEAK_OUTSET_DP * resources.displayMetrics.density).toInt()) {
         override fun dispatchTouchEvent(event: MotionEvent): Boolean {
             if (event.actionMasked == MotionEvent.ACTION_DOWN) {
                 this@ArchiveRecordList.removeCallbacks(settle)
