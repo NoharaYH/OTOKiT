@@ -10,6 +10,7 @@ import com.otokit.noharayh.R
 import com.otokit.noharayh.network.*
 import com.otokit.noharayh.ui.settings.subPages.ProxySettingsSection
 import com.otokit.noharayh.ui.kit.settings.SettingsCard
+import com.otokit.noharayh.ui.kit.settings.SettingsButton
 import com.otokit.noharayh.ui.kit.settings.SettingsHeaderStatus
 import com.otokit.noharayh.ui.kit.settings.ThemeSelectorPanel
 import com.otokit.noharayh.ui.kit.settings.ThemeDropdownMenu
@@ -166,18 +167,44 @@ class ProxySettingsTest : UiComponentTestHost() {
         settings.saveListen("127.0.0.1", "127.0.0.2")
         settings.saveUrl(RequestTarget.NET_BASE_MAIMAI, "https://fixture.invalid/maimai/")
         val mounted = open(ProxySettingsSection.RESTORE)
+        lateinit var restored: SettingsHeaderStatus
         main {
+            restored = mounted.view.allViews.filterIsInstance<SettingsHeaderStatus>().single()
+            action(mounted.view, R.string.settings_proxy_restore_confirm).performClick()
+            assertFalse(restored.isShown)
+            assertEquals(0, settings.overrides().entryPort)
             action(mounted.view, R.string.settings_proxy_ports).performClick()
+            failWrites = true
+            action(mounted.view, R.string.settings_proxy_restore_confirm).performClick()
+            assertFalse(restored.isShown)
+            assertEquals(0, settings.overrides().entryPort)
+            failWrites = false
             action(mounted.view, R.string.settings_proxy_restore_confirm).performClick()
             assertNull(settings.overrides().entryPort)
             assertEquals("127.0.0.1", settings.overrides().entryHost)
             assertTrue(settings.snapshot().urls.isNotEmpty())
             assertEquals(setOf(ProxyScope.WECHAT), settings.snapshot().scopes)
+        }
+        awaitMain { restored.isShown && restored.alpha == 1f }
+        main {
+            assertEquals(activity.getString(R.string.settings_proxy_restored),
+                restored.allViews.filterIsInstance<TextView>().single().text.toString())
             action(mounted.view, R.string.settings_proxy_restore_all).performClick()
-            assertTrue(mounted.view.allViews.filterIsInstance<GroupedSwitchRow>().all { it.isChecked })
+        }
+        awaitMain { !restored.isShown }
+        main {
+            val options = mounted.view.allViews.filterIsInstance<SettingsButton>()
+                .filter { it.createAccessibilityNodeInfo().isCheckable }.toList()
+            assertEquals(5, options.size)
+            assertTrue(options.all { it.isSelected && it.createAccessibilityNodeInfo().isChecked })
+            action(mounted.view, R.string.settings_proxy_ports).performClick()
+            assertFalse(action(mounted.view, R.string.settings_proxy_restore_all).isSelected)
+            assertEquals(3, options.count { it.isSelected })
+            action(mounted.view, R.string.settings_proxy_restore_all).performClick()
             action(mounted.view, R.string.settings_proxy_restore_confirm).performClick()
             assertEquals(NetworkOverrides(), settings.overrides())
         }
+        awaitMain { restored.isShown && restored.alpha == 1f }
     }
 
     @Test fun listenPageValidatesAndEmptyInputsUseBuiltInDefaults() {
@@ -208,6 +235,7 @@ class ProxySettingsTest : UiComponentTestHost() {
         val release = CountDownLatch(1)
         val client = OkHttpClient.Builder().addInterceptor {
             assertEquals("HEAD", it.request().method)
+            assertEquals(state.defaultUrl(RequestTarget.NET_BASE_MAIMAI), it.request().url.toString())
             assertNull(it.request().header("Authorization"))
             assertNull(it.request().header("Cookie"))
             calls.incrementAndGet()
@@ -222,7 +250,7 @@ class ProxySettingsTest : UiComponentTestHost() {
         val mounted = open(ProxySettingsSection.CHECK, NetworkChannelCheck(client))
         try {
             main {
-                edit(mounted, R.string.settings_proxy_check_target).setText("https://example.invalid/check")
+                assertEquals("", edit(mounted, R.string.settings_proxy_check_target).text.toString())
                 action(mounted.view, R.string.settings_proxy_check_start).performClick()
             }
             awaitMain { calls.get() == 1 }
@@ -257,7 +285,7 @@ class ProxySettingsTest : UiComponentTestHost() {
         awaitMain { state.checkReport != null }
         main {
             assertEquals(ProxyScope.NET, state.checkReport!!.scope)
-            action(mounted.view, R.string.settings_proxy_scope_platform).performClick()
+            action(mounted.view, R.string.settings_proxy_check_scope_platform).performClick()
         }
         awaitMain { mounted.view.allViews.any {
             it.contentDescription == activity.getString(R.string.settings_proxy_check_stale)

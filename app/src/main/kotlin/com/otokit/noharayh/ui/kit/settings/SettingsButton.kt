@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
 import android.view.View
+import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -17,7 +18,7 @@ import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors as Colo
 import com.otokit.noharayh.ui.constants.dimensions.SettingsGroupDimensions
 import com.otokit.noharayh.ui.kit.common.PressSurface
 
-/** 成品操作/单选按钮；只发意图，由 renderSelection 接收确认状态。 */
+/** 成品操作与选择按钮；只发意图，由 renderSelection 接收确认状态。 */
 @android.annotation.SuppressLint("ViewConstructor") // 纯代码组件，需要显式内容与回调。
 internal class SettingsButton(context: Context, label: String, private val kind: Kind,
     selected: Boolean = false, trailingIcon: ActionIcon? = ActionIcon.Next,
@@ -27,7 +28,8 @@ internal class SettingsButton(context: Context, label: String, private val kind:
     onClick: () -> Unit,
 ) : PressSurface(context) {
     enum class ActionIcon { Next, ExternalLink, Back }
-    enum class Kind { Action, Choice, ContainerAction }
+    enum class Kind { Action, Choice, MultiChoice, ContainerAction }
+    private val isChoice = kind == Kind.Choice || kind == Kind.MultiChoice
     private val labelView = ViewPrimitives.text(context, label,
         if (kind == Kind.ContainerAction) Dimensions.CONTAINER_TEXT_SP else Dimensions.TEXT_SP,
         Colors.TEXT, bold = kind == Kind.ContainerAction).apply {
@@ -84,7 +86,7 @@ internal class SettingsButton(context: Context, label: String, private val kind:
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
             setPadding(dp(Dimensions.INSET_DP), 0, dp(Dimensions.INSET_DP), 0)
             addView(labelView, LinearLayout.LayoutParams(0, -1, 1f))
-            if (kind == Kind.Choice) {
+            if (isChoice) {
                 if (choiceIndicatorVisible) addView(indicator,
                     LinearLayout.LayoutParams(dp(Dimensions.ICON_DP), dp(Dimensions.ICON_DP)))
             } else if (trailingIcon != null) addView(ImageView(context).apply {
@@ -107,12 +109,12 @@ internal class SettingsButton(context: Context, label: String, private val kind:
     fun setContentAlpha(value: Float) { content.alpha = value.coerceIn(0f, 1f) }
 
     fun renderSelection(selected: Boolean, animate: Boolean = true) {
-        confirmed = selected && kind == Kind.Choice
+        confirmed = selected && isChoice
         isSelected = confirmed
         val radius = dp(if (kind == Kind.ContainerAction) SettingsGroupDimensions.OUTER_RADIUS_DP
             else if (confirmed) Dimensions.SELECTED_RADIUS_DP else Dimensions.RADIUS_DP).toFloat()
         val color = contentColor ?: if (confirmed || kind == Kind.ContainerAction) selectedTextColor else Colors.TEXT
-        if (kind == Kind.Choice && choiceIndicatorVisible) {
+        if (isChoice && choiceIndicatorVisible) {
             indicator.background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(Color.TRANSPARENT)
@@ -133,5 +135,14 @@ internal class SettingsButton(context: Context, label: String, private val kind:
     override fun onDetachedFromWindow() {
         renderSelection(confirmed, animate = false)
         super.onDetachedFromWindow()
+    }
+
+    override fun onInitializeAccessibilityNodeInfo(info: AccessibilityNodeInfo) {
+        super.onInitializeAccessibilityNodeInfo(info)
+        if (kind == Kind.MultiChoice) {
+            info.className = "android.widget.CheckBox"
+            info.isCheckable = true
+            info.isChecked = confirmed
+        }
     }
 }

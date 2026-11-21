@@ -30,10 +30,13 @@ internal class SettingsHeaderStatus(context: Context) : LinearLayout(context) {
         })
     }
 
-    fun render(value: String, @DrawableRes iconRes: Int, @ColorInt color: Int) {
+    fun render(value: String, @DrawableRes iconRes: Int?, @ColorInt color: Int) {
         label.text = value
         label.setTextColor(color)
-        icon.setImageResource(iconRes)
-        icon.setColorFilter(color)
+        icon.visibility = if (iconRes == null) View.GONE else View.VISIBLE
+        if (iconRes != null) {
+            icon.setImageResource(iconRes)
+            icon.setColorFilter(color)
+        }
     }
 }

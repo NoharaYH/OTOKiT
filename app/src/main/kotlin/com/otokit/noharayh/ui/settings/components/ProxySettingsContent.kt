@@ -4,6 +4,7 @@ import android.content.Context
 import android.text.InputType
 import android.text.format.DateFormat
 import android.view.View
+import android.view.Gravity
 import android.widget.LinearLayout
 import androidx.core.view.allViews
 import com.otokit.noharayh.R
@@ -21,6 +22,7 @@ import com.otokit.noharayh.ui.kit.settings.SettingsGroup
 import com.otokit.noharayh.ui.kit.settings.SettingsHeaderActions
 import com.otokit.noharayh.ui.kit.settings.SettingsHeaderStatus
 import com.otokit.noharayh.ui.kit.settings.SettingsPageViews
+import com.otokit.noharayh.ui.kit.settings.SettingsSegmentedChoice
 import com.otokit.noharayh.ui.kit.settings.SettingsTextField
 import java.io.Closeable
 
@@ -109,28 +111,29 @@ internal class ProxySettingsContent(private val context: Context, private val st
     private fun restore(): View {
         val selected = linkedSetOf<NetworkSection>()
         val body = SettingsGroup(context)
-        val rows = linkedMapOf<NetworkSection, GroupedSwitchRow>()
-        lateinit var all: GroupedSwitchRow
-        all = GroupedSwitchRow(context, context.getString(R.string.settings_proxy_restore_all), true, true, false, { checked ->
+        val rows = linkedMapOf<NetworkSection, SettingsButton>()
+        lateinit var all: SettingsButton
+        all = SettingsButton(context, context.getString(R.string.settings_proxy_restore_all), SettingsButton.Kind.MultiChoice) {
+            val checked = !all.isSelected
             selected.clear()
             if (checked) selected.addAll(NetworkSection.entries)
-            rows.forEach { (section, row) -> row.isChecked = section in selected }
-            all.isChecked = checked
+            rows.forEach { (section, row) -> row.renderSelection(section in selected) }
+            all.renderSelection(checked)
             clearFormStatus()
-        })
+        }
         body.addView(all, LinearLayout.LayoutParams(-1, -2))
         for (section in NetworkSection.entries) {
-            lateinit var row: GroupedSwitchRow
-            row = GroupedSwitchRow(context, context.getString(sectionLabel(section)), true, true, false, { checked ->
+            val row = SettingsButton(context, context.getString(sectionLabel(section)), SettingsButton.Kind.MultiChoice) {
+                val checked = section !in selected
                 if (checked) selected.add(section) else selected.remove(section)
-                row.isChecked = checked
-                all.isChecked = selected.size == NetworkSection.entries.size
+                rows.getValue(section).renderSelection(checked)
+                all.renderSelection(selected.size == NetworkSection.entries.size)
                 clearFormStatus()
-            })
+            }
             rows[section] = row
             body.addView(row, LinearLayout.LayoutParams(-1, -2))
         }
-        return form(R.string.settings_proxy_restore_message, body, R.string.settings_proxy_restore_confirm) {
+        return form(R.string.settings_proxy_restore_message, body, R.string.settings_proxy_restore_confirm, separateSave = true) {
             if (selected.isEmpty()) context.getString(R.string.settings_proxy_restore_choose) else state.restore(selected)
         }
     }
@@ -170,35 +173,32 @@ internal class ProxySettingsContent(private val context: Context, private val st
     private fun checkChannel(): View {
         state.refresh()
         var scope = ProxyScope.NET
-        val target = field(R.string.settings_proxy_check_target,
-            state.snapshot.target(RequestTarget.NET_BASE_MAIMAI, state.defaultUrl(RequestTarget.NET_BASE_MAIMAI)),
-            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
-        val choices = linkedMapOf<ProxyScope, SettingsButton>()
-        val scopeGroup = SettingsGroup(context)
+        val defaultTarget = state.snapshot.target(RequestTarget.NET_BASE_MAIMAI, state.defaultUrl(RequestTarget.NET_BASE_MAIMAI))
+        val target = field(R.string.settings_proxy_check_target, "",
+            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI, hint = defaultTarget)
+        fun checkTarget() = target.text.trim().ifEmpty { defaultTarget }
+        val scopeGroup = SettingsSegmentedChoice(context).apply { gravity = Gravity.START or Gravity.CENTER_VERTICAL }
         lateinit var renderCheck: () -> Unit
-        for (value in ProxyScope.entries) {
-            val button = SettingsPageViews.choice(context, context.getString(scopeLabel(value)), scope == value) {
-                scope = value
-                choices.forEach { (key, view) -> view.renderSelection(key == value) }
-                renderCheck()
-            }
-            choices[value] = button
-            scopeGroup.addView(button, LinearLayout.LayoutParams(-1, -2))
+        scopeGroup.setItems(ProxyScope.entries.map { context.getString(checkScopeLabel(it)) }, scope.ordinal) { index ->
+            scope = ProxyScope.entries[index]
+            scopeGroup.setSelection(index)
+            renderCheck()
         }
         val results = ViewPrimitives.text(context, "", 13f, Colors.TEXT).apply {
             accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
         }
         lateinit var start: SettingsCheckButton
         start = SettingsCheckButton(context, context.getString(R.string.settings_proxy_check_start)) {
-            state.startCheck(scope, target.text)
+            state.startCheck(scope, checkTarget())
         }
-        val cancel = SettingsPageViews.action(context, context.getString(R.string.settings_proxy_check_cancel), icon = null) {
+        val cancel = SettingsCompactButton(context, context.getString(R.string.settings_proxy_check_cancel), Colors.SELECTED) {
             state.cancelCheck()
         }
+        val header = SettingsHeaderActions(context, null, cancel)
         fun render() {
             val failed = state.checkSteps.any { it.status == NetworkCheckStatus.FAILED }
             val cancelled = state.checkCancelled
-            val draftStale = state.checkReport?.let { it.scope != scope || it.targetUrl != target.text } == true
+            val draftStale = state.checkReport?.let { it.scope != scope || it.targetUrl != checkTarget() } == true
             val (status, label) = when {
                 state.checking -> SettingsCheckButton.State.CHECKING to R.string.settings_proxy_check_running
                 state.checkStale || draftStale -> SettingsCheckButton.State.WARNING to R.string.settings_proxy_check_stale
@@ -208,29 +208,30 @@ internal class ProxySettingsContent(private val context: Context, private val st
                 else -> SettingsCheckButton.State.READY to R.string.settings_proxy_check_start
             }
             start.render(status, context.getString(label))
+            header.showActions(state.checking)
             cancel.isEnabled = state.checking
             target.setInputEnabled(!state.checking)
-            choices.values.forEach { it.isEnabled = !state.checking }
+            scopeGroup.setControlsEnabled(!state.checking)
             results.text = buildString {
                 state.checkReport?.let { report ->
                     append(context.getString(R.string.settings_proxy_check_header,
-                        DateFormat.format("HH:mm:ss", report.startedAtMs), report.revision))
-                    append('\n').append(context.getString(scopeLabel(report.scope)))
+                        DateFormat.format("HH:mm:ss", report.startedAtMs), context.getString(checkScopeLabel(report.scope)), report.revision))
                     append('\n').append(report.targetUrl)
                     if (state.checkSteps.isNotEmpty()) append("\n\n")
                 }
                 append(state.checkSteps.joinToString("\n") { stepText(it) })
             }
+            results.visibility = if (results.text.isEmpty()) View.GONE else View.VISIBLE
         }
         state.onCheckChanged = ::render
         renderCheck = ::render
         target.onValueChanged = { render() }
         val body = column().apply {
             add(description(R.string.settings_proxy_check_message))
-            add(target); add(scopeGroup); add(start); add(cancel); add(results)
+            add(scopeGroup); add(target); add(start); add(results)
         }
         render()
-        return card(section.titleRes, body)
+        return SettingsCard(context, null, section.titleRes, content = body, trailing = header)
     }
 
     private fun stepText(step: NetworkCheckStep): String {
@@ -279,7 +280,9 @@ internal class ProxySettingsContent(private val context: Context, private val st
         val savedHeader = if (separateSave) SettingsHeaderActions(context, null,
             SettingsHeaderStatus(context).apply {
                 accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
-                render(context.getString(R.string.settings_proxy_config_saved), R.drawable.ic_save_40, Colors.SELECTED)
+                if (section == ProxySettingsSection.RESTORE) {
+                    render(context.getString(R.string.settings_proxy_restored), null, Colors.ERROR_TEXT)
+                } else render(context.getString(R.string.settings_proxy_config_saved), R.drawable.ic_save_40, Colors.SELECTED)
             }) else null
         val clearFeedback = {
             status.visibility = View.GONE
@@ -292,7 +295,7 @@ internal class ProxySettingsContent(private val context: Context, private val st
         }
         val action = SettingsButton(context, context.getString(confirm),
             if (separateSave) SettingsButton.Kind.ContainerAction else SettingsButton.Kind.Action,
-            trailingIcon = null) {
+            trailingIcon = null, selectedTextColor = if (section == ProxySettingsSection.RESTORE) Colors.ERROR_TEXT else Colors.SELECTED) {
             val problem = save()
             savedHeader?.showActions(problem == null)
             if (problem == null && savedHeader != null) status.visibility = View.GONE
@@ -326,6 +329,12 @@ internal class ProxySettingsContent(private val context: Context, private val st
         ProxyScope.WECHAT -> R.string.settings_proxy_scope_wechat
         ProxyScope.NET -> R.string.settings_proxy_scope_net
         ProxyScope.PLATFORM -> R.string.settings_proxy_scope_platform
+    }
+
+    private fun checkScopeLabel(scope: ProxyScope) = when (scope) {
+        ProxyScope.WECHAT -> R.string.settings_proxy_check_scope_wechat
+        ProxyScope.NET -> R.string.settings_proxy_check_scope_net
+        ProxyScope.PLATFORM -> R.string.settings_proxy_check_scope_platform
     }
 
     private fun sectionLabel(section: NetworkSection) = when (section) {

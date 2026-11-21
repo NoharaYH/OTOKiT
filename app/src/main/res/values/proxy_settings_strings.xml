@@ -9,7 +9,7 @@
     <string name="title_settings_proxy_urls">Request URLs</string>
     <string name="settings_proxy_saved">已保存，下次任务使用此配置。</string>
     <string name="settings_proxy_config_saved">配置已保存</string>
-    <string name="settings_proxy_restored">所选自定义配置已清除，现使用内置默认值。</string>
+    <string name="settings_proxy_restored">已恢复默认</string>
     <string name="settings_proxy_check_cancel">取消检查</string>
     <string name="settings_proxy_check_stale">配置已更改，请重新检查。</string>
     <string name="settings_proxy_upstream">自定义代理</string>
@@ -41,7 +41,7 @@
     <string name="settings_proxy_use_default">使用内置默认（%1$s）</string>
     <string name="settings_proxy_restore_message">选择要恢复的设置。恢复只清除自定义内容，应用内置默认值会继续保留。</string>
     <string name="settings_proxy_restore_all">全部选择</string>
-    <string name="settings_proxy_restore_confirm">恢复所选设置</string>
+    <string name="settings_proxy_restore_confirm">恢复默认</string>
     <string name="settings_proxy_restore_choose">请至少选择一项需要恢复的设置。</string>
     <string name="settings_proxy_urls_message">只修改需要调整的环节，留空使用输入框中提示的默认地址。每项单独保存；更换平台授权服务后需重新授权，上传地址须与授权服务同源。</string>
     <string name="settings_proxy_url_override">自定义地址（留空使用默认）</string>
@@ -55,7 +55,10 @@
     <string name="settings_proxy_url_upload_lxns_chu">中二落雪上传</string>
     <string name="settings_proxy_url_oauth_fish">水鱼授权服务</string>
     <string name="settings_proxy_url_oauth_lxns">落雪授权服务</string>
-    <string name="settings_proxy_check_message">检查本机端口、所选上游和目标通道。只发送不带账号凭据的 HEAD 请求，不启动微信登录或上传成绩。</string>
+    <string name="settings_proxy_check_message">选择检查环节，地址留空使用提示值。仅发送无账号凭据的 HEAD 请求，不登录或上传成绩。</string>
+    <string name="settings_proxy_check_scope_wechat">微信</string>
+    <string name="settings_proxy_check_scope_net">NET</string>
+    <string name="settings_proxy_check_scope_platform">平台</string>
     <string name="settings_proxy_check_target">本次检查地址（不保存）</string>
     <string name="settings_proxy_check_start">开始检查</string>
     <string name="settings_proxy_check_running">正在检查</string>
@@ -63,7 +66,7 @@
     <string name="settings_proxy_check_failed">检查未通过</string>
     <string name="settings_proxy_check_cancelled">检查已取消</string>
     <string name="settings_proxy_check_result">%1$s · %2$s · %3$dms</string>
-    <string name="settings_proxy_check_header">%1$s · 配置版本 %2$d</string>
+    <string name="settings_proxy_check_header">%1$s · %2$s · 版本 %3$d</string>
     <string name="settings_proxy_check_http">%1$s [HTTP %2$d]</string>
     <string name="settings_proxy_check_entry">入口端口</string>
     <string name="settings_proxy_check_proxy">代理监听端口</string>
