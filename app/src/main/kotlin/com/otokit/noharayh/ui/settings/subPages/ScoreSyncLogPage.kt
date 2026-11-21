@@ -1,15 +1,11 @@
 package com.otokit.noharayh.ui.settings.subPages
 
 import android.content.ActivityNotFoundException
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.text.format.DateFormat
-import android.view.Gravity
 import android.widget.FrameLayout
-import android.widget.LinearLayout
 import android.widget.Toast
 import com.otokit.noharayh.R
 import com.otokit.noharayh.composition.exportPreferences
@@ -17,27 +13,17 @@ import com.otokit.noharayh.logged.scoresync.ScoreSyncLogRef
 import com.otokit.noharayh.logged.scoresync.ScoreSyncLogSummary
 import com.otokit.noharayh.logged.scoresync.ScoreSyncLogs
 import com.otokit.noharayh.platform.DocumentZipExport
-import com.otokit.noharayh.ui.constants.dimensions.ScoreSyncDimensions
-import com.otokit.noharayh.ui.constants.dimensions.SettingsCardDimensions
-import com.otokit.noharayh.ui.constants.dimensions.SettingsChoiceDimensions
 import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors
-import com.otokit.noharayh.ui.kit.common.EdgePullScrollView
-import com.otokit.noharayh.ui.kit.common.PressFrontColumn
-import com.otokit.noharayh.ui.kit.common.ViewPrimitives
 import com.otokit.noharayh.ui.kit.common.dialog.MessageDialog
 import com.otokit.noharayh.ui.kit.common.dialog.MessageDialogAction
 import com.otokit.noharayh.ui.kit.settings.ArchiveRecordList
-import com.otokit.noharayh.ui.kit.settings.SettingsButton
-import com.otokit.noharayh.ui.kit.settings.SettingsCard
-import com.otokit.noharayh.ui.kit.settings.SettingsCompactButton
-import com.otokit.noharayh.ui.kit.settings.SettingsHeaderActions
+import com.otokit.noharayh.ui.kit.settings.SettingsRecordPage
 import com.otokit.noharayh.ui.settings.components.ExportPrompts
-import org.json.JSONException
 import java.io.IOException
 import java.util.Date
 import java.util.concurrent.Executors
 
-/** 同步日志的内部记录／预览流程；只调用日志公开入口，不探测文件路径。 */
+/** 第三级同步日志记录页；只调用日志公开入口，不探测文件路径。 */
 @android.annotation.SuppressLint("ViewConstructor")
 internal class ScoreSyncLogPage(
     context: Context,
@@ -56,72 +42,16 @@ internal class ScoreSyncLogPage(
     private var summaries = emptyMap<ScoreSyncLogRef, ScoreSyncLogSummary>()
     private var rows = emptyMap<ScoreSyncLogRef, ArchiveRecordList.Row>()
     private val selected = linkedSetOf<ScoreSyncLogRef>()
-    private val list = ArchiveRecordList(context, context.getString(R.string.settings_archive_scroll), ::updateRangeSelection)
-    private val status = ViewPrimitives.text(context, "", 14f, SettingsComponentColors.TEXT)
-    private val previewText = ViewPrimitives.text(context, "", 13f, SettingsComponentColors.TEXT).apply {
-        setTextIsSelectable(true)
-        contentDescription = context.getString(R.string.settings_sync_logs_preview)
-    }
-    private val preview = EdgePullScrollView(context, dp(ScoreSyncDimensions.LOG_EDGE_OVERSHOOT_DP).toFloat()).apply {
-        visibility = GONE
-        isVerticalScrollBarEnabled = false
-        isHorizontalScrollBarEnabled = false
-        clipToPadding = false
-        addView(previewText, FrameLayout.LayoutParams(-1, -2))
-    }
-    private val viewAction = SettingsButton(context, context.getString(R.string.settings_sync_logs_view),
-        SettingsButton.Kind.Action, onClick = ::showDetail)
-    private val actions = PressFrontColumn(context).apply {
-        orientation = LinearLayout.HORIZONTAL
-        gravity = Gravity.END or Gravity.CENTER_VERTICAL
-    }
-    private val removeAction = addHeaderAction(R.string.settings_archive_delete, SettingsComponentColors.ERROR_TEXT, ::confirmDeletion)
-    private val exportAction = addHeaderAction(R.string.settings_archive_export, SettingsComponentColors.SELECTED, ::confirmExport)
-    private val cancelAction = addHeaderAction(R.string.settings_archive_cancel, SettingsComponentColors.TEXT) {
-        selected.clear()
-        list.clearRangeAnchor()
-        renderSelection()
-    }
-    private val listAction = addHeaderAction(R.string.settings_sync_logs_list, SettingsComponentColors.TEXT) { closeDetail() }
-    private val copyAction = addHeaderAction(R.string.settings_sync_logs_copy, SettingsComponentColors.SELECTED, ::copyDetail)
-    private val idle = SettingsButton(context,
-        context.getString(if (split) R.string.settings_archive_back else R.string.settings_sync_logs_refresh),
-        SettingsButton.Kind.Action,
-        trailingIcon = if (split) SettingsButton.ActionIcon.Back else null,
-        contentHeight = dp(SettingsCardDimensions.HEADER_HEIGHT_DP), onClick = {
-            if (split) onBack() else if (!busy) load()
-        })
-    private val header = SettingsHeaderActions(context, idle, actions)
-    private val card: SettingsCard
-
-    var showingDetail = false
-        private set
+    private val records = SettingsRecordPage(context, R.string.settings_sync_logs, margin, split,
+        onRangeSelectionChanged = ::updateRangeSelection,
+        onDelete = ::confirmDeletion,
+        onExport = ::confirmExport,
+        onCancel = { selected.clear(); renderSelection() },
+        onBack = onBack)
 
     init {
-        setPadding(if (split) 0 else margin, margin, margin, margin)
-        val content = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            clipChildren = false
-            clipToPadding = false
-            addView(status, LinearLayout.LayoutParams(-1, -2))
-            addView(viewAction, LinearLayout.LayoutParams(-1, -2))
-            addView(list, LinearLayout.LayoutParams(-1, 0, 1f))
-            addView(preview, LinearLayout.LayoutParams(-1, 0, 1f))
-        }
-        card = SettingsCard(context, R.drawable.ic_archive_record_24, R.string.settings_sync_logs,
-            content = content, trailing = header, fillContent = true)
-        addView(card, LayoutParams(-1, -1))
-        status.visibility = GONE
+        addView(records, LayoutParams(-1, -1))
         renderSelection()
-    }
-
-    private fun addHeaderAction(label: Int, color: Int, action: () -> Unit): SettingsCompactButton {
-        val button = SettingsCompactButton(context, context.getString(label), color) { if (!busy) action() }
-            .apply { deferClickUntilReleaseFeedback = true }
-        actions.addView(button, LinearLayout.LayoutParams(button.minimumWidth, button.minimumHeight).apply {
-            if (actions.childCount > 0) marginStart = dp(SettingsChoiceDimensions.GAP_DP)
-        })
-        return button
     }
 
     private fun toggle(ref: ScoreSyncLogRef) {
@@ -140,23 +70,8 @@ internal class ScoreSyncLogPage(
 
     private fun renderSelection() {
         val writing = selected.any { summaries[it]?.writing == true }
-        list.rangeSelectionEnabled = !busy && !showingDetail
-        list.setSelection(selected.mapNotNull(rows::get).toSet())
-        card.setTitle(if (selected.isEmpty() || showingDetail) context.getString(R.string.settings_sync_logs)
-            else context.getString(R.string.settings_archive_selected, selected.size))
-        header.showActions(selected.isNotEmpty() || showingDetail)
-        listOf(removeAction, exportAction, cancelAction).forEach { it.visibility = if (showingDetail) GONE else VISIBLE }
-        listOf(listAction, copyAction).forEach { it.visibility = if (showingDetail) VISIBLE else GONE }
-        removeAction.isEnabled = !busy && !writing
-        exportAction.isEnabled = !busy && !writing
-        cancelAction.isEnabled = !busy
-        listAction.isEnabled = !busy
-        copyAction.isEnabled = !busy
-        viewAction.visibility = if (!showingDetail && selected.size == 1) VISIBLE else GONE
-        viewAction.isEnabled = !busy
-        idle.isEnabled = !busy
-        list.visibility = if (showingDetail) GONE else VISIBLE
-        preview.visibility = if (showingDetail) VISIBLE else GONE
+        records.renderSelection(selected.mapNotNull(rows::get).toSet(), busy,
+            canDelete = !writing, canExport = !writing)
     }
 
     private fun confirmDeletion() {
@@ -172,7 +87,7 @@ internal class ScoreSyncLogPage(
                 main.post {
                     if (!isAttachedToWindow) return@post
                     val removed = result.removed.mapNotNull(rows::get).toSet()
-                    list.removeRows(removed) {
+                    records.removeRows(removed) {
                         rows = rows - result.removed
                         summaries = summaries - result.removed
                         selected.removeAll(result.removed)
@@ -223,47 +138,6 @@ internal class ScoreSyncLogPage(
         } })
     }
 
-    private fun showDetail() {
-        val ref = selected.singleOrNull() ?: return
-        busy = true
-        renderSelection()
-        worker.execute {
-            val value = try { logs.preview(ref) }
-            catch (_: IOException) { null }
-            catch (_: JSONException) { null }
-            catch (_: IllegalStateException) { null }
-            main.post {
-                if (!isAttachedToWindow) return@post
-                busy = false
-                if (value == null) notice(context.getString(R.string.settings_sync_logs_read_failed))
-                else {
-                    showingDetail = true
-                    previewText.text = value.text
-                    status.text = if (value.truncated) context.getString(R.string.settings_sync_logs_preview_truncated) else ""
-                    status.visibility = if (value.truncated) VISIBLE else GONE
-                    preview.scrollTo(0, 0)
-                }
-                renderSelection()
-            }
-        }
-    }
-
-    fun closeDetail(): Boolean {
-        if (!showingDetail) return false
-        showingDetail = false
-        preview.resetEdgePull()
-        previewText.text = ""
-        renderSelection()
-        renderStatus()
-        return true
-    }
-
-    private fun copyDetail() {
-        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        clipboard.setPrimaryClip(ClipData.newPlainText(context.getString(R.string.settings_sync_logs), previewText.text))
-        notice(context.getString(R.string.settings_sync_logs_copied))
-    }
-
     private fun showDialog(next: MessageDialog) {
         dialog = next
         next.setOnDismissListener { if (dialog === next) dialog = null }
@@ -271,10 +145,9 @@ internal class ScoreSyncLogPage(
     }
 
     private fun load() {
-        if (busy || showingDetail) return
+        if (busy) return
         busy = true
-        status.setText(R.string.settings_archive_loading)
-        status.visibility = VISIBLE
+        records.showStatus(R.string.settings_archive_loading)
         renderSelection()
         worker.execute {
             val values = try { logs.list() }
@@ -284,8 +157,7 @@ internal class ScoreSyncLogPage(
                 if (!isAttachedToWindow) return@post
                 busy = false
                 if (values == null) {
-                    status.setText(R.string.settings_sync_logs_read_failed)
-                    status.visibility = VISIBLE
+                    records.showStatus(R.string.settings_sync_logs_read_failed)
                 } else {
                     loaded = true
                     summaries = values.associateBy { it.ref }
@@ -300,7 +172,7 @@ internal class ScoreSyncLogPage(
                         summary.ref to ArchiveRecordList.Row(label) { toggle(summary.ref) }
                     }
                     selected.retainAll(rows.keys)
-                    list.setRows(rows.values.toList())
+                    records.setRows(rows.values.toList())
                     renderStatus()
                 }
                 renderSelection()
@@ -327,14 +199,13 @@ internal class ScoreSyncLogPage(
             rows.isEmpty() -> R.string.settings_sync_logs_empty
             else -> null
         }
-        status.visibility = if (label != null) VISIBLE else GONE
-        if (label != null) status.setText(label)
+        records.showStatus(label)
     }
 
     override fun onAttachedToWindow() { super.onAttachedToWindow(); if (!loaded) load() }
     override fun onWindowFocusChanged(hasWindowFocus: Boolean) {
         super.onWindowFocusChanged(hasWindowFocus)
-        if (hasWindowFocus && isAttachedToWindow && loaded && !busy && !showingDetail) load()
+        if (hasWindowFocus && isAttachedToWindow && loaded && !busy) load()
     }
     override fun onDetachedFromWindow() {
         dialog?.dismiss()
@@ -345,5 +216,4 @@ internal class ScoreSyncLogPage(
     }
 
     private fun notice(message: String) = Toast.makeText(context, message, Toast.LENGTH_LONG).show()
-    private fun dp(value: Int) = ViewPrimitives.dp(context, value)
 }

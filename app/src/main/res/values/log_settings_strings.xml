@@ -6,16 +6,12 @@
     <string name="settings_sync_logs_save_info">查看成绩同步时保存日志的说明</string>
     <string name="settings_sync_logs_save_technical">为新受理的传分任务保存阶段事件，以及应用实际处理的 HTTP 请求、响应和完整正文。记录选项在任务开始时固定，修改后在下次传分生效；关闭后保留已有日志。</string>
     <string name="settings_sync_logs_save_plain">遇到传分问题时可以先打开，再传一次分。这里会留下排查问题需要的记录，你可以把导出的日志交给别人或 AI 分析。关闭后不会删除以前的记录。</string>
-    <string name="settings_sync_logs_technical">按传分任务保存的本机日志，包含阶段结果和实际 HTTP 收发内容。运行中的记录可以查看，结束后可删除或导出；导出选项由本页的脱敏与携带 HTML 设置控制。</string>
+    <string name="settings_sync_logs_technical">按传分任务保存的本机日志，包含阶段结果和实际 HTTP 收发内容。运行中的记录会显示在列表中，结束后可删除或导出；导出选项由本页的脱敏与携带 HTML 设置控制。</string>
     <string name="settings_sync_logs_plain">传分出了问题，可以在这里找到那一次的日志，导出给别人或 AI 帮忙看。日志可能包含账号的敏感信息，分享前建议开启脱敏。</string>
     <string name="settings_export_logs_html">导出同步日志时携带HTML</string>
     <string name="settings_export_logs_html_info">查看导出同步日志时携带HTML的说明</string>
     <string name="settings_export_logs_html_technical">开启后，导出同步日志时会将对应采集批次的 HTML 记录一并打包。仅包含与所选日志关联的文件，并统一应用“导出内容脱敏”设置。</string>
     <string name="settings_export_logs_html_plain">我想要说的前人们都说过了——</string>
-    <string name="settings_sync_logs_view">查看日志</string>
-    <string name="settings_sync_logs_copy">复制日志</string>
-    <string name="settings_sync_logs_copied">日志已复制</string>
-    <string name="settings_sync_logs_list">返回日志列表</string>
     <string name="settings_sync_logs_empty">暂无同步日志</string>
     <string name="settings_sync_logs_row">%1$s · %2$s · %3$s</string>
     <string name="settings_sync_logs_running">记录中</string>
@@ -28,10 +24,7 @@
     <string name="settings_sync_logs_recording_error">记录异常</string>
     <string name="settings_sync_logs_busy">记录仍在写入，结束后才可删除或导出。</string>
     <string name="settings_sync_logs_delete">将永久删除所选 %1$d 项同步日志。对应的 HTML、JSON 和成绩记录会继续保留。</string>
-    <string name="settings_sync_logs_delete_skipped">已删除 %1$d 项，有 %2$d 项未删除，请刷新后重试。</string>
-    <string name="settings_sync_logs_refresh">刷新记录</string>
-    <string name="settings_sync_logs_preview_truncated">仅显示日志前段；完整内容请导出后查看。</string>
+    <string name="settings_sync_logs_delete_skipped">已删除 %1$d 项，有 %2$d 项未删除，请重新进入后重试。</string>
     <string name="settings_sync_logs_export_failed">日志导出失败。请检查记录是否仍在写入、对应 HTML 是否存在，以及文档目录的访问权限。</string>
     <string name="settings_sync_logs_read_failed">日志读取失败，请重试。</string>
-    <string name="settings_sync_logs_preview">日志正文</string>
 </resources>

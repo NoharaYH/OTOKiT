@@ -91,7 +91,6 @@ class SettingsAssembly(
     private var margin = dp(20)
     private var bottomSafeInset = 0
     private var disposed = false
-    private var logDetailBack = false
     private var themeControlsEnabled = true
     private var themeDisabledProgress = 0f
 
@@ -191,8 +190,6 @@ class SettingsAssembly(
     }
 
     fun closeArchive(): Boolean {
-        logDetailBack = false
-        if ((childPages[current] as? ScoreSyncLogPage)?.closeDetail() == true) return true
         if (current.archive == null) return false
         goTo(Page(current.section))
         return true
@@ -210,19 +207,14 @@ class SettingsAssembly(
 
     fun beginBackPreview(): Boolean {
         if (current.section == null) return false
-        if ((childPages[current] as? ScoreSyncLogPage)?.showingDetail == true) {
-            logDetailBack = true
-            return true
-        }
         settlePage(current)
         prepare(current, Page(current.section.takeIf { current.archive != null }))
         return true
     }
     fun preview(progress: Float) {
-        if (!logDetailBack && transitioning) runner.preview(SettingsPageFrames.resistedBackProgress(progress))
+        if (transitioning) runner.preview(SettingsPageFrames.resistedBackProgress(progress))
     }
     fun cancelPreview() {
-        if (logDetailBack) { logDetailBack = false; return }
         if (!transitioning) return
         val restore = current
         runner.play(0f) { settlePage(restore) }

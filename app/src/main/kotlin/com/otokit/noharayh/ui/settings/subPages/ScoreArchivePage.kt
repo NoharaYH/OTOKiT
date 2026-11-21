@@ -6,9 +6,7 @@ import android.os.Handler
 import android.os.Looper
 import android.text.format.DateFormat
 import android.util.Log
-import android.view.Gravity
 import android.widget.FrameLayout
-import android.widget.LinearLayout
 import android.widget.Toast
 import com.otokit.noharayh.R
 import com.otokit.noharayh.composition.exportPreferences
@@ -22,18 +20,11 @@ import com.otokit.noharayh.score.ScoreArchiveQueries
 import com.otokit.noharayh.score.ScoreGame
 import com.otokit.noharayh.ui.chrome.TitleText
 import com.otokit.noharayh.ui.settings.components.ExportPrompts
-import com.otokit.noharayh.ui.constants.dimensions.SettingsCardDimensions
-import com.otokit.noharayh.ui.constants.dimensions.SettingsChoiceDimensions
 import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors
-import com.otokit.noharayh.ui.kit.common.ViewPrimitives
-import com.otokit.noharayh.ui.kit.common.PressFrontColumn
 import com.otokit.noharayh.ui.kit.common.dialog.MessageDialog
 import com.otokit.noharayh.ui.kit.common.dialog.MessageDialogAction
 import com.otokit.noharayh.ui.kit.settings.ArchiveRecordList
-import com.otokit.noharayh.ui.kit.settings.SettingsButton
-import com.otokit.noharayh.ui.kit.settings.SettingsCard
-import com.otokit.noharayh.ui.kit.settings.SettingsCompactButton
-import com.otokit.noharayh.ui.kit.settings.SettingsHeaderActions
+import com.otokit.noharayh.ui.kit.settings.SettingsRecordPage
 import java.io.IOException
 import java.util.Date
 import java.util.concurrent.ExecutorService
@@ -55,8 +46,6 @@ internal class ScoreArchivePage(
     private val actions: ScoreArchiveActions,
     onBack: () -> Unit,
 ) : FrameLayout(context) {
-    private val list = ArchiveRecordList(context, context.getString(R.string.settings_archive_scroll), ::updateRangeSelection)
-    private val status = ViewPrimitives.text(context, "", 14f, SettingsComponentColors.TEXT)
     private var worker: ExecutorService? = null
     private var loaded = false
     private val main = Handler(Looper.getMainLooper())
@@ -66,47 +55,12 @@ internal class ScoreArchivePage(
     private val selected = linkedSetOf<HtmlBatchRef>()
     private var busy = false
     private var dialog: MessageDialog? = null
-    private val headerActions = PressFrontColumn(context).apply {
-        orientation = LinearLayout.HORIZONTAL
-        gravity = Gravity.END or Gravity.CENTER_VERTICAL
-    }
-    private val back = if (split) SettingsButton(context, context.getString(R.string.settings_archive_back),
-        SettingsButton.Kind.Action, trailingIcon = SettingsButton.ActionIcon.Back,
-        contentHeight = dp(SettingsCardDimensions.HEADER_HEIGHT_DP), onClick = onBack) else null
-    private val header = SettingsHeaderActions(context, back, headerActions)
-    private val card: SettingsCard
+    private val recordPage = SettingsRecordPage(context, kind.title.chinese, margin, split,
+        onRangeSelectionChanged = ::updateRangeSelection, onDelete = ::confirmDeletion, onExport = ::confirmExport,
+        onCancel = { selected.clear(); renderSelection() }, onBack = onBack)
 
     init {
-        setPadding(if (split) 0 else margin, margin, margin, margin)
-        val viewport = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            clipChildren = false
-            clipToPadding = false
-            addView(status, LinearLayout.LayoutParams(-1, -2))
-            addView(list, LinearLayout.LayoutParams(-1, 0, 1f))
-        }
-        addHeaderAction(R.string.settings_archive_delete, SettingsComponentColors.ERROR_TEXT,
-            deferClick = true, action = ::confirmDeletion)
-        addHeaderAction(R.string.settings_archive_export, SettingsComponentColors.SELECTED,
-            deferClick = true, action = ::confirmExport)
-        addHeaderAction(R.string.settings_archive_cancel, SettingsComponentColors.TEXT) {
-            selected.clear()
-            list.clearRangeAnchor()
-            renderSelection()
-        }
-        card = SettingsCard(context, R.drawable.ic_archive_record_24, kind.title.chinese,
-            content = viewport, trailing = header, fillContent = true)
-        addView(card, LayoutParams(-1, -1))
-        status.visibility = GONE
-    }
-
-    private fun addHeaderAction(label: Int, color: Int, deferClick: Boolean = false, action: () -> Unit) {
-        val button = SettingsCompactButton(context, context.getString(label), color) {
-            if (!busy && selected.isNotEmpty()) action()
-        }.apply { deferClickUntilReleaseFeedback = deferClick }
-        headerActions.addView(button, LinearLayout.LayoutParams(button.minimumWidth, button.minimumHeight).apply {
-            if (headerActions.childCount > 0) marginStart = dp(SettingsChoiceDimensions.GAP_DP)
-        })
+        addView(recordPage, LayoutParams(-1, -1))
     }
 
     private fun toggle(batch: HtmlBatchRef) {
@@ -126,12 +80,7 @@ internal class ScoreArchivePage(
     }
 
     private fun renderSelection() {
-        list.rangeSelectionEnabled = !busy
-        list.setSelection(selected.mapNotNull(records::get).toSet())
-        card.setTitle(if (selected.isEmpty()) context.getString(kind.title.chinese)
-            else context.getString(R.string.settings_archive_selected, selected.size))
-        header.showActions(selected.isNotEmpty())
-        for (index in 0 until headerActions.childCount) headerActions.getChildAt(index).isEnabled = !busy
+        recordPage.renderSelection(selected.mapNotNull(records::get).toSet(), busy)
     }
 
     private fun confirmDeletion() {
@@ -146,12 +95,12 @@ internal class ScoreArchivePage(
                 main.post {
                     if (!isAttachedToWindow) return@post
                     val removedRows = result.removed.mapNotNull(records::get).toSet()
-                    list.removeRows(removedRows) {
+                    recordPage.removeRows(removedRows) {
                         records = records - result.removed
                         selected.removeAll(result.removed)
                         busy = false
                         renderSelection()
-                        status.visibility = if (records.isEmpty()) VISIBLE else GONE
+                        recordPage.showStatus(if (records.isEmpty()) R.string.settings_archive_empty else null)
                         val skipped = batches.size - result.removed.size
                         if (skipped > 0 || result.cleanupPending > 0) {
                             notice(context.getString(R.string.settings_archive_delete_result,
@@ -236,8 +185,7 @@ internal class ScoreArchivePage(
     }
 
     private fun load() {
-        status.setText(R.string.settings_archive_loading)
-        status.visibility = VISIBLE
+        recordPage.showStatus(R.string.settings_archive_loading)
         val executor = Executors.newSingleThreadExecutor()
         worker = executor
         executor.execute {
@@ -254,14 +202,13 @@ internal class ScoreArchivePage(
                 if (worker !== executor) return@post
                 worker = null
                 if (loadedRecords == null) {
-                    status.setText(R.string.settings_archive_read_error)
+                    recordPage.showStatus(R.string.settings_archive_read_error)
                 } else {
                     loaded = true
                     records = loadedRecords
                     selected.retainAll(records.keys)
-                    status.setText(R.string.settings_archive_empty)
-                    status.visibility = if (records.isEmpty()) VISIBLE else GONE
-                    list.setRows(records.values.toList())
+                    recordPage.showStatus(if (records.isEmpty()) R.string.settings_archive_empty else null)
+                    recordPage.setRows(records.values.toList())
                     renderSelection()
                 }
             }
@@ -291,5 +238,4 @@ internal class ScoreArchivePage(
         return ArchiveRecordList.Row(summary) { toggle(batch.ref) }
     }
 
-    private fun dp(value: Int) = ViewPrimitives.dp(context, value)
 }

@@ -10,6 +10,7 @@ import com.otokit.noharayh.logged.scoresync.ScoreSyncLogRef
 import com.otokit.noharayh.logged.scoresync.ScoreSyncLogs
 import com.otokit.noharayh.ui.kit.common.dialog.MessageDialog
 import com.otokit.noharayh.ui.kit.settings.ArchiveRecordRow
+import com.otokit.noharayh.ui.kit.settings.SettingsButton
 import com.otokit.noharayh.ui.settings.subPages.ScoreSyncLogPage
 import org.junit.After
 import org.junit.Assert.*
@@ -47,7 +48,7 @@ class ScoreSyncLogPageTest : UiComponentTestHost() {
         assertTrue(root.deleteRecursively())
     }
 
-    @Test fun selectionKeepsWritingLogsAndPreviewReturnsToTheSameList() {
+    @Test fun selectionKeepsWritingLogsAndOnlyOffersRecordActions() {
         lateinit var mounted: ScoreSyncLogPage
         main { mounted = ScoreSyncLogPage(activity, 20, false, logs) {}; page = mounted }
         mount(mounted, activity.resources.displayMetrics.widthPixels - 160, -1)
@@ -55,6 +56,8 @@ class ScoreSyncLogPageTest : UiComponentTestHost() {
         val runningLabel = activity.getString(R.string.settings_sync_logs_running)
         val completedLabel = activity.getString(R.string.settings_sync_logs_completed)
         main {
+            assertEquals(recordRows(mounted).map { it.button }.toSet(),
+                mounted.allViews.filterIsInstance<SettingsButton>().toSet())
             recordRows(mounted).single { it.button.contentDescription.toString().contains(runningLabel) }.button.performClick()
             assertFalse(action(mounted, R.string.settings_archive_delete).isEnabled)
             assertFalse(action(mounted, R.string.settings_archive_export).isEnabled)
@@ -71,23 +74,41 @@ class ScoreSyncLogPageTest : UiComponentTestHost() {
         main {
             recordRows(mounted).single { it.button.contentDescription.toString().contains(runningLabel) }.button.performClick()
             assertTrue(action(mounted, R.string.settings_archive_delete).isEnabled)
-            action(mounted, R.string.settings_sync_logs_view).performClick()
-        }
-        awaitMain { mounted.showingDetail }
-        main {
-            assertTrue(mounted.allViews.filterIsInstance<TextView>().any { it.text.contains("fixture-complete-message") })
-            action(mounted, R.string.settings_sync_logs_list).performClick()
-            assertFalse(mounted.showingDetail)
-            assertTrue(action(mounted, R.string.settings_sync_logs_view).isShown)
+            assertTrue(action(mounted, R.string.settings_archive_export).isEnabled)
+            assertEquals(2, recordRows(mounted).size)
+            assertEquals(recordRows(mounted).map { it.button }.toSet(),
+                mounted.allViews.filterIsInstance<SettingsButton>().toSet())
+            assertFalse(mounted.allViews.filterIsInstance<TextView>().any { it.text.contains("fixture-complete-message") })
             action(mounted, R.string.settings_archive_delete).performClick()
         }
         val confirmation = dialog(mounted)!!
         main {
             action(confirmation.window!!.decorView, R.string.settings_archive_delete_confirm).performClick()
         }
-        awaitMain { recordRows(mounted).size == 1 && action(mounted, R.string.settings_sync_logs_refresh).isEnabled }
+        awaitMain { recordRows(mounted).size == 1 && !action(mounted, R.string.settings_archive_cancel).isShown }
         assertEquals(setOf(running), logs.list().map { it.ref }.toSet())
         assertFalse(logs.list().any { it.ref == completed })
+    }
+
+    @Test fun splitLayoutReturnsFromTheListAndRestoresBackAfterCancellingSelection() {
+        lateinit var mounted: ScoreSyncLogPage
+        var backs = 0
+        main { mounted = ScoreSyncLogPage(activity, 20, true, logs) { backs++ }; page = mounted }
+        mount(mounted, activity.resources.displayMetrics.widthPixels - 160, -1)
+        awaitMain { recordRows(mounted).size == 2 }
+        main {
+            action(mounted, R.string.settings_archive_back).performClick()
+            assertEquals(1, backs)
+            recordRows(mounted).first().button.performClick()
+        }
+        awaitMain { !action(mounted, R.string.settings_archive_back).isShown }
+        main { action(mounted, R.string.settings_archive_cancel).performClick() }
+        awaitMain { action(mounted, R.string.settings_archive_back).isShown }
+        main {
+            assertEquals(2, recordRows(mounted).size)
+            assertEquals(recordRows(mounted).map { it.button }.toSet() + action(mounted, R.string.settings_archive_back),
+                mounted.allViews.filterIsInstance<SettingsButton>().toSet())
+        }
     }
 
     private fun recordRows(view: View) = view.allViews.filterIsInstance<ArchiveRecordRow>().toList()
