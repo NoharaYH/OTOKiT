@@ -6,6 +6,8 @@ import org.junit.Test
 import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.net.Socket
+import java.net.ServerSocket
+import java.net.InetSocketAddress
 import java.net.URI
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
@@ -13,6 +15,42 @@ import java.util.concurrent.atomic.AtomicReference
 class LoopbackCaptureProxyTest {
     private val callbackHtml = "<!doctype html><meta charset=utf-8><p>登录信息已接收</p><a href=\"otokit://transfer/return\">返回 OTOKiT</a>"
     private val authorizationErrorHtml = "<!doctype html><meta charset=utf-8><p>获取游戏授权入口失败，请返回 OTOKiT 重新开始。</p>"
+
+    @Test fun fullTunnelCapacityDoesNotBlockLocalEntryOrCallback() {
+        // Local idle TLS target; no external host is contacted.
+        ServerSocket().use { target ->
+            target.bind(InetSocketAddress("127.0.0.9", 443))
+            val clients = mutableListOf<Socket>()
+            val callbacks = AtomicInteger()
+            val auth = URI("https://open.weixin.qq.com/connect/oauth2/authorize?state=busy&redirect_uri=http%3A%2F%2Ftgk-wcaime.wahlap.com%2Fwc_auth%2Foauth%2Fcallback%2Fmaimai-dx")
+            LoopbackCaptureProxy("/entry", auth, onCallback = { callbacks.incrementAndGet() },
+                callbackHtml = callbackHtml, authorizationErrorHtml = authorizationErrorHtml).use { proxy ->
+                proxy.start()
+                try {
+                    repeat(8) {
+                        val client = Socket("127.0.0.1", proxy.port).also(clients::add)
+                        client.soTimeout = 2000
+                        client.getOutputStream().write("CONNECT 127.0.0.9:443 HTTP/1.1\r\nHost: 127.0.0.9:443\r\n\r\n".toByteArray())
+                        assertTrue(LoopbackCaptureProxy.readHeaders(client.getInputStream()).startsWith("HTTP/1.1 200"))
+                    }
+                    Socket("127.0.0.1", proxy.port).use { client ->
+                        client.soTimeout = 2000
+                        client.getOutputStream().write("CONNECT 127.0.0.9:443 HTTP/1.1\r\nHost: 127.0.0.9:443\r\n\r\n".toByteArray())
+                        assertTrue(client.getInputStream().readBytes().toString(Charsets.UTF_8).startsWith("HTTP/1.1 503"))
+                    }
+                    fun request(target: String, host: String): String = Socket("127.0.0.1", proxy.port).use { client ->
+                        client.soTimeout = 2000
+                        client.getOutputStream().write("GET $target HTTP/1.1\r\nHost: $host\r\n\r\n".toByteArray())
+                        client.getInputStream().readBytes().toString(Charsets.UTF_8)
+                    }
+                    assertTrue(request("http://127.0.0.2:8284/entry", "127.0.0.2:8284").startsWith("HTTP/1.1 302"))
+                    assertTrue(request("http://tgk-wcaime.wahlap.com/wc_auth/oauth/callback/maimai-dx?code=test&state=busy",
+                        "tgk-wcaime.wahlap.com").startsWith("HTTP/1.1 200"))
+                    assertEquals(1, callbacks.get())
+                } finally { clients.forEach(Socket::close) }
+            }
+        }
+    }
 
     @Test fun failedAuthorizationReturnsCompleteErrorPageBeforeOwnerClosesTheProxy() {
         val failure = IOException("private-code-and-url")

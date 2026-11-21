@@ -35,7 +35,8 @@ internal class LoopbackCaptureProxy(
     private val closed = AtomicBoolean(false)
     private val accepted = AtomicBoolean(false)
     private val sockets = ConcurrentHashMap.newKeySet<Socket>()
-    private val capacity = Semaphore(8)
+    // Eight forwarding tunnels use at most 16 workers, leaving workers for local entry/callback requests.
+    private val tunnelCapacity = Semaphore(8)
     private val workers = Executors.newFixedThreadPool(24)
     private val server = ServerSocket().apply {
         reuseAddress = true
@@ -69,18 +70,17 @@ internal class LoopbackCaptureProxy(
         Thread({
             while (!closed.get()) {
                 val socket = try { listener.accept() } catch (_: Exception) { break }
-                if (!capacity.tryAcquire()) { socket.close(); continue }
                 sockets.add(socket)
-                if (closed.get()) { sockets.remove(socket); socket.close(); capacity.release(); continue }
+                if (closed.get()) { sockets.remove(socket); socket.close(); continue }
                 try {
                     workers.execute {
                         try { if (!closed.get()) handle(socket) } catch (error: Exception) {
                             if (!closed.get()) onEvent("proxy_error_${error.javaClass.simpleName}")
                         }
-                        finally { sockets.remove(socket); socket.close(); capacity.release() }
+                        finally { sockets.remove(socket); socket.close() }
                     }
                 } catch (_: java.util.concurrent.RejectedExecutionException) {
-                    sockets.remove(socket); socket.close(); capacity.release()
+                    sockets.remove(socket); socket.close()
                 }
             }
         }, "NetCaptureProxy").start()
@@ -179,6 +179,11 @@ internal class LoopbackCaptureProxy(
     }
 
     private fun tunnel(client: Socket, input: InputStream, host: String, port: Int, header: String?) {
+        if (!tunnelCapacity.tryAcquire()) {
+            onEvent("proxy_busy")
+            respond(client, 503, "text/plain", "Proxy forwarding capacity is full", "") { _, _ -> }
+            return
+        }
         var registered: Socket? = null
         try {
             val remote = NetworkRoute.openSocket(network, ProxyScope.WECHAT, host, port, 15_000,
@@ -200,7 +205,7 @@ internal class LoopbackCaptureProxy(
             }
             try { remote.getInputStream().copyTo(client.getOutputStream(), 16 * 1024) }
             finally { remote.close(); client.close(); upstream.cancel(true) }
-        } finally { registered?.let { sockets.remove(it); it.close() } }
+        } finally { registered?.let { sockets.remove(it); it.close() }; tunnelCapacity.release() }
     }
 
     private fun respond(socket: Socket, status: Int, type: String, body: String, extra: String,
