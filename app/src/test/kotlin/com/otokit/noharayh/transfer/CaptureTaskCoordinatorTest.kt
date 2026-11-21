@@ -31,6 +31,60 @@ class CaptureTaskCoordinatorTest {
         override fun close() { if (closed.compareAndSet(false, true)) closes.incrementAndGet() }
     }
 
+    @Test fun authorizationFailurePreservesCauseCleansUpAndAllowsAnotherTask() {
+        for (error in listOf(java.io.IOException("private-code"), NetHttpException(503), NetHttpException(200))) {
+            val closes = AtomicInteger()
+            val sessions = CopyOnWriteArrayList<FakeSession>()
+            val attempts = AtomicInteger()
+            val states = CopyOnWriteArrayList<CaptureStage>()
+            CaptureTaskCoordinator(FileHtmlCaptures(temp.newFolder()), { _, callback, _ ->
+                callback(if (attempts.incrementAndGet() == 1) Result.failure(error) else Result.success(uri))
+                channel(closes)
+            }, { FakeSession().also(sessions::add) }, 0, 0).use { tasks ->
+                tasks.observe { states.add(it.stage) }.use {
+                    val request = CaptureRequest(ScoreGame.MAIMAI, listOf(HtmlPageKind.MASTER), "entry-failed")
+                    assertEquals(CaptureStartResult.ACCEPTED, tasks.start(request))
+                    await { tasks.snapshot()?.terminal == true }
+                    val failed = tasks.snapshot()!!
+                    assertEquals(CaptureStage.FAILED, failed.stage)
+                    assertEquals(CaptureFailure.NETWORK, failed.failure)
+                    assertEquals((error as? NetHttpException)?.status, failed.httpStatus)
+                    assertEquals(error.javaClass.simpleName, failed.failureClass)
+                    assertFalse(states.contains(CaptureStage.LOGIN))
+                    assertNull(failed.entryUrl)
+                    assertNull(failed.proxyPort)
+                    assertTrue(sessions.single().closed)
+                    assertEquals(0, sessions.single().reads)
+                    assertEquals(1, closes.get())
+                    assertEquals(CaptureStartResult.ACCEPTED, tasks.start(request.copy(launchId = "retry")))
+                    await { tasks.snapshot()?.terminal == true }
+                    assertEquals(CaptureStage.COMPLETED, tasks.snapshot()!!.stage)
+                    assertEquals(2, closes.get())
+                }
+            }
+        }
+    }
+
+    @Test fun lateAuthorizationFailureDoesNotReplaceCancellation() {
+        val result = AtomicReference<(Result<URI>) -> Unit>()
+        val closes = AtomicInteger()
+        val session = FakeSession()
+        CaptureTaskCoordinator(FileHtmlCaptures(temp.root), { _, callback, _ ->
+            result.set(callback)
+            channel(closes)
+        }, { session }, 0, 0).use { tasks ->
+            tasks.start(CaptureRequest(ScoreGame.MAIMAI, listOf(HtmlPageKind.MASTER), "cancel-entry"))
+            await { tasks.snapshot()?.stage == CaptureStage.WAITING_WECHAT }
+            tasks.cancel()
+            await { tasks.snapshot()?.terminal == true }
+            result.get().invoke(Result.failure(java.io.IOException("late")))
+            assertEquals(CaptureStage.CANCELLED, tasks.snapshot()!!.stage)
+            assertEquals(1, closes.get())
+            assertTrue(session.closed)
+            assertEquals(0, session.reads)
+        }
+    }
+
     @Test fun onlyAcceptedTasksStartRecordingAndCancellationAlwaysFinishesIt() {
         val starts = AtomicInteger()
         val bound = AtomicReference<HtmlBatchRef>()
@@ -63,7 +117,7 @@ class CaptureTaskCoordinatorTest {
         val closes = AtomicInteger()
         val store = FileHtmlCaptures(temp.root)
         val session = FakeSession()
-        CaptureTaskCoordinator(store, { _, callback, _ -> callback(uri); channel(closes) }, { session }, 0, 0).use { tasks ->
+        CaptureTaskCoordinator(store, { _, callback, _ -> callback(Result.success(uri)); channel(closes) }, { session }, 0, 0).use { tasks ->
             val kinds = mutableListOf(HtmlPageKind.MASTER)
             val request = CaptureRequest(ScoreGame.MAIMAI, kinds, "one")
             assertEquals(CaptureStartResult.ACCEPTED, tasks.start(request))
@@ -106,7 +160,7 @@ class CaptureTaskCoordinatorTest {
 
     @Test fun businessErrorKeepsDiagnosticAndNeverFetchesScorePages() {
         val session = FakeSession(businessError = true)
-        CaptureTaskCoordinator(FileHtmlCaptures(temp.root), { _, callback, _ -> callback(uri); channel(AtomicInteger()) }, { session }, 0, 0).use { tasks ->
+        CaptureTaskCoordinator(FileHtmlCaptures(temp.root), { _, callback, _ -> callback(Result.success(uri)); channel(AtomicInteger()) }, { session }, 0, 0).use { tasks ->
             tasks.start(CaptureRequest(ScoreGame.MAIMAI, listOf(HtmlPageKind.MASTER), "business"))
             await { tasks.snapshot()?.terminal == true }
             val result = tasks.snapshot()!!
@@ -121,7 +175,7 @@ class CaptureTaskCoordinatorTest {
 
     @Test fun failureLocationDoesNotExposeExceptionMessageOrLoginMaterial() {
         val session = FakeSession(failRead = true)
-        CaptureTaskCoordinator(FileHtmlCaptures(temp.root), { _, callback, _ -> callback(uri); channel(AtomicInteger()) }, { session }, 0, 0).use { tasks ->
+        CaptureTaskCoordinator(FileHtmlCaptures(temp.root), { _, callback, _ -> callback(Result.success(uri)); channel(AtomicInteger()) }, { session }, 0, 0).use { tasks ->
             tasks.start(CaptureRequest(ScoreGame.MAIMAI, listOf(HtmlPageKind.MASTER), "failure"))
             await { tasks.snapshot()?.terminal == true }
             val result = tasks.snapshot()!!
@@ -146,7 +200,7 @@ class CaptureTaskCoordinatorTest {
                 portAtLogin = tasks.snapshot()!!.proxyPort
                 if (failLogin) throw java.io.IOException("Login failed")
             }, onRead = { closedAtRead = closes.get() })
-            tasks = CaptureTaskCoordinator(store, { _, callback, _ -> callback(uri); channel(closes) }, { session }, 0, 0)
+            tasks = CaptureTaskCoordinator(store, { _, callback, _ -> callback(Result.success(uri)); channel(closes) }, { session }, 0, 0)
             tasks.use {
                 tasks.start(CaptureRequest(ScoreGame.MAIMAI, listOf(HtmlPageKind.MASTER), "timing", keep))
                 await { tasks.snapshot()?.terminal == true }
@@ -168,7 +222,7 @@ class CaptureTaskCoordinatorTest {
             val entered = CountDownLatch(1)
             val session = FakeSession(onLogin = { entered.countDown(); CountDownLatch(1).await() })
             CaptureTaskCoordinator(FileHtmlCaptures(temp.newFolder()),
-                { _, callback, _ -> callback(uri); channel(closes) }, { session }, 0, 0).use { tasks ->
+                { _, callback, _ -> callback(Result.success(uri)); channel(closes) }, { session }, 0, 0).use { tasks ->
                 tasks.start(CaptureRequest(ScoreGame.MAIMAI, listOf(HtmlPageKind.MASTER), "cancel", true))
                 assertTrue(entered.await(3, TimeUnit.SECONDS))
                 assertEquals(0, closes.get())

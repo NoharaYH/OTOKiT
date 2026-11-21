@@ -4,12 +4,44 @@ import com.otokit.noharayh.transfer.capture.LoopbackCaptureProxy
 import org.junit.Assert.*
 import org.junit.Test
 import java.io.ByteArrayInputStream
+import java.io.IOException
 import java.net.Socket
 import java.net.URI
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
 class LoopbackCaptureProxyTest {
     private val callbackHtml = "<!doctype html><meta charset=utf-8><p>登录信息已接收</p><a href=\"otokit://transfer/return\">返回 OTOKiT</a>"
+    private val authorizationErrorHtml = "<!doctype html><meta charset=utf-8><p>获取游戏授权入口失败，请返回 OTOKiT 重新开始。</p>"
+
+    @Test fun failedAuthorizationReturnsCompleteErrorPageBeforeOwnerClosesTheProxy() {
+        val failure = IOException("private-code-and-url")
+        val delivered = AtomicReference<Throwable>()
+        val closed = java.util.concurrent.CountDownLatch(1)
+        lateinit var proxy: LoopbackCaptureProxy
+        proxy = LoopbackCaptureProxy("/entry", onCallback = { result ->
+            delivered.set(result.exceptionOrNull())
+            proxy.close()
+            closed.countDown()
+        }, callbackHtml = callbackHtml, authorizationErrorHtml = authorizationErrorHtml, authorizationFactory = { throw failure })
+        proxy.use {
+            proxy.start()
+            Socket("127.0.0.2", 8284).use { socket ->
+                socket.soTimeout = 2000
+                socket.getOutputStream().write("GET /entry HTTP/1.1\r\nHost: 127.0.0.2:8284\r\n\r\n".toByteArray())
+                val reply = socket.getInputStream().readBytes().toString(Charsets.UTF_8)
+                assertTrue(reply.startsWith("HTTP/1.1 502"))
+                assertTrue(reply.contains("Cache-Control: no-store"))
+                assertTrue(reply.endsWith("请返回 OTOKiT 重新开始。</p>"))
+                assertFalse(reply.contains("private-code-and-url"))
+                val length = reply.substringAfter("Content-Length: ").substringBefore("\r\n").toInt()
+                assertEquals(length, reply.substringAfter("\r\n\r\n").toByteArray(Charsets.UTF_8).size)
+            }
+            assertTrue(closed.await(2, java.util.concurrent.TimeUnit.SECONDS))
+            assertSame(failure, delivered.get())
+        }
+    }
+
     @Test fun repeatedRestartAndConcurrentDuplicateCallbacksDeliverExactlyOnce() {
         val clients = java.util.concurrent.Executors.newFixedThreadPool(2)
         try {
@@ -17,7 +49,7 @@ class LoopbackCaptureProxyTest {
                 val count = AtomicInteger()
                 val delivered = java.util.concurrent.CountDownLatch(1)
                 val auth = URI("https://open.weixin.qq.com/connect/oauth2/authorize?state=round$round&redirect_uri=http%3A%2F%2Ftgk-wcaime.wahlap.com%2Fwc_auth%2Foauth%2Fcallback%2Fmaimai-dx")
-                LoopbackCaptureProxy("/entry", auth, onCallback = { count.incrementAndGet(); delivered.countDown() }, callbackHtml = callbackHtml).use { proxy ->
+                LoopbackCaptureProxy("/entry", auth, onCallback = { count.incrementAndGet(); delivered.countDown() }, callbackHtml = callbackHtml, authorizationErrorHtml = authorizationErrorHtml).use { proxy ->
                     proxy.start()
                     val replies = (1..2).map {
                         clients.submit<String> {
@@ -40,7 +72,7 @@ class LoopbackCaptureProxyTest {
 
     @Test fun authorizationIsCreatedOnlyWhenTheUserOpensTheEntryAndRefreshesOnRetry() {
         val created = AtomicInteger()
-        LoopbackCaptureProxy("/entry", onCallback = {}, callbackHtml = callbackHtml, authorizationFactory = {
+        LoopbackCaptureProxy("/entry", onCallback = {}, callbackHtml = callbackHtml, authorizationErrorHtml = authorizationErrorHtml, authorizationFactory = {
             URI("https://open.weixin.qq.com/connect/oauth2/authorize?state=${created.incrementAndGet()}")
         }).use { proxy ->
             proxy.start()
@@ -65,7 +97,7 @@ class LoopbackCaptureProxyTest {
     @Test fun invalidStateIsRejectedAndValidCallbackIsConsumedOnlyOnce() {
         val callbacks = AtomicInteger()
         val auth = URI("https://open.weixin.qq.com/connect/oauth2/authorize?state=expected&redirect_uri=http%3A%2F%2Ftgk-wcaime.wahlap.com%2Fwc_auth%2Foauth%2Fcallback%2Fmaimai-dx")
-        LoopbackCaptureProxy("/start/test", auth, onCallback = { callbacks.incrementAndGet() }, callbackHtml = callbackHtml).use { proxy ->
+        LoopbackCaptureProxy("/start/test", auth, onCallback = { callbacks.incrementAndGet() }, callbackHtml = callbackHtml, authorizationErrorHtml = authorizationErrorHtml).use { proxy ->
             proxy.start()
             fun request(state: String): String = Socket("127.0.0.1", proxy.port).use { socket ->
                 socket.soTimeout = 2000

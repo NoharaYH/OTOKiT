@@ -18,10 +18,11 @@ import java.util.concurrent.atomic.AtomicBoolean
 internal class LoopbackCaptureProxy(
     private val entryPath: String,
     @Volatile private var authorization: URI? = null,
-    private val onCallback: (URI) -> Unit,
+    private val onCallback: (Result<URI>) -> Unit,
     private val onEvent: (String) -> Unit = {},
     private val authorizationFactory: (() -> URI)? = null,
     private val callbackHtml: String,
+    private val authorizationErrorHtml: String,
 ) : Closeable {
     private val authorizationLock = Any()
     @Volatile private var httpObserver: (CaptureLocalHttpExchange) -> Unit = {}
@@ -107,10 +108,26 @@ internal class LoopbackCaptureProxy(
                         return
                     }
                     onEvent("entry")
-                    val current = synchronized(authorizationLock) {
-                        check(!accepted.get()) { "Callback already consumed" }
-                        authorizationFactory?.invoke()?.also { authorization = it }
-                            ?: authorization ?: error("Authorization unavailable")
+                    val current = try {
+                        synchronized(authorizationLock) {
+                            if (accepted.get()) {
+                                respond(409, "text/plain", "Callback already consumed")
+                                return
+                            }
+                            authorizationFactory?.invoke()?.also { authorization = it }
+                                ?: authorization ?: error("Authorization unavailable")
+                        }
+                    } catch (error: Exception) {
+                        if (accepted.compareAndSet(false, true)) {
+                            try {
+                                respond(502, "text/html; charset=utf-8", authorizationErrorHtml,
+                                    "Cache-Control: no-store\r\n")
+                            } finally {
+                                // Let the owner close the channel only after the error response is sent.
+                                onCallback(Result.failure(error))
+                            }
+                        } else respond(409, "text/plain", "Callback already consumed")
+                        return
                     }
                     respond(302, "text/html; charset=utf-8", "", "Location: $current\r\nCache-Control: no-store\r\nPragma: no-cache\r\nExpires: 0\r\n")
                 }
@@ -126,7 +143,7 @@ internal class LoopbackCaptureProxy(
             if (accepted.compareAndSet(false, true)) {
                 onEvent("callback")
                 respond(200, "text/html; charset=utf-8", callbackHtml, "Cache-Control: no-store\r\n")
-                onCallback(uri)
+                onCallback(Result.success(uri))
             } else respond(409, "text/plain", "Callback already consumed")
         } else {
             require(uri.host != null && uri.port in listOf(-1, 80))

@@ -47,13 +47,14 @@ open class NetCaptureService : VpnService() {
         super.onCreate()
         archives = scoreCaptures(this)
         val callbackHtml = assets.open("transfer/wechat-callback.html").bufferedReader().use { it.readText() }
+        val authorizationErrorHtml = assets.open("transfer/wechat-entry-error.html").bufferedReader().use { it.readText() }
         coordinator = CaptureTaskCoordinator(archives, newUploadTask = scoreUploadFactory(this, archives),
             startRecording = { request, at -> scoreSyncRecording(this, request, at) }, openChannel = { authorize, callback, event ->
             if (Build.VERSION.SDK_INT < 29) error("Capture requires Android 10")
             check(prepare(this) == null) { "VPN permission required" }
             val path = "/${UUID.randomUUID().toString().replace("-", "").take(10)}"
             val proxy = LoopbackCaptureProxy(path, onCallback = callback, onEvent = event,
-                authorizationFactory = authorize, callbackHtml = callbackHtml)
+                authorizationFactory = authorize, callbackHtml = callbackHtml, authorizationErrorHtml = authorizationErrorHtml)
             var descriptor: ParcelFileDescriptor? = null
             try {
                 proxy.start()

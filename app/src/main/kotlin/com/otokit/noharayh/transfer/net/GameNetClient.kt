@@ -68,7 +68,7 @@ internal class GameNetClient(
                 .header("X-Requested-With", "com.tencent.mm")
                 .header("Accept-Encoding", "gzip, deflate").build()
             execute(request) { response ->
-                check(response.code in 300..399) { "Authorization entry returned HTTP ${response.code}" }
+                if (response.code !in 300..399) throw NetHttpException(response.code)
                 current = current.resolve(response.header("Location") ?: error("Missing authorization redirect"))
             }
         }

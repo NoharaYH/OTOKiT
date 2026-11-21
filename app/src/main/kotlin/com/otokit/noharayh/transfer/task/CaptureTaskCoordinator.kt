@@ -21,7 +21,7 @@ internal interface CaptureChannel : Closeable {
 /** One mutable task owner; transport, archive and Android platform are injected executors. */
 internal class CaptureTaskCoordinator(
     private val archives: HtmlCaptures,
-    private val openChannel: (authorize: () -> URI, callback: (URI) -> Unit, event: (String) -> Unit) -> CaptureChannel,
+    private val openChannel: (authorize: () -> URI, callback: (Result<URI>) -> Unit, event: (String) -> Unit) -> CaptureChannel,
     private val newSession: (() -> NetSession)? = null,
     private val loginDelayMs: Long = 6000,
     private val pageDelayMs: Long = 1200,
@@ -31,7 +31,7 @@ internal class CaptureTaskCoordinator(
     private class Job(val request: CaptureRequest) {
         val startedAt: Instant = Instant.now()
         val cancelled = AtomicBoolean(false)
-        val callbacks = ArrayBlockingQueue<URI>(1)
+        val callbacks = ArrayBlockingQueue<Result<URI>>(1)
         @Volatile var timeout = false
         var finishing = false
         var recording: TransferRecording? = null
@@ -120,7 +120,8 @@ internal class CaptureTaskCoordinator(
             )).also { current.session = it }
             checkActive(current)
             val channel = openChannel({ session.authorizationUrl(current.request.game.key) }, {
-                current.recording?.event("CALLBACK", "收到微信登录回调")
+                current.recording?.event(if (it.isSuccess) "CALLBACK" else "AUTHORIZATION",
+                    if (it.isSuccess) "收到微信登录回调" else "获取游戏授权入口失败")
                 current.callbacks.offer(it)
             }, { event ->
                 current.recording?.event("CAPTURE", if (event == "connect") "HTTPS CONNECT 仅作 TLS 透传，不包含微信内部明文" else event)
@@ -129,7 +130,7 @@ internal class CaptureTaskCoordinator(
             current.recording?.let { channel.observeHttp(it::recordHttp) }
             checkActive(current)
             update(current) { it.copy(stage = CaptureStage.WAITING_WECHAT, entryUrl = channel.entryUrl, proxyPort = channel.proxyPort) }
-            val callback = current.callbacks.take()
+            val callback = current.callbacks.take().getOrThrow()
             if (!current.request.keepCallbackCaptureUntilLogin) {
                 channel.close(); current.channel = null
             }
