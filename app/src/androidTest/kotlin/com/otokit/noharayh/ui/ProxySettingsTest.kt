@@ -142,14 +142,13 @@ class ProxySettingsTest : UiComponentTestHost() {
         val mounted = open(ProxySettingsSection.URLS)
         main {
             val cards = mounted.view.allViews.filterIsInstance<SettingsCard>().toList()
-            assertEquals(10, cards.size)
-            assertEquals(10, mounted.view.allViews.filterIsInstance<TextView>()
-                .count { it.contentDescription == activity.getString(R.string.settings_proxy_url_default) && it !is EditText })
+            assertEquals(10, cards.count { it.allViews.any { view -> view is EditText } })
             val card = cards.single { card -> card.allViews.filterIsInstance<TextView>()
                 .any { it.text.toString() == activity.getString(R.string.settings_proxy_url_net_base_mai) } }
             val value = card.allViews.filterIsInstance<EditText>().single()
             assertEquals("", value.text.toString())
             val original = state.defaultUrl(RequestTarget.NET_BASE_MAIMAI)
+            assertEquals(original, value.hint.toString())
             value.setText("https://fixture.invalid/maimai/")
             action(card, R.string.settings_proxy_save).performClick()
             assertEquals(mapOf(RequestTarget.NET_BASE_MAIMAI to "https://fixture.invalid/maimai/"), settings.snapshot().urls)

@@ -43,11 +43,8 @@
     <string name="settings_proxy_restore_all">全部选择</string>
     <string name="settings_proxy_restore_confirm">恢复所选设置</string>
     <string name="settings_proxy_restore_choose">请至少选择一项需要恢复的设置。</string>
-    <string name="settings_proxy_urls_message">选择需要调整的环节。内置默认地址只读；自定义地址留空时使用默认值。</string>
-    <string name="settings_proxy_url_default">内置默认地址</string>
+    <string name="settings_proxy_urls_message">只修改需要调整的环节，留空使用输入框中提示的默认地址。每项单独保存；更换平台授权服务后需重新授权，上传地址须与授权服务同源。</string>
     <string name="settings_proxy_url_override">自定义地址（留空使用默认）</string>
-    <string name="settings_proxy_url_message">仅保存此环节的自定义地址。内置默认地址不会被修改。</string>
-    <string name="settings_proxy_url_issuer_message">修改授权服务后需要重新授权。对应上传地址必须与授权服务同源，请一并核对。</string>
     <string name="settings_proxy_url_net_auth_mai">舞萌 NET 登录</string>
     <string name="settings_proxy_url_net_auth_chu">中二 NET 登录</string>
     <string name="settings_proxy_url_net_base_mai">舞萌 NET 页面</string>

@@ -16,6 +16,7 @@ import com.otokit.noharayh.ui.kit.common.toggle.GroupedSwitchRow
 import com.otokit.noharayh.ui.kit.settings.SettingsButton
 import com.otokit.noharayh.ui.kit.settings.SettingsCard
 import com.otokit.noharayh.ui.kit.settings.SettingsCheckButton
+import com.otokit.noharayh.ui.kit.settings.SettingsCompactButton
 import com.otokit.noharayh.ui.kit.settings.SettingsGroup
 import com.otokit.noharayh.ui.kit.settings.SettingsHeaderActions
 import com.otokit.noharayh.ui.kit.settings.SettingsHeaderStatus
@@ -134,30 +135,36 @@ internal class ProxySettingsContent(private val context: Context, private val st
         }
     }
 
-    private fun chooseUrl(): View = SettingsGroup(context).apply {
-        RequestTarget.entries.forEach { target -> addView(editUrl(target), LinearLayout.LayoutParams(-1, -2)) }
+    private fun chooseUrl(): View = column().apply {
+        state.refresh()
+        add(card(section.titleRes, description(R.string.settings_proxy_urls_message)))
+        add(SettingsGroup(context).apply {
+            RequestTarget.entries.forEach { target -> addView(editUrl(target), LinearLayout.LayoutParams(-1, -2)) }
+        })
     }
 
     private fun editUrl(target: RequestTarget): View {
-        state.refresh()
         val value = field(R.string.settings_proxy_url_override, state.overrides.urls[target].orEmpty(),
-            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
-        val body = column().apply {
-            if (target == RequestTarget.OAUTH_FISH_ISSUER || target == RequestTarget.OAUTH_LXNS_ISSUER) {
-                add(ViewPrimitives.text(context, context.getString(R.string.settings_proxy_url_issuer_message), 13f, Colors.TEXT))
-            }
-            add(ViewPrimitives.text(context, context.getString(R.string.settings_proxy_url_default), 13f, Colors.TEXT))
-            add(ViewPrimitives.text(context, state.defaultUrl(target), 14f, Colors.MUTED).apply {
-                setTextIsSelectable(true)
-                contentDescription = context.getString(R.string.settings_proxy_url_default)
-            })
-            add(value)
+            InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI, hint = state.defaultUrl(target))
+        val saved = SettingsHeaderStatus(context).apply {
+            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+            render(context.getString(R.string.settings_proxy_config_saved), R.drawable.ic_save_40, Colors.SELECTED)
         }
-        return form(R.string.settings_proxy_url_message, body, title = targetLabel(target)) {
-            state.saveUrl(target, value.text).also { problem ->
-                if (problem == null) value.setText(state.overrides.urls[target].orEmpty())
+        lateinit var header: SettingsHeaderActions
+        val save = SettingsCompactButton(context, context.getString(R.string.settings_proxy_save), Colors.SELECTED) {
+            val problem = state.saveUrl(target, value.text)
+            value.showError(problem)
+            if (problem == null) {
+                value.setText(state.overrides.urls[target].orEmpty())
             }
+            header.showActions(problem == null)
+        }.apply { deferClickUntilReleaseFeedback = true }
+        header = SettingsHeaderActions(context, save, saved)
+        value.onValueChanged = {
+            value.showError(null)
+            header.showActions(false)
         }
+        return SettingsCard(context, null, targetLabel(target), content = value, trailing = header)
     }
 
     private fun checkChannel(): View {
