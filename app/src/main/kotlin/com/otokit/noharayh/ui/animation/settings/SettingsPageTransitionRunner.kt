@@ -15,7 +15,8 @@ import com.otokit.noharayh.ui.constants.motion.MotionCurve
 class SettingsPageTransitionRunner(private val onFrame: (TransitionProgress) -> Unit) {
     private var animator: ValueAnimator? = null
     private var durationMs = SettingsPageTransition.DURATION_MS
-    private var curve = SettingsPageTransition.CURVE
+    internal var curve = SettingsPageTransition.CURVE
+        private set
     var progress = 0f
         private set
 

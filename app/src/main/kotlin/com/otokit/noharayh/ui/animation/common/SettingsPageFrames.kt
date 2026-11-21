@@ -1,6 +1,8 @@
 package com.otokit.noharayh.ui.animation.common
 
 import com.otokit.noharayh.ui.constants.motion.SettingsPageTransition as Spec
+import com.otokit.noharayh.ui.constants.motion.MotionCurve
+import com.otokit.noharayh.ui.constants.motion.NavigationTransition
 import kotlin.math.roundToInt
 
 /** 无状态映射；自动播放、真实手势与取消回弹共同消费。 */
@@ -43,9 +45,10 @@ object SettingsPageFrames {
     }
 
     /** 用父页=0、子页=1 描述同一空间；返回和取消都反向采样，避免两套端点。 */
-    fun unfoldPage(progress: Float, entering: Boolean, forward: Boolean, density: Float): TransitionFrame {
+    fun unfoldPage(progress: Float, entering: Boolean, forward: Boolean, density: Float,
+                   curve: MotionCurve = MotionCurve.Standard): TransitionFrame {
         val p = if (forward) progress else 1f - progress
-        val distance = Spec.UNFOLD_PAGE_DISTANCE_DP * density
+        val distance = NavigationTransition.pageDistanceDp(curve) * density
         return if (entering == forward) PageTurnFrames.enter(p, dx = distance)
             else PageTurnFrames.exit(p, dx = -distance)
     }

@@ -2,12 +2,31 @@ package com.otokit.noharayh.ui.animation.common
 
 import com.otokit.noharayh.ui.animation.chrome.TitleTransitionFrames
 import com.otokit.noharayh.ui.animation.shell.SettingsTransitionFrames
+import com.otokit.noharayh.ui.constants.motion.MotionCurve
+import com.otokit.noharayh.ui.constants.motion.NavigationTransition
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** 直接测试呈现器实际使用的空间帧；同一测试也用于更换全局配置后的矩阵。 */
 class GroupedTransitionFramesTest {
+    @Test fun bounceStyleGivesTheArrivingPageVisibleTravelInBothDirections() {
+        val bounce = MotionCurve.GentleBounce
+        val travel = NavigationTransition.pageDistanceDp(bounce)
+        val peak = 1.068f
+        val overshoot = (peak - 1f) * travel
+        assertTrue(overshoot in 6f..7f)
+        assertEquals(-overshoot, PageTurnFrames.enter(peak, dy = travel).translationY, .001f)
+        assertEquals(-overshoot, SettingsPageFrames.unfoldPage(peak, true, true, 1f, bounce).translationX, .001f)
+        assertEquals(overshoot, SettingsPageFrames.unfoldPage(peak, true, false, 1f, bounce).translationX, .001f)
+        assertEquals(-overshoot, SettingsTransitionFrames.overlay(peak, travel).translationY, .001f)
+        assertEquals(overshoot, SettingsTransitionFrames.feature(1f - peak, travel).translationY, .001f)
+        for (curve in listOf(MotionCurve.Standard, MotionCurve.Emphasized)) {
+            assertEquals(32f, NavigationTransition.pageDistanceDp(curve), 0f)
+            assertEquals(20f, NavigationTransition.pageDistanceDp(curve, 20f), 0f)
+        }
+    }
+
     @Test fun replacementGhostContinuesFromItsPresentedFrame() {
         val presented = TransitionFrame(0.4f, 0.9f, 0f, 12f)
         assertEquals(presented, TitleTransitionFrames.navGhostExit(0f, -40f, presented))

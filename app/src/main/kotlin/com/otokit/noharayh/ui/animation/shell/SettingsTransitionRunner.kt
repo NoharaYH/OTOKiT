@@ -13,6 +13,7 @@ import com.otokit.noharayh.ui.animation.common.TransitionFrame
 import com.otokit.noharayh.ui.animation.common.TransitionProgress
 import com.otokit.noharayh.ui.animation.common.TransitionTiming
 import com.otokit.noharayh.ui.constants.motion.SettingsTransition
+import com.otokit.noharayh.ui.constants.motion.NavigationTransition
 
 /**
  * 设置覆盖层的进出与预测预览执行器。
@@ -213,13 +214,16 @@ class SettingsTransitionRunner(
     private fun applyOpenState(value: Float, ghostVisible: Boolean, running: Boolean = true) {
         progress = value.coerceIn(0f, 1f)
         scrim.alpha = SettingsTransition.SCRIM_MAX_ALPHA * progress
+        val selectedCurve = curve()
+        val distance = NavigationTransition.pageDistanceDp(selectedCurve, SettingsTransition.DISTANCE_DP) *
+            overlayHost.resources.displayMetrics.density
         featureProvider()?.let { view ->
-            applyFrame(view, SettingsTransitionFrames.feature(value))
+            applyFrame(view, SettingsTransitionFrames.feature(value, if (selectedCurve == MotionCurve.GentleBounce) distance else 0f))
         }
         // 真实设置与退场截图使用同一空间规则。
         val presentedSettings = if (ghostVisible) ghost else settingsProvider()
         presentedSettings?.let { view ->
-            applyFrame(view, SettingsTransitionFrames.overlay(value, SettingsTransition.DISTANCE_DP * view.resources.displayMetrics.density))
+            applyFrame(view, SettingsTransitionFrames.overlay(value, distance))
         }
         onProgress(TransitionProgress(value, running))
     }

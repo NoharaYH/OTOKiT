@@ -47,6 +47,10 @@ object MotionDefaults {
 object NavigationTransition {
     const val DURATION_MS = 320L
     const val DISTANCE_DP = 32f
+    private const val BOUNCE_DISTANCE_DP = 96f
+
+    fun pageDistanceDp(curve: MotionCurve, defaultDp: Float = DISTANCE_DP): Float =
+        if (curve == MotionCurve.GentleBounce) BOUNCE_DISTANCE_DP else defaultDp
 }
 
 /** 全程连续的卡片退场；缩放、位移、淡出共享走势，不设置静止区间。 */

@@ -26,7 +26,8 @@ class ContentScrollViewTest : UiComponentTestHost() {
         val menuLabel = activity.getString(R.string.title_open_navigation_menu)
         val settingsLabel = activity.getString(R.string.nav_settings)
         // Compact 从抽屉进入；宽屏 Rail 直接提供设置入口，没有打开抽屉的按钮。
-        if (clickVisibleAction(menuLabel, settingsLabel) == menuLabel) clickVisibleAction(settingsLabel)
+        val floatingMenu = activity.getString(R.string.floating_menu)
+        if (clickVisibleAction(menuLabel, floatingMenu, settingsLabel) != settingsLabel) clickVisibleAction(settingsLabel)
         clickVisibleAction(activity.getString(R.string.settings_tile_sync))
         lateinit var scroll: ContentScrollView
         awaitUi {

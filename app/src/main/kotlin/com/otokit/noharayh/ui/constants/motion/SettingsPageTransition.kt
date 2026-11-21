@@ -11,7 +11,6 @@ object SettingsPageTransition {
 
     // 设置页统一：一条时间轴中先让位、再展开、最后内容和标题落稳。
     const val UNFOLD_DURATION_MS = 420L
-    const val UNFOLD_PAGE_DISTANCE_DP = 32f
     const val UNFOLD_TITLE_DISTANCE_DP = 18f
     const val UNFOLD_TITLE_EXIT_END = 0.25f
     const val UNFOLD_TITLE_START = 0.25f

@@ -321,7 +321,7 @@ class SettingsAssembly(
     }
 
     private fun applyPageFrame(view: View, progress: Float, entering: Boolean) {
-        val visual = SettingsPageFrames.unfoldPage(progress, entering, forward, resources.displayMetrics.density)
+        val visual = SettingsPageFrames.unfoldPage(progress, entering, forward, resources.displayMetrics.density, runner.curve)
         runner.apply(view, visual)
     }
 
@@ -345,9 +345,8 @@ class SettingsAssembly(
     }
 
     private fun applySplitSectionFrame(page: Page, progress: Float, entering: Boolean) {
-        val frame = SettingsPageFrames.unfoldPage(progress, entering, forward, resources.displayMetrics.density)
-        childPages[Page(page.section)]?.let { runner.apply(it, frame) }
-        if (page.subpage != null) childPages[page]?.let { runner.apply(it, frame) }
+        childPages[Page(page.section)]?.let { applyPageFrame(it, progress, entering) }
+        if (page.subpage != null) childPages[page]?.let { applyPageFrame(it, progress, entering) }
     }
 
     private fun layoutSplitPages() {

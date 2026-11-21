@@ -76,7 +76,8 @@ class ContentTransitionRunner(
             return
         }
 
-        val distance = direction * NavigationTransition.DISTANCE_DP * host.resources.displayMetrics.density
+        val selectedCurve = curve()
+        val distance = direction * NavigationTransition.pageDistanceDp(selectedCurve) * host.resources.displayMetrics.density
         val startFrom = TransitionFrame(from.alpha, from.scaleX, from.translationX, from.translationY)
         apply(to, PageTurnFrames.enter(0f, dy = distance))
         to.bringToFront()
@@ -85,7 +86,7 @@ class ContentTransitionRunner(
 
         animator = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = NavigationTransition.DURATION_MS
-            interpolator = MotionInterpolators.of(curve())
+            interpolator = MotionInterpolators.of(selectedCurve)
             addUpdateListener { animation ->
                 val p = animation.animatedValue as Float
                 apply(to, PageTurnFrames.enter(p, dy = distance))
