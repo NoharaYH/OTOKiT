@@ -1,7 +1,11 @@
 package com.otokit.noharayh.ui.chrome.floating
 
 import android.content.Context
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.LinearGradient
+import android.graphics.Paint
+import android.graphics.Shader
 import android.view.Gravity
 import android.view.View
 import android.widget.FrameLayout
@@ -22,6 +26,7 @@ import com.otokit.noharayh.ui.shell.navigation.Destination
 import com.otokit.noharayh.ui.window.PixelRect
 import com.otokit.noharayh.ui.window.insets.EdgeInsets
 import com.otokit.noharayh.ui.theme.GameLine
+import kotlin.math.roundToInt
 
 internal class FloatingNavigation(
     context: Context,
@@ -37,11 +42,27 @@ internal class FloatingNavigation(
     private val edgeMargin = dp(20)
     private val indicatorInset = dp(4)
     val reservedHeight = edgeMargin + capsuleHeight + dp(10)
+    private val fadeHeight = dp(120).toFloat()
+    private val shadowColors = intArrayOf(
+        0xB3000000.toInt(), 0x80000000.toInt(), 0x4D000000, 0x1A000000, Color.TRANSPARENT,
+    )
+    private val closedStops = floatArrayOf(0f, .10f, .24f, .53f, 1f)
+    private val openStops = floatArrayOf(0f, .25f, .5f, .75f, 1f)
+    private val shadowStops = closedStops.copyOf()
+    private val shadowPaint = Paint(Paint.DITHER_FLAG)
+    private var shadowProgress = -1f
+    private val bottomAccentHeight = fadeHeight / 3f
+    private val bottomAccentPaint = Paint().apply {
+        shader = LinearGradient(0f, 0f, 0f, -bottomAccentHeight,
+            Color.BLACK, Color.TRANSPARENT, Shader.TileMode.CLAMP)
+    }
+    private var menuLift = 0f
     private val shade = View(context)
     val heading = FloatingHeading(context)
     private val destinations = mutableMapOf<Destination, FloatingMenuItem>()
     private val menu = LinearLayout(context)
     private val menuViewport = android.widget.ScrollView(context)
+    private val menuWindow = FrameLayout(context)
     private val primary = PressSurface(context)
     private val icon = ImageView(context)
     private val track = FrameLayout(context)
@@ -57,6 +78,7 @@ internal class FloatingNavigation(
         { a, b, p -> a + (b - a) * p }, ::drawMenu)
 
     init {
+        setWillNotDraw(false)
         shade.setBackgroundColor(Color.BLACK)
         shade.setOnClickListener { show(false) }
         shade.importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
@@ -73,9 +95,13 @@ internal class FloatingNavigation(
         addItem(R.string.nav_settings, R.string.title_setting, R.drawable.ic_settings_24, 0xff9e9e9e.toInt(), settings)
         menuViewport.isVerticalScrollBarEnabled = false
         menuViewport.addView(menu)
-        addView(menuViewport, LayoutParams(dp(214), -2, Gravity.BOTTOM or Gravity.LEFT).apply {
+        menuWindow.addView(menuViewport, LayoutParams(-1, -2, Gravity.BOTTOM))
+        addView(menuWindow, LayoutParams(dp(214), -1, Gravity.BOTTOM or Gravity.LEFT).apply {
             leftMargin = edgeMargin; bottomMargin = reservedHeight
         })
+        menuViewport.addOnLayoutChangeListener { _, _, top, _, bottom, _, oldTop, _, oldBottom ->
+            if (bottom - top != oldBottom - oldTop) positionMenu(visibleProgress)
+        }
         primary.fillColor = Color.WHITE
         primary.baseRadius = capsuleHeight / 2f
         icon.setColorFilter(Color.DKGRAY)
@@ -169,14 +195,45 @@ internal class FloatingNavigation(
         if (changed) modalChanged()
     }
     private var visibleProgress = 0f
+
+    private fun positionMenu(progress: Float) {
+        val travel = menuViewport.height.toFloat()
+        menuLift = travel * progress
+        menuViewport.translationY = travel - menuLift
+        invalidate()
+    }
+
+    override fun onDraw(canvas: Canvas) {
+        super.onDraw(canvas)
+        val save = canvas.save()
+        canvas.translate(0f, height.toFloat())
+        canvas.scale(1f, (fadeHeight + menuLift) / fadeHeight)
+        canvas.drawRect(0f, -fadeHeight, width.toFloat(), 0f, shadowPaint)
+        if (bottomAccentPaint.alpha > 0) {
+            canvas.drawRect(0f, -bottomAccentHeight, width.toFloat(), 0f, bottomAccentPaint)
+        }
+        canvas.restoreToCount(save)
+    }
+
     private fun drawMenu(p: Float) {
         visibleProgress = p
+        val progress = p.coerceIn(0f, 1f)
+        if (progress != shadowProgress) {
+            shadowProgress = progress
+            for (i in shadowStops.indices) {
+                shadowStops[i] = closedStops[i] + (openStops[i] - closedStops[i]) * progress
+            }
+            shadowPaint.shader = LinearGradient(0f, 0f, 0f, -fadeHeight,
+                shadowColors, shadowStops, Shader.TileMode.CLAMP)
+        }
+        // 在原有约 70% 的底色上叠加，完全展开时底端约为 74% 黑色。
+        bottomAccentPaint.alpha = (34 * p).roundToInt().coerceIn(0, 255)
         val visible = expanded || p > 0f
         shade.visibility = if (visible) VISIBLE else GONE
-        menuViewport.visibility = shade.visibility
+        menuWindow.visibility = if (visible) VISIBLE else INVISIBLE
         shade.alpha = .2f * p.coerceIn(0f, 1f)
         menu.alpha = p.coerceIn(0f, 1f)
-        menuViewport.translationY = NavigationTransition.DISTANCE_DP * resources.displayMetrics.density * (1f - p)
+        positionMenu(p)
         track.visibility = if (input?.settingsOpen == true) GONE else VISIBLE
         track.importantForAccessibility = if (expanded) IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS else IMPORTANT_FOR_ACCESSIBILITY_AUTO
     }
