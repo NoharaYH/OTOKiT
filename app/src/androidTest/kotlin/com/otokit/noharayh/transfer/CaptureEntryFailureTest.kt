@@ -139,7 +139,7 @@ class CaptureEntryFailureTest {
         } finally { released.countDown(); client.shutdownNow(); root.deleteRecursively() }
     }
 
-    private fun openChannel(authorize: () -> URI, callback: (Result<URI>) -> Unit, event: (String) -> Unit): CaptureChannel {
+    private fun openChannel(network: com.otokit.noharayh.network.NetworkSnapshot, authorize: () -> URI, callback: (Result<URI>) -> Unit, event: (String) -> Unit): CaptureChannel {
         val proxy = LoopbackCaptureProxy("/entry", onCallback = callback, onEvent = event,
             authorizationFactory = authorize, callbackHtml = "Unused callback page",
             authorizationErrorHtml = context.assets.open("transfer/wechat-entry-error.html").bufferedReader().use { it.readText() })

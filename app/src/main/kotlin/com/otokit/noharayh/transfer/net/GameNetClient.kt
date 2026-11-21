@@ -4,6 +4,11 @@ import com.otokit.noharayh.transfer.capture.NetCaptureProtocol
 import com.otokit.noharayh.transfer.CaptureHttpTrace
 import com.otokit.noharayh.transfer.CaptureProtocolIssue
 import com.otokit.noharayh.transfer.TransferRecording
+import com.otokit.noharayh.transfer.NetRequestTargets
+import com.otokit.noharayh.network.NetworkSnapshot
+import com.otokit.noharayh.network.NetworkRoute
+import com.otokit.noharayh.network.ProxyScope
+import com.otokit.noharayh.network.RequestTarget
 import okhttp3.Call
 import okhttp3.ConnectionSpec
 import okhttp3.Cookie
@@ -14,7 +19,6 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.TlsVersion
-import java.net.Proxy
 import java.net.URI
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -28,12 +32,15 @@ internal class GameNetClient(
     private val onTrace: (CaptureHttpTrace) -> Unit = {},
     private val onRejectedResponse: (NetSession.Page) -> Unit = {},
     recording: TransferRecording? = null,
+    private val network: NetworkSnapshot = NetworkSnapshot.defaults(),
+    transport: OkHttpClient = OkHttpClient(),
 ) : NetSession {
     private val closed = AtomicBoolean(false)
     @Volatile private var active: Call? = null
     private val cookies = HostCookies()
-    private val client = NetExchangeGuard.configure(OkHttpClient.Builder())
-        .proxy(Proxy.NO_PROXY)
+    private val targets = NetTargetPolicy(network)
+    private var callbackDestination: URI? = null
+    private val client = NetworkRoute.client(NetExchangeGuard.configure(transport.newBuilder())
         .connectTimeout(120, TimeUnit.SECONDS)
         .readTimeout(120, TimeUnit.SECONDS)
         .writeTimeout(120, TimeUnit.SECONDS)
@@ -46,7 +53,7 @@ internal class GameNetClient(
         .addInterceptor { chain -> chain.proceed(chain.request().newBuilder().header("Cache-Control", "no-cache").build()) }
         .addNetworkInterceptor { chain ->
             val uri = chain.request().url.toUri()
-            require(NetCaptureProtocol.isNetDestination(uri)) { "Unexpected NET destination" }
+            require(NetCaptureProtocol.isNetDestination(uri, targets)) { "Unexpected NET destination" }
             val started = System.nanoTime()
             chain.proceed(chain.request()).also { response ->
                 onResponse(uri.host, response.code)
@@ -55,16 +62,20 @@ internal class GameNetClient(
                     response.header("Location")?.let { runCatching { NetTraceEndpoint.classify(uri.resolve(it)) }.getOrDefault("INVALID_LOCATION") },
                     (System.nanoTime() - started) / 1_000_000))
             }
-        }.apply { recording?.let { addNetworkInterceptor(it.interceptor("NET")) } }.build()
+        }.apply { recording?.let { addNetworkInterceptor(it.interceptor("NET")) } }.build(), network, ProxyScope.NET)
 
     override fun authorizationUrl(game: String): URI {
         require(game in listOf("maimai", "chunithm"))
-        var current = URI("https://${NetCaptureProtocol.AUTH_HOST}/wc_auth/oauth/authorize/" +
-            if (game == "maimai") "maimai-dx" else "chunithm")
+        var current = NetRequestTargets.resolve(network,
+            if (game == "maimai") RequestTarget.NET_AUTH_MAIMAI else RequestTarget.NET_AUTH_CHUNITHM)
         repeat(12) {
-            if (current.host == "open.weixin.qq.com") return NetCaptureProtocol.rewriteWechatRedirect(current)
+            if (current.host == "open.weixin.qq.com") {
+                val rewritten = NetCaptureProtocol.rewriteWechatRedirect(current, targets)
+                callbackDestination = URI(java.net.URLDecoder.decode(current.rawQuery.split('&')
+                    .single { it.startsWith("redirect_uri=") }.substringAfter('='), "UTF-8"))
+                return rewritten
+            }
             val request = browserHeaders(Request.Builder().url(current.toString()), MOBILE_UA)
-                .header("Host", NetCaptureProtocol.AUTH_HOST)
                 .header("X-Requested-With", "com.tencent.mm")
                 .header("Accept-Encoding", "gzip, deflate").build()
             execute(request) { response ->
@@ -79,7 +90,7 @@ internal class GameNetClient(
         cookies.clear()
         // The reference constructs a fresh OkHttp client after authorization/VPN teardown.
         client.connectionPool.evictAll()
-        var request = browserHeaders(Request.Builder().url(NetCaptureProtocol.secureCallback(callback).toString()), DESKTOP_UA)
+        var request = browserHeaders(Request.Builder().url(NetCaptureProtocol.secureCallback(callback, targets, callbackDestination).toString()), DESKTOP_UA)
             .header("Connection", "keep-alive")
             .header("Accept-Encoding", "gzip, deflate, br").build()
         // Follow each redirect explicitly; a callback is never transparently replayed.
@@ -143,7 +154,7 @@ internal class GameNetClient(
 
     private fun <T> execute(request: Request, consume: (okhttp3.Response) -> T): T {
         check(!closed.get()) { "Session closed" }
-        require(NetCaptureProtocol.isNetDestination(request.url.toUri())) { "Unexpected NET destination" }
+        require(NetCaptureProtocol.isNetDestination(request.url.toUri(), targets)) { "Unexpected NET destination" }
         val call = client.newCall(NetExchangeGuard.schedule(request))
         active = call
         if (closed.get()) call.cancel()

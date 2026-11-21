@@ -4,6 +4,9 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.otokit.noharayh.network.NetworkRoute
+import com.otokit.noharayh.network.NetworkSnapshot
+import com.otokit.noharayh.network.ProxyScope
 import okhttp3.FormBody
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -26,7 +29,8 @@ data class OAuthAccount(val name: String?, val grantedScopes: Set<String>, val r
 class ScoreGrantUnavailable(val reason: OAuthAuthorizationCheck) : Exception()
 
 /** 仅本次传分取票的观察入口；设置页授权和检查不继承此上下文。 */
-internal class ScoreTokenObserver(val interceptor: Interceptor, val event: (String) -> Unit)
+internal class ScoreTokenObserver(val interceptor: Interceptor, val event: (String) -> Unit,
+                                 val network: (String, Map<String, String>) -> Unit = { _, _ -> })
 
 enum class OAuthFeedback {
     AUTHORIZED, CANCELLED, INVALID_CALLBACK, NETWORK_ERROR, REJECTED, LOCAL_ERROR,
@@ -38,7 +42,13 @@ enum class OAuthAuthorizationCheck {
 }
 
 /** Application-scoped owner for transactions and account summaries. Public callbacks run on the main thread. */
-class OAuthConnections internal constructor(context: Context) {
+class OAuthConnections internal constructor(
+    context: Context,
+    private val client: OkHttpClient = OkHttpClient.Builder()
+        .callTimeout(12, TimeUnit.SECONDS).followRedirects(false).followSslRedirects(false)
+        .retryOnConnectionFailure(false).build(),
+    private val snapshot: () -> NetworkSnapshot = { NetworkSnapshot.defaults() },
+) {
     private val store = EncryptedOAuthStore(context.applicationContext)
     private val worker = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
@@ -46,13 +56,6 @@ class OAuthConnections internal constructor(context: Context) {
     private val preparing = mutableSetOf<OAuthProvider>()
     private val accounts = mutableMapOf<OAuthProvider, OAuthAccount>()
     private val authorizationChecks = mutableMapOf<OAuthProvider, OAuthAuthorizationCheck>()
-    private val client = OkHttpClient.Builder()
-        .callTimeout(12, TimeUnit.SECONDS)
-        .followRedirects(false)
-        .followSslRedirects(false)
-        .retryOnConnectionFailure(false)
-        .build()
-
     init {
         worker.execute {
             for (provider in OAuthProvider.entries) {
@@ -71,7 +74,8 @@ class OAuthConnections internal constructor(context: Context) {
     }
 
     internal fun scoreAccessToken(provider: OAuthProvider, subject: String, scope: String,
-                                  observer: ScoreTokenObserver?, retain: (() -> Closeable)? = null): String {
+                                  observer: ScoreTokenObserver?, retain: (() -> Closeable)? = null,
+                                  network: NetworkSnapshot = snapshot()): String {
         // caller 被中断后，已经排队的取票仍由 auth worker 完成，记录端也必须等到它真正退出。
         val retained = retain?.invoke()
         val result = try { worker.submit<String> {
@@ -80,6 +84,9 @@ class OAuthConnections internal constructor(context: Context) {
             val key = accountKey(provider)
             val account = store.read(key)
             if (subject.isBlank() || account?.optString("sub") != subject) {
+                throw ScoreGrantUnavailable(OAuthAuthorizationCheck.INVALID)
+            }
+            if (account.issuer(provider) != provider.issuer(network)) {
                 throw ScoreGrantUnavailable(OAuthAuthorizationCheck.INVALID)
             }
             fun checkScope() {
@@ -94,7 +101,7 @@ class OAuthConnections internal constructor(context: Context) {
                 }
                 try {
                     observer?.event?.invoke("刷新 ${provider.name} 上传票据")
-                    refresh(provider, account, observer)
+                    refresh(provider, account, network, observer)
                 } catch (failure: OAuthRejected) {
                     main.post { reportAuthorizationCheck(provider, failure.checkResult) }
                     throw ScoreGrantUnavailable(failure.checkResult)
@@ -122,17 +129,22 @@ class OAuthConnections internal constructor(context: Context) {
 
     fun checkAuthorization(provider: OAuthProvider) {
         if (authorizationCheck(provider) == OAuthAuthorizationCheck.CHECKING) return
+        val network = snapshot()
         authorizationChecks[provider] = OAuthAuthorizationCheck.CHECKING
         notifyObservers()
         worker.execute {
             runSafely(provider, { reportAuthorizationCheck(provider, OAuthAuthorizationCheck.UNAVAILABLE) }) {
                 val key = accountKey(provider)
                 val account = store.read(key)
+                if (account != null && account.issuer(provider) != provider.issuer(network)) {
+                    main.post { reportAuthorizationCheck(provider, OAuthAuthorizationCheck.INVALID) }
+                    return@runSafely
+                }
                 if (provider == OAuthProvider.LXNS && account != null &&
                     account.optString("refreshToken").isNotBlank()
                 ) {
                     val refreshed = try {
-                        refresh(provider, account)
+                        refresh(provider, account, network)
                     } catch (rejected: OAuthRejected) {
                         main.post { reportAuthorizationCheck(provider, rejected.checkResult) }
                         return@runSafely
@@ -161,16 +173,20 @@ class OAuthConnections internal constructor(context: Context) {
 
     fun authorize(provider: OAuthProvider, openBrowser: (String) -> Unit, report: (OAuthFeedback) -> Unit) {
         if (!preparing.add(provider)) return
+        val network = snapshot()
         worker.execute {
             try {
                 runSafely(provider, report) {
-                    val document = discover(provider)
+                    val issuer = provider.issuer(network)
+                    val document = discover(provider, network)
                     val state = ProviderOAuth.nonce()
                     val verifier = ProviderOAuth.nonce()
                     store.write(pendingKey(provider), JSONObject()
                         .put("state", state)
                         .put("verifier", verifier)
                         .put("redirect", provider.redirectUri)
+                        .put("issuer", issuer)
+                        .put("network", network.toJson())
                         .put("expires", System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(10))
                         .put("token", document.token.toString())
                         .put("userinfo", document.userInfo.toString()))
@@ -226,6 +242,9 @@ class OAuthConnections internal constructor(context: Context) {
     }
 
     private fun exchange(provider: OAuthProvider, pending: JSONObject, code: String): JSONObject {
+        // Old transactions predate configurable routes and always used the built-in endpoints.
+        val network = pending.optJSONObject("network")?.let { NetworkSnapshot.fromJson(it) } ?: NetworkSnapshot.defaults()
+        val issuer = pending.optString("issuer").ifBlank { provider.issuer }
         val form = FormBody.Builder()
             .add("grant_type", "authorization_code")
             .add("client_id", provider.clientId)
@@ -233,29 +252,35 @@ class OAuthConnections internal constructor(context: Context) {
             .add("code", code)
             .add("code_verifier", pending.getString("verifier"))
             .build()
-        val endpoint = ProviderOAuth.endpoint(provider.issuer, pending.getString("token"))
-        val token = requestToken(endpoint, form)
+        val endpoint = ProviderOAuth.endpoint(issuer, pending.getString("token"))
+        val token = requestToken(endpoint, form, network)
         val accessToken = token.getString("access_token")
         val issuedAt = System.currentTimeMillis()
         val user = readJson(Request.Builder()
-            .url(ProviderOAuth.endpoint(provider.issuer, pending.getString("userinfo")))
+            .url(ProviderOAuth.endpoint(issuer, pending.getString("userinfo")))
             .header("Authorization", "Bearer $accessToken")
-            .build())
+            .build(), network = network)
         return JSONObject()
+            .put("issuer", issuer)
             .put("sub", user.getString("sub"))
             .put("name", user.optString("preferred_username").ifBlank { user.optString("name") })
             .apply { updateTokens(token, endpoint, issuedAt) }
     }
 
-    private fun refresh(provider: OAuthProvider, account: JSONObject, observer: ScoreTokenObserver? = null): JSONObject {
+    private fun refresh(provider: OAuthProvider, account: JSONObject, network: NetworkSnapshot,
+                        observer: ScoreTokenObserver? = null): JSONObject {
+        val issuer = account.issuer(provider)
+        observer?.network?.invoke("使用任务固定的授权服务配置", mapOf(
+            "configurationRevision" to network.revision.toString(), "originalTarget" to provider.issuer,
+            "effectiveTarget" to issuer))
         val endpoint = account.optString("tokenEndpoint").takeIf(String::isNotBlank)
-            ?.let { ProviderOAuth.endpoint(provider.issuer, it) } ?: discover(provider, observer).token
+            ?.let { ProviderOAuth.endpoint(issuer, it) } ?: discover(provider, network, observer).token
         val form = FormBody.Builder()
             .add("grant_type", "refresh_token")
             .add("client_id", provider.clientId)
             .add("refresh_token", account.getString("refreshToken"))
             .build()
-        val token = requestToken(endpoint, form, observer)
+        val token = requestToken(endpoint, form, network, observer)
         check(token.optString("refresh_token").isNotBlank())
         return account.apply { updateTokens(token, endpoint, System.currentTimeMillis()) }
     }
@@ -272,37 +297,59 @@ class OAuthConnections internal constructor(context: Context) {
         if (token.has("scope")) put("scope", token.getString("scope"))
     }
 
-    private fun requestToken(endpoint: HttpUrl, form: FormBody, observer: ScoreTokenObserver? = null): JSONObject {
+    private fun requestToken(endpoint: HttpUrl, form: FormBody, network: NetworkSnapshot,
+                             observer: ScoreTokenObserver? = null): JSONObject {
         val oneShot = object : RequestBody() {
             override fun contentType() = form.contentType()
             override fun contentLength() = form.contentLength()
             override fun writeTo(sink: BufferedSink) = form.writeTo(sink)
             override fun isOneShot() = true
         }
-        return readJson(Request.Builder().url(endpoint).post(oneShot).build(), tokenRequest = true, observer = observer)
+        return readJson(Request.Builder().url(endpoint).post(oneShot).build(), tokenRequest = true,
+            observer = observer, network = network)
     }
 
-    private fun discover(provider: OAuthProvider, observer: ScoreTokenObserver? = null): Endpoints {
-        val url = (provider.issuer + "/.well-known/openid-configuration").toHttpUrl()
-        val json = readJson(Request.Builder().url(url).build(), observer = observer)
-        require(json.getString("issuer") == provider.issuer)
+    private fun discover(provider: OAuthProvider, network: NetworkSnapshot, observer: ScoreTokenObserver? = null): Endpoints {
+        val issuer = provider.issuer(network)
+        val url = (issuer + "/.well-known/openid-configuration").toHttpUrl()
+        val json = readJson(Request.Builder().url(url).build(), observer = observer, network = network)
+        require(json.getString("issuer") == issuer)
         return Endpoints(
-            ProviderOAuth.endpoint(provider.issuer, json.getString("authorization_endpoint")),
-            ProviderOAuth.endpoint(provider.issuer, json.getString("token_endpoint")),
-            ProviderOAuth.endpoint(provider.issuer, json.getString("userinfo_endpoint")),
+            ProviderOAuth.endpoint(issuer, json.getString("authorization_endpoint")),
+            ProviderOAuth.endpoint(issuer, json.getString("token_endpoint")),
+            ProviderOAuth.endpoint(issuer, json.getString("userinfo_endpoint")),
         )
     }
 
-    private fun readJson(request: Request, tokenRequest: Boolean = false, observer: ScoreTokenObserver? = null): JSONObject {
-        val transport = observer?.let { client.newBuilder().addNetworkInterceptor(it.interceptor).build() } ?: client
-        return transport.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) {
-                val error = if (tokenRequest && response.code in 400..499) {
-                    readOAuthError(response.body?.string().orEmpty())
-                } else null
-                throw OAuthRejected(response.code, ProviderOAuth.checkFailure(response.code, error, tokenRequest))
+    private fun readJson(request: Request, tokenRequest: Boolean = false, observer: ScoreTokenObserver? = null,
+                         network: NetworkSnapshot): JSONObject {
+        val routed = NetworkRoute.client(client, network, ProxyScope.PLATFORM)
+        val transport = observer?.let { routed.newBuilder().addNetworkInterceptor(it.interceptor).build() } ?: routed
+        val started = System.nanoTime()
+        var failure = ""
+        return try {
+            transport.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    val error = if (tokenRequest && response.code in 400..499) {
+                        readOAuthError(response.body?.string().orEmpty())
+                    } else null
+                    throw OAuthRejected(response.code, ProviderOAuth.checkFailure(response.code, error, tokenRequest))
+                }
+                JSONObject(requireNotNull(response.body).string())
             }
-            JSONObject(requireNotNull(response.body).string())
+        } catch (error: IOException) {
+            failure = if (error is OAuthRejected) "HTTP_${error.status}" else "NETWORK"
+            throw error
+        } catch (error: JSONException) {
+            failure = "RESPONSE"
+            throw error
+        } finally {
+            observer?.network?.invoke("平台授权请求结束", mapOf(
+                "configurationRevision" to network.revision.toString(),
+                "effectiveTarget" to request.url.newBuilder().query(null).build().toString(),
+                "route" to if (ProxyScope.PLATFORM in network.scopes) "UPSTREAM" else "DIRECT",
+                "durationMs" to TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started).toString(),
+                "failureStage" to failure))
         }
     }
 
@@ -350,6 +397,8 @@ class OAuthConnections internal constructor(context: Context) {
         refreshExpiresAt = refreshExpiry(),
         subject = optString("sub"),
     )
+
+    private fun JSONObject.issuer(provider: OAuthProvider): String = optString("issuer").ifBlank { provider.issuer }
 
     private fun JSONObject.refreshExpiry(): Long? {
         if (optString("refreshToken").isBlank()) return null

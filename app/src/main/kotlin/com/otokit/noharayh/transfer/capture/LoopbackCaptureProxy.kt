@@ -1,6 +1,10 @@
 package com.otokit.noharayh.transfer.capture
 
 import com.otokit.noharayh.transfer.CaptureLocalHttpExchange
+import com.otokit.noharayh.transfer.net.NetTargetPolicy
+import com.otokit.noharayh.network.NetworkSnapshot
+import com.otokit.noharayh.network.NetworkRoute
+import com.otokit.noharayh.network.ProxyScope
 import java.io.ByteArrayOutputStream
 import java.io.Closeable
 import java.io.InputStream
@@ -23,7 +27,9 @@ internal class LoopbackCaptureProxy(
     private val authorizationFactory: (() -> URI)? = null,
     private val callbackHtml: String,
     private val authorizationErrorHtml: String,
+    private val network: NetworkSnapshot = NetworkSnapshot.defaults(),
 ) : Closeable {
+    private val targets = NetTargetPolicy(network)
     private val authorizationLock = Any()
     @Volatile private var httpObserver: (CaptureLocalHttpExchange) -> Unit = {}
     private val closed = AtomicBoolean(false)
@@ -33,15 +39,24 @@ internal class LoopbackCaptureProxy(
     private val workers = Executors.newFixedThreadPool(24)
     private val server = ServerSocket().apply {
         reuseAddress = true
-        bind(InetSocketAddress(InetAddress.getByName("127.0.0.1"), 0))
+        bind(InetSocketAddress(InetAddress.getByName(network.proxyHost), network.proxyPort))
     }
-    private val entryServer = try {
-        ServerSocket().apply {
-            reuseAddress = true
-            bind(InetSocketAddress(InetAddress.getByName("127.0.0.2"), 8284))
-        }
-    } catch (error: Exception) { server.close(); throw error }
+    private val entryServer = ServerSocket().also { entry ->
+        try {
+            entry.reuseAddress = true
+            entry.bind(InetSocketAddress(InetAddress.getByName(network.entryHost), network.entryPort))
+        } catch (error: Exception) { entry.close(); server.close(); throw error }
+    }
     val port: Int get() = server.localPort
+    val entryPort: Int get() = entryServer.localPort
+    val entryUrl: String get() = "http://${network.entryHost}:$entryPort$entryPath"
+
+    init {
+        try {
+            NetworkRoute.rejectSelfRoute(network, ProxyScope.WECHAT,
+                listOf(server.localSocketAddress as InetSocketAddress, entryServer.localSocketAddress as InetSocketAddress))
+        } catch (error: Exception) { server.close(); entryServer.close(); workers.shutdownNow(); throw error }
+    }
 
     fun start() {
         accept(server)
@@ -56,9 +71,10 @@ internal class LoopbackCaptureProxy(
                 val socket = try { listener.accept() } catch (_: Exception) { break }
                 if (!capacity.tryAcquire()) { socket.close(); continue }
                 sockets.add(socket)
+                if (closed.get()) { sockets.remove(socket); socket.close(); capacity.release(); continue }
                 try {
                     workers.execute {
-                        try { handle(socket) } catch (error: Exception) {
+                        try { if (!closed.get()) handle(socket) } catch (error: Exception) {
                             if (!closed.get()) onEvent("proxy_error_${error.javaClass.simpleName}")
                         }
                         finally { sockets.remove(socket); socket.close(); capacity.release() }
@@ -82,8 +98,9 @@ internal class LoopbackCaptureProxy(
         if (method == "CONNECT") {
             onEvent("connect")
             val uri = URI("https://$target")
-            require(uri.host != null && uri.port == 443 && uri.rawUserInfo == null && uri.rawPath.isEmpty())
-            tunnel(socket, input, uri.host, 443, null)
+            require(uri.host != null && uri.port in 1..65535 && uri.rawUserInfo == null &&
+                uri.rawPath.isEmpty() && uri.rawQuery == null && uri.rawFragment == null)
+            tunnel(socket, input, uri.host, uri.port, null)
             return
         }
         require(method == "GET" || method == "HEAD")
@@ -99,7 +116,7 @@ internal class LoopbackCaptureProxy(
                 httpObserver(CaptureLocalHttpExchange(method, uri.toString(), requestHeaders, status, headers, bytes))
             }
         }
-        if ((uri.host == "127.0.0.1" && uri.port == port) || (uri.host == "127.0.0.2" && uri.port == 8284)) {
+        if ((uri.host == network.proxyHost && uri.port == port) || (uri.host == network.entryHost && uri.port == entryPort)) {
             when (uri.rawPath) {
                 "/health" -> respond(200, "text/plain", "ready")
                 entryPath -> {
@@ -133,9 +150,9 @@ internal class LoopbackCaptureProxy(
                 }
                 else -> respond(404, "text/plain", "Not found")
             }
-        } else if (NetCaptureProtocol.isCallback(uri)) {
+        } else if (NetCaptureProtocol.isCallback(uri, targets)) {
             val current = authorization
-            if (method != "GET" || current == null || !NetCaptureProtocol.matchesAuthorization(uri, current)) {
+            if (method != "GET" || current == null || !NetCaptureProtocol.matchesAuthorization(uri, current, targets)) {
                 onEvent("callback_mismatch")
                 respond(400, "text/plain", "Callback does not match this session")
                 return
@@ -146,25 +163,32 @@ internal class LoopbackCaptureProxy(
                 onCallback(Result.success(uri))
             } else respond(409, "text/plain", "Callback already consumed")
         } else {
-            require(uri.host != null && uri.port in listOf(-1, 80))
+            require(uri.host != null && (uri.port == -1 || uri.port in 1..65535))
             val path = uri.rawPath.ifEmpty { "/" } + (uri.rawQuery?.let { "?$it" } ?: "")
+            val upstream = NetworkRoute.usesUpstream(network, ProxyScope.WECHAT)
             val forward = buildString {
-                append("$method $path HTTP/1.1\r\n")
+                append("$method ${if (upstream) uri.toASCIIString() else path} HTTP/1.1\r\n")
                 lines.drop(1).filter { it.isNotBlank() && !it.startsWith("Proxy-", true) &&
                     !it.startsWith("Connection:", true) && !it.startsWith("Content-Length:", true) &&
                     !it.startsWith("Transfer-Encoding:", true) }.forEach { append(it).append("\r\n") }
+                if (upstream) NetworkRoute.proxyAuthorization(network)?.let { append("Proxy-Authorization: $it\r\n") }
                 append("Connection: close\r\n\r\n")
             }
-            tunnel(socket, input, uri.host, 80, forward)
+            tunnel(socket, input, uri.host, if (uri.port == -1) 80 else uri.port, forward)
         }
     }
 
     private fun tunnel(client: Socket, input: InputStream, host: String, port: Int, header: String?) {
-        val remote = Socket()
-        sockets.add(remote)
+        var registered: Socket? = null
         try {
-            remote.connect(InetSocketAddress(host, port), 15_000)
+            val remote = NetworkRoute.openSocket(network, ProxyScope.WECHAT, host, port, 15_000,
+                {
+                    registered?.let(sockets::remove)
+                    sockets.add(it); registered = it
+                    if (closed.get()) { it.close(); throw java.io.IOException("Capture closed") }
+                }, tunnel = header == null)
             remote.soTimeout = 120_000
+            onEvent(if (NetworkRoute.usesUpstream(network, ProxyScope.WECHAT)) "forward_upstream" else "forward_direct")
             if (header == null) {
                 client.getOutputStream().write("HTTP/1.1 200 Connection Established\r\n\r\n".toByteArray())
                 client.getOutputStream().flush()
@@ -176,7 +200,7 @@ internal class LoopbackCaptureProxy(
             }
             try { remote.getInputStream().copyTo(client.getOutputStream(), 16 * 1024) }
             finally { remote.close(); client.close(); upstream.cancel(true) }
-        } finally { sockets.remove(remote); remote.close() }
+        } finally { registered?.let { sockets.remove(it); it.close() } }
     }
 
     private fun respond(socket: Socket, status: Int, type: String, body: String, extra: String,

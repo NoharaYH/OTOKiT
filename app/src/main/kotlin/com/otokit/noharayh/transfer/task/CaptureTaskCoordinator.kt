@@ -3,6 +3,8 @@ package com.otokit.noharayh.transfer.task
 import com.otokit.noharayh.score.*
 import com.otokit.noharayh.transfer.*
 import com.otokit.noharayh.transfer.net.*
+import com.otokit.noharayh.network.NetworkSnapshot
+import com.otokit.noharayh.network.ProxyScope
 import java.io.Closeable
 import java.net.URI
 import java.time.Instant
@@ -21,14 +23,15 @@ internal interface CaptureChannel : Closeable {
 /** One mutable task owner; transport, archive and Android platform are injected executors. */
 internal class CaptureTaskCoordinator(
     private val archives: HtmlCaptures,
-    private val openChannel: (authorize: () -> URI, callback: (Result<URI>) -> Unit, event: (String) -> Unit) -> CaptureChannel,
+    private val openChannel: (network: NetworkSnapshot, authorize: () -> URI, callback: (Result<URI>) -> Unit, event: (String) -> Unit) -> CaptureChannel,
     private val newSession: (() -> NetSession)? = null,
     private val loginDelayMs: Long = 6000,
     private val pageDelayMs: Long = 1200,
-    private val newUploadTask: (((Closeable) -> Unit, TransferRecording?) -> BatchUploadTask)? = null,
+    private val newUploadTask: (((Closeable) -> Unit, TransferRecording?, NetworkSnapshot) -> BatchUploadTask)? = null,
     private val startRecording: (CaptureRequest, Instant) -> TransferRecording? = { _, _ -> null },
+    private val networkSnapshot: () -> NetworkSnapshot = { NetworkSnapshot.defaults() },
 ) : CaptureTasks, Closeable {
-    private class Job(val request: CaptureRequest) {
+    private class Job(val request: CaptureRequest, val network: NetworkSnapshot) {
         val startedAt: Instant = Instant.now()
         val cancelled = AtomicBoolean(false)
         val callbacks = ArrayBlockingQueue<Result<URI>>(1)
@@ -67,7 +70,7 @@ internal class CaptureTaskCoordinator(
             if (closed || job != null) return CaptureStartResult.ALREADY_RUNNING
             val fixed = request.copy(difficulties = Collections.unmodifiableList(request.difficulties.toList()),
                 uploadTargets = Collections.unmodifiableList(request.uploadTargets.toList()))
-            val current = Job(fixed)
+            val current = Job(fixed, networkSnapshot())
             if (!lease.compareAndSet(null, current)) return CaptureStartResult.ALREADY_RUNNING
             job = current
             state = CaptureSnapshot(fixed, current.startedAt, totalPages = fixed.difficulties.size + 2)
@@ -106,6 +109,14 @@ internal class CaptureTaskCoordinator(
         var httpStatus: Int? = null
         try {
             current.recording?.event("PREPARING", "任务已受理，准备采集")
+            current.recording?.event("NETWORK", "本次任务网络配置已固定", buildMap {
+                put("revision", current.network.revision.toString())
+                ProxyScope.entries.forEach { put(it.name, if (it in current.network.scopes) "HTTP_UPSTREAM" else "DIRECT") }
+                current.network.urls.forEach { (key, value) ->
+                    put("default.${key.name}", NetRequestTargets.defaultUrl(key) ?: "provider default")
+                    put("target.${key.name}", value)
+                }
+            })
             checkActive(current)
             archives.recoverInterrupted()
             batch = archives.begin(current.request.game, listOf(HtmlPageKind.PLAYER, HtmlPageKind.RECENT) + current.request.difficulties,
@@ -117,9 +128,10 @@ internal class CaptureTaskCoordinator(
                 onTrace = { trace -> update(current) { it.copy(httpTrace = Collections.unmodifiableList((it.httpTrace + trace).takeLast(32))) } },
                 onRejectedResponse = { save(current, batch, HtmlPageKind.FAILED_RESPONSE, it) },
                 recording = current.recording,
+                network = current.network,
             )).also { current.session = it }
             checkActive(current)
-            val channel = openChannel({ session.authorizationUrl(current.request.game.key) }, {
+            val channel = openChannel(current.network, { session.authorizationUrl(current.request.game.key) }, {
                 current.recording?.event(if (it.isSuccess) "CALLBACK" else "AUTHORIZATION",
                     if (it.isSuccess) "收到微信登录回调" else "获取游戏授权入口失败")
                 current.callbacks.offer(it)
@@ -140,7 +152,7 @@ internal class CaptureTaskCoordinator(
             session.login(callback) { page -> save(current, batch, HtmlPageKind.LOGIN_DIAGNOSTIC, page) }
             current.channel?.close(); current.channel = null
             update(current) { it.copy(proxyPort = null) }
-            val gamePages = GameNetPages(current.request.game)
+            val gamePages = GameNetPages(current.request.game, current.network)
             val plan = listOf(HtmlPageKind.PLAYER, HtmlPageKind.RECENT) + current.request.difficulties
             plan.forEachIndexed { index, kind ->
                 checkActive(current)
@@ -170,7 +182,7 @@ internal class CaptureTaskCoordinator(
                 val uploads = requireNotNull(newUploadTask).invoke({ call ->
                     current.uploadCall = call
                     if (current.cancelled.get()) call.close()
-                }, current.recording)
+                }, current.recording, current.network)
                 stage = uploads.run(current.request, archives.read(batch), { checkActive(current) }) { result ->
                     update(current) { state ->
                         val prior = state.uploads.filterNot { it.provider == result.provider && it.page == result.page }

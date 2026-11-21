@@ -3,6 +3,7 @@ package com.otokit.noharayh.ui
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Rect
 import android.os.SystemClock
 import android.view.MotionEvent
 import android.view.View
@@ -14,6 +15,7 @@ import androidx.core.view.allViews
 import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.kit.common.ContentScrollView
 import com.otokit.noharayh.ui.kit.common.toggle.GroupedSwitchRow
+import com.otokit.noharayh.ui.kit.settings.SettingsButton
 import com.otokit.noharayh.ui.kit.settings.SettingsPageScrollView
 import org.junit.Assert.*
 import org.junit.Test
@@ -21,8 +23,10 @@ import org.junit.Test
 class ContentScrollViewTest : UiComponentTestHost() {
     @Test fun settingsDrawToTheWindowBottomButTheirLastControlStopsAboveTheGestureInset() {
         main { host.visibility = View.GONE }
-        clickVisibleAction("打开导航菜单")
-        clickVisibleAction("设置")
+        val menuLabel = activity.getString(R.string.title_open_navigation_menu)
+        val settingsLabel = activity.getString(R.string.nav_settings)
+        // Compact 从抽屉进入；宽屏 Rail 直接提供设置入口，没有打开抽屉的按钮。
+        if (clickVisibleAction(menuLabel, settingsLabel) == menuLabel) clickVisibleAction(settingsLabel)
         clickVisibleAction(activity.getString(R.string.settings_tile_sync))
         lateinit var scroll: ContentScrollView
         awaitUi {
@@ -53,8 +57,10 @@ class ContentScrollViewTest : UiComponentTestHost() {
             )
             val windowBottom = screenBottom(decor)
             assertEquals("滚动绘制视口必须延伸到窗口底边", windowBottom, screenBottom(scroll))
-            val lastBottom = scroll.allViews.filterIsInstance<GroupedSwitchRow>().filter { it.isShown }
-                .maxOf(::screenBottom)
+            val lastAction = scroll.allViews.filterIsInstance<SettingsButton>().single {
+                it.contentDescription == activity.getString(R.string.settings_proxy_urls) && it.isShown
+            }
+            val lastBottom = screenBottom(lastAction)
             assertTrue("滚动到底后末项必须完整位于手势安全区上方", lastBottom <= windowBottom - bottomSafe)
             assertFalse(scroll.canScrollVertically(1))
             assertFalse(scroll.isVerticalScrollBarEnabled)
@@ -182,15 +188,21 @@ class ContentScrollViewTest : UiComponentTestHost() {
         try { scroll.dispatchTouchEvent(event) } finally { event.recycle() }
     }
 
-    private fun clickVisibleAction(label: String) {
+    private fun clickVisibleAction(vararg labels: String): String {
         lateinit var target: View
         awaitUi {
             target = activity.window.decorView.allViews.firstOrNull {
-                it.contentDescription == label && it.isClickable && it.isEnabled && settled(it)
+                labels.any { label -> it.contentDescription == label } && it.isClickable && it.isEnabled &&
+                    settled(it) && it.getGlobalVisibleRect(Rect())
             } ?: return@awaitUi false
             true
         }
-        main { target.performClick() }
+        var clickedLabel = ""
+        main {
+            clickedLabel = target.contentDescription.toString()
+            target.performClick()
+        }
+        return clickedLabel
     }
 
     private fun settled(view: View): Boolean = view.isShown && view.isLaidOut &&

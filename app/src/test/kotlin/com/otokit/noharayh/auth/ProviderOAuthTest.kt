@@ -3,6 +3,7 @@ package com.otokit.noharayh.auth
 import com.otokit.noharayh.BuildConfig
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class ProviderOAuthTest {
@@ -44,5 +45,20 @@ class ProviderOAuthTest {
         assertEquals(OAuthAuthorizationCheck.RATE_LIMITED, ProviderOAuth.checkFailure(429, null, true))
         assertEquals(OAuthAuthorizationCheck.SERVICE_UNAVAILABLE, ProviderOAuth.checkFailure(503, null, true))
         assertEquals(OAuthAuthorizationCheck.UNAVAILABLE, ProviderOAuth.checkFailure(400, null, true))
+    }
+
+    @Test fun customIssuerKeepsHttpsAndDiscoveredEndpointOriginConstraints() {
+        val provider = OAuthProvider.LXNS
+        assertEquals("https://custom.example/oidc", provider.validateIssuer(" https://custom.example/oidc/ "))
+        for (invalid in listOf("http://custom.example", "https://user:secret@custom.example",
+            "https://custom.example?token=secret", "https://custom.example#fragment")) {
+            assertThrows(IllegalArgumentException::class.java) { provider.validateIssuer(invalid) }
+        }
+        val issuer = "https://custom.example/oidc"
+        assertEquals("https://custom.example/token", ProviderOAuth.endpoint(issuer, "https://custom.example/token").toString())
+        for (invalid in listOf("https://other.example/token", "https://custom.example:444/token",
+            "http://custom.example/token", "https://user@custom.example/token", "https://custom.example/token#secret")) {
+            assertThrows(IllegalArgumentException::class.java) { ProviderOAuth.endpoint(issuer, invalid) }
+        }
     }
 }

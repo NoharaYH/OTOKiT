@@ -3,6 +3,9 @@ package com.otokit.noharayh.transfer.upload
 import com.otokit.noharayh.auth.OAuthAuthorizationCheck
 import com.otokit.noharayh.auth.OAuthProvider
 import com.otokit.noharayh.auth.ScoreGrantUnavailable
+import com.otokit.noharayh.network.NetworkRoute
+import com.otokit.noharayh.network.NetworkSnapshot
+import com.otokit.noharayh.network.ProxyScope
 import com.otokit.noharayh.score.HtmlCaptures
 import com.otokit.noharayh.score.HtmlPageRef
 import com.otokit.noharayh.score.ScoreGame
@@ -21,20 +24,24 @@ import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
 
-/** Only score HTML reaches these fixed first-party upload endpoints. Login/diagnostic pages stay local. */
+/** Only score HTML reaches the task's confirmed upload targets. Login/diagnostic pages stay local. */
 internal class PlatformHtmlUpload(
     private val archives: HtmlCaptures,
     private val accessToken: (OAuthProvider, String, String) -> String,
     private val client: OkHttpClient = OkHttpClient.Builder().followRedirects(false).followSslRedirects(false)
         .retryOnConnectionFailure(false).callTimeout(30, TimeUnit.SECONDS).build(),
     private val recording: TransferRecording? = null,
+    private val network: NetworkSnapshot = NetworkSnapshot.defaults(),
 ) {
-    private val transport = recording?.let { client.newBuilder().addNetworkInterceptor(it.interceptor("UPLOAD")).build() } ?: client
+    private val routed = NetworkRoute.client(client, network, ProxyScope.PLATFORM)
+    private val transport = recording?.let { routed.newBuilder().addNetworkInterceptor(it.interceptor("UPLOAD")).build() } ?: routed
 
     fun send(provider: OAuthProvider, subject: String, page: HtmlPageRef, onCall: (Call) -> Unit): UploadReceipt {
         recording?.event("UPLOAD", "准备上传 HTML", mapOf("provider" to provider.name, "page" to page.kind.name,
             "file" to page.fileName, "bytes" to page.bytes.toString()))
         val mai = page.batch.game == ScoreGame.MAIMAI
+        UploadRequestTargets.validateRoute(network, provider, mai)
+        val endpoint = UploadRequestTargets.url(network, provider, mai)
         val token = try {
             accessToken(provider, subject, provider.scoreWriteScope(mai))
         } catch (error: ScoreGrantUnavailable) {
@@ -46,11 +53,12 @@ internal class PlatformHtmlUpload(
         } catch (error: IOException) {
             return UploadReceipt(UploadOutcome.AUTH_UNAVAILABLE)
         }
-        val endpoint = when (provider) {
-            OAuthProvider.DIVING_FISH -> "https://www.diving-fish.com/api/" +
-                (if (mai) "maimaidxprober" else "chunithmprober") + "/player/update_records_html"
-            OAuthProvider.LXNS -> "https://maimai.lxns.net/api/v0/user/${page.batch.game.key}/player/html"
-        }
+        val target = UploadRequestTargets.key(provider, mai)
+        recording?.event("UPLOAD", "使用任务固定的上传配置", mapOf(
+            "configurationRevision" to network.revision.toString(),
+            "originalTarget" to requireNotNull(UploadRequestTargets.defaultUrl(target)),
+            "effectiveTarget" to endpoint.toString(),
+            "route" to if (ProxyScope.PLATFORM in network.scopes) "UPSTREAM" else "DIRECT"))
         return archives.open(page).use { html ->
             val body = object : RequestBody() {
                 override fun contentType() = "text/plain; charset=utf-8".toMediaType()
@@ -60,8 +68,11 @@ internal class PlatformHtmlUpload(
             }
             val call = transport.newCall(Request.Builder().url(endpoint).header("Authorization", "Bearer $token").post(body).build())
             onCall(call)
+            val started = System.nanoTime()
+            var failure = ""
             try {
                 call.execute().use { response ->
+                    if (!response.isSuccessful) failure = "HTTP_${response.code}"
                     when {
                         response.code == 401 -> UploadReceipt(UploadOutcome.AUTH_REQUIRED, 401)
                         response.code == 403 -> UploadReceipt(UploadOutcome.PERMISSION_DENIED, 403)
@@ -80,7 +91,13 @@ internal class PlatformHtmlUpload(
                     }
                 }
             } catch (error: IOException) {
+                failure = "NETWORK"
                 UploadReceipt(UploadOutcome.UNKNOWN)
+            } finally {
+                recording?.event("UPLOAD", "平台上传请求结束", mapOf(
+                    "configurationRevision" to network.revision.toString(),
+                    "durationMs" to TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - started).toString(),
+                    "failureStage" to failure))
             }
         }
     }

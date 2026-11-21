@@ -7,4 +7,5 @@ private var connections: OAuthConnections? = null
 
 @Synchronized
 internal fun oauthConnections(context: Context): OAuthConnections =
-    connections ?: OAuthConnections(context.applicationContext).also { connections = it }
+    connections ?: OAuthConnections(context.applicationContext,
+        snapshot = networkSettings(context.applicationContext)::snapshot).also { connections = it }

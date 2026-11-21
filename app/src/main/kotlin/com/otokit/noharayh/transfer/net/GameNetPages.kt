@@ -7,10 +7,14 @@ import java.io.ByteArrayInputStream
 import java.io.SequenceInputStream
 import java.net.URI
 import java.net.URLEncoder
+import com.otokit.noharayh.network.NetworkSnapshot
+import com.otokit.noharayh.network.RequestTarget
+import com.otokit.noharayh.transfer.NetRequestTargets
 
 /** Game-specific paths and form steps stay out of task/runtime/UI code. */
-internal class GameNetPages(private val game: ScoreGame) {
-    private val base = if (game == ScoreGame.MAIMAI) "https://maimai.wahlap.com/maimai-mobile/" else "https://chunithm.wahlap.com/mobile/"
+internal class GameNetPages(private val game: ScoreGame, network: NetworkSnapshot = NetworkSnapshot.defaults()) {
+    private val base = NetRequestTargets.resolve(network,
+        if (game == ScoreGame.MAIMAI) RequestTarget.NET_BASE_MAIMAI else RequestTarget.NET_BASE_CHUNITHM).toString()
 
     fun uri(kind: HtmlPageKind): URI = URI(base + when (kind) {
         HtmlPageKind.PLAYER -> if (game == ScoreGame.MAIMAI) "friend/userFriendCode/" else "home/playerData/"

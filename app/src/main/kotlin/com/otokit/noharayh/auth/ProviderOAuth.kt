@@ -1,6 +1,8 @@
 package com.otokit.noharayh.auth
 
 import com.otokit.noharayh.BuildConfig
+import com.otokit.noharayh.network.NetworkSnapshot
+import com.otokit.noharayh.network.RequestTarget
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -29,6 +31,21 @@ enum class OAuthProvider(
     );
 
     fun scoreWriteScope(mai: Boolean): String = if (mai) maimaiWrite else chunithmWrite
+    val defaultIssuer: String get() = issuer
+    val issuerTarget: RequestTarget get() = when (this) {
+        DIVING_FISH -> RequestTarget.OAUTH_FISH_ISSUER
+        LXNS -> RequestTarget.OAUTH_LXNS_ISSUER
+    }
+
+    /** OAuth issuer 变更必须通过重新授权取得该来源的凭据。 */
+    fun validateIssuer(value: String): String {
+        val url = value.trim().toHttpUrlOrNull()
+        require(url != null && url.isHttps && url.encodedUsername.isEmpty() && url.encodedPassword.isEmpty() &&
+            url.query == null && url.fragment == null) { "授权服务地址须为 HTTPS，且不能包含账号、密码、查询参数或片段。" }
+        return url.toString().removeSuffix("/")
+    }
+
+    internal fun issuer(snapshot: NetworkSnapshot): String = validateIssuer(snapshot.target(issuerTarget, issuer))
     internal val writes: List<String> get() = listOf(maimaiWrite, chunithmWrite).distinct()
     internal val redirectUri: String get() = "https://${BuildConfig.OAUTH_CALLBACK_HOST}$callbackPath"
     internal val scopes: String get() {

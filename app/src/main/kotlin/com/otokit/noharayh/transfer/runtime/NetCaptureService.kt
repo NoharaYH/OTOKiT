@@ -14,6 +14,7 @@ import com.otokit.noharayh.auth.OAuthProvider
 import com.otokit.noharayh.composition.scoreUploadFactory
 import com.otokit.noharayh.composition.scoreCaptures
 import com.otokit.noharayh.composition.scoreSyncRecording
+import com.otokit.noharayh.composition.networkSettings
 import com.otokit.noharayh.score.HtmlCaptures
 import com.otokit.noharayh.score.ScoreGame
 import com.otokit.noharayh.score.HtmlPageKind
@@ -49,24 +50,26 @@ open class NetCaptureService : VpnService() {
         val callbackHtml = assets.open("transfer/wechat-callback.html").bufferedReader().use { it.readText() }
         val authorizationErrorHtml = assets.open("transfer/wechat-entry-error.html").bufferedReader().use { it.readText() }
         coordinator = CaptureTaskCoordinator(archives, newUploadTask = scoreUploadFactory(this, archives),
-            startRecording = { request, at -> scoreSyncRecording(this, request, at) }, openChannel = { authorize, callback, event ->
+            networkSnapshot = networkSettings(this)::snapshot,
+            startRecording = { request, at -> scoreSyncRecording(this, request, at) }, openChannel = { network, authorize, callback, event ->
             if (Build.VERSION.SDK_INT < 29) error("Capture requires Android 10")
             check(prepare(this) == null) { "VPN permission required" }
             val path = "/${UUID.randomUUID().toString().replace("-", "").take(10)}"
             val proxy = LoopbackCaptureProxy(path, onCallback = callback, onEvent = event,
-                authorizationFactory = authorize, callbackHtml = callbackHtml, authorizationErrorHtml = authorizationErrorHtml)
+                authorizationFactory = authorize, callbackHtml = callbackHtml, authorizationErrorHtml = authorizationErrorHtml,
+                network = network)
             var descriptor: ParcelFileDescriptor? = null
             try {
                 proxy.start()
                 descriptor = Builder().setSession("OTOKiT NET capture")
                     .addAddress("198.18.0.1", 32).allowFamily(OsConstants.AF_INET6)
                     .addAllowedApplication("com.tencent.mm")
-                    .setHttpProxy(ProxyInfo.buildDirectProxy("127.0.0.1", proxy.port)).establish()
+                    .setHttpProxy(ProxyInfo.buildDirectProxy(network.proxyHost, proxy.port)).establish()
                     ?: error("VPN unavailable")
                 val vpn = descriptor
                 object : CaptureChannel {
                     private val closed = AtomicBoolean(false)
-                    override val entryUrl = "http://127.0.0.2:8284$path"
+                    override val entryUrl = proxy.entryUrl
                     override val proxyPort = proxy.port
                     override fun observeHttp(observer: (CaptureLocalHttpExchange) -> Unit) = proxy.observeHttp(observer)
                     override fun close() {
