@@ -118,7 +118,7 @@ internal open class EdgePullScrollView(
     }
 
     override fun dispatchDraw(canvas: Canvas) {
-        if (edgePullEnabled) {
+        if (edgePullEnabled || horizontalDrawingOutsetPx > 0) {
             canvas.withClip(-horizontalDrawingOutsetPx, scrollY, width + horizontalDrawingOutsetPx, scrollY + height) {
                 super.dispatchDraw(this)
             }

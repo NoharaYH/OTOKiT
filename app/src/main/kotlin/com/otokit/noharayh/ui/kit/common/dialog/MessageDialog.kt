@@ -17,8 +17,11 @@ import com.otokit.noharayh.ui.constants.dimensions.ConfirmationDialogDimensions 
 import com.otokit.noharayh.ui.kit.common.AppTypography
 import com.otokit.noharayh.ui.kit.common.PressFrontColumn
 import com.otokit.noharayh.ui.kit.common.PressSurface
+import com.otokit.noharayh.ui.kit.common.ContentScrollView
 import com.otokit.noharayh.ui.animation.common.ContentTransition
 import com.otokit.noharayh.ui.constants.motion.ContainerMotion
+import com.otokit.noharayh.ui.constants.motion.PressHaloSpec
+import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 /** 平级的另一种说明；不表示导航层级，也不持久化用户的阅读选择。 */
@@ -36,6 +39,8 @@ internal class MessageDialog(
     private val alternateExplanation: AlternateExplanation? = null,
     additionalAction: MessageDialogAction? = null,
     cancelOnTouchOutside: Boolean = true,
+    customContent: View? = null,
+    private val onSubmit: (() -> Boolean)? = null,
     private val onConfirmed: () -> Unit,
 ) : Dialog(context) {
     private val content = DialogMessageContent(context, message, alternateExplanation?.message)
@@ -59,7 +64,20 @@ internal class MessageDialog(
             setColorFilter(accentColor)
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }, LinearLayout.LayoutParams(dp(Dimensions.ICON_SIZE_DP), dp(Dimensions.ICON_SIZE_DP)))
-        body.addView(content, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(Dimensions.CONTENT_GAP_DP) })
+        val messageContent = if (customContent == null) content else ContentScrollView(context,
+            horizontalDrawingOutsetPx = ceil(PressHaloSpec.PEAK_OUTSET_DP * context.resources.displayMetrics.density).toInt()).apply {
+            clipChildren = false
+            clipToPadding = false
+            addView(LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                clipChildren = false
+                clipToPadding = false
+                addView(content, LinearLayout.LayoutParams(-1, -2))
+                addView(customContent, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(Dimensions.CONTENT_GAP_DP) })
+            }, FrameLayout.LayoutParams(-1, -2))
+        }
+        body.addView(messageContent, LinearLayout.LayoutParams(-1, if (customContent == null) -2 else 0,
+            if (customContent == null) 0f else 1f).apply { topMargin = dp(Dimensions.CONTENT_GAP_DP) })
         val actions = PressFrontColumn(context).apply { orientation = LinearLayout.HORIZONTAL }
         fun addAction(button: DialogButton) = actions.addView(button,
             LinearLayout.LayoutParams(0, -2, 1f).apply {
@@ -68,7 +86,7 @@ internal class MessageDialog(
         val cancel = cancelLabel?.let { DialogButton(context, it, 0xFF757575.toInt()) { dismiss() } }
         if (additionalAction != null && cancel != null) addAction(cancel)
         addAction(DialogButton(context, confirmLabel, accentColor) {
-            if (isShowing) { dismiss(); onConfirmed() }
+            if (isShowing && onSubmit?.invoke() != false) { dismiss(); onConfirmed() }
         })
         val right = if (alternateExplanation != null) {
             DialogButton(context, alternateExplanation.showLabel, accentColor, ::switchExplanation).also { toggle = it }
@@ -88,6 +106,7 @@ internal class MessageDialog(
             addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
             setDimAmount(0.32f)
             decorView.elevation = 0f
+            if (customContent != null) setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         }
     }
 

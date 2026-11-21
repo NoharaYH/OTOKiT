@@ -8,8 +8,9 @@ internal interface EdgeToEdgeScrollable {
 }
 
 /** 标准滚动表面延伸到底边；安全区只影响滚动终点，不裁短绘制视口。 */
-internal open class ContentScrollView(context: Context, edgeOvershootPx: Float = 0f) :
-    EdgePullScrollView(context, edgeOvershootPx, pullWhenContentFits = edgeOvershootPx > 0f), EdgeToEdgeScrollable {
+internal open class ContentScrollView(context: Context, edgeOvershootPx: Float = 0f, horizontalDrawingOutsetPx: Int = 0) :
+    EdgePullScrollView(context, edgeOvershootPx, pullWhenContentFits = edgeOvershootPx > 0f,
+        horizontalDrawingOutsetPx = horizontalDrawingOutsetPx), EdgeToEdgeScrollable {
     private var appliedBottomSafeInset = 0
 
     init {
