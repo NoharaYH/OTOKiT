@@ -30,7 +30,6 @@ class SideBarHost @JvmOverloads constructor(
     private val sideBar = SideBar(context)
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
     private val minFlingVelocity = ViewConfiguration.get(context).scaledMinimumFlingVelocity.toFloat()
-    private val maxFlingVelocity = ViewConfiguration.get(context).scaledMaximumFlingVelocity
     override var settleInterpolator = MotionInterpolators.of(MotionCurve.Standard)
         internal set
     private val motion = DrawerMotionState()
@@ -48,6 +47,7 @@ class SideBarHost @JvmOverloads constructor(
     private var downY = 0f
     private var pointerId = MotionEvent.INVALID_POINTER_ID
     private var edgeCandidate = false
+    private var draggingFromClosed = false
     private var backPreviewActive = false
     private var backPreviewStartProgress = 0f
 
@@ -61,6 +61,7 @@ class SideBarHost @JvmOverloads constructor(
     private val interactionAllowed: Boolean
         get() = !disposed && resumed && dragEnabled && !interaction.isEmpty && drawerWidthPx > 0
     private val closedLeft: Int get() = interaction.left - drawerWidthPx
+    private val autoOpenLeft: Int get() = closedLeft + (drawerWidthPx + 2) / 3
 
     init {
         addView(scrim, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
@@ -237,6 +238,7 @@ class SideBarHost @JvmOverloads constructor(
         val down = downEvent ?: return false
         stopHelper()
         if (!motion.beginDrag()) return false
+        draggingFromClosed = motion.progress == 0f && dx > 0f
         positionPanel()
         updateBlocking() // 先同步关闭背景选择门禁，再由框架取消旧触摸目标。
         helper.processTouchEvent(down)
@@ -250,6 +252,9 @@ class SideBarHost @JvmOverloads constructor(
         if (motion.discardUntilEnd) return true
         if (!motion.dragging) return super.onTouchEvent(event)
         helper.processTouchEvent(event)
+        if (event.actionMasked == MotionEvent.ACTION_MOVE && draggingFromClosed && sideBar.left >= autoOpenLeft) {
+            animateTo(true, DrawerSettleTiming.AUTO_OPEN_MS)
+        }
         return true
     }
 
@@ -285,11 +290,11 @@ class SideBarHost @JvmOverloads constructor(
         }
     }
 
-    private fun animateTo(open: Boolean) {
+    private fun animateTo(open: Boolean, durationMs: Int? = null) {
         stopHelper()
         motion.request(open)
         clearDown()
-        startSettle(open)
+        startSettle(open, durationMs = durationMs)
     }
 
     private fun cancelCapturedDrag() {
@@ -299,12 +304,11 @@ class SideBarHost @JvmOverloads constructor(
         startSettle(motion.targetOpen == true)
     }
 
-    private fun startSettle(open: Boolean, velocityX: Float = 0f, velocityY: Float = 0f) {
+    private fun startSettle(open: Boolean, velocityX: Float = 0f, durationMs: Int? = null) {
         positionPanel()
         updateBlocking()
         val left = if (open) interaction.left else closedLeft
-        val duration = DrawerSettleTiming.duration(left - sideBar.left, width, drawerWidthPx,
-            velocityX, velocityY, minFlingVelocity.toInt(), maxFlingVelocity)
+        val duration = durationMs ?: DrawerSettleTiming.duration(left - sideBar.left, drawerWidthPx, velocityX)
         if (!android.animation.ValueAnimator.areAnimatorsEnabled()) {
             finishSettle()
             return
@@ -341,6 +345,7 @@ class SideBarHost @JvmOverloads constructor(
         downEvent = null
         pointerId = MotionEvent.INVALID_POINTER_ID
         edgeCandidate = false
+        draggingFromClosed = false
     }
 
     @SuppressLint("RtlHardcoded") // 与 shell 提供的物理窗口坐标保持一致。
@@ -397,7 +402,7 @@ class SideBarHost @JvmOverloads constructor(
         override fun getViewHorizontalDragRange(child: View): Int = drawerWidthPx
 
         override fun clampViewPositionHorizontal(child: View, left: Int, dx: Int): Int =
-            left.coerceIn(closedLeft, interaction.left)
+            left.coerceIn(closedLeft, if (draggingFromClosed) autoOpenLeft else interaction.left)
 
         override fun clampViewPositionVertical(child: View, top: Int, dy: Int): Int = interaction.top
 
@@ -416,7 +421,7 @@ class SideBarHost @JvmOverloads constructor(
                 else -> motion.progress >= 0.5f
             }
             motion.releaseTo(open)
-            startSettle(open, xvel, yvel)
+            startSettle(open, xvel)
         }
 
         override fun onViewDragStateChanged(state: Int) {
