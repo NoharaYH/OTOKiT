@@ -1,49 +1,31 @@
 package com.otokit.noharayh.ui.kit.settings
 
-import com.otokit.noharayh.ui.animation.common.ContinuousRoundedPath
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
-import android.graphics.RectF
 import android.view.Gravity
 import android.widget.FrameLayout
-import androidx.core.graphics.ColorUtils
 import android.widget.ImageView
-import android.widget.LinearLayout
 import android.widget.TextView
-import com.otokit.noharayh.ui.animation.settings.ThemeDropdownArrowRunner
-import com.otokit.noharayh.ui.constants.dimensions.ThemeSelectionDimensions as Dimensions
-import com.otokit.noharayh.ui.constants.motion.ThemeSelectionMotion
-import com.otokit.noharayh.ui.constants.motion.PressHaloSpec
 import com.otokit.noharayh.R
+import com.otokit.noharayh.ui.animation.settings.ThemeDropdownArrowRunner
+import com.otokit.noharayh.ui.constants.dimensions.LabeledFieldDimensions
+import com.otokit.noharayh.ui.constants.dimensions.ThemeSelectionDimensions as Dimensions
+import com.otokit.noharayh.ui.constants.motion.PressHaloSpec
+import com.otokit.noharayh.ui.constants.motion.ThemeSelectionMotion
+import com.otokit.noharayh.ui.constants.settings.LabeledFieldColors
 import com.otokit.noharayh.ui.kit.common.AppTypography
-import com.otokit.noharayh.ui.kit.common.PressSurface
 
-/** 收起小圆角、展开胶囊上缘；描边和反馈层共享按压几何。 */
-@android.annotation.SuppressLint("ViewConstructor") // 仅由代码提供标签并创建。
-internal class LabeledDropdownField(context: Context, label: String) : PressSurface(context) {
-    private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = 0xFF757575.toInt()
-        style = Paint.Style.STROKE
-        strokeWidth = Dimensions.FIELD_STROKE_DP * resources.displayMetrics.density
-        strokeCap = Paint.Cap.ROUND
-    }
-    private val continuousPath = ContinuousRoundedPath()
-    private val outline = RectF()
-    private val outlinePath = Path()
-    private val panelFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
-    private val panelFillPath = Path()
-    private var outlineBottomRadius = 0f
-    private var outlineMaximumBottomRadius = 0f
-    override val surfaceFillInset: Float
-        get() = stroke.strokeWidth / 2f
+/** 主题下拉入口；公共标签表面不承担菜单、箭头或主题选值过渡。 */
+@android.annotation.SuppressLint("ViewConstructor")
+internal class LabeledDropdownField(context: Context, label: String) : LabeledFieldSurface(context, label) {
     private fun valueText() = TextView(context).apply {
-        textSize = 14f
+        textSize = LabeledFieldDimensions.TEXT_SP
         includeFontPadding = false
         gravity = Gravity.CENTER_VERTICAL
-        setTextColor(0xFF323232.toInt())
+        setTextColor(LabeledFieldColors.TEXT)
         maxLines = 1
         ellipsize = android.text.TextUtils.TruncateAt.END
         AppTypography.applyAppTypeface(this)
@@ -53,18 +35,8 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
     private var pendingValue: String? = null
     private val arrow = ImageView(context).apply {
         setImageResource(R.drawable.ic_chevron_right_24)
-        setColorFilter(0xFF757575.toInt())
+        setColorFilter(LabeledFieldColors.STROKE)
         rotation = 90f
-    }
-    private val labelView = TextView(context).apply {
-        text = label
-        textSize = 11f
-        includeFontPadding = false
-        gravity = Gravity.CENTER
-        setTextColor(0xFF757575.toInt())
-        maxLines = 1
-        ellipsize = android.text.TextUtils.TruncateAt.END
-        AppTypography.applyAppTypeface(this)
     }
     private val prefixView = TextView(context).apply {
         setTextSize(android.util.TypedValue.COMPLEX_UNIT_PX, labelView.textSize)
@@ -73,36 +45,38 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
         maxLines = 1
         typeface = labelView.typeface
         setTextColor(labelView.currentTextColor)
+        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
     }
     private var prefixProgress = 0f
-    private var drawingAlpha = 255
-    /** 标题及外环的绘制外溢范围，供自身合成层和宿主过渡裁剪共同使用。 */
-    val drawingOverflow: Float
-        get() = maxOf(dp(Dimensions.FIELD_RADIUS_DP).toFloat(), labelView.height.toFloat(), prefixView.height.toFloat())
-
-    // View 默认的透明度合成层只覆盖自身矩形，会裁掉伸出顶部的浮动标题。
-    // 由组件合成整个绘制结果，保留标题和外环，同时避免子元素分别淡化导致叠色。
-    override fun onSetAlpha(alpha: Int): Boolean {
-        drawingAlpha = alpha
-        invalidate()
-        return true
+    private val arrowRunner = ThemeDropdownArrowRunner(arrow)
+    private var panelHeight = 0f
+    private var panelGap = 0f
+    private var panelExpansion = 0f
+    private val collapsedRadius = dp(Dimensions.FIELD_COLLAPSED_RADIUS_DP).toFloat()
+    private var corners = ThemePanelCorners(collapsedRadius, collapsedRadius, collapsedRadius)
+    private var outlineMaximumBottomRadius = 0f
+    private val panelFill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
+    private val panelFillPath = Path()
+    override val outlineExtraHeight get() = panelHeight
+    val panelBottomCornerRadius: Float get() {
+        if (width == 0) return corners.bottom
+        updateOutlineGeometry(baseRadius, 0f)
+        return outlineBottomRadius + stroke.strokeWidth / 2f
     }
 
-    override fun draw(canvas: Canvas) {
-        if (drawingAlpha == 255) {
-            super.draw(canvas)
-            return
-        }
-        val overflow = drawingOverflow
-        val layer = canvas.saveLayerAlpha(-overflow, -overflow,
-            width + overflow, height + panelHeight + overflow, drawingAlpha)
-        super.draw(canvas)
-        canvas.restoreToCount(layer)
+    init {
+        setFieldContent(FrameLayout(context).apply {
+            addView(valueView, LayoutParams(-1, -1))
+            addView(nextValueView, LayoutParams(-1, -1))
+        })
+        setFieldTrailing(arrow, dp(Dimensions.FIELD_ARROW_DP))
+        addView(prefixView, indexOfChild(labelView), LayoutParams(-2, -2).apply {
+            leftMargin = dp(Dimensions.FIELD_TEXT_INSET_DP)
+            rightMargin = dp(Dimensions.FIELD_TEXT_INSET_DP)
+        })
     }
 
-    fun configureLabelPrefix(prefix: String) {
-        prefixView.text = prefix
-    }
+    fun configureLabelPrefix(prefix: String) { prefixView.text = prefix }
 
     fun setLabelPrefixProgress(progress: Float) {
         prefixProgress = progress.coerceIn(0f, 1f)
@@ -112,120 +86,41 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
         invalidate()
     }
 
-    private val arrowRunner = ThemeDropdownArrowRunner(arrow)
-    private var panelHeight = 0f
-    private var panelGap = 0f
-    private var panelExpansion = 0f
-    private val collapsedRadius = dp(Dimensions.FIELD_COLLAPSED_RADIUS_DP).toFloat()
-    private var corners = ThemePanelCorners(collapsedRadius, collapsedRadius, collapsedRadius)
-    /** 外轮廓半径，包含半个描边；不把中心线半径当成容器的内轮廓。 */
-    val panelBottomCornerRadius: Float get() {
-        if (width == 0) return corners.bottom
-        updateOutlineGeometry(baseRadius, 0f)
-        return outlineBottomRadius + stroke.strokeWidth / 2f
-    }
-
-    init {
-        fillColor = Color.WHITE
-        outerHaloEnabled = true
-        baseRadius = collapsedRadius
-        clipChildren = false
-        clipToPadding = false
-        val row = LinearLayout(context).apply {
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(Dimensions.FIELD_TEXT_INSET_DP), 0, dp(Dimensions.FIELD_END_INSET_DP), 0)
-            addView(FrameLayout(context).apply {
-                addView(valueView, LayoutParams(-1, -1))
-                addView(nextValueView, LayoutParams(-1, -1))
-            }, LinearLayout.LayoutParams(0, -1, 1f))
-            addView(arrow, LinearLayout.LayoutParams(dp(Dimensions.FIELD_ARROW_DP), dp(Dimensions.FIELD_ARROW_DP)))
-        }
-        addView(row, LayoutParams(-1, dp(Dimensions.FIELD_HEIGHT_DP)))
-        addView(prefixView, LayoutParams(-2, -2).apply {
-            leftMargin = dp(Dimensions.FIELD_TEXT_INSET_DP)
-            rightMargin = dp(Dimensions.FIELD_TEXT_INSET_DP)
-        })
-        addView(labelView, LayoutParams(-2, -2).apply {
-            leftMargin = dp(Dimensions.FIELD_TEXT_INSET_DP)
-            rightMargin = dp(Dimensions.FIELD_TEXT_INSET_DP)
-        })
-    }
-
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
         super.onLayout(changed, left, top, right, bottom)
-        labelView.translationY = -labelView.height / 2f + stroke.strokeWidth / 2f
-        prefixView.translationY = labelView.translationY
         setLabelPrefixProgress(prefixProgress)
     }
 
-    private fun updateOutlineGeometry(cornerRadius: Float, inset: Float): Float {
+    override fun positionFloatingLabel(outlineTop: Float) {
+        super.positionFloatingLabel(outlineTop)
+        prefixView.translationY = labelView.translationY
+    }
+
+    override fun updateOutlineGeometry(cornerRadius: Float, inset: Float): Float {
+        val radius = super.updateOutlineGeometry(cornerRadius, inset)
         val half = stroke.strokeWidth / 2f
-        outline.set(inset + half, inset + half, width - inset - half, height + panelHeight - inset - half)
-        val radius = (cornerRadius - half).coerceAtLeast(0f)
-        // 完全展开时仍是「末项半径 + 菜单留白 - 按压内缩 - 半描边」。
-        // 收起起点独立于上角的大圆角过渡，避免二次插值改变原来的末项跟随目标。
-        val pressAdjustment = (cornerRadius - baseRadius) * (1f - panelExpansion) - inset * panelExpansion
-        outlineBottomRadius = (corners.bottom + pressAdjustment - half)
+        val adjustment = (cornerRadius - baseRadius) * (1f - panelExpansion) - inset * panelExpansion
+        outlineBottomRadius = (corners.bottom + adjustment - half)
             .coerceIn(0f, minOf(outline.width() / 2f, outline.height() - radius).coerceAtLeast(0f))
-        outlineMaximumBottomRadius = (corners.maximumBottom + pressAdjustment - half)
+        outlineMaximumBottomRadius = (corners.maximumBottom + adjustment - half)
             .coerceIn(0f, minOf(outline.width() / 2f, outline.height() - radius).coerceAtLeast(0f))
         return radius
     }
 
-    override fun buildSurfacePath(path: Path, bounds: RectF, top: Float, bottom: Float) {
-        continuousPath.setPath(path, bounds, top, bottom)
-    }
-
-    /** 与描边共用断口；下端以最大圆角的切点为界。 */
-    private fun sideGap(radius: Float): Pair<Float, Float> {
+    override fun outlineSideGap(radius: Float): Pair<Float, Float> {
         val haloBottom = height + (PressHaloSpec.PEAK_OUTSET_DP + Dimensions.FIELD_STROKE_DP) * resources.displayMetrics.density
         return themePanelSideGap(outline.top + continuousPath.verticalExtent(radius, outline), outline.bottom,
             continuousPath.verticalExtent(outlineMaximumBottomRadius, outline), haloBottom, panelGap,
             (Dimensions.FIELD_HEIGHT_DP + Dimensions.SCROLLBAR_END_GAP_DP * 2f) * resources.displayMetrics.density)
     }
 
-    fun scrollbarTrack(): Pair<Float, Float> = sideGap(updateOutlineGeometry(baseRadius, 0f))
+    fun scrollbarTrack(): Pair<Float, Float> = outlineSideGap(updateOutlineGeometry(baseRadius, 0f))
 
     override fun drawUnderlay(canvas: Canvas, cornerRadius: Float, inset: Float) {
         if (panelHeight <= 0f) return
         val radius = updateOutlineGeometry(cornerRadius, inset)
         continuousPath.setPath(panelFillPath, outline, radius, outlineBottomRadius)
-        // 位于外环之上、标题内部涟漪之下；白底随描边延展，盖住原胶囊的下半圈。
         canvas.drawPath(panelFillPath, panelFill)
-    }
-
-    override fun drawOutline(canvas: Canvas, cornerRadius: Float, inset: Float) {
-        val radius = updateOutlineGeometry(cornerRadius, inset)
-        val bottomRadius = outlineBottomRadius
-        val topExtent = continuousPath.horizontalExtent(radius, outline)
-        val topVerticalExtent = continuousPath.verticalExtent(radius, outline)
-        val bottomExtent = continuousPath.horizontalExtent(bottomRadius, outline)
-        val bottomVerticalExtent = continuousPath.verticalExtent(bottomRadius, outline)
-        val gapStart = (labelView.left - dp(Dimensions.LABEL_GAP_DP)).toFloat()
-        val gapEnd = labelView.right + labelView.translationX + dp(Dimensions.LABEL_GAP_DP)
-        labelView.translationY = outline.top - labelView.height / 2f
-        prefixView.translationY = outline.top - prefixView.height / 2f
-        // 构造完整上缘，再按标签范围裁出断口；右侧滚动条断口保留圆形笔帽。
-        outlinePath.rewind()
-        outlinePath.moveTo(outline.left + topExtent, outline.top)
-        outlinePath.lineTo(outline.right - topExtent, outline.top)
-        continuousPath.corner(outlinePath, outline, radius, 0)
-        // 上段越过标题外环的峰值范围，断口不与黑圈下缘相交。
-        val (upperEnd, lowerStart) = sideGap(radius)
-        outlinePath.lineTo(outline.right, upperEnd)
-        if (lowerStart > upperEnd) outlinePath.moveTo(outline.right, lowerStart)
-        outlinePath.lineTo(outline.right, outline.bottom - bottomVerticalExtent)
-        continuousPath.corner(outlinePath, outline, bottomRadius, 1)
-        outlinePath.lineTo(outline.left + bottomExtent, outline.bottom)
-        continuousPath.corner(outlinePath, outline, bottomRadius, 2)
-        outlinePath.lineTo(outline.left, outline.top + topVerticalExtent)
-        continuousPath.corner(outlinePath, outline, radius, 3)
-        // 标题可能跨过连续曲线的起点；按实际文字范围裁出断口，避免改动标题位置。
-        val saved = canvas.save()
-        canvas.clipOutRect(gapStart, outline.top - labelView.height,
-            gapEnd, outline.top + labelView.height / 2f + stroke.strokeWidth)
-        canvas.drawPath(outlinePath, stroke)
-        canvas.restoreToCount(saved)
     }
 
     fun setValue(title: String) {
@@ -260,20 +155,11 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
         contentDescription = "$prefix${labelView.text}：${pendingValue ?: valueView.text}"
     }
 
-    fun setControlsEnabled(enabled: Boolean) {
-        isEnabled = enabled
-    }
-
-    fun setDisabledProgress(progress: Float) {
-        val t = progress.coerceIn(0f, 1f)
-        stroke.color = ColorUtils.blendARGB(0xFF757575.toInt(), 0xFFCCCCCC.toInt(), t)
-        val color = ColorUtils.blendARGB(0xFF323232.toInt(), 0xFFB3B3B3.toInt(), t)
-        valueView.setTextColor(color)
-        nextValueView.setTextColor(color)
-        labelView.setTextColor(stroke.color)
+    override fun renderDisabledContent(progress: Float, textColor: Int) {
+        valueView.setTextColor(textColor)
+        nextValueView.setTextColor(textColor)
         prefixView.setTextColor(stroke.color)
-        arrow.imageAlpha = (255 - 158 * t).toInt()
-        invalidate()
+        arrow.imageAlpha = (255 - 158 * progress).toInt()
     }
 
     fun renderPanel(extraHeight: Float, gap: Float, expansion: Float = 0f, bottomRadius: Float = 0f) {
@@ -290,16 +176,9 @@ internal class LabeledDropdownField(context: Context, label: String) : PressSurf
     fun setExpanded(expanded: Boolean) { arrowRunner.render(expanded) }
     fun previewExpanded(progress: Float) { arrowRunner.preview(progress) }
 
-    override fun onDetachedFromWindow() {
-        arrowRunner.reset()
-        super.onDetachedFromWindow()
-    }
-
-
-    private fun dp(value: Int) = (value * resources.displayMetrics.density + 0.5f).toInt()
+    override fun onDetachedFromWindow() { arrowRunner.reset(); super.onDetachedFromWindow() }
 }
 
-/** 胶囊闭合时两段圆弧相接；分别计算的端点可能相差一个浮点单位，按相接处理。 */
 internal fun themePanelSideEnd(topArcEnd: Float, bottomArcStart: Float, preferredEnd: Float): Float =
     preferredEnd.coerceIn(topArcEnd, bottomArcStart.coerceAtLeast(topArcEnd))
 
@@ -308,6 +187,5 @@ internal fun themePanelSideGap(topArcEnd: Float, bottom: Float, maximumRadius: F
     val upper = themePanelSideEnd(topArcEnd, bottom - maximumRadius, preferredEnd)
     val lower = (bottom - maximumRadius).coerceAtLeast(upper)
     val middle = (upper + lower) / 2f
-    // 够放下一段完整滑块及两端留白才直接切开，端点不再从中点向两边退缩。
     return if (progress > 0f && lower - upper >= minimumGap) upper to lower else middle to middle
 }
