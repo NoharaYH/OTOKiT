@@ -117,6 +117,12 @@ class GameSwipeLayout @JvmOverloads constructor(context: Context, attrs: Attribu
         }
     }
 
+    internal fun switchTo(target: GameLine) {
+        if (!inputEnabled || width <= 0) return
+        if (phase == GamePhase.Idle) position = endpoint(selectedGame())
+        settleTo(target)
+    }
+
     private fun settleTo(target: GameLine) {
         clearDrag()
         settleTarget = target

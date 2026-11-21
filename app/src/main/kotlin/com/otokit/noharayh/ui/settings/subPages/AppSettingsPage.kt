@@ -75,6 +75,18 @@ internal class AppSettingsPage(
         }
         body.addView(card(context, R.drawable.ic_aspect_ratio_24,
             R.string.settings_display_scale, choices, trailing = warning))
+        val navigation = com.otokit.noharayh.storage.preferences.PhoneNavigationPreference(context)
+        val pending = SettingsHeaderStatus(context).apply {
+            render(context.getString(R.string.floating_restart), R.drawable.ic_history_off_24, SettingsComponentColors.TEXT)
+            visibility = if (navigation.selected != navigation.active) VISIBLE else GONE
+        }
+        val navChoice = choiceList(context.resources.getStringArray(R.array.phone_navigation_styles).toList(),
+            if (navigation.selected) 1 else 0) { index ->
+            navigation.selected = index == 1
+            pending.visibility = if (navigation.selected != navigation.active) VISIBLE else GONE
+        }
+        body.addView(card(context, R.drawable.ic_menu_24, R.string.phone_navigation_style, navChoice, trailing = pending),
+            LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(context, 12) })
         val motionChoice = choiceList(context.resources.getStringArray(R.array.page_motion_labels).toList(),
             pageMotion.ordinal) { index ->
             onPageMotionSelected(PageMotionStyle.entries[index])

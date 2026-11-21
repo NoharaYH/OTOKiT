@@ -19,6 +19,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.otokit.noharayh.ui.shell.StartupPresentation
+import com.otokit.noharayh.ui.chrome.SideBarHost
+import com.otokit.noharayh.storage.preferences.PhoneNavigationPreference
 import com.otokit.noharayh.databinding.ActivityMainBinding
 import com.otokit.noharayh.composition.oauthConnections
 import com.otokit.noharayh.composition.initializeScoreData
@@ -95,6 +97,12 @@ class MainActivity : AppCompatActivity() {
             navigationBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
         )
         binding = ActivityMainBinding.inflate(layoutInflater)
+        val floatingStyle = PhoneNavigationPreference(this).active
+        val drawer = if (floatingStyle) null else SideBarHost(this).apply {
+            binding.root.removeView(binding.pageScene)
+            addView(binding.pageScene, 0)
+            binding.root.addView(this, 0)
+        }
         setContentView(binding.root)
         restoreColorOsPredictiveBackProgress(this, binding.root)
 
@@ -120,7 +128,8 @@ class MainActivity : AppCompatActivity() {
             settingsScrim = binding.settingsScrim,
             chromeHost = binding.chromeHost,
             overlayHost = binding.overlayHost,
-            sidebarHost = binding.sideBarHost,
+            sidebarHost = drawer,
+            pageScene = binding.pageScene,
             // 冷启动/重建只恢复功能页；设置是模态瞬态，不能跨进程持久化。
             // 显示比例切换会主动 recreate，并通过一次性 saved state 恢复设置页。
             initialState = initialState,

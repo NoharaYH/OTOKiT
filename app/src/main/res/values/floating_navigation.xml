@@ -1,0 +1,10 @@
+<resources>
+    <string name="phone_navigation_style">手机导航样式</string>
+    <string-array name="phone_navigation_styles"><item>标题栏导航</item><item>底部浮动导航</item></string-array>
+    <string name="floating_restart">重启应用后生效</string>
+    <string name="floating_mai">舞萌</string>
+    <string name="floating_chu">中二</string>
+    <string name="floating_back">返回</string>
+    <string name="floating_close">收起导航</string>
+    <string name="floating_menu">展开导航</string>
+</resources>

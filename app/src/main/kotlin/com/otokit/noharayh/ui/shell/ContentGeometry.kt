@@ -11,6 +11,7 @@ data class ContentRects(
     val base: PixelRect,
     val interactive: PixelRect,
     val scrollable: PixelRect,
+    val navigation: PixelRect = interactive,
 )
 
 /**

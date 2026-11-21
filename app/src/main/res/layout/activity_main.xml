@@ -4,50 +4,39 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!--
-        抽屉共同父容器：持有内容场景、遮罩与面板。
-        必须保持全尺寸、无 padding/margin，03 的窗口坐标以根为原点。
-    -->
-    <com.otokit.noharayh.ui.chrome.SideBarHost
-        android:id="@+id/side_bar_host"
+    <com.otokit.noharayh.ui.shell.PageScene
+        android:id="@+id/page_scene"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <!-- 内容场景位于抽屉和外围 UI 下方，坐标不变。 -->
+        <!-- 背景宿主：01 阶段为空，不设点击或焦点拦截。 -->
         <FrameLayout
-            android:id="@+id/side_bar_content_scene"
+            android:id="@+id/background_host"
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_height="match_parent" />
 
-            <!-- 背景宿主：01 阶段为空，不设点击或焦点拦截。 -->
-            <FrameLayout
-                android:id="@+id/background_host"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent" />
+        <!-- 功能内容宿主：同一时刻最多一个活动的占位根 View。 -->
+        <com.otokit.noharayh.ui.pages.GameSwipeLayout
+            android:id="@+id/content_host"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
 
-            <!-- 功能内容宿主：同一时刻最多一个活动的占位根 View。 -->
-            <com.otokit.noharayh.ui.pages.GameSwipeLayout
-                android:id="@+id/content_host"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent" />
+        <!-- 设置遮罩沿背景延伸到系统手势条背后。 -->
+        <View
+            android:id="@+id/settings_scrim"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:alpha="0"
+            android:background="@android:color/black"
+            android:importantForAccessibility="no" />
 
-            <!-- 设置遮罩沿背景延伸到系统手势条背后。 -->
-            <View
-                android:id="@+id/settings_scrim"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:alpha="0"
-                android:background="@android:color/black"
-                android:importantForAccessibility="no" />
-
-            <!-- 设置滚动绘制面延伸到底边，内部安全留白约束滚动终点。 -->
-            <FrameLayout
-                android:id="@+id/overlay_host"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:visibility="gone" />
-        </FrameLayout>
-    </com.otokit.noharayh.ui.chrome.SideBarHost>
+        <!-- 设置滚动绘制面延伸到底边，内部安全留白约束滚动终点。 -->
+        <FrameLayout
+            android:id="@+id/overlay_host"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+    </com.otokit.noharayh.ui.shell.PageScene>
 
     <!-- 手机标题栏位于抽屉上方，宽屏导航栏位于内容区上方。 -->
     <FrameLayout

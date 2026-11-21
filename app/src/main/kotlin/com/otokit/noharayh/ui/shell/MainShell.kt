@@ -83,7 +83,8 @@ class MainShell(
     private val settingsScrim: View,
     private val chromeHost: FrameLayout,
     private val overlayHost: FrameLayout,
-    private val sidebarHost: SideBarHost,
+    private val sidebarHost: SideBarHost?,
+    private val pageScene: PageScene,
     initialState: NavigationState = NavigationState(),
     savedSelection: SelectionSource = SelectionSource(null, null, null, null),
     private val displayScale: DisplayScaleOption = DisplayScaleOption.DEFAULT,
@@ -150,6 +151,8 @@ class MainShell(
     private val chrome = ChromeAssembly(
         chromeHost = chromeHost,
         sidebarHost = sidebarHost,
+        onSelectGame = contentHost::switchTo,
+        motionCurve = { pageMotion.curve },
         onNavigate = { destination -> onDrawerNavigate(destination) },
         onOpenSettings = { openSettings() },
         onCloseSettings = { navigateSettingsBack() },
@@ -220,7 +223,8 @@ class MainShell(
         check(chromeHost.childCount == 0) { "外围 UI 由 ChromeAssembly 挂载，开始时必须为空" }
         lifecycleState = LifecycleState.Attached
         val current = selection.state
-        sidebarHost.settleInterpolator = MotionInterpolators.of(pageMotion.curve)
+        pageScene.settleInterpolator = MotionInterpolators.of(pageMotion.curve)
+        sidebarHost?.settleInterpolator = pageScene.settleInterpolator
         contentHost.settleCurve = pageMotion.curve
         contentHost.selectedGame = { selection.state.currentGame }
         contentHost.onSelection = ::selectGame
@@ -296,7 +300,8 @@ class MainShell(
             onPageMotionSelected = { style ->
                 selectionPreferences.writePageMotion(style)
                 pageMotion = style
-                sidebarHost.settleInterpolator = MotionInterpolators.of(style.curve)
+                pageScene.settleInterpolator = MotionInterpolators.of(style.curve)
+                sidebarHost?.settleInterpolator = pageScene.settleInterpolator
                 contentHost.settleCurve = style.curve
             },
             startupAnimationProvider = selectionPreferences::readStartupAnimation,
@@ -772,7 +777,7 @@ class MainShell(
     /** 唯一几何入口：窗口快照或 chrome 占用变化都走这里。 */
     private fun recomputeGeometry() {
         val snapshot = latestWindowSnapshot ?: return
-        val rects = ContentGeometry.compute(snapshot, chromeInsets)
+        val rects = chrome.contentRects(snapshot)
         applyContentRect(backgroundHost, rects.base, snapshot.metrics)
         applyContentRect(settingsScrim, rects.base, snapshot.metrics)
         applyContentRect(contentHost, rects.interactive, snapshot.metrics)
@@ -782,11 +787,11 @@ class MainShell(
         contentHeightPx = rects.interactive.height
         applyGameFrame()
 
-        val interaction = rects.interactive.relativeToRoot(
+        val navigation = rects.navigation.relativeToRoot(
             snapshot.metrics.rootLeftPx,
             snapshot.metrics.rootTopPx,
         )
-        chrome.layout(interaction)
+        chrome.layout(navigation)
     }
 
     private fun onChromeInsetsChanged(insets: ChromeInsets) {

@@ -15,7 +15,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.animation.common.GamePhase
 import com.otokit.noharayh.ui.animation.common.MotionInterpolators
-import com.otokit.noharayh.ui.chrome.SideBarHost
+import com.otokit.noharayh.ui.shell.PageScene
 import com.otokit.noharayh.ui.constants.motion.MotionCurve
 import com.otokit.noharayh.ui.pages.GamePairLayout
 import com.otokit.noharayh.ui.pages.GameSwipeLayout
@@ -34,7 +34,7 @@ import kotlin.math.abs
 class GameForegroundSwipeTest : UiComponentTestHost() {
     @Test fun scoreSyncFormsStayPutOnVerticalPullAndSwitchGamesHorizontally() {
         val pager = activity.findViewById<GameSwipeLayout>(R.id.content_host)
-        val drawer = activity.findViewById<SideBarHost>(R.id.side_bar_host)
+        val scene = activity.findViewById<PageScene>(R.id.page_scene)
         await("Score sync forms are mounted") { pager.allViews.any { it is ScrollView && it.isShown && it.height > 0 } }
         for (curve in listOf(MotionCurve.Standard, MotionCurve.GentleBounce, MotionCurve.GentleBounce, MotionCurve.Emphasized)) {
             var crossedHorizontal = false
@@ -43,7 +43,7 @@ class GameForegroundSwipeTest : UiComponentTestHost() {
             main {
                 origin = pager.selectedGame()
                 pager.settleCurve = curve
-                drawer.settleInterpolator = MotionInterpolators.of(curve)
+                scene.settleInterpolator = MotionInterpolators.of(curve)
                 val outer = pager.allViews.filterIsInstance<ScrollView>().first { it.isShown }
                 val form = outer.getChildAt(0)
                 assertEquals(View.OVER_SCROLL_NEVER, outer.overScrollMode)

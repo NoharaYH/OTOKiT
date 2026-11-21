@@ -1,5 +1,6 @@
 package com.otokit.noharayh.ui.shell
 
+import com.otokit.noharayh.ui.chrome.floating.FloatingGeometry
 import com.otokit.noharayh.ui.chrome.ChromeInsets
 import com.otokit.noharayh.ui.window.PixelRect
 import com.otokit.noharayh.ui.window.WindowSnapshot
@@ -228,6 +229,24 @@ class ContentGeometryTest {
         val threeButtons = ContentGeometry.compute(snapshot.copy(insets = snapshot.insets.copy(
             navigationBars = EdgeInsets(bottom = 160))))
         assertEquals(2240, threeButtons.interactive.bottom)
+    }
+
+    @Test fun floatingNavigationStaysAtTheSameHeightWhenTheGestureHintIsHidden() {
+        val chrome = ChromeInsets(bottom = 85)
+        fun layout(insets: WindowInsetsSnapshot) = FloatingGeometry.compute(snapshot(insets = insets), chrome)
+        val hidden = WindowInsetsSnapshot()
+        val visible = hidden.copy(navigationBars = EdgeInsets(bottom = 16), mandatorySystemGestures = EdgeInsets(bottom = 32))
+        val viewport = PixelRect(0, 0, 1080, 2400)
+        assertEquals(viewport, layout(hidden).navigation)
+        assertEquals(viewport, layout(visible).navigation)
+        assertEquals(viewport, layout(hidden.copy(navigationBars = EdgeInsets(right = 48))).navigation)
+        val tallInset = layout(hidden.copy(mandatorySystemGestures = EdgeInsets(bottom = 100)))
+        assertEquals(viewport, tallInset.navigation)
+        assertEquals(2300, tallInset.interactive.bottom)
+        assertEquals(2400 - 85, layout(visible).interactive.bottom)
+        val keyboard = layout(visible.copy(ime = EdgeInsets(bottom = 300), imeVisible = true))
+        assertEquals(2100, keyboard.navigation.bottom)
+        assertEquals(2100 - 85, keyboard.interactive.bottom)
     }
 
     /** 根被键盘缩小后，背景仍用窗口基础尺寸，只有内容/覆盖层使用交互尺寸。 */

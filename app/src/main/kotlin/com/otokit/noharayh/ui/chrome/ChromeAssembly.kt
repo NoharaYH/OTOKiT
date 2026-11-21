@@ -5,6 +5,9 @@ import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import com.otokit.noharayh.ui.animation.common.TransitionProgress
+import com.otokit.noharayh.ui.chrome.floating.FloatingGeometry
+import com.otokit.noharayh.ui.chrome.floating.FloatingNavigation
+import com.otokit.noharayh.ui.shell.ContentGeometry
 import com.otokit.noharayh.ui.constants.dimensions.ShellDimensions
 import com.otokit.noharayh.ui.constants.dimensions.ShellProportions
 import com.otokit.noharayh.ui.shell.navigation.Destination
@@ -23,14 +26,18 @@ import kotlin.math.roundToInt
  */
 class ChromeAssembly(
     private val chromeHost: FrameLayout,
-    private val sidebarHost: SideBarHost,
+    private val sidebarHost: SideBarHost?,
     private val onNavigate: (Destination) -> Unit,
     private val onOpenSettings: () -> Unit,
     private val onCloseSettings: () -> Unit,
     private val onInsetsChanged: (ChromeInsets) -> Unit,
     private val onInputBlockedChanged: () -> Unit,
     private val onStatusBarHiddenChanged: (Boolean) -> Unit,
+    private val onSelectGame: (com.otokit.noharayh.ui.theme.GameLine) -> Unit,
+    private val motionCurve: () -> com.otokit.noharayh.ui.constants.motion.MotionCurve,
 ) {
+
+    private var floating: FloatingNavigation? = null
 
     private var titleBar: TitleBar? = null
     private var rail: NavigationBar? = null
@@ -51,22 +58,22 @@ class ChromeAssembly(
         get() = lastInsets
 
     val blocksUnderlyingInput: Boolean
-        get() = attached && sidebarHost.blocksUnderlyingInput
+        get() = attached && (sidebarHost?.blocksUnderlyingInput == true || floating?.expanded == true)
 
     fun attach() {
         if (attached || disposed) return
         attached = true
-        sidebarHost.onNavigate = { destination ->
+        sidebarHost?.onNavigate = { destination ->
             // 普通导航沿当前进度动画收起，保留胶囊释放反馈；强制复位仅用于窗口/生命周期失效。
-            sidebarHost.close()
+            sidebarHost?.close()
             onNavigate(destination)
         }
-        sidebarHost.onSettings = {
+        sidebarHost?.onSettings = {
             // 与普通导航一致：先沿当前进度收起，保留胶囊释放反馈与触觉。
-            sidebarHost.close()
+            sidebarHost?.close()
             onOpenSettings()
         }
-        sidebarHost.onInputBlockedChanged = {
+        sidebarHost?.onInputBlockedChanged = {
             if (attached) onInputBlockedChanged()
         }
     }
@@ -79,15 +86,28 @@ class ChromeAssembly(
         compact = compactNow
         if (compactNow) {
             removeRail()
-            mountTitleIfNeeded()
-            applyTitleRect(window)
+            if (sidebarHost == null) {
+                val bar = floating ?: FloatingNavigation(chromeHost.context, motionCurve, onNavigate, onOpenSettings,
+                    onCloseSettings, onSelectGame, onInputBlockedChanged).also { bar ->
+                    floating = bar
+                    chromeHost.addView(bar)
+                    display?.let(bar::render)
+                }
+                appChromeTopPx = bar.heading.rowHeight
+            } else {
+                mountTitleIfNeeded()
+                applyTitleRect(window)
+            }
             requestStatusBarHidden(false)
-            sidebarHost.setDragEnabled(display?.settingsOpen != true)
+            sidebarHost?.setDragEnabled(display?.settingsOpen != true)
         } else {
+            floating?.let { it.show(false, immediate = true); chromeHost.removeView(it) }
+            floating = null
             removeTitle()
+            appChromeTopPx = 0
             mountRailIfNeeded()
-            sidebarHost.setDragEnabled(false)
-            sidebarHost.close(immediate = true)
+            sidebarHost?.setDragEnabled(false)
+            sidebarHost?.close(immediate = true)
             requestStatusBarHidden(true)
         }
         publishInsets(
@@ -104,6 +124,10 @@ class ChromeAssembly(
         if (!attached || disposed) return
         val current = display ?: return
         display = current.copy(gameFrame = frame)
+        floating?.let { bar ->
+            bar.gameProgress(frame.normalizedProgress)
+            bar.heading.renderGame(frame)
+        }
         titleBar?.renderGameFrame(frame)
     }
 
@@ -111,16 +135,20 @@ class ChromeAssembly(
     fun render(input: ChromeDisplayInput, animateColors: Boolean = true) {
         if (!attached || disposed) return
         display = input
-        sidebarHost.setSelected(input.destination)
+        sidebarHost?.setSelected(input.destination)
         // 设置打开只锁抽屉输入，不打断正在进行的收起动画与释放触觉。
-        if (input.settingsOpen) sidebarHost.close()
-        sidebarHost.setDragEnabled(
+        if (input.settingsOpen) sidebarHost?.close()
+        sidebarHost?.setDragEnabled(
             enabled = compact && !input.settingsOpen,
             closeImmediately = !input.settingsOpen,
         )
         renderTitle(animateColors)
+        floating?.render(input)
         rail?.render(input)
     }
+
+    fun contentRects(window: WindowSnapshot) = if (floating != null) FloatingGeometry.compute(window, insets)
+        else ContentGeometry.compute(window, insets)
 
     /** shell 完成唯一内容几何后，把根局部交互矩形交给当前 chrome 布局。 */
     @SuppressLint("RtlHardcoded") // Rail 固定在物理左侧，不随 RTL 镜像。
@@ -128,14 +156,18 @@ class ChromeAssembly(
         if (!attached || disposed) return
         if (compact) {
             if (interaction.isEmpty) {
-                sidebarHost.close(immediate = true)
+                sidebarHost?.close(immediate = true)
+                return
+            }
+            floating?.let { bar ->
+                snapshot?.let { bar.layoutInWindow(interaction, it.insets.systemSafeEdges) }
                 return
             }
             val width = minOf(
                 chromeHost.resources.getDimensionPixelSize(ShellDimensions.shellSideNavWidth),
                 (interaction.width * ShellProportions.DRAWER_MAX_WINDOW_WIDTH).roundToInt(),
             )
-            sidebarHost.setMetrics(interaction, width)
+            sidebarHost?.setMetrics(interaction, width)
             return
         }
 
@@ -163,13 +195,17 @@ class ChromeAssembly(
     /** 普通返回只消费抽屉；设置由 shell 的导航状态处理。 */
     fun consumeBack(): Boolean {
         if (!attached || disposed || !compact) return false
-        if (!sidebarHost.blocksUnderlyingInput) return false
-        sidebarHost.close()
+        if (floating?.expanded == true) { floating?.show(false); return true }
+        if (sidebarHost?.blocksUnderlyingInput != true) return false
+        sidebarHost?.close()
         return true
     }
 
     fun closeDrawer(immediate: Boolean = true) {
-        if (attached && !disposed) sidebarHost.close(immediate)
+        if (attached && !disposed) {
+            if (floating?.expanded == true) floating?.show(false, immediate)
+            sidebarHost?.close(immediate)
+        }
     }
 
     /** 设置标题的预测返回只驱动标题层，不提交设置状态。 */
@@ -184,20 +220,27 @@ class ChromeAssembly(
         forward: Boolean,
     ) {
         if (attached && !disposed) {
+            floating?.heading?.prepareSubpage(from, to, forward)
             titleBar?.prepareSettingsPageTransition(from, to, split = !compact, distancePx = distancePx, forward = forward)
         }
     }
 
     fun renderSettingsPageProgress(frame: TransitionProgress) {
-        if (attached && !disposed) titleBar?.renderSettingsPageProgress(frame)
+        if (!attached || disposed) return
+        floating?.heading?.subpageProgress(frame)
+        titleBar?.renderSettingsPageProgress(frame)
     }
 
     fun renderNavigationProgress(frame: TransitionProgress) {
-        if (attached && !disposed) titleBar?.renderNavigationProgress(frame)
+        if (!attached || disposed) return
+        floating?.heading?.navigationProgress(frame)
+        titleBar?.renderNavigationProgress(frame)
     }
 
     fun renderSettingsProgress(frame: TransitionProgress) {
-        if (attached && !disposed) titleBar?.renderSettingsProgress(frame)
+        if (!attached || disposed) return
+        floating?.heading?.settingsProgress(frame)
+        titleBar?.renderSettingsProgress(frame)
     }
 
     fun cancelBackPreview() {
@@ -208,27 +251,30 @@ class ChromeAssembly(
         titleBar?.endBackPreview()
     }
 
-    fun beginDrawerBackPreview(): Boolean = sidebarHost.beginBackPreview()
+    fun beginDrawerBackPreview(): Boolean = floating?.beginPreview() ?: (sidebarHost?.beginBackPreview() == true)
 
-    fun updateDrawerBackPreview(progress: Float) = sidebarHost.updateBackPreview(progress)
+    fun updateDrawerBackPreview(progress: Float) = floating?.preview(progress) ?: sidebarHost?.updateBackPreview(progress)
 
-    fun cancelDrawerBackPreview() = sidebarHost.cancelBackPreview()
+    fun cancelDrawerBackPreview() = floating?.show(true) ?: sidebarHost?.cancelBackPreview()
 
-    fun finishDrawerBackPreview() = sidebarHost.finishBackPreview()
+    fun finishDrawerBackPreview() = floating?.show(false) ?: sidebarHost?.finishBackPreview()
 
-    fun requestFocus(): Boolean = titleBar?.requestPrimaryFocus() == true
+    fun requestFocus(): Boolean = floating?.focusButton() ?: (titleBar?.requestPrimaryFocus() == true)
 
-    fun requestPanelFocus(): Boolean = attached && sidebarHost.requestPanelFocus()
+    fun requestPanelFocus(): Boolean = attached && (floating?.focusMenu() ?: (sidebarHost?.requestPanelFocus() == true))
 
     fun setResumed(resumed: Boolean) {
         if (disposed) return
-        sidebarHost.setResumed(resumed)
+        if (!resumed) floating?.show(false, immediate = true)
+        sidebarHost?.setResumed(resumed)
     }
 
     /** 生命周期或窗口几何中断：各自清理局部动画与反馈。 */
     fun settleTransitions() {
         if (!attached || disposed) return
-        sidebarHost.close(immediate = true)
+        sidebarHost?.close(immediate = true)
+        floating?.show(false, immediate = true)
+        floating?.heading?.settle()
         titleBar?.settleTransitions()
     }
 
@@ -237,14 +283,15 @@ class ChromeAssembly(
         if (disposed) return
         disposed = true
         attached = false
-        sidebarHost.onNavigate = null
-        sidebarHost.onSettings = null
-        sidebarHost.onInputBlockedChanged = null
-        sidebarHost.release()
+        sidebarHost?.onNavigate = null
+        sidebarHost?.onSettings = null
+        sidebarHost?.onInputBlockedChanged = null
+        sidebarHost?.release()
         titleBar?.dispose()
         titleBar = null
         rail?.dispose()
         rail = null
+        floating = null
         chromeHost.removeAllViews()
         appChromeTopPx = 0
         compact = false
@@ -368,13 +415,14 @@ class ChromeAssembly(
             onCloseSettings()
             return
         }
-        if (compact) sidebarHost.toggle()
+        if (compact) sidebarHost?.toggle()
     }
 
     private fun publishInsets(value: ChromeInsets) {
-        if (value == lastInsets) return
-        lastInsets = value
-        onInsetsChanged(value)
+        val occupied = value.copy(bottom = floating?.reservedHeight ?: 0)
+        if (occupied == lastInsets) return
+        lastInsets = occupied
+        onInsetsChanged(occupied)
     }
 
     private fun requestStatusBarHidden(hidden: Boolean) {
