@@ -103,6 +103,11 @@ class ScoreSyncLogsTest {
         assertFalse(logs.list().single().writing)
         val (success, entries) = export(logs, redact = true, includeHtml = true)
         assertTrue(success)
+        val raw = export(logs, redact = false, includeHtml = true)
+        assertTrue(raw.first)
+        assertTaskLayout(entries, "maimai/task-one/")
+        assertTaskLayout(raw.second, "maimai/task-one/")
+        assertEquals(raw.second.keys, entries.keys)
         val main = entries.entries.single { it.key.endsWith("MaiRecord_Log_20261120102030.jsonl") }.value.toString(Charsets.UTF_8)
         val header = JSONObject(main.lineSequence().first(String::isNotEmpty))
         assertEquals("HEADER", header.getString("stage"))
@@ -114,7 +119,10 @@ class ScoreSyncLogsTest {
             assertFalse(line.contains("configuration-secret"))
             assertFalse(line.contains("123456789012"))
         }
-        val exportedHtml = entries.entries.single { it.key.contains("/html/") }.value.toString(Charsets.UTF_8)
+        val htmlPath = "maimai/task-one/html/MaiRecord_HTML_20261120102030_Master.html"
+        assertEquals(listOf(htmlPath), entries.keys.filter { it.contains("/html/") })
+        assertArrayEquals(html.toByteArray(Charsets.UTF_8), raw.second.getValue(htmlPath))
+        val exportedHtml = entries.getValue(htmlPath).toString(Charsets.UTF_8)
         assertFalse(exportedHtml.contains("private-player"))
         assertTrue(exportedHtml.contains("Chart"))
         assertTrue(html.contains("private-player"))
@@ -169,13 +177,17 @@ class ScoreSyncLogsTest {
             assertEquals(1, writes.get())
             session.finish("FAILED")
             assertFalse(logs.list().single().writing)
-            val raw = export(logs, redact = false).second
+            val (rawSuccess, raw) = export(logs, redact = false)
+            assertTrue(rawSuccess)
+            assertTaskLayout(raw, "chunithm/task-http/")
             assertArrayEquals(compressed, raw.entries.single { it.key.endsWith("_ResponseBody.body") }.value)
             val metadata = JSONObject(raw.entries.single { it.key.endsWith("_Request.json") }.value.toString(Charsets.UTF_8))
             assertEquals("COMPLETE", metadata.getJSONObject("responseBody").getString("state"))
             assertEquals("COMPLETE", metadata.getJSONObject("requestBody").getString("state"))
             val (success, clean) = export(logs, redact = true)
             assertTrue(success)
+            assertTaskLayout(clean, "chunithm/task-http/")
+            assertEquals(raw.keys, clean.keys)
             val allText = clean.values.joinToString("\n") { it.toString(Charsets.UTF_8) }
             listOf("oauth-secret", "authorization-secret", "request-secret", "response-secret").forEach {
                 assertFalse("Leaked $it", allText.contains(it))
@@ -237,6 +249,34 @@ class ScoreSyncLogsTest {
         assertFalse(export(logs, redact = true).first)
         assertNull("Unsupported redaction must not mark successful recording as failed", logs.recordingError)
         assertTrue(export(logs, redact = false).first)
+    }
+
+    private fun assertTaskLayout(entries: Map<String, ByteArray>, taskPath: String) {
+        assertTrue(entries.keys.all { it.startsWith(taskPath) })
+        val topLevel = entries.keys.filter { !it.removePrefix(taskPath).contains('/') }.toSet()
+        val main = topLevel.single { it.endsWith(".jsonl") }
+        assertEquals(setOf(main, main.removeSuffix(".jsonl") + "_Index.json"), topLevel)
+        val requestFiles = entries.keys.filter { it.endsWith("_Request.json") || it.endsWith(".body") }
+        requestFiles.forEach { path ->
+            assertTrue("Request metadata and bodies belong in requests/: $path", path.startsWith(taskPath + "requests/"))
+            assertFalse(path.removePrefix(taskPath + "requests/").contains('/'))
+        }
+        val referencedBodies = linkedSetOf<String>()
+        requestFiles.filter { it.endsWith("_Request.json") }.forEach { path ->
+            val metadata = JSONObject(entries.getValue(path).toString(Charsets.UTF_8))
+            listOf("requestBody", "responseBody").forEach { key ->
+                metadata.optJSONObject(key)?.takeIf { it.has("file") }?.let { body ->
+                    val name = body.getString("file")
+                    assertFalse("Body references must remain relative to their metadata directory", name.contains('/'))
+                    assertFalse(name.contains('\\'))
+                    val bodyPath = path.substringBeforeLast('/') + "/" + name
+                    assertTrue("Missing body referenced by $path", entries.containsKey(bodyPath))
+                    assertEquals(body.getLong("bytes"), entries.getValue(bodyPath).size.toLong())
+                    referencedBodies += bodyPath
+                }
+            }
+        }
+        assertEquals(requestFiles.filter { it.endsWith(".body") }.toSet(), referencedBodies)
     }
 
     private fun export(logs: ScoreSyncLogs, redact: Boolean, includeHtml: Boolean = false): Pair<Boolean, Map<String, ByteArray>> {

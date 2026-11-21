@@ -42,7 +42,7 @@ internal object ScoreSyncLogExport {
                 }
                 val exportedBytes = mutableMapOf<String, Long>()
                 sourceFiles.filter { it.name.endsWith(".body") }.forEach { file ->
-                    entry(zip, path + file.name) { output ->
+                    entry(zip, path + "requests/" + file.name) { output ->
                         val counted = Counter(output)
                         file.inputStream().use { source ->
                             if (redact) ScoreSyncLogRedactor.body(source,
@@ -53,7 +53,11 @@ internal object ScoreSyncLogExport {
                     }
                 }
                 sourceFiles.filterNot { it.name.endsWith(".body") }.forEach { file ->
-                    val name = if (file.name == "index.json") prefix + "_Index.json" else file.name
+                    val name = when {
+                        file.name == "index.json" -> prefix + "_Index.json"
+                        file.name.endsWith("_Request.json") -> "requests/" + file.name
+                        else -> file.name
+                    }
                     entry(zip, path + name) { output ->
                         when {
                             !redact -> file.inputStream().use { it.copyTo(output) }
