@@ -1,6 +1,6 @@
 package com.otokit.noharayh.ui.settings.subPages
 
-import com.otokit.noharayh.ui.kit.settings.SettingsSegmentedChoice
+import com.otokit.noharayh.ui.kit.settings.SettingsButton
 import com.otokit.noharayh.ui.constants.motion.PageMotionStyle
 import com.otokit.noharayh.ui.kit.settings.SettingsGroup
 import android.content.Context
@@ -65,22 +65,9 @@ internal class AppSettingsPage(
         }
 
         // 行按固定顺序布局；按压行由容器提升为最后绘制，外环不被相邻行盖住。
-        val choices = PressFrontColumn(context)
-        DisplayScaleOption.entries.forEach { option ->
-            choices.addView(
-                choice(
-                    context = context,
-                    label = context.getString(option.labelRes()),
-                    selected = option == displayScale,
-                    onClick = { onDisplayScaleSelected(option) },
-                ).apply {
-                    // 缩放会 recreate Activity，原窗口移除前先交付反馈。
-                    deferClickUntilReleaseFeedback = true
-                },
-                LinearLayout.LayoutParams(-1, -2).apply {
-                    if (option != DisplayScaleOption.entries.first()) topMargin = dp(context, 4)
-                },
-            )
+        val choices = choiceList(DisplayScaleOption.entries.map { context.getString(it.labelRes()) },
+            displayScale.ordinal, deferClick = true) { index ->
+            onDisplayScaleSelected(DisplayScaleOption.entries[index])
         }
         val warning = SettingsHeaderStatus(context).apply {
             render(context.getString(R.string.settings_display_scale_warning),
@@ -88,13 +75,11 @@ internal class AppSettingsPage(
         }
         body.addView(card(context, R.drawable.ic_aspect_ratio_24,
             R.string.settings_display_scale, choices, trailing = warning))
-        val motionChoice = SettingsSegmentedChoice(context).apply {
-            setItems(context.resources.getStringArray(R.array.page_motion_labels).toList(), pageMotion.ordinal) { index ->
-                setSelection(index)
-                onPageMotionSelected(PageMotionStyle.entries[index])
-            }
+        val motionChoice = choiceList(context.resources.getStringArray(R.array.page_motion_labels).toList(),
+            pageMotion.ordinal) { index ->
+            onPageMotionSelected(PageMotionStyle.entries[index])
         }
-        body.addView(card(context, null, R.string.settings_page_motion, motionChoice),
+        body.addView(card(context, R.drawable.ic_auto_awesome_motion_40, R.string.settings_page_motion, motionChoice),
             LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(context, 12) })
         val switches = SettingsGroup(context).apply {
             addView(hardwareSwitch, LinearLayout.LayoutParams(-1, -2))
@@ -108,6 +93,27 @@ internal class AppSettingsPage(
         clipChildren = false
         clipToPadding = false
         addView(body, FrameLayout.LayoutParams(-1, -2))
+    }
+
+    private fun choiceList(labels: List<String>, selectedIndex: Int, deferClick: Boolean = false,
+        onSelected: (Int) -> Unit): PressFrontColumn {
+        val column = PressFrontColumn(context)
+        var current = selectedIndex
+        labels.forEachIndexed { index, label ->
+            val row = choice(context, label, index == current) {
+                if (current != index) {
+                    (column.getChildAt(current) as SettingsButton).renderSelection(false)
+                    (column.getChildAt(index) as SettingsButton).renderSelection(true)
+                    current = index
+                    onSelected(index)
+                }
+            }
+            row.deferClickUntilReleaseFeedback = deferClick
+            column.addView(row, LinearLayout.LayoutParams(-1, -2).apply {
+                if (index > 0) topMargin = dp(context, 4)
+            })
+        }
+        return column
     }
 
     fun renderBackgroundRendering(options: BackgroundRenderingOptions) {
