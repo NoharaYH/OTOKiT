@@ -231,6 +231,21 @@ class ContentGeometryTest {
         assertEquals(2240, threeButtons.interactive.bottom)
     }
 
+    @Test fun floatingBackgroundReachesTheTopWhileControlsClearTheCameraCutout() {
+        val insets = WindowInsetsSnapshot(displayCutout = EdgeInsets(top = 32))
+        val chrome = ChromeInsets(bottom = 85)
+        val rects = FloatingGeometry.compute(snapshot(insets = insets), chrome)
+        assertEquals(0, rects.base.top)
+        assertEquals(32, rects.interactive.top)
+        assertEquals(0, rects.scrollable.top)
+        val revealed = insets.copy(statusBars = EdgeInsets(top = 48), statusBarsVisible = true)
+        val visible = FloatingGeometry.compute(snapshot(insets = revealed), chrome)
+        assertEquals(rects.base, visible.base)
+        assertEquals(rects.navigation, visible.navigation)
+        assertEquals(48, visible.interactive.top)
+        assertEquals(0, visible.scrollable.top)
+    }
+
     @Test fun floatingNavigationStaysAtTheSameHeightWhenTheGestureHintIsHidden() {
         val chrome = ChromeInsets(bottom = 85)
         fun layout(insets: WindowInsetsSnapshot) = FloatingGeometry.compute(snapshot(insets = insets), chrome)

@@ -25,7 +25,7 @@ internal class PersonalizationSettingsPage(
     private val content = ThemeSettingsContent(context, margin, split, selection,
         onModeSelected, onOptionSelected, onBackgroundTintSelected, onWallpaperSelected, onColorSelected, materkitColors)
     init { clipChildren = false; clipToPadding = false; addView(content, LayoutParams(-1, -1)) }
-    override fun setBottomSafeInset(bottom: Int) = content.setBottomSafeInset(bottom)
+    override fun setSafeInsets(top: Int, bottom: Int) = content.setSafeInsets(top, bottom)
     fun renderSelection(selection: GameSelectionState) = content.renderSelection(selection)
     fun renderMaterkitColors(colors: ThemeColors) = content.renderMaterkitColors(colors)
     fun closeThemePanel() = content.closeThemePanel()

@@ -73,7 +73,9 @@ class SettingsAssembly(
                 val drawHeight = MeasureSpec.getSize(heightMeasureSpec)
                 for (index in 0 until childCount) {
                     val child = getChildAt(index)
-                    child.layoutParams.height = paneHeight(child, drawHeight)
+                    val params = child.layoutParams as FrameLayout.LayoutParams
+                    params.topMargin = if (child is EdgeToEdgeScrollable) 0 else topSafeInset
+                    params.height = paneHeight(child, drawHeight)
                 }
                 super.onMeasure(widthMeasureSpec, heightMeasureSpec)
             }
@@ -93,6 +95,7 @@ class SettingsAssembly(
     private var forward = true
     private var split = false
     private var margin = dp(20)
+    private var topSafeInset = 0
     private var bottomSafeInset = 0
     private var disposed = false
     private var themeControlsEnabled = true
@@ -167,11 +170,12 @@ class SettingsAssembly(
     }
 
     /** 绘制面保持延伸；滚动页用安全留白控制终点，固定记录页保留安全边界。 */
-    fun setBottomSafeInset(bottom: Int) {
-        if (disposed || bottomSafeInset == bottom) return
+    fun setSafeInsets(top: Int, bottom: Int) {
+        if (disposed || (topSafeInset == top && bottomSafeInset == bottom)) return
+        topSafeInset = top
         bottomSafeInset = bottom
-        rootPage.setBottomSafeInset(bottom)
-        childPages.values.filterIsInstance<EdgeToEdgeScrollable>().forEach { it.setBottomSafeInset(bottom) }
+        rootPage.setSafeInsets(top, bottom)
+        childPages.values.filterIsInstance<EdgeToEdgeScrollable>().forEach { it.setSafeInsets(top, bottom) }
         requestLayout()
     }
 
@@ -272,7 +276,7 @@ class SettingsAssembly(
     private fun mount(page: Page) {
         panesFor(page).forEach { pane ->
             childPages.getOrPut(pane) { buildPage(pane).also {
-                (it as? EdgeToEdgeScrollable)?.setBottomSafeInset(bottomSafeInset)
+                (it as? EdgeToEdgeScrollable)?.setSafeInsets(topSafeInset, bottomSafeInset)
                 childHost.addView(it, LayoutParams(-1, -1))
             } }
         }
@@ -477,7 +481,7 @@ class SettingsAssembly(
     }
     private fun dp(value: Int) = (value * resources.displayMetrics.density + 0.5f).toInt()
     private fun paneHeight(view: View, drawHeight: Int) =
-        if (view is EdgeToEdgeScrollable) drawHeight else (drawHeight - bottomSafeInset).coerceAtLeast(0)
+        if (view is EdgeToEdgeScrollable) drawHeight else (drawHeight - topSafeInset - bottomSafeInset).coerceAtLeast(0)
     private fun exact(value: Int) = MeasureSpec.makeMeasureSpec(value.coerceAtLeast(0), MeasureSpec.EXACTLY)
 
     private companion object {

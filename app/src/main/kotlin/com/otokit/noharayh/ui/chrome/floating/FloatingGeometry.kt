@@ -11,8 +11,10 @@ internal object FloatingGeometry {
         val pages = ContentGeometry.compute(window, insets.copy(bottom = 0))
         val height = window.metrics.heightPx
         val bottom = height - if (window.insets.imeHasEdgeOccupancy) window.insets.ime.bottom else 0
-        val top = window.insets.systemSafeEdges.top.coerceIn(0, height)
+        val top = maxOf(window.insets.captionBar.top, window.insets.navigationBars.top).coerceIn(0, height)
         return pages.copy(
+            base = pages.base.copy(top = top),
+            scrollable = pages.scrollable.copy(top = top),
             navigation = PixelRect(0, top, window.metrics.widthPx, bottom.coerceAtLeast(top)),
             interactive = pages.interactive.copy(bottom = (bottom - insets.bottom)
                 .coerceIn(pages.interactive.top, pages.interactive.bottom)),

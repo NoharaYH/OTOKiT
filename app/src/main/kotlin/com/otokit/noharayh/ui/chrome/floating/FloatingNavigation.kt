@@ -26,7 +26,6 @@ import com.otokit.noharayh.ui.kit.common.PressFrontColumn
 import com.otokit.noharayh.ui.kit.common.ViewPrimitives
 import com.otokit.noharayh.ui.shell.navigation.Destination
 import com.otokit.noharayh.ui.window.PixelRect
-import com.otokit.noharayh.ui.window.insets.EdgeInsets
 import com.otokit.noharayh.ui.theme.GameLine
 import kotlin.math.roundToInt
 
@@ -50,6 +49,12 @@ internal class FloatingNavigation(
     private val shadowColors = intArrayOf(
         0xB3000000.toInt(), 0x80000000.toInt(), 0x4D000000, 0x1A000000, Color.TRANSPARENT,
     )
+    private val statusFadeHeight = dp(64).toFloat()
+    private var settingsProgress = 0f
+    private val statusFadePaint = Paint(Paint.DITHER_FLAG).apply {
+        shader = LinearGradient(0f, 0f, 0f, statusFadeHeight, shadowColors,
+            floatArrayOf(0f, .4f, .62f, .82f, 1f), Shader.TileMode.CLAMP)
+    }
     private val closedStops = floatArrayOf(0f, .10f, .24f, .53f, 1f)
     private val openStops = floatArrayOf(0f, .25f, .5f, .75f, 1f)
     private val shadowStops = closedStops.copyOf()
@@ -62,7 +67,6 @@ internal class FloatingNavigation(
     }
     private var menuLift = 0f
     private val shade = View(context)
-    val heading = FloatingHeading(context)
     private val destinations = mutableMapOf<Destination, FloatingMenuItem>()
     private val menu = PressFrontColumn(context)
     private val menuViewport = android.widget.ScrollView(context)
@@ -137,16 +141,10 @@ internal class FloatingNavigation(
             if (indicator.layoutParams.width != width) indicator.layoutParams = indicator.layoutParams.apply { this.width = width }
             gameProgress(latestGameProgress)
         }
-        addView(heading, LayoutParams(-1, heading.rowHeight, Gravity.TOP))
         drawMenu(0f)
     }
 
-    fun layoutInWindow(bounds: PixelRect, safe: EdgeInsets) {
-        val header = heading.layoutParams as LayoutParams
-        if (header.leftMargin != safe.left || header.rightMargin != safe.right) {
-            header.setMargins(safe.left, 0, safe.right, 0)
-            heading.layoutParams = header
-        }
+    fun layoutInWindow(bounds: PixelRect) {
         val params = layoutParams as LayoutParams
         if (params.width == bounds.width && params.height == bounds.height &&
             params.leftMargin == bounds.left && params.topMargin == bounds.top) return
@@ -172,7 +170,6 @@ internal class FloatingNavigation(
         if (state.settingsOpen && expanded) show(false)
         track.visibility = if (state.settingsOpen) GONE else VISIBLE
         destinations.forEach { (destination, row) -> row.isSelected = destination == state.destination }
-        heading.render(state)
         indicator.background = ContinuousCornerDrawable(state.themeColor, capsuleHeight / 2f - indicatorInset)
         gameProgress(state.gameFrame?.normalizedProgress ?: if (state.currentGame == GameLine.Mai) 0f else 1f)
         refreshButton()
@@ -211,8 +208,20 @@ internal class FloatingNavigation(
         invalidate()
     }
 
+    fun setSettingsProgress(progress: Float) {
+        if (progress == settingsProgress) return
+        settingsProgress = progress
+        invalidate()
+    }
+
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
+        if (settingsProgress > 0f) {
+            val topSave = canvas.save()
+            canvas.translate(0f, (settingsProgress - 1f) * statusFadeHeight)
+            canvas.drawRect(0f, 0f, width.toFloat(), statusFadeHeight, statusFadePaint)
+            canvas.restoreToCount(topSave)
+        }
         val save = canvas.save()
         canvas.translate(0f, height.toFloat())
         canvas.scale(1f, (fadeHeight + menuLift) / fadeHeight)

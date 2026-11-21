@@ -782,7 +782,8 @@ class MainShell(
         applyContentRect(settingsScrim, rects.base, snapshot.metrics)
         applyContentRect(contentHost, rects.interactive, snapshot.metrics)
         applyContentRect(overlayHost, rects.scrollable, snapshot.metrics)
-        settingsPage?.setBottomSafeInset(rects.scrollable.bottom - rects.interactive.bottom)
+        settingsPage?.setSafeInsets(rects.interactive.top - rects.scrollable.top,
+            rects.scrollable.bottom - rects.interactive.bottom)
         contentWidthPx = rects.interactive.width
         contentHeightPx = rects.interactive.height
         applyGameFrame()

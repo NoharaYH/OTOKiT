@@ -26,6 +26,7 @@ import com.otokit.noharayh.composition.oauthConnections
 import com.otokit.noharayh.composition.initializeScoreData
 import com.otokit.noharayh.composition.scoreSyncStartState
 import com.otokit.noharayh.platform.ScoreSyncLauncher
+import com.otokit.noharayh.platform.StatusBarContrast
 import com.otokit.noharayh.platform.DisplayScaleStore
 import com.otokit.noharayh.platform.WindowOrientationController
 import com.otokit.noharayh.platform.restoreColorOsPredictiveBackProgress
@@ -53,6 +54,7 @@ class MainActivity : AppCompatActivity() {
     private var startup: StartupPresentation? = null
     private var backCallback: OnBackPressedCallback? = null
     private var windowObserver: WindowEnvironmentObserver? = null
+    private var statusBarContrast: StatusBarContrast? = null
     private var orientationController: WindowOrientationController? = null
     private var scoreSyncLauncher: ScoreSyncLauncher? = null
     private var resetTransientOnResume = false
@@ -98,6 +100,7 @@ class MainActivity : AppCompatActivity() {
         )
         binding = ActivityMainBinding.inflate(layoutInflater)
         val floatingStyle = PhoneNavigationPreference(this).active
+        if (floatingStyle) statusBarContrast = StatusBarContrast(window)
         val drawer = if (floatingStyle) null else SideBarHost(this).apply {
             binding.root.removeView(binding.pageScene)
             addView(binding.pageScene, 0)
@@ -166,7 +169,7 @@ class MainActivity : AppCompatActivity() {
         }.also { onBackPressedDispatcher.addCallback(this, it) }
 
         shell.setOnCanHandleBackChanged { enabled -> backCallback?.isEnabled = enabled }
-        shell.setOnStatusBarHiddenChanged { hidden -> applyStatusBarHidden(hidden) }
+        shell.setOnStatusBarHiddenChanged(::applyStatusBarHidden)
         shell.attach()
         resetTransientOnResume = !restoreSettingsAfterRecreate
 
@@ -286,18 +289,20 @@ class MainActivity : AppCompatActivity() {
         const val KEY_REOPEN_SECTION = "display_scale_reopen_section"
     }
 
-    /** 平台层执行系统栏意图；样式仍保持浅底深色图标。 */
     private fun applyStatusBarHidden(hidden: Boolean) {
         val controller = WindowInsetsControllerCompat(window, binding.root)
         if (hidden) {
+            statusBarContrast?.stop()
             controller.hide(WindowInsetsCompat.Type.statusBars())
         } else {
             controller.show(WindowInsetsCompat.Type.statusBars())
+            statusBarContrast?.start()
         }
-        controller.isAppearanceLightStatusBars = true
+        if (hidden || statusBarContrast == null) controller.isAppearanceLightStatusBars = true
     }
 
     override fun onDestroy() {
+        statusBarContrast?.stop()
         scoreSyncLauncher?.close()
         scoreSyncLauncher = null
         startup?.finish()

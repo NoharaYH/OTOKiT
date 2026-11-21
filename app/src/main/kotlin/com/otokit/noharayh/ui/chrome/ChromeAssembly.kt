@@ -50,6 +50,7 @@ class ChromeAssembly(
     private var lastInsets = ChromeInsets.Zero
     private var lastStatusBarHidden = false
     private var statusBarIntentInitialized = false
+    private var settingsProgress = 0f
 
     private val railWidthPx: Int
         get() = chromeHost.resources.getDimensionPixelSize(ShellDimensions.padNavRailWidth)
@@ -87,13 +88,14 @@ class ChromeAssembly(
         if (compactNow) {
             removeRail()
             if (sidebarHost == null) {
-                val bar = floating ?: FloatingNavigation(chromeHost.context, motionCurve, onNavigate, onOpenSettings,
-                    onCloseSettings, onSelectGame, onInputBlockedChanged).also { bar ->
+                if (floating == null) {
+                    val bar = FloatingNavigation(chromeHost.context, motionCurve, onNavigate, onOpenSettings,
+                        onCloseSettings, onSelectGame, onInputBlockedChanged)
                     floating = bar
                     chromeHost.addView(bar)
                     display?.let(bar::render)
+                    bar.setSettingsProgress(settingsProgress)
                 }
-                appChromeTopPx = bar.heading.rowHeight
             } else {
                 mountTitleIfNeeded()
                 applyTitleRect(window)
@@ -124,10 +126,7 @@ class ChromeAssembly(
         if (!attached || disposed) return
         val current = display ?: return
         display = current.copy(gameFrame = frame)
-        floating?.let { bar ->
-            bar.gameProgress(frame.normalizedProgress)
-            bar.heading.renderGame(frame)
-        }
+        floating?.gameProgress(frame.normalizedProgress)
         titleBar?.renderGameFrame(frame)
     }
 
@@ -160,7 +159,7 @@ class ChromeAssembly(
                 return
             }
             floating?.let { bar ->
-                snapshot?.let { bar.layoutInWindow(interaction, it.insets.systemSafeEdges) }
+                bar.layoutInWindow(interaction)
                 return
             }
             val width = minOf(
@@ -220,26 +219,24 @@ class ChromeAssembly(
         forward: Boolean,
     ) {
         if (attached && !disposed) {
-            floating?.heading?.prepareSubpage(from, to, forward)
             titleBar?.prepareSettingsPageTransition(from, to, split = !compact, distancePx = distancePx, forward = forward)
         }
     }
 
     fun renderSettingsPageProgress(frame: TransitionProgress) {
         if (!attached || disposed) return
-        floating?.heading?.subpageProgress(frame)
         titleBar?.renderSettingsPageProgress(frame)
     }
 
     fun renderNavigationProgress(frame: TransitionProgress) {
         if (!attached || disposed) return
-        floating?.heading?.navigationProgress(frame)
         titleBar?.renderNavigationProgress(frame)
     }
 
     fun renderSettingsProgress(frame: TransitionProgress) {
         if (!attached || disposed) return
-        floating?.heading?.settingsProgress(frame)
+        settingsProgress = frame.value.coerceIn(0f, 1f)
+        floating?.setSettingsProgress(settingsProgress)
         titleBar?.renderSettingsProgress(frame)
     }
 
@@ -274,7 +271,6 @@ class ChromeAssembly(
         if (!attached || disposed) return
         sidebarHost?.close(immediate = true)
         floating?.show(false, immediate = true)
-        floating?.heading?.settle()
         titleBar?.settleTransitions()
     }
 

@@ -112,7 +112,7 @@ class ContentScrollViewTest : UiComponentTestHost() {
                 setPadding(7, 9, 11, 12)
                 isSmoothScrollingEnabled = false
                 addView(body, FrameLayout.LayoutParams(-1, -2))
-                setBottomSafeInset(95)
+                setSafeInsets(40, 95)
             }
         }
         mount(scroll, 300, 240)
@@ -120,6 +120,7 @@ class ContentScrollViewTest : UiComponentTestHost() {
             assertEquals(300, scroll.width)
             assertEquals(240, scroll.height)
             assertEquals(107, scroll.paddingBottom)
+            assertEquals(49, body.top)
             assertFalse(scroll.clipToPadding)
             assertFalse(scroll.isVerticalScrollBarEnabled)
             assertFalse(scroll.isHorizontalScrollBarEnabled)
@@ -128,24 +129,26 @@ class ContentScrollViewTest : UiComponentTestHost() {
             assertEquals(200, scroll.scrollY)
             val frame = Bitmap.createBitmap(scroll.width, scroll.height, Bitmap.Config.ARGB_8888)
             try {
-                fun bottomPixel(): Int {
+                fun pixelAt(y: Int): Int {
                     frame.eraseColor(Color.TRANSPARENT)
                     // View 的父级软件绘制会预先应用 -scroll 偏移；public draw 不替调用者做这一步。
                     val canvas = Canvas(frame).apply { translate(-scroll.scrollX.toFloat(), -scroll.scrollY.toFloat()) }
                     scroll.draw(canvas)
-                    return frame.getPixel(scroll.width / 2, scroll.height - 4)
+                    return frame.getPixel(scroll.width / 2, y)
                 }
                 // 滚动经过底部安全区时仍绘制内容，不在安全区顶部硬切一刀。
-                assertEquals(Color.GREEN, bottomPixel())
+                assertEquals(Color.GREEN, pixelAt(4))
+                assertEquals(Color.GREEN, pixelAt(scroll.height - 4))
                 scroll.clipToPadding = true
-                assertEquals(Color.WHITE, bottomPixel()) // 对照证明该断言能检出安全区顶部硬裁。
+                assertEquals(Color.WHITE, pixelAt(4))
+                assertEquals(Color.WHITE, pixelAt(scroll.height - 4))
                 scroll.clipToPadding = false
             } finally { frame.recycle() }
             scroll.fullScroll(View.FOCUS_DOWN)
             assertLastItemAbovePadding(scroll, body)
         }
         for (inset in listOf(47, 0, 95)) {
-            main { scroll.setBottomSafeInset(inset); scroll.setBottomSafeInset(inset) }
+            main { scroll.setSafeInsets(0, inset); scroll.setSafeInsets(0, inset) }
             instrumentation.waitForIdleSync()
             main {
                 assertEquals(7, scroll.paddingLeft)
