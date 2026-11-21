@@ -1,5 +1,6 @@
 package com.otokit.noharayh.ui.animation.common
 
+import com.otokit.noharayh.ui.constants.motion.MotionCurve
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
@@ -16,7 +17,7 @@ internal class ContentTransition<T>(initial: T, private val timing: TransitionTi
     private var target = initial
     private var animator: ValueAnimator? = null
 
-    fun play(to: T, animate: Boolean = true, from: T = frame) {
+    fun play(to: T, animate: Boolean = true, from: T = frame, curve: MotionCurve = timing.curve) {
         stop()
         target = to
         if (!animate || !ValueAnimator.areAnimatorsEnabled() || from == to) { emit(to); return }
@@ -24,7 +25,7 @@ internal class ContentTransition<T>(initial: T, private val timing: TransitionTi
         emit(from)
         val next = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = timing.durationMs
-            interpolator = MotionInterpolators.of(timing.curve)
+            interpolator = MotionInterpolators.of(curve)
             addUpdateListener { emit(interpolate(from, to, it.animatedValue as Float)) }
             addListener(object : AnimatorListenerAdapter() {
                 override fun onAnimationEnd(animation: Animator) {

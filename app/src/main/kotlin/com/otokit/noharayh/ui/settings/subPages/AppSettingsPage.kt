@@ -1,5 +1,7 @@
 package com.otokit.noharayh.ui.settings.subPages
 
+import com.otokit.noharayh.ui.kit.settings.SettingsSegmentedChoice
+import com.otokit.noharayh.ui.constants.motion.PageMotionStyle
 import com.otokit.noharayh.ui.kit.settings.SettingsGroup
 import android.content.Context
 import android.text.Annotation
@@ -31,6 +33,8 @@ internal class AppSettingsPage(
     displayScale: DisplayScaleOption,
     onDisplayScaleSelected: (DisplayScaleOption) -> Unit,
     rendering: BackgroundRenderingOptions,
+    pageMotion: PageMotionStyle,
+    onPageMotionSelected: (PageMotionStyle) -> Unit,
     startupAnimationEnabled: Boolean,
     onStartupAnimationSelected: (Boolean) -> Unit,
     private val onHardwareAccelerationSelected: (Boolean) -> Unit,
@@ -84,6 +88,14 @@ internal class AppSettingsPage(
         }
         body.addView(card(context, R.drawable.ic_aspect_ratio_24,
             R.string.settings_display_scale, choices, trailing = warning))
+        val motionChoice = SettingsSegmentedChoice(context).apply {
+            setItems(context.resources.getStringArray(R.array.page_motion_labels).toList(), pageMotion.ordinal) { index ->
+                setSelection(index)
+                onPageMotionSelected(PageMotionStyle.entries[index])
+            }
+        }
+        body.addView(card(context, null, R.string.settings_page_motion, motionChoice),
+            LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(context, 12) })
         val switches = SettingsGroup(context).apply {
             addView(hardwareSwitch, LinearLayout.LayoutParams(-1, -2))
             addView(animationSwitch, LinearLayout.LayoutParams(-1, -2).apply {

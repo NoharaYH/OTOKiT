@@ -8,10 +8,15 @@ import android.view.ViewConfiguration
 import android.view.ViewGroup
 import android.webkit.WebView
 import android.widget.FrameLayout
+import android.widget.ScrollView
 import androidx.core.view.children
+import androidx.core.view.allViews
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.animation.common.GamePhase
+import com.otokit.noharayh.ui.animation.common.MotionInterpolators
+import com.otokit.noharayh.ui.chrome.SideBarHost
+import com.otokit.noharayh.ui.constants.motion.MotionCurve
 import com.otokit.noharayh.ui.pages.GamePairLayout
 import com.otokit.noharayh.ui.pages.GameSwipeLayout
 import com.otokit.noharayh.ui.shell.background.BackgroundHost
@@ -27,6 +32,60 @@ import kotlin.math.abs
 
 @RunWith(AndroidJUnit4::class)
 class GameForegroundSwipeTest : UiComponentTestHost() {
+    @Test fun scoreSyncFormsStayPutOnVerticalPullAndSwitchGamesHorizontally() {
+        val pager = activity.findViewById<GameSwipeLayout>(R.id.content_host)
+        val drawer = activity.findViewById<SideBarHost>(R.id.side_bar_host)
+        await("Score sync forms are mounted") { pager.allViews.any { it is ScrollView && it.isShown && it.height > 0 } }
+        for (curve in listOf(MotionCurve.Standard, MotionCurve.GentleBounce, MotionCurve.GentleBounce, MotionCurve.Emphasized)) {
+            var crossedHorizontal = false
+            lateinit var origin: GameLine
+            lateinit var listener: android.view.ViewTreeObserver.OnPreDrawListener
+            main {
+                origin = pager.selectedGame()
+                pager.settleCurve = curve
+                drawer.settleInterpolator = MotionInterpolators.of(curve)
+                val outer = pager.allViews.filterIsInstance<ScrollView>().first { it.isShown }
+                val form = outer.getChildAt(0)
+                assertEquals(View.OVER_SCROLL_NEVER, outer.overScrollMode)
+                outer.scrollTo(0, 0)
+                val scrollOrigin = IntArray(2).also { outer.getLocationOnScreen(it) }
+                val pagerOrigin = IntArray(2).also { pager.getLocationOnScreen(it) }
+                val x = scrollOrigin[0] - pagerOrigin[0] + outer.width * .5f
+                val y = scrollOrigin[1] - pagerOrigin[1] + outer.height * .15f
+                val now = SystemClock.uptimeMillis()
+                fun send(action: Int, elapsed: Long, delta: Float) {
+                    val event = MotionEvent.obtain(now, now + elapsed, action, x, y + delta, 0)
+                    try { pager.dispatchTouchEvent(event) } finally { event.recycle() }
+                }
+                listener = android.view.ViewTreeObserver.OnPreDrawListener {
+                    val sign = if (origin == GameLine.Mai) -1f else 1f
+                    if (pager.edgePull * sign > 1f && pager.phase == GamePhase.Settling) crossedHorizontal = true
+                    true
+                }
+                pager.viewTreeObserver.addOnPreDrawListener(listener)
+                send(MotionEvent.ACTION_DOWN, 0, 0f)
+                send(MotionEvent.ACTION_MOVE, 16, outer.height * .12f)
+                send(MotionEvent.ACTION_MOVE, 32, outer.height * .42f)
+                assertEquals(0f, form.translationY, 0f)
+                assertEquals(0, outer.scrollY)
+                send(MotionEvent.ACTION_UP, 96, outer.height * .42f)
+                assertEquals(GamePhase.Idle, pager.phase)
+            }
+            main {
+                val dx = pager.width * if (origin == GameLine.Mai) -.7f else .7f
+                val swipe = gesture(pager, pager.width * .5f, pager.height * .3f)
+                swipe(MotionEvent.ACTION_DOWN, 0f)
+                swipe(MotionEvent.ACTION_MOVE, dx)
+                swipe(MotionEvent.ACTION_UP, dx)
+            }
+            await("Game switches") { pager.phase == GamePhase.Idle && pager.selectedGame() != origin }
+            main {
+                pager.viewTreeObserver.removeOnPreDrawListener(listener)
+                assertEquals("horizontal game rebound for $curve", curve == MotionCurve.GentleBounce, crossedHorizontal)
+            }
+        }
+    }
+
     @Test fun gameDragAndEdgePullKeepBackgroundPositionsFixed() {
         val foreground = activity.findViewById<GameSwipeLayout>(R.id.content_host)
         val background = activity.findViewById<ViewGroup>(R.id.background_host)

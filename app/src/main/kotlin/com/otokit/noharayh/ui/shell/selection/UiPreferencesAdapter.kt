@@ -1,5 +1,6 @@
 package com.otokit.noharayh.ui.shell.selection
 
+import com.otokit.noharayh.ui.constants.motion.PageMotionStyle
 import com.otokit.noharayh.storage.preferences.UiPreferenceRecord
 import com.otokit.noharayh.storage.preferences.UiPreferences
 import com.otokit.noharayh.ui.shell.background.BackgroundRenderingOptions
@@ -12,6 +13,10 @@ import com.otokit.noharayh.ui.shell.background.BackgroundRenderingOptions
 class UiPreferencesAdapter(private val preferences: UiPreferences) {
 
     fun read(): SelectionSource = preferences.readSelection().toSelectionSource()
+
+    fun readPageMotion() = PageMotionStyle.restore(preferences.readSelection().pageMotion)
+
+    fun writePageMotion(style: PageMotionStyle) = preferences.writePageMotion(style.key)
 
     fun readStartupAnimation(): Boolean = preferences.readSelection().startupAnimationEnabled ?: false
 

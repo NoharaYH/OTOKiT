@@ -1,5 +1,6 @@
 package com.otokit.noharayh.ui.settings
 
+import com.otokit.noharayh.ui.constants.motion.PageMotionStyle
 import android.content.Context
 import com.otokit.noharayh.ui.constants.display.DisplayScaleOption
 import com.otokit.noharayh.ui.settings.subPages.*
@@ -23,6 +24,8 @@ internal object SettingsPages {
         displayScale: DisplayScaleOption,
         onDisplayScaleSelected: (DisplayScaleOption) -> Unit,
         rendering: BackgroundRenderingOptions,
+        pageMotion: PageMotionStyle,
+        onPageMotionSelected: (PageMotionStyle) -> Unit,
         startupAnimationEnabled: Boolean,
         onStartupAnimationSelected: (Boolean) -> Unit,
         onHardwareAccelerationSelected: (Boolean) -> Unit,
@@ -46,6 +49,8 @@ internal object SettingsPages {
             displayScale = displayScale,
             onDisplayScaleSelected = onDisplayScaleSelected,
             rendering = rendering,
+            pageMotion = pageMotion,
+            onPageMotionSelected = onPageMotionSelected,
             startupAnimationEnabled = startupAnimationEnabled,
             onStartupAnimationSelected = onStartupAnimationSelected,
             onHardwareAccelerationSelected = onHardwareAccelerationSelected,

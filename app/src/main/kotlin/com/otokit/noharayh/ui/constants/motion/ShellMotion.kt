@@ -5,7 +5,17 @@ package com.otokit.noharayh.ui.constants.motion
  *
  * 只登记名称，不实例化 Interpolator；执行器在使用时创建运行对象。
  */
-enum class MotionCurve { FastOutSlowIn, OutQuint }
+enum class MotionCurve { FastOutSlowIn, OutQuint, Standard, Emphasized, GentleBounce }
+
+enum class PageMotionStyle(val key: String, val curve: MotionCurve) {
+    Standard("standard", MotionCurve.Standard),
+    Emphasized("emphasized", MotionCurve.Emphasized),
+    GentleBounce("gentle_bounce", MotionCurve.GentleBounce);
+
+    companion object {
+        fun restore(key: String?) = entries.firstOrNull { it.key == key } ?: Standard
+    }
+}
 
 /**
  * 转场效果的纯描述。
@@ -34,20 +44,9 @@ object MotionDefaults {
     val EMPHASIZED_CURVE: MotionCurve = MotionCurve.FastOutSlowIn
 }
 
-/** 同一次功能切页的唯一类型与节奏；内容和标题共享进度。 */
 object NavigationTransition {
-    val KIND: TransitionKind = TransitionKind.ScaleFadeSlide
-    const val DURATION_MS: Long = 300L
-    val CURVE: MotionCurve = MotionDefaults.EMPHASIZED_CURVE
-}
-
-/** 导航内容只描述自己的空间幅度。 */
-object NavContentTransition {
-    const val SCALE: Float = 0.1f
-    const val EXIT_DISTANCE_RATIO: Float = 0.6f
-
-    /** 纵向位移占安全内容高度的比例。 */
-    const val TRANSLATION_HEIGHT_FRACTION: Float = 0.4f
+    const val DURATION_MS = 320L
+    const val DISTANCE_DP = 32f
 }
 
 /** 全程连续的卡片退场；缩放、位移、淡出共享走势，不设置静止区间。 */
@@ -58,9 +57,6 @@ object PageCardTransition {
 
 /** 手机标题的局部幅度，量纲与内容区解耦。 */
 object NavTitleTransition {
-    /** 标题与内容使用同一缩放幅度，位移仍按标题行自身尺寸计算。 */
-    const val COMBINED_SCALE: Float = NavContentTransition.SCALE
-    const val SCALE_ONLY: Float = NavContentTransition.SCALE
     const val TRANSLATION_ROW_HEIGHT_FRACTION: Float = 0.76f
     const val TRANSLATION_MAX_DP: Float = 44f
 }
@@ -69,42 +65,14 @@ object NavTitleTransition {
 object PagerPairTransition {
     val KIND: TransitionKind = TransitionKind.Slide
     val CURVE: MotionCurve = MotionDefaults.EMPHASIZED_CURVE
-    const val SWIPE_SETTLE_MS = 260L
+    const val SWIPE_SETTLE_MS = NavigationTransition.DURATION_MS
 }
 
-/** 仅替换抽屉收尾曲线；跟手进度与原生按距离/速度计算的时长保留。 */
-object DrawerTransition {
-    val CURVE: MotionCurve = MotionDefaults.EMPHASIZED_CURVE
-}
-
-/** 进出设置时的整体过渡。 */
 object SettingsTransition {
-    val KIND: TransitionKind = TransitionKind.ScaleFadeSlide
-    const val ENTER_DURATION_MS: Long = 420L
-    const val EXIT_DURATION_MS: Long = 300L
-    const val SCRIM_MAX_ALPHA: Float = 0.20f
-
-    /** 功能页缩小到的比例。 */
-    const val CONTENT_SCALE: Float = 0.70f
-
-    /** 覆盖层入场起始放大比例。 */
-    const val OVERLAY_SCALE_FROM: Float = 1.15f
-
-    /** 组合模式沿用当前无纵移的设置手感；纯 Slide 模式有独立可调的空间幅度。 */
-    const val COMBINED_CONTENT_TRANSLATION_FRACTION: Float = 0f
-    const val COMBINED_OVERLAY_TRANSLATION_FRACTION: Float = 0f
-    const val SLIDE_CONTENT_TRANSLATION_FRACTION: Float = 0.15f
-    const val SLIDE_OVERLAY_TRANSLATION_FRACTION: Float = 0.2f
-
-    val CURVE: MotionCurve = MotionDefaults.PAGE_CURVE
-}
-
-/** 设置标题在功能态与设置态之间的缩放量纲。 */
-object SettingsTitleTransition {
-    const val SCALE_SHRINK: Float = 0.4f
-    const val SCALE_EXPAND_FROM: Float = 1.16f
-    const val COMBINED_TRANSLATION_HEIGHT_FRACTION: Float = 0f
-    const val SLIDE_TRANSLATION_HEIGHT_FRACTION: Float = 0.35f
+    const val ENTER_DURATION_MS = 320L
+    const val EXIT_DURATION_MS = 320L
+    const val SCRIM_MAX_ALPHA = .20f
+    const val DISTANCE_DP = 20f
 }
 
 /** 主题色变化（装饰三角、菜单圆底）的统一过渡。 */

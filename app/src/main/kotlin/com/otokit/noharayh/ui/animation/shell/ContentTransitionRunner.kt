@@ -1,14 +1,14 @@
 package com.otokit.noharayh.ui.animation.shell
 
+import com.otokit.noharayh.ui.constants.motion.MotionCurve
+import com.otokit.noharayh.ui.animation.common.PageTurnFrames
 import android.animation.ValueAnimator
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import com.otokit.noharayh.ui.animation.common.MotionInterpolators
 import com.otokit.noharayh.ui.animation.common.TransitionFrame
-import com.otokit.noharayh.ui.animation.common.TransitionFrames
 import com.otokit.noharayh.ui.animation.common.TransitionProgress
-import com.otokit.noharayh.ui.constants.motion.NavContentTransition
 import com.otokit.noharayh.ui.constants.motion.NavigationTransition
 
 /**
@@ -19,6 +19,7 @@ import com.otokit.noharayh.ui.constants.motion.NavigationTransition
  */
 class ContentTransitionRunner(
     private val host: FrameLayout,
+    private val curve: () -> MotionCurve,
     private val onProgress: (TransitionProgress) -> Unit,
 ) {
 
@@ -75,50 +76,20 @@ class ContentTransitionRunner(
             return
         }
 
-        // 用坐标补偿实现朝进出侧缩放，不修改 View 的自动中心 pivot。
-        // 旧页可能仍在上一次入场中，先换算到本轮锚点，避免中途接管跳位。
-        val exitAnchor = if (direction > 0) 0f else host.height.toFloat()
-        val enterAnchor = if (direction > 0) host.height.toFloat() else 0f
-
-        val startTo = TransitionFrames.enter(
-            kind = NavigationTransition.KIND,
-            progress = 0f,
-            scaleFrom = NavContentTransition.SCALE,
-            translationYFrom = translateDy(direction),
-        )
-        val endTo = TransitionFrames.enter(
-            kind = NavigationTransition.KIND,
-            progress = 1f,
-            scaleFrom = NavContentTransition.SCALE,
-            translationYFrom = translateDy(direction),
-        )
-        val startFrom = TransitionFrame(
-            alpha = from.alpha,
-            scale = from.scaleX,
-            translationX = from.translationX,
-            translationY = TransitionFrames.rebasePivotTranslation(
-                from.translationY, from.scaleY, from.pivotY, exitAnchor,
-            ),
-        )
-        val endFrom = TransitionFrames.exit(
-            kind = NavigationTransition.KIND,
-            progress = 1f,
-            scaleTo = NavContentTransition.SCALE,
-            translationYTo = -translateDy(direction) * NavContentTransition.EXIT_DISTANCE_RATIO,
-        )
-
-        apply(to, startTo, enterAnchor)
+        val distance = direction * NavigationTransition.DISTANCE_DP * host.resources.displayMetrics.density
+        val startFrom = TransitionFrame(from.alpha, from.scaleX, from.translationX, from.translationY)
+        apply(to, PageTurnFrames.enter(0f, dy = distance))
         to.bringToFront()
         active = to
         exiting = from
 
         animator = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = NavigationTransition.DURATION_MS
-            interpolator = MotionInterpolators.of(NavigationTransition.CURVE)
+            interpolator = MotionInterpolators.of(curve())
             addUpdateListener { animation ->
                 val p = animation.animatedValue as Float
-                apply(to, lerp(startTo, endTo, p, entering = true), enterAnchor)
-                apply(from, lerp(startFrom, endFrom, p, entering = false), exitAnchor)
+                apply(to, PageTurnFrames.enter(p, dy = distance))
+                apply(from, PageTurnFrames.exit(p, dy = -distance, from = startFrom))
                 onProgress(TransitionProgress(p, running = true))
             }
             addListener(object : android.animation.AnimatorListenerAdapter() {
@@ -157,9 +128,6 @@ class ContentTransitionRunner(
         active = null
     }
 
-    private fun translateDy(direction: Int): Float =
-        direction * host.height * NavContentTransition.TRANSLATION_HEIGHT_FRACTION
-
     private fun ensureChild(view: View) {
         if (view.parent === host) return
         (view.parent as? ViewGroup)?.removeView(view)
@@ -185,23 +153,13 @@ class ContentTransitionRunner(
         view.translationY = 0f
     }
 
-    private fun apply(view: View, frame: TransitionFrame, anchorY: Float) {
+    private fun apply(view: View, frame: TransitionFrame) {
         view.alpha = frame.alpha.coerceIn(0f, 1f)
         view.scaleX = frame.scale
         view.scaleY = frame.scale
         view.translationX = frame.translationX
-        view.translationY = TransitionFrames.rebasePivotTranslation(
-            frame.translationY, frame.scale, anchorY, view.pivotY,
-        )
+        view.translationY = frame.translationY
     }
-
-    private fun lerp(start: TransitionFrame, end: TransitionFrame, p: Float, entering: Boolean): TransitionFrame =
-        TransitionFrame(
-            alpha = TransitionFrames.lerp(start.alpha, end.alpha, TransitionFrames.pageFadeProgress(p, entering)),
-            scale = TransitionFrames.pageScale(start.scale, end.scale, p, entering),
-            translationX = TransitionFrames.lerp(start.translationX, end.translationX, TransitionFrames.pageTravelProgress(p, entering)),
-            translationY = TransitionFrames.lerp(start.translationY, end.translationY, TransitionFrames.pageTravelProgress(p, entering)),
-        )
 
     private fun cancelAnimator() {
         val previous = animator

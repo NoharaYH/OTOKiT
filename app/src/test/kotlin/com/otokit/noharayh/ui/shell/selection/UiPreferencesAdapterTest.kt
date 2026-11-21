@@ -102,6 +102,8 @@ class UiPreferencesAdapterTest {
 
     private class FakePreferences(var record: UiPreferenceRecord) : UiPreferences {
 
+        override fun writePageMotion(key: String) { record = record.copy(pageMotion = key) }
+
         override fun writeStartupAnimation(enabled: Boolean) { record = record.copy(startupAnimationEnabled = enabled) }
 
         var written: UiPreferenceRecord? = null

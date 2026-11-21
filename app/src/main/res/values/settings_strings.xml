@@ -91,4 +91,10 @@
     <string name="settings_theme_chu">中二主题选择</string>
     <string name="settings_theme_merged_field">主题选择</string>
     <string name="settings_theme_placeholder">通用主题</string>
+    <string name="settings_page_motion">翻页手感</string>
+    <string-array name="page_motion_labels">
+        <item>标准</item>
+        <item>快推慢停</item>
+        <item>轻轻回弹</item>
+    </string-array>
 </resources>

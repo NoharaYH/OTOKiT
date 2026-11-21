@@ -18,6 +18,7 @@ class SharedPreferencesUiPreferences(context: Context) : UiPreferences {
         val stored = preferences.all
         return UiPreferenceRecord(
             version = stored[KEY_VERSION] as? Int,
+            pageMotion = stored[KEY_PAGE_MOTION] as? String,
             startupAnimationEnabled = stored[KEY_STARTUP_ANIMATION] as? Boolean,
             currentGame = stored[KEY_CURRENT_GAME] as? String,
             maiThemeId = stored[KEY_THEME_MAI] as? String,
@@ -72,6 +73,10 @@ class SharedPreferencesUiPreferences(context: Context) : UiPreferences {
         }
     }
 
+    override fun writePageMotion(key: String) {
+        preferences.edit { putString(KEY_PAGE_MOTION, key) }
+    }
+
     override fun writeStartupAnimation(enabled: Boolean) {
         preferences.edit { putBoolean(KEY_STARTUP_ANIMATION, enabled) }
     }
@@ -79,6 +84,7 @@ class SharedPreferencesUiPreferences(context: Context) : UiPreferences {
     companion object {
         const val FILE_NAME: String = "ui_shell_preferences"
         const val KEY_VERSION: String = "version"
+        const val KEY_PAGE_MOTION = "page_motion"
         const val KEY_STARTUP_ANIMATION = "startup_animation_enabled"
         const val KEY_CURRENT_GAME: String = "current_game"
         const val KEY_THEME_MAI: String = "theme_mai"

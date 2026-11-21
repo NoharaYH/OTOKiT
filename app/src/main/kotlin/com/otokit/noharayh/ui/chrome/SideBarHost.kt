@@ -12,7 +12,8 @@ import android.widget.FrameLayout
 import androidx.customview.widget.ViewDragHelper
 import com.otokit.noharayh.ui.animation.chrome.DrawerSettleTiming
 import com.otokit.noharayh.ui.animation.common.MotionInterpolators
-import com.otokit.noharayh.ui.constants.motion.DrawerTransition
+import com.otokit.noharayh.ui.animation.common.PageMotionHost
+import com.otokit.noharayh.ui.constants.motion.MotionCurve
 import com.otokit.noharayh.ui.constants.dimensions.ShellDimensions
 import com.otokit.noharayh.ui.shell.navigation.Destination
 import com.otokit.noharayh.ui.window.PixelRect
@@ -24,13 +25,14 @@ class SideBarHost @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
     defStyleAttr: Int = 0,
-) : FrameLayout(context, attrs, defStyleAttr) {
+) : FrameLayout(context, attrs, defStyleAttr), PageMotionHost {
     private val scrim = SideBarScrimView(context)
     private val sideBar = SideBar(context)
     private val touchSlop = ViewConfiguration.get(context).scaledTouchSlop
     private val minFlingVelocity = ViewConfiguration.get(context).scaledMinimumFlingVelocity.toFloat()
     private val maxFlingVelocity = ViewConfiguration.get(context).scaledMaximumFlingVelocity
-    private val settleInterpolator = MotionInterpolators.of(DrawerTransition.CURVE)
+    override var settleInterpolator = MotionInterpolators.of(MotionCurve.Standard)
+        internal set
     private val motion = DrawerMotionState()
     private val helper = ViewDragHelper.create(this, 1f, DragCallback())
 
@@ -303,6 +305,10 @@ class SideBarHost @JvmOverloads constructor(
         val left = if (open) interaction.left else closedLeft
         val duration = DrawerSettleTiming.duration(left - sideBar.left, width, drawerWidthPx,
             velocityX, velocityY, minFlingVelocity.toInt(), maxFlingVelocity)
+        if (!android.animation.ValueAnimator.areAnimatorsEnabled()) {
+            finishSettle()
+            return
+        }
         val moving = helper.smoothSlideViewTo(sideBar, left, interaction.top, duration, settleInterpolator)
         if (moving) postInvalidateOnAnimation() else finishSettle()
     }

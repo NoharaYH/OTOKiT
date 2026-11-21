@@ -5,7 +5,6 @@ import org.junit.Test
 import org.junit.Assert.assertTrue
 import com.otokit.noharayh.ui.animation.common.TransitionFrame
 import com.otokit.noharayh.ui.animation.common.TransitionFrames
-import com.otokit.noharayh.ui.constants.motion.NavContentTransition
 import com.otokit.noharayh.ui.constants.motion.PagerPairTransition
 
 class TitleTransitionFramesTest {
@@ -25,7 +24,7 @@ class TitleTransitionFramesTest {
 
         assertEquals(30f, entry.translationY, 0.0001f)
         assertEquals(0f, entry.alpha, 0.0001f)
-        assertEquals(NavContentTransition.SCALE, entry.scale, 0f)
+        assertEquals(1f, entry.scale, 0f)
         assertEquals(0f, ghost.translationY, 0.0001f)
         assertEquals(1f, ghost.alpha, 0.0001f)
     }
@@ -40,7 +39,7 @@ class TitleTransitionFramesTest {
         assertEquals(1f, entry.alpha, 0.0001f)
         assertEquals(-30f, ghost.translationY, 0.0001f)
         assertEquals(0f, ghost.alpha, 0.0001f)
-        assertEquals(NavContentTransition.SCALE, ghost.scale, 0.0001f)
+        assertEquals(1f, ghost.scale, 0.0001f)
         assertEquals(1f, entry.scale, 0f)
     }
 
@@ -51,14 +50,9 @@ class TitleTransitionFramesTest {
             for (i in 0..1000) {
                 val p = i / 1000f
                 val exit = TitleTransitionFrames.navGhostExit(p, distance)
-                val reverseEntry = TitleTransitionFrames.navEntry(1f - p, -distance)
-                assertEquals(distance * TransitionFrames.pageTravelProgress(p, false), exit.translationY, 0.0001f)
-                assertEquals(1f - TransitionFrames.pageFadeProgress(p, false), exit.alpha, 0.0001f)
-                assertEquals(exit.translationY, -reverseEntry.translationY, 0.0001f)
-                assertEquals(exit.alpha, reverseEntry.alpha, 0.0001f)
-                assertEquals(TransitionFrames.pageScale(1f, NavContentTransition.SCALE, p, false), exit.scale, 0.0001f)
-                assertEquals(exit.scale, reverseEntry.scale, 0.0001f)
-                if (i in 1..999) assertTrue(exit.scale < 1f && exit.scale > NavContentTransition.SCALE)
+                assertEquals(distance * p, exit.translationY, 0.0001f)
+                assertEquals((1f - p / .55f).coerceIn(0f, 1f), exit.alpha, 0.0001f)
+                assertEquals(1f, exit.scale, 0f)
                 if (i > 0) assertTrue(kotlin.math.abs(exit.translationY) > previousDistance)
                 previousDistance = kotlin.math.abs(exit.translationY)
             }

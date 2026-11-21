@@ -1,5 +1,6 @@
 package com.otokit.noharayh.ui.animation.shell
 
+import com.otokit.noharayh.ui.constants.motion.MotionCurve
 import android.animation.ValueAnimator
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -22,6 +23,7 @@ import com.otokit.noharayh.ui.constants.motion.SettingsTransition
 class SettingsTransitionRunner(
     private val overlayHost: FrameLayout,
     private val scrim: View,
+    private val curve: () -> MotionCurve,
     private val featureProvider: () -> View?,
     private val settingsProvider: () -> View?,
     private val onProgress: (TransitionProgress) -> Unit,
@@ -103,7 +105,7 @@ class SettingsTransitionRunner(
         applyOpenState(progress, ghostVisible = true)
         animator = ValueAnimator.ofFloat(progress, 0f).apply {
             duration = TransitionTiming.remainingDuration(SettingsTransition.EXIT_DURATION_MS, progress, 0f)
-            interpolator = MotionInterpolators.of(SettingsTransition.CURVE)
+            interpolator = MotionInterpolators.of(curve())
             addUpdateListener { animation ->
                 applyOpenState(animation.animatedValue as Float, ghostVisible = true)
             }
@@ -186,7 +188,7 @@ class SettingsTransitionRunner(
         }
         animator = ValueAnimator.ofFloat(start, target).apply {
             duration = TransitionTiming.remainingDuration(SettingsTransition.ENTER_DURATION_MS, start, target)
-            interpolator = MotionInterpolators.of(SettingsTransition.CURVE)
+            interpolator = MotionInterpolators.of(curve())
             addUpdateListener { animation ->
                 applyOpenState(animation.animatedValue as Float, ghostVisible = false)
             }
@@ -209,15 +211,15 @@ class SettingsTransitionRunner(
     }
 
     private fun applyOpenState(value: Float, ghostVisible: Boolean, running: Boolean = true) {
-        progress = value
-        scrim.alpha = SettingsTransition.SCRIM_MAX_ALPHA * value
+        progress = value.coerceIn(0f, 1f)
+        scrim.alpha = SettingsTransition.SCRIM_MAX_ALPHA * progress
         featureProvider()?.let { view ->
-            applyFrame(view, SettingsTransitionFrames.feature(value, presentationHeight(view).toFloat()))
+            applyFrame(view, SettingsTransitionFrames.feature(value))
         }
         // 真实设置与退场截图使用同一空间规则。
         val presentedSettings = if (ghostVisible) ghost else settingsProvider()
         presentedSettings?.let { view ->
-            applyFrame(view, SettingsTransitionFrames.overlay(value, presentationHeight(view).toFloat()))
+            applyFrame(view, SettingsTransitionFrames.overlay(value, SettingsTransition.DISTANCE_DP * view.resources.displayMetrics.density))
         }
         onProgress(TransitionProgress(value, running))
     }

@@ -1,5 +1,7 @@
 package com.otokit.noharayh.ui.settings
 
+import com.otokit.noharayh.ui.constants.motion.NavigationTransition
+import com.otokit.noharayh.ui.constants.motion.PageMotionStyle
 import android.content.Context
 import android.graphics.Rect
 import android.view.MotionEvent
@@ -16,7 +18,6 @@ import com.otokit.noharayh.composition.scoreArchiveActions
 import com.otokit.noharayh.composition.scoreSyncLogs
 import com.otokit.noharayh.ui.constants.display.DisplayScaleOption
 import com.otokit.noharayh.ui.constants.motion.SettingsPageTransition
-import com.otokit.noharayh.ui.constants.motion.SettingsTransition
 import com.otokit.noharayh.ui.kit.common.EdgeToEdgeScrollable
 import com.otokit.noharayh.ui.shell.navigation.SettingsSection
 import com.otokit.noharayh.ui.shell.selection.GameSelectionState
@@ -42,6 +43,8 @@ class SettingsAssembly(
     private val displayScale: DisplayScaleOption,
     private val onDisplayScaleSelected: (DisplayScaleOption) -> Unit,
     private val renderingProvider: () -> BackgroundRenderingOptions,
+    private val pageMotionProvider: () -> PageMotionStyle,
+    private val onPageMotionSelected: (PageMotionStyle) -> Unit,
     private val startupAnimationProvider: () -> Boolean,
     private val onStartupAnimationSelected: (Boolean) -> Unit,
     private val onHardwareAccelerationSelected: (Boolean) -> Unit,
@@ -286,11 +289,12 @@ class SettingsAssembly(
         transitioning = true
         forward = to.section != null && (from.section != to.section || from.subpage == null || to.subpage != null)
         val resizesSplit = split && from.section == to.section && ((from.subpage == null) != (to.subpage == null))
-        when {
-            resizesSplit && to.subpage != null -> runner.reset(SettingsTransition.ENTER_DURATION_MS, SettingsTransition.CURVE)
-            resizesSplit -> runner.reset(curve = SettingsPageTransition.SPLIT_EXIT_CURVE)
-            else -> runner.reset(SettingsPageTransition.UNFOLD_DURATION_MS, SettingsPageTransition.UNFOLD_CURVE)
+        val duration = when {
+            resizesSplit && to.subpage != null -> SettingsPageTransition.UNFOLD_DURATION_MS
+            resizesSplit -> SettingsPageTransition.DURATION_MS
+            else -> NavigationTransition.DURATION_MS
         }
+        runner.reset(duration, pageMotionProvider().curve)
         onTransitionStart(from.heading, to.heading, width.toFloat(), forward)
         renderFrame(TransitionProgress(0f, true))
         updateAccessibility()
@@ -299,8 +303,7 @@ class SettingsAssembly(
     private fun renderFrame(frame: TransitionProgress) {
         if (!transitioning || disposed) return
         val phoneUnfold = !split
-        val pageProgress = if (phoneUnfold) SettingsPageFrames.phoneUnfoldProgress(frame.value, forward)
-            else frame.value
+        val pageProgress = frame.value
         if (split && (fromPage.subpage != null || toPage.subpage != null)) {
             renderSplitSubpageFrame(frame.value)
         } else {
@@ -334,8 +337,8 @@ class SettingsAssembly(
             }
             else -> {
                 // 右栏移出时已被右缘裁切，前半程保留更多不透明度，让标题随栏移动。
-                if (fromPage.subpage != null) childPages[fromPage]?.alpha = 1f - progress * progress
-                if (toPage.subpage != null) childPages[toPage]?.alpha = progress
+                if (fromPage.subpage != null) childPages[fromPage]?.alpha = (1f - progress * progress).coerceIn(0f, 1f)
+                if (toPage.subpage != null) childPages[toPage]?.alpha = progress.coerceIn(0f, 1f)
             }
         }
         layoutSplitPages()
@@ -370,7 +373,7 @@ class SettingsAssembly(
             val paneWidth = if (isSubpage) panes.archiveWidth else panes.secondaryWidth
             val left = if (isSubpage) panes.archiveLeft - panes.secondaryLeft else 0
             if (!isSubpage && page.section == SettingsSection.ScoreSync) {
-                val endInset = (margin * (1f - progress)).roundToInt()
+                val endInset = (margin * (1f - progress.coerceIn(0f, 1f))).roundToInt()
                 if (view.paddingRight != endInset) view.setPadding(0, 0, endInset, view.paddingBottom)
             }
             val paneHeight = paneHeight(view, childHost.height)
@@ -433,6 +436,8 @@ class SettingsAssembly(
         displayScale = displayScale,
         onDisplayScaleSelected = onDisplayScaleSelected,
         rendering = renderingProvider(),
+        pageMotion = pageMotionProvider(),
+        onPageMotionSelected = onPageMotionSelected,
         startupAnimationEnabled = startupAnimationProvider(),
         onStartupAnimationSelected = {
             onStartupAnimationSelected(it)

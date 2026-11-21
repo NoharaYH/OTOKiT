@@ -45,21 +45,13 @@ object SettingsPageFrames {
     /** 用父页=0、子页=1 描述同一空间；返回和取消都反向采样，避免两套端点。 */
     fun unfoldPage(progress: Float, entering: Boolean, forward: Boolean, density: Float): TransitionFrame {
         val p = if (forward) progress else 1f - progress
-        return if (entering == forward) TransitionFrame(
-            alpha = window(p, Spec.UNFOLD_CONTENT_START, Spec.UNFOLD_CONTENT_END),
-            scale = 1f,
-            translationX = Spec.UNFOLD_PAGE_DISTANCE_DP * density * (1f - p.coerceIn(0f, 1f)),
-            translationY = 0f,
-        ) else TransitionFrame(
-            alpha = 1f - window(p, 0f, Spec.UNFOLD_ROOT_END),
-            scale = 1f,
-            translationX = -Spec.UNFOLD_ROOT_DISTANCE_DP * density * window(p, 0f, Spec.UNFOLD_ROOT_END),
-            translationY = 0f,
-        )
+        val distance = Spec.UNFOLD_PAGE_DISTANCE_DP * density
+        return if (entering == forward) PageTurnFrames.enter(p, dx = distance)
+            else PageTurnFrames.exit(p, dx = -distance)
     }
 
     fun unfoldTitle(progress: Float, entering: Boolean, forward: Boolean, density: Float): TransitionFrame {
-        val p = (if (forward) progress else 1f - progress).coerceIn(0f, 1f)
+        val p = if (forward) progress else 1f - progress
         return if (entering == forward) TransitionFrame(
             alpha = window(p, Spec.UNFOLD_TITLE_START, Spec.UNFOLD_TITLE_END),
             scale = 1f,
@@ -78,12 +70,6 @@ object SettingsPageFrames {
 
     fun selectionChange(progress: Float): Float =
         (progress / Spec.SELECTION_WINDOW).coerceIn(0f, 1f)
-
-    /** 手机进入先反色再展开；退出时页面与反色并行，共享完整进度。 */
-    fun phoneUnfoldProgress(progress: Float, forward: Boolean): Float {
-        return if (forward) window(progress, Spec.SELECTION_WINDOW, 1f)
-            else progress.coerceIn(0f, 1f)
-    }
 
     fun phoneSelectionChange(progress: Float, forward: Boolean): Float =
         if (forward) selectionChange(progress) else progress.coerceIn(0f, 1f)

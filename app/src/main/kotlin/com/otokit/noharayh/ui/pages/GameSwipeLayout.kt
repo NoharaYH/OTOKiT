@@ -1,5 +1,6 @@
 package com.otokit.noharayh.ui.pages
 
+import com.otokit.noharayh.ui.constants.motion.MotionCurve
 import android.content.Context
 import android.util.AttributeSet
 import android.view.MotionEvent
@@ -34,6 +35,7 @@ class GameSwipeLayout @JvmOverloads constructor(context: Context, attrs: Attribu
     private val transition = ContentTransition(0f, TransitionTiming(PagerPairTransition.SWIPE_SETTLE_MS, PagerPairTransition.CURVE),
         { from, to, progress -> from + (to - from) * progress }, ::onSettleFrame)
 
+    internal var settleCurve = MotionCurve.Standard
     internal var selectedGame: () -> GameLine = { GameLine.Mai }
     internal var onSelection: ((GameLine) -> Unit)? = null
     internal var onFrameChanged: (() -> Unit)? = null
@@ -118,7 +120,8 @@ class GameSwipeLayout @JvmOverloads constructor(context: Context, attrs: Attribu
     private fun settleTo(target: GameLine) {
         clearDrag()
         settleTarget = target
-        transition.play(endpoint(target), from = position)
+        val presented = position.coerceIn(0f, width.toFloat()) - edgePull
+        transition.play(endpoint(target), from = presented, curve = settleCurve)
     }
 
     private fun onSettleFrame(value: Float) {
@@ -138,7 +141,8 @@ class GameSwipeLayout @JvmOverloads constructor(context: Context, attrs: Attribu
         val bounded = value.coerceIn(0f, width.toFloat())
         progress = if (width > 0) bounded / width else 0f
         val extra = bounded - value
-        edgePull = extra.sign * resistedDragDistance(abs(extra), 0f, edgeOvershoot)
+        edgePull = if (phase == GamePhase.Dragging) extra.sign * resistedDragDistance(abs(extra), 0f, edgeOvershoot)
+            else extra
         onFrameChanged?.invoke()
     }
 

@@ -22,12 +22,15 @@ data class UiPreferenceRecord(
     val noneThemeSecondaryColor: Int? = null,
     val noneThemeWallpaperSecondary: Int? = null,
     val startupAnimationEnabled: Boolean? = null,
+    val pageMotion: String? = null,
 )
 
 /** 最小 UI 偏好读写入口：只读写原始字段。 */
 interface UiPreferences {
 
     fun readSelection(): UiPreferenceRecord
+
+    fun writePageMotion(key: String)
 
     fun writeStartupAnimation(enabled: Boolean)
 

@@ -15,7 +15,7 @@ import com.otokit.noharayh.ui.animation.common.GamePhase
 import com.otokit.noharayh.ui.animation.common.TransitionFrames
 import com.otokit.noharayh.ui.animation.common.TransitionFrame
 import com.otokit.noharayh.ui.animation.common.TransitionProgress
-import com.otokit.noharayh.ui.constants.motion.NavContentTransition
+import com.otokit.noharayh.ui.constants.motion.SettingsTransition
 
 /** 标题文字的属性呈现与 ghost 所有者；只消费外部进度，不计时、不提交导航状态。 */
 internal class TitleTextTransitionRunner(
@@ -78,6 +78,11 @@ internal class TitleTextTransitionRunner(
         val pair = TitleTransitionFrames.gamePair(progress, width.toFloat())
         applyStackFrame(maiStack, pair.first, exitOnLeft = true)
         applyStackFrame(chuStack, pair.second, exitOnLeft = false)
+        if (frame != null && frame.contentWidthPx > 0) {
+            val overtravel = frame.edgePullPx * width / frame.contentWidthPx
+            maiStack.translationX += overtravel
+            chuStack.translationX += overtravel
+        }
         maiStack.visibility = View.VISIBLE
         chuStack.visibility = View.VISIBLE
     }
@@ -115,16 +120,16 @@ internal class TitleTextTransitionRunner(
         if (disposed) return
         settingsTransitionActive = frame.running
         if (!frame.running) backPreviewActive = false
-        val p = frame.value.coerceIn(0f, 1f)
+        val p = frame.value
         refreshPivots()
-        val exit = TitleTransitionFrames.settingsFeature(p, functionalHost.height.toFloat())
+        val exit = TitleTransitionFrames.settingsFeature(p)
         functionalHost.visibility = if (p >= 1f) View.INVISIBLE else View.VISIBLE
         functionalHost.alpha = exit.alpha
         functionalHost.scaleX = exit.scale
         functionalHost.scaleY = exit.scale
         functionalHost.translationY = exit.translationY
 
-        val enter = TitleTransitionFrames.settingsOverlay(p, settingsColumn.height.toFloat())
+        val enter = TitleTransitionFrames.settingsOverlay(p, SettingsTransition.DISTANCE_DP * settingsColumn.resources.displayMetrics.density)
         settingsColumn.visibility = if (p <= 0f) View.INVISIBLE else View.VISIBLE
         settingsColumn.alpha = enter.alpha
         settingsColumn.scaleX = enter.scale
@@ -170,7 +175,7 @@ internal class TitleTextTransitionRunner(
             ?: titleMotionHost.pivotY
         val entry = TitleTransitionFrames.navEntry(frame.value, navigationDistanceY)
         val exit = TitleTransitionFrames.navGhostExit(
-            frame.value, -navigationDistanceY * NavContentTransition.EXIT_DISTANCE_RATIO, ghostStart,
+            frame.value, -navigationDistanceY, ghostStart,
         )
         titleMotionHost.alpha = entry.alpha
         titleMotionHost.translationY = TransitionFrames.rebasePivotTranslation(

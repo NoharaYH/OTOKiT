@@ -65,8 +65,8 @@ class SettingsPageTransitionRunner(private val onFrame: (TransitionProgress) -> 
         old?.cancel()
     }
     private fun emit(value: Float, running: Boolean) {
-        progress = value.coerceIn(0f, 1f)
-        onFrame(TransitionProgress(progress, running))
+        progress = value
+        onFrame(TransitionProgress(value, running))
     }
     fun apply(view: View, frame: TransitionFrame) {
         view.alpha = frame.alpha

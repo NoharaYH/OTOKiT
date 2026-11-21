@@ -96,31 +96,9 @@ class SettingsPageFramesTest {
         assertEquals(outward, reverse.reversed())
     }
 
-    @Test fun phoneKeepsRootOpaqueAndStationaryUntilTabletSelectionColorsAreReached() {
-        for (step in 0..25) {
-            val p = step / 100f
-            val pageProgress = SettingsPageFrames.phoneUnfoldProgress(p, true)
-            val root = SettingsPageFrames.unfoldPage(pageProgress, false, true, 2.45f)
-            val child = SettingsPageFrames.unfoldPage(pageProgress, true, true, 2.45f)
-            val title = SettingsPageFrames.unfoldTitle(pageProgress, false, true, 2.45f)
-            assertEquals(1f, root.alpha, 0f)
-            assertEquals(0f, root.translationX, 0f)
-            assertEquals(0f, child.alpha, 0f)
-            assertEquals(1f, title.alpha, 0f)
-            assertEquals(0f, title.translationX, 0f)
-            assertEquals(SettingsPageFrames.selectionChange(p),
-                SettingsPageFrames.phoneSelectionChange(p, true), 0f)
-        }
-        assertEquals(1f, SettingsPageFrames.phoneSelectionChange(.25f, true), 0f)
-        assertTrue(SettingsPageFrames.phoneUnfoldProgress(.3f, true) > 0f)
-        assertEquals(1f, SettingsPageFrames.phoneUnfoldProgress(1f, true), 0f)
-        assertEquals(1f, SettingsPageFrames.phoneUnfoldProgress(1f, false), 0f)
-    }
-
     @Test fun phoneBackChangesColorsThroughoutThePageExitAndCanReverseForCancellation() {
         val samples = (0..100).map { it / 100f }
         for (p in samples + samples.reversed()) {
-            assertEquals(p, SettingsPageFrames.phoneUnfoldProgress(p, false), 0.00001f)
             assertEquals(p, SettingsPageFrames.phoneSelectionChange(p, false), 0.00001f)
         }
         assertTrue(SettingsPageFrames.phoneSelectionChange(.1f, false) > 0f)

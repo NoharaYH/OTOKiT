@@ -65,6 +65,7 @@ internal class ScoreSyncPanel(
         form.addView(grid, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(8) })
         form.addView(start, LinearLayout.LayoutParams(-1, buttonHeight).apply { topMargin = space })
         scroll.isVerticalScrollBarEnabled = false
+        scroll.overScrollMode = View.OVER_SCROLL_NEVER
         scroll.isFillViewport = true
         scroll.addView(form, LayoutParams(-1, -2))
         val corner = dp(18)

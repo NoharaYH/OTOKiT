@@ -1,6 +1,6 @@
 package com.otokit.noharayh.ui.constants.motion
 
 internal object ScrollEdgeMotion {
-    const val RETURN_DAMPING = 1f
-    const val RETURN_STIFFNESS = 1000f
+    const val PULL_GAIN = .9f
+    const val MAX_IMPACT_SPEED_PER_EXTENT = 45f
 }

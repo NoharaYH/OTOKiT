@@ -97,6 +97,7 @@ class MainShell(
     private enum class LifecycleState { New, Attached, Disposed }
 
     private val controller = NavigationController(initialState)
+    private var pageMotion = selectionPreferences.readPageMotion()
     private var backgroundRendering = selectionPreferences.readBackgroundRendering()
 
     /** 平台只接系统启动窗与生命周期；保存选择仍由 UI 偏好入口读取。 */
@@ -219,6 +220,8 @@ class MainShell(
         check(chromeHost.childCount == 0) { "外围 UI 由 ChromeAssembly 挂载，开始时必须为空" }
         lifecycleState = LifecycleState.Attached
         val current = selection.state
+        sidebarHost.settleInterpolator = MotionInterpolators.of(pageMotion.curve)
+        contentHost.settleCurve = pageMotion.curve
         contentHost.selectedGame = { selection.state.currentGame }
         contentHost.onSelection = ::selectGame
         contentHost.onFrameChanged = ::applyGameFrame
@@ -289,6 +292,13 @@ class MainShell(
             displayScale = displayScale,
             onDisplayScaleSelected = onDisplayScaleSelected,
             renderingProvider = { backgroundRendering },
+            pageMotionProvider = { pageMotion },
+            onPageMotionSelected = { style ->
+                selectionPreferences.writePageMotion(style)
+                pageMotion = style
+                sidebarHost.settleInterpolator = MotionInterpolators.of(style.curve)
+                contentHost.settleCurve = style.curve
+            },
             startupAnimationProvider = selectionPreferences::readStartupAnimation,
             onStartupAnimationSelected = selectionPreferences::writeStartupAnimation,
             takeHardwareWarning = {
@@ -326,11 +336,12 @@ class MainShell(
             ),
         )
         // 背景切换期间只压黑幕；不额外加全屏触摸锁，避免锁在设置页上。
-        contentRunner = ContentTransitionRunner(contentHost) { frame ->
+        contentRunner = ContentTransitionRunner(contentHost, { pageMotion.curve }) { frame ->
             chrome.renderNavigationProgress(frame)
         }
         settingsRunner = SettingsTransitionRunner(
             overlayHost = overlayHost,
+            curve = { pageMotion.curve },
             scrim = settingsScrim,
             featureProvider = { mountedContent?.view },
             settingsProvider = { settingsContent?.view },
