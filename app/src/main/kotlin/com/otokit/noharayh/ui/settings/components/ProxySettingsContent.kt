@@ -36,7 +36,7 @@ internal class ProxySettingsContent(private val context: Context, private val st
         action(R.string.settings_proxy_check, ::checkChannel)
         action(R.string.settings_proxy_restore, ::restore)
         action(R.string.settings_proxy_urls, ::chooseUrl)
-        view = SettingsCard(context, R.drawable.ic_sync_24, R.string.settings_proxy, rows)
+        view = SettingsCard(context, R.drawable.ic_route_24, R.string.settings_proxy, rows)
     }
 
     fun refresh() = state.refresh()
@@ -152,7 +152,7 @@ internal class ProxySettingsContent(private val context: Context, private val st
             body.addView(SettingsPageViews.action(context, context.getString(targetLabel(target)), deferClick = true) { editUrl(target) },
                 LinearLayout.LayoutParams(-1, -2))
         }
-        show(MessageDialog(context, R.drawable.ic_sync_24, context.getString(R.string.settings_proxy_urls_message),
+        show(MessageDialog(context, R.drawable.ic_route_24, context.getString(R.string.settings_proxy_urls_message),
             context.getString(R.string.settings_proxy_close), null, accentColor = Colors.TEXT,
             customContent = body, onConfirmed = {}))
     }
@@ -224,7 +224,7 @@ internal class ProxySettingsContent(private val context: Context, private val st
         }
         state.onCheckChanged = ::render
         val body = column().apply { add(target); add(scopeGroup); add(start); add(results) }
-        show(MessageDialog(context, R.drawable.ic_sync_24, context.getString(R.string.settings_proxy_check_message),
+        show(MessageDialog(context, R.drawable.ic_route_24, context.getString(R.string.settings_proxy_check_message),
             context.getString(R.string.settings_proxy_close), null, accentColor = Colors.TEXT,
             customContent = body, onConfirmed = {}))
         render()
@@ -267,7 +267,7 @@ internal class ProxySettingsContent(private val context: Context, private val st
             accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
         }
         val content = column().apply { add(body); add(error) }
-        show(MessageDialog(context, R.drawable.ic_sync_24, context.getString(message), context.getString(confirm),
+        show(MessageDialog(context, R.drawable.ic_route_24, context.getString(message), context.getString(confirm),
             context.getString(R.string.settings_proxy_cancel), accentColor = Colors.SELECTED,
             customContent = content, cancelOnTouchOutside = false, onSubmit = {
                 val problem = save()
