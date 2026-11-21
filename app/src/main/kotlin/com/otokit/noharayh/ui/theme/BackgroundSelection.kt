@@ -11,6 +11,20 @@ sealed interface BackgroundSelection {
     data object None : BackgroundSelection
 }
 
+/** 实际绘制入口，同一文件可由多个主题引用。 */
+internal sealed interface BackgroundSource {
+    data class Html(val assetPath: String) : BackgroundSource
+    data object Placeholder : BackgroundSource
+    data object None : BackgroundSource
+}
+
+internal val BackgroundSelection.renderSource: BackgroundSource
+    get() = when (this) {
+        is BackgroundSelection.Html -> BackgroundSource.Html(theme.definition.htmlAssetPath)
+        BackgroundSelection.Placeholder -> BackgroundSource.Placeholder
+        BackgroundSelection.None -> BackgroundSource.None
+    }
+
 object BackgroundPalette {
     /** 50% 黑色；占位背景只铺这一层，不创建 HTML。 */
     const val PLACEHOLDER_COLOR: Int = 0x80000000.toInt()

@@ -1,20 +1,26 @@
 package com.otokit.noharayh.ui
 
 import android.os.SystemClock
+import android.util.Log
 import android.view.MotionEvent
+import android.view.View
 import android.view.ViewGroup
+import android.webkit.WebView
 import android.widget.FrameLayout
+import androidx.core.view.children
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.viewpager2.widget.ViewPager2
 import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.animation.common.GamePhase
 import com.otokit.noharayh.ui.pages.GameSwipeLayout
 import com.otokit.noharayh.ui.shell.background.BackgroundHost
 import com.otokit.noharayh.ui.theme.BackgroundSelection
 import com.otokit.noharayh.ui.theme.GameLine
+import com.otokit.noharayh.ui.theme.ThemeRegistry
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 
 @RunWith(AndroidJUnit4::class)
@@ -22,92 +28,223 @@ class GameForegroundSwipeTest : UiComponentTestHost() {
     @Test fun gameDragAndEdgePullKeepBackgroundPositionsFixed() {
         val foreground = activity.findViewById<GameSwipeLayout>(R.id.content_host)
         val background = activity.findViewById<ViewGroup>(R.id.background_host)
-        lateinit var pager: ViewPager2
-        main { pager = (background.getChildAt(0) as ViewGroup).getChildAt(0) as ViewPager2 }
-        await { pager.isShown && pager.width > 0 && (pager.getChildAt(0) as ViewGroup).childCount == 2 }
+        await("Game swipe and background are ready") {
+            val pages = background.getChildAt(0) as FrameLayout
+            pages.isShown && pages.width > 0 && pages.childCount > 0 && foreground.createAccessibilityNodeInfo().isScrollable
+        }
 
+        lateinit var game: GameLine
+        lateinit var positions: Map<View, Pair<Int, Int>>
         main {
-            assertFalse(pager.isUserInputEnabled)
-            val game = foreground.selectedGame()
-            val currentItem = pager.currentItem
-            val pages = pager.getChildAt(0) as ViewGroup
-            fun backgroundFrame() = (0 until pages.childCount).map { index ->
-                pages.getChildAt(index).let { it.left + it.translationX }
-            }
-            val before = backgroundFrame()
+            game = foreground.selectedGame()
+            positions = pages(background).associateWith(::position)
             val direction = if (game == GameLine.Mai) 1f else -1f
             val width = foreground.width.toFloat()
-            val x = width / 2
             val y = foreground.height / 3f
-            val downTime = SystemClock.uptimeMillis()
-            var time = downTime
-            fun send(action: Int, delta: Float) {
-                val event = MotionEvent.obtain(downTime, time, action, x + delta, y, 0)
-                time += 16
-                try { foreground.dispatchTouchEvent(event) } finally { event.recycle() }
-            }
-            send(MotionEvent.ACTION_DOWN, 0f)
-            send(MotionEvent.ACTION_MOVE, -direction * width / 4)
+            val cancelDrag = gesture(foreground, width / 2, y)
+            cancelDrag(MotionEvent.ACTION_DOWN, 0f)
+            cancelDrag(MotionEvent.ACTION_MOVE, -direction * width / 4)
             assertEquals(GamePhase.Dragging, foreground.phase)
             assertTrue(foreground.progress > 0f && foreground.progress < 1f)
-            assertEquals(before, backgroundFrame())
+            positions.forEach { (page, before) -> assertEquals(before, position(page)) }
 
-            send(MotionEvent.ACTION_MOVE, direction * width / 10)
+            cancelDrag(MotionEvent.ACTION_MOVE, direction * width / 10)
             val shortPull = abs(foreground.edgePull)
-            send(MotionEvent.ACTION_MOVE, direction * width / 5)
+            cancelDrag(MotionEvent.ACTION_MOVE, direction * width / 5)
             val longPull = abs(foreground.edgePull)
             assertTrue(longPull > shortPull && longPull - shortPull < shortPull)
             assertEquals(game, foreground.selectedGame())
-            assertEquals(currentItem, pager.currentItem)
-            assertEquals(before, backgroundFrame())
-            send(MotionEvent.ACTION_CANCEL, direction * width / 5)
+            positions.forEach { (page, before) -> assertEquals(before, position(page)) }
+            cancelDrag(MotionEvent.ACTION_CANCEL, direction * width / 5)
+            Log.i(LOG_TAG, "cancel $game, background positions=${positions.values}, edge pull=$shortPull/$longPull")
         }
-        await { foreground.phase == GamePhase.Idle && foreground.edgePull == 0f }
+        await("Cancelled foreground gesture settles") {
+            foreground.phase == GamePhase.Idle && foreground.edgePull == 0f && foreground.selectedGame() == game
+        }
+        main {
+            val width = foreground.width.toFloat()
+            val delta = if (game == GameLine.Mai) -width * .7f else width * .7f
+            val commitDrag = gesture(foreground, if (delta < 0f) width * .85f else width * .15f, foreground.height / 3f)
+            commitDrag(MotionEvent.ACTION_DOWN, 0f)
+            commitDrag(MotionEvent.ACTION_MOVE, delta)
+            assertEquals(GamePhase.Dragging, foreground.phase)
+            positions.forEach { (page, before) -> assertEquals(before, position(page)) }
+            commitDrag(MotionEvent.ACTION_UP, delta)
+        }
+        await("Completed foreground gesture switches games") {
+            foreground.phase == GamePhase.Idle && foreground.selectedGame() != game
+        }
+        main {
+            positions.forEach { (page, before) -> assertEquals(before, position(page)) }
+            Log.i(LOG_TAG, "commit ${foreground.selectedGame()}, background positions=${positions.values}")
+        }
     }
 
-    @Test fun backgroundCrossfadeUsesForegroundProgressAndSkipsEqualSources() {
+    @Test fun backgroundCrossfadeUsesForegroundProgressAndReusesSources() {
         lateinit var viewport: FrameLayout
         lateinit var background: BackgroundHost
+        val none = BackgroundSelection.None
+        val placeholder = BackgroundSelection.Placeholder
         main {
             viewport = FrameLayout(activity)
-            background = BackgroundHost(viewport) { GameLine.Mai }.apply {
+            background = BackgroundHost(viewport).apply {
                 attach(GameLine.Mai)
-                renderSelection(GameLine.Mai, BackgroundSelection.None, BackgroundSelection.Placeholder)
+                renderSelection(GameLine.Mai, none, placeholder)
                 setResumed(true)
             }
         }
         try {
             mount(viewport, 600, 600)
-            fun pageAlphas(): List<Float> {
-                val pager = (viewport.getChildAt(0) as ViewGroup).getChildAt(0) as ViewPager2
-                val pages = pager.getChildAt(0) as ViewGroup
-                return (0 until pages.childCount).map { pages.getChildAt(it) as ViewGroup }
-                    .sortedBy { it.left }.map { it.getChildAt(0).alpha }
-            }
             main { background.renderGameProgress(.25f) }
-            await { pageAlphas() == listOf(.75f, .25f) }
+            await("Different sources crossfade after the alternate is ready") {
+                pages(viewport).map { it.alpha } == listOf(.75f, .25f)
+            }
             main {
+                val (mai, chu) = pages(viewport)
+                val before = listOf(position(mai), position(chu))
+                fun expectFrame(maiAlpha: Float, chuAlpha: Float) {
+                    val alphas = listOf(mai.alpha, chu.alpha)
+                    assertEquals(listOf(maiAlpha, chuAlpha), alphas)
+                    assertEquals(before, listOf(position(mai), position(chu)))
+                    Log.i(LOG_TAG, "different sources alpha=$alphas positions=$before")
+                }
+                expectFrame(.75f, .25f)
                 background.renderGameProgress(.75f)
-                assertEquals(listOf(.25f, .75f), pageAlphas())
+                expectFrame(.25f, .75f)
                 background.renderGameProgress(0f)
-                assertEquals(listOf(1f, 0f), pageAlphas())
-                background.renderSelection(GameLine.Mai, BackgroundSelection.None, BackgroundSelection.None)
+                expectFrame(1f, 0f)
+                background.renderGameProgress(1f)
+                background.renderSelection(GameLine.Chu, none, placeholder)
+                expectFrame(0f, 1f)
+
+                background.renderSelection(GameLine.Chu, placeholder, placeholder)
                 background.renderGameProgress(.5f)
-                assertEquals(listOf(1f, 0f), pageAlphas())
+                assertSame(chu, pages(viewport).single())
+                assertEquals(1f, chu.alpha, 0f)
+                background.renderSelection(GameLine.Chu, none, placeholder)
+                assertTrue(chu in pages(viewport))
+                Log.i(LOG_TAG, "different to shared to different kept the selected renderer ${System.identityHashCode(chu)}")
             }
         } finally {
             main { background.dispose() }
         }
     }
 
-    private fun await(condition: () -> Boolean) {
-        val timeout = SystemClock.uptimeMillis() + 2500L
+    @Test fun sharedHtmlBackgroundKeepsOnePlayingVideoAcrossGames() {
+        val theme = checkNotNull(ThemeRegistry.findById("chu-luminous"))
+        val html = BackgroundSelection.Html(theme)
+        val sameAsset = BackgroundSelection.Html(theme.copy(id = "test-luminous-alias", gameLine = GameLine.Mai))
+        lateinit var viewport: FrameLayout
+        lateinit var background: BackgroundHost
+        var ready = false
+        main {
+            viewport = FrameLayout(activity)
+            background = BackgroundHost(viewport).apply {
+                setOnFirstVisualReady { ready = true }
+                attach(GameLine.Mai)
+                renderSelection(GameLine.Mai, sameAsset, html)
+                setResumed(true)
+            }
+        }
+        try {
+            mount(viewport, 600, 600)
+            await("Shared LUMINOUS background reaches its first frame", 5000L) { ready }
+            lateinit var web: WebView
+            main {
+                val page = pages(viewport).single() as ViewGroup
+                web = page.children.filterIsInstance<WebView>().single()
+            }
+            awaitVideoTime(web, "video && video.readyState >= 2 && !video.paused", 0.0)
+            evaluate(web, "window.testSharedVideo = document.querySelector('video'); window.testSharedVideo.currentTime = 4;")
+            val playing = "video && video === window.testSharedVideo && !video.paused && !video.seeking"
+            val before = awaitVideoTime(web, playing, 4.0)
+            main {
+                val page = pages(viewport).single() as ViewGroup
+                val beforePosition = position(page)
+                background.renderGameProgress(.5f)
+                assertEquals(1f, page.alpha, 0f)
+                assertEquals(beforePosition, position(page))
+                background.renderGameProgress(1f)
+                background.renderSelection(GameLine.Chu, sameAsset, html)
+                assertSame(page, pages(viewport).single())
+                assertSame(web, page.children.filterIsInstance<WebView>().single())
+                assertEquals(1f, page.alpha, 0f)
+                assertEquals(beforePosition, position(page))
+            }
+            val after = awaitVideoTime(web, playing, before)
+            Log.i(LOG_TAG, "shared LUMINOUS WebView=${System.identityHashCode(web)} video=$before -> $after")
+
+            main {
+                val outgoing = pages(viewport).single()
+                background.renderSelection(GameLine.Chu, BackgroundSelection.None, BackgroundSelection.None)
+                val layers = pages(viewport)
+                assertSame(outgoing, layers.first())
+                assertEquals(listOf(1f, 0f), layers.map { it.alpha })
+            }
+            await("Replacement becomes visible and releases the outgoing HTML background") {
+                val layers = pages(viewport)
+                layers.size == 1 && layers.single().alpha == 1f && web.parent == null
+            }
+            Log.i(LOG_TAG, "replacement kept outgoing layer until first frame, then released WebView")
+        } finally {
+            main { background.dispose() }
+        }
+    }
+
+    private fun gesture(foreground: GameSwipeLayout, x: Float, y: Float): (Int, Float) -> Unit {
+        val downTime = SystemClock.uptimeMillis()
+        var time = downTime
+        return { action, delta ->
+            val event = MotionEvent.obtain(downTime, time, action, x + delta, y, 0)
+            time += 16
+            try { foreground.dispatchTouchEvent(event) } finally { event.recycle() }
+        }
+    }
+
+    private fun pages(container: ViewGroup) = (container.getChildAt(0) as FrameLayout).children.toList()
+
+    private fun position(page: View): Pair<Int, Int> {
+        val location = IntArray(2)
+        page.getLocationOnScreen(location)
+        return location[0] to location[1]
+    }
+
+    private fun evaluate(web: WebView, script: String): String {
+        var result = "null"
+        val evaluated = CountDownLatch(1)
+        main {
+            web.evaluateJavascript(script) {
+                result = it
+                evaluated.countDown()
+            }
+        }
+        assertTrue("WebView responds to its video probe", evaluated.await(5, TimeUnit.SECONDS))
+        return result
+    }
+
+    private fun awaitVideoTime(web: WebView, whenPlaying: String, after: Double): Double {
+        val timeout = SystemClock.uptimeMillis() + 5000L
+        val script = "(() => { const video = document.querySelector('video'); return $whenPlaying ? video.currentTime : -1; })()"
+        do {
+            val time = evaluate(web, script).toDoubleOrNull() ?: -1.0
+            if (time > after) return time
+            SystemClock.sleep(16)
+        } while (SystemClock.uptimeMillis() < timeout)
+        throw AssertionError("LUMINOUS video did not advance past $after seconds")
+    }
+
+    private fun await(message: String, timeoutMs: Long = 2500L, condition: () -> Boolean) {
+        val timeout = SystemClock.uptimeMillis() + timeoutMs
         do {
             var ready = false
             main { ready = condition() }
             if (ready) return
             SystemClock.sleep(16)
         } while (SystemClock.uptimeMillis() < timeout)
-        fail("Foreground swipe did not settle")
+        fail(message)
+    }
+
+    private companion object {
+        const val LOG_TAG = "GameBackgroundTest"
     }
 }

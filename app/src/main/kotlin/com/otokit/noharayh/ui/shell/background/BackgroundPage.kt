@@ -12,22 +12,21 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import com.otokit.noharayh.ui.theme.BackgroundPalette
-import com.otokit.noharayh.ui.theme.BackgroundSelection
-import com.otokit.noharayh.ui.theme.GameLine
+import com.otokit.noharayh.ui.theme.BackgroundSource
 import com.otokit.noharayh.ui.theme.ThemeColors
-import com.otokit.noharayh.ui.shell.MaterkitColors
 
 /**
- * 单个音游页的原生背景与按需创建的 WebView。
+ * 单个渲染来源的原生背景或按需创建的 WebView。
  *
  * 对外只暴露触摸容器；WebView 是渲染缓存，不是已选主题的另一份写入口。
- * 同入口重绑、切换音游与尺寸变化都不重新 loadUrl。
+ * 来源在实例生命周期内固定，切换音游与尺寸变化可以复用该实例。
  */
 internal class BackgroundPage(
     context: Context,
-    val gameLine: GameLine,
+    val source: BackgroundSource,
     private val loader: AssetBackgroundLoader,
-    private val onFirstVisualReady: () -> Unit,
+    private var materkitColors: ThemeColors,
+    private val onFirstVisualReady: (BackgroundPage) -> Unit,
 ) {
 
     val view: View = TouchBlockingFrameLayout(context).apply {
@@ -51,7 +50,7 @@ internal class BackgroundPage(
         override fun onDraw(canvas: Canvas) {
             if (debugLogging && lastDrawHardware != canvas.isHardwareAccelerated) {
                 lastDrawHardware = canvas.isHardwareAccelerated
-                Log.d("BackgroundRendering", "$gameLine drawCanvasHardware=${canvas.isHardwareAccelerated}")
+                Log.d("BackgroundRendering", "$source drawCanvasHardware=${canvas.isHardwareAccelerated}")
             }
             super.onDraw(canvas)
         }
@@ -79,19 +78,19 @@ internal class BackgroundPage(
 
             override fun onPageFinished(view: WebView, url: String?) {
                 super.onPageFinished(view, url)
-                if (url != expectedUrl || loadedHtmlThemeId == null) return
+                if (url != expectedUrl) return
                 documentReady = true
                 val requestId = ++visualRequest
                 // onPageFinished 仍可能早于最后一张 WebP 上屏；再等视觉状态提交。
                 applyAnimationState {
-                    if (requestId == visualRequest && documentReady && loadedHtmlThemeId != null) {
+                    if (requestId == visualRequest && documentReady) {
                         view.postVisualStateCallback(
                             requestId,
                             object : WebView.VisualStateCallback() {
                                 override fun onComplete(id: Long) {
-                                    if (id == visualRequest && loadedHtmlThemeId != null && !readySent) {
+                                    if (id == visualRequest && !readySent) {
                                         readySent = true
-                                        onFirstVisualReady()
+                                        onFirstVisualReady(this@BackgroundPage)
                                     }
                                 }
                             }
@@ -99,23 +98,17 @@ internal class BackgroundPage(
                     }
                 }
             }
-
-            override fun onPageCommitVisible(view: WebView, url: String?) {
-                super.onPageCommitVisible(view, url)
-                // 主内容已经提交；真正的遮罩消失仍以 visual callback 为准。
-                // 保留观察点：真正遮罩消失仍等 visual callback。
-            }
         }
     }
 
-    private var loadedHtmlThemeId: String? = null
-    private var loadedSelectionKey: String? = null
     private var noneBackgroundColor = BackgroundPalette.NONE_COLOR
     private var visualRequest = 0L
     private var readySent = false
     private var resumed = false
     private var mediaVisible = false
-    private var expectedUrl: String? = null
+    private val expectedUrl = (source as? BackgroundSource.Html)?.let {
+        AssetBackgroundLoader.BASE_URL + it.assetPath
+    }
 
     /** 只切换背景层的绘制路径及 CSS 状态，不重载页面或覆盖 Activity 的硬件设置。 */
     fun setRenderingOptions(options: BackgroundRenderingOptions) {
@@ -125,12 +118,12 @@ internal class BackgroundPage(
         if (!webViewDelegate.isInitialized()) return
         if (webView.layerType != layer) webView.setLayerType(layer, null)
         if (documentReady) applyAnimationState()
-        if (debugLogging) Log.d("BackgroundRendering", "$gameLine hardware=${options.hardwareAccelerated} " +
+        if (debugLogging) Log.d("BackgroundRendering", "$source hardware=${options.hardwareAccelerated} " +
             "layer=${webView.layerType} windowAccelerated=${webView.isHardwareAccelerated} animations=${options.htmlAnimations}")
     }
 
     private fun applyAnimationState(onApplied: () -> Unit = {}) {
-        if (!documentReady || loadedHtmlThemeId == null) return
+        if (!documentReady) return
         // 单一样式同时覆盖元素和伪元素；移除覆盖后由原始 CSS 从暂停位置接续。
         // JS 只在设置、文档或生命周期变化时执行，没有计时器、逐帧回调或原生接口。
         val disabled = rendering.htmlAnimations
@@ -170,13 +163,12 @@ internal class BackgroundPage(
             })()
         """.trimIndent()) { mediaState ->
             if (debugLogging && mediaState != "[]" && mediaState != "null") {
-                Log.d("BackgroundRendering", "$gameLine resumed=$resumed visible=$mediaVisible media=$mediaState")
+                Log.d("BackgroundRendering", "$source resumed=$resumed visible=$mediaVisible media=$mediaState")
             }
             onApplied()
         }
     }
 
-    private var materkitColors = MaterkitColors.resolve(context)
     private val nativeBackgroundDelegate = lazy {
         MistBackgroundDrawable(context).apply { setPrimaryColor(materkitColors.primaryColor) }
     }
@@ -189,7 +181,7 @@ internal class BackgroundPage(
 
     private fun updateNativePlayback() {
         if (!nativeBackgroundDelegate.isInitialized()) return
-        if (loadedSelectionKey == "placeholder" && resumed && mediaVisible && rendering.htmlAnimations) {
+        if (resumed && mediaVisible && rendering.htmlAnimations) {
             nativeBackground.start()
         } else {
             nativeBackground.stop()
@@ -213,84 +205,47 @@ internal class BackgroundPage(
         )
     }
 
-    /** 入口变化时才加载；只改颜色不重新加载。返回是否更换了入口。 */
-    fun show(selection: BackgroundSelection): Boolean {
-        val key = when (selection) {
-            is BackgroundSelection.Html -> "html:${selection.theme.id}"
-            BackgroundSelection.Placeholder -> "placeholder"
-            BackgroundSelection.None -> "none"
-        }
-        if (key == loadedSelectionKey) return false
-        loadedSelectionKey = key
-        updateNativePlayback()
-        visualRequest++
-        readySent = false
-        documentReady = false
-        when (selection) {
-            is BackgroundSelection.Html -> {
-                if (webView.parent == null) {
-                    (view as ViewGroup).addView(webView, 0, ViewGroup.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
-                }
+    fun load() {
+        when (source) {
+            is BackgroundSource.Html -> {
+                (view as ViewGroup).addView(webView, 0, ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
                 setRenderingOptions(rendering)
-                loadedHtmlThemeId = selection.theme.id
-                expectedUrl = AssetBackgroundLoader.BASE_URL + selection.theme.definition.htmlAssetPath
                 if (resumed) webView.onResume() else webView.onPause()
-                solidView.visibility = View.GONE
-                webView.visibility = View.VISIBLE
-                loader.load(webView, selection.theme.definition.htmlAssetPath)
+                loader.load(webView, source.assetPath)
             }
-            BackgroundSelection.Placeholder -> {
+            BackgroundSource.Placeholder -> {
                 showSolid(BackgroundPalette.PLACEHOLDER_COLOR, nativeBackground)
             }
-            BackgroundSelection.None -> {
+            BackgroundSource.None -> {
                 showSolid(noneBackgroundColor)
             }
         }
-        updateNativePlayback()
-        return true
     }
 
     /** 同一个无主题来源只换底色，不重启 WebView、首帧回调或背景切换。 */
     fun setNoneBackgroundColor(color: Int) {
         if (noneBackgroundColor == color) return
         noneBackgroundColor = color
-        if (loadedSelectionKey == "none") solidView.setBackgroundColor(color)
+        if (source == BackgroundSource.None) solidView.setBackgroundColor(color)
     }
 
     private fun showSolid(color: Int, drawable: android.graphics.drawable.Drawable? = null) {
-        if (documentReady) {
-            webView.evaluateJavascript("document.querySelectorAll('video').forEach(video => video.pause())", null)
-        }
-        loadedHtmlThemeId = null
-        documentReady = false
-        expectedUrl = null
-        if (webViewDelegate.isInitialized()) {
-            webView.onPause()
-            webView.stopLoading()
-            webView.visibility = View.GONE
-        }
         if (drawable != null) solidView.background = drawable else solidView.setBackgroundColor(color)
         solidView.visibility = View.VISIBLE
-        val key = loadedSelectionKey
-        solidView.post {
-            if (key == loadedSelectionKey && !readySent) {
-                readySent = true
-                onFirstVisualReady()
-            }
-        }
+        solidView.post { onFirstVisualReady(this) }
     }
 
     fun resume() {
         resumed = true
         updateNativePlayback()
-        if (loadedHtmlThemeId != null) {
+        if (webViewDelegate.isInitialized()) {
             webView.onResume()
             if (documentReady) applyAnimationState()
         }
     }
 
-    /** 由宿主现有的翻页进度确定；淡入淡出期间两页都可播放，隐藏页停止解码。 */
+    /** 淡入淡出期间可见层都可播放，隐藏层停止解码。 */
     fun setMediaVisible(visible: Boolean) {
         if (mediaVisible == visible) return
         mediaVisible = visible
@@ -309,8 +264,6 @@ internal class BackgroundPage(
         if (nativeBackgroundDelegate.isInitialized()) nativeBackground.release()
         documentReady = false
         visualRequest++
-        loadedHtmlThemeId = null
-        loadedSelectionKey = null
         if (webViewDelegate.isInitialized()) {
             webView.stopLoading()
             webView.webViewClient = WebViewClient()

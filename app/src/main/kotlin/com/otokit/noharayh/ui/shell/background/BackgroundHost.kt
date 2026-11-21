@@ -1,189 +1,51 @@
 package com.otokit.noharayh.ui.shell.background
 
-import android.os.Handler
-import android.os.Looper
-import android.view.View
-import android.view.ViewGroup
-import android.view.ViewTreeObserver
+import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.widget.FrameLayout
-import androidx.viewpager2.widget.ViewPager2
-import androidx.recyclerview.widget.PagerSnapHelper
-import androidx.recyclerview.widget.RecyclerView
 import com.otokit.noharayh.ui.animation.shell.NoneBackgroundColorRunner
-import com.otokit.noharayh.ui.animation.shell.PagerSettleCurve
+import com.otokit.noharayh.ui.shell.MaterkitColors
 import com.otokit.noharayh.ui.theme.BackgroundPalette
-import com.otokit.noharayh.ui.theme.GameLine
 import com.otokit.noharayh.ui.theme.BackgroundSelection
+import com.otokit.noharayh.ui.theme.BackgroundSource
+import com.otokit.noharayh.ui.theme.GameLine
 import com.otokit.noharayh.ui.theme.ThemeColors
+import com.otokit.noharayh.ui.theme.renderSource
 
-/** 双背景的运行所有者；稳定选择由 shell 确认，归位期间不接受新选择。 */
+/** 固定在视口内的背景层。按渲染来源复用页面，消费前景的切换进度。 */
 class BackgroundHost(
     private val container: FrameLayout,
-    private val initialRendering: BackgroundRenderingOptions = BackgroundRenderingOptions(),
-    private val requestSelection: (GameLine) -> GameLine,
+    private var rendering: BackgroundRenderingOptions = BackgroundRenderingOptions(),
 ) {
+    private class Layer(val page: BackgroundPage, var ready: Boolean = false)
+
     private val context = container.context
     private val loader = AssetBackgroundLoader(context)
-    private val pages = mutableMapOf(
-        GameLine.Mai to BackgroundPage(context, GameLine.Mai, loader) {
-            onPageVisualReady(GameLine.Mai)
-        },
-        GameLine.Chu to BackgroundPage(context, GameLine.Chu, loader) {
-            onPageVisualReady(GameLine.Chu)
-        },
-    ).also { pages -> pages.values.forEach { it.setRenderingOptions(initialRendering); it.pause() } }
-
-    private val noneColorTransition = NoneBackgroundColorRunner(BackgroundPalette.NONE_COLOR) { color ->
-        pages.values.forEach { it.setNoneBackgroundColor(color) }
-    }
-
-    fun setMaterkitColors(colors: ThemeColors) {
-        if (disposed) return
-        pages.values.forEach { it.setMaterkitColors(colors) }
-    }
-
-    fun setRenderingOptions(options: BackgroundRenderingOptions) {
-        if (disposed) return
-        pages.values.forEach { it.setRenderingOptions(options) }
-    }
-
-    fun setNoneBackgroundColor(color: Int, animate: Boolean = false) {
-        if (disposed) return
-        noneColorTransition.setColor(color, animate && attached && gate.resumed)
-    }
-
+    private val layersRoot = FrameLayout(context)
+    private val layers = mutableMapOf<BackgroundSource, Layer>()
+    private var maiSource: BackgroundSource = BackgroundSource.None
+    private var chuSource: BackgroundSource = BackgroundSource.None
+    private var committedGame = GameLine.Mai
+    private val committedSource: BackgroundSource
+        get() = if (committedGame == GameLine.Mai) maiSource else chuSource
+    private var foregroundProgress: Float? = null
+    private var lastVisible: Layer? = null
     private var initialVisualReady: (() -> Unit)? = null
-    private val sources = BackgroundSourceCoordinator { game, source ->
-        pages.getValue(game).show(source)
-    }
-
-    private var pager: ViewPager2? = null
-    private var settleCurve: PagerSettleCurve? = null
-    private var adapter: BackgroundPagerAdapter? = null
-    private var touchRoot: BackgroundTouchFrameLayout? = null
     private var attached = false
     private var disposed = false
-    private var committedGame = GameLine.Mai
-    private var progress = 0f
-    private var foregroundProgress: Float? = null
-    private var sameBackground = false
-    private var phase = BackgroundPhase.Idle
-    private var gate = BackgroundInputGate()
-    private var requiredLayoutEpoch = 0L
-    private var positionedGeneration: Long? = null
-    private var cancelGeneration: Long? = null
-    private var confirmationObserver: ViewTreeObserver? = null
-    private var confirmationListener: ViewTreeObserver.OnPreDrawListener? = null
-    private var alignmentCorrection: Runnable? = null
-    private var callbackDepth = 0
+    private var resumed = false
 
-    private val publisher = BackgroundSnapshotPublisher(
-        BackgroundSnapshot(GameLine.Mai, 0f, BackgroundPhase.Idle),
-    )
-
-    val currentSnapshot: BackgroundSnapshot
-        get() = publisher.current
-
-    private val pageCallback = object : ViewPager2.OnPageChangeCallback() {
-        override fun onPageSelected(position: Int) = onPagerEvent {
-            val pager = pager ?: return@onPagerEvent
-            val game = BackgroundPagerMapping.gameForPage(position) ?: return@onPagerEvent
-            if (!gate.canCommit || position != pager.currentItem || game == committedGame) {
-                return@onPagerEvent
-            }
-
-            // 辅助操作可以直接 Settling；不能以触摸 DOWN/Dragging 作为提交许可。
-            val confirmed = requestSelection(game)
-            if (disposed) return@onPagerEvent
-            committedGame = confirmed
-            sources.select(confirmed)
-            deliverInitialVisualReady()
-            if (confirmed != game) {
-                beginAlignment(requireNextLayout = true)
-            } else {
-                // 这是选中的确认，不是再次 setCurrentItem；保留真实 Settling。
-                publishCurrent()
-            }
-        }
-
-        override fun onPageScrolled(position: Int, offset: Float, offsetPixels: Int) = onPagerEvent {
-            progress = BackgroundPagerMapping.progress(position, offset)
-            if (!gate.barrierActive) publishCurrent()
-        }
-
-        override fun onPageScrollStateChanged(state: Int) = onPagerEvent {
-            phase = when (state) {
-                ViewPager2.SCROLL_STATE_DRAGGING -> BackgroundPhase.Dragging
-                ViewPager2.SCROLL_STATE_SETTLING -> BackgroundPhase.Settling
-                else -> BackgroundPhase.Idle
-            }
-            if (!gate.barrierActive) publishCurrent()
-        }
+    private var materkitColors = MaterkitColors.resolve(context)
+    private var noneColor = BackgroundPalette.NONE_COLOR
+    private val noneColorTransition = NoneBackgroundColorRunner(noneColor) { color ->
+        noneColor = color
+        layers[BackgroundSource.None]?.page?.setNoneBackgroundColor(color)
     }
 
-    private inline fun onPagerEvent(action: () -> Unit) {
-        callbackDepth++
-        try {
-            if (attached && !disposed) action()
-        } finally {
-            callbackDepth--
-        }
-    }
-
-    /** 每个宿主只挂一次；失败也释放已创建的页。恢复后的初始快照同步可读。 */
     fun attach(initialGame: GameLine) {
         check(!attached && !disposed) { "背景宿主只允许挂载一次" }
         attached = true
         committedGame = initialGame
-        progress = BackgroundPagerMapping.endpointProgress(initialGame)
-        renderBackgroundFrame()
-        publisher.publish(BackgroundSnapshot(initialGame, progress, BackgroundPhase.Idle))
-
-        try {
-            val root = BackgroundTouchFrameLayout(context)
-            touchRoot = root
-            root.layoutParams = matchParentParams()
-            root.beforeGestureCancel = {
-                // 先关提交，仍让 RecyclerView 接收这条 CANCEL；分发完成后再阻断物理输入。
-                cancelGeneration = beginAlignment(requireNextLayout = true, deferPagerChanges = true)
-            }
-            root.afterGestureCancel = {
-                val generation = cancelGeneration
-                cancelGeneration = null
-                if (generation != null) positionForAlignment(generation)
-            }
-
-            val adapter = BackgroundPagerAdapter(pages)
-            this.adapter = adapter
-            val pager = ViewPager2(context).apply {
-                layoutParams = matchParentParams()
-                orientation = ViewPager2.ORIENTATION_HORIZONTAL
-                offscreenPageLimit = 1
-                isUserInputEnabled = false
-                layoutDirection = View.LAYOUT_DIRECTION_LTR
-                isSaveEnabled = false
-                isSaveFromParentEnabled = false
-                visibility = View.INVISIBLE // 参与布局，初始真实端点确认前不闪错误页。
-                this.adapter = adapter
-                setPageTransformer { page, position ->
-                    page.translationX = -position * page.width
-                }
-                registerOnPageChangeCallback(pageCallback)
-            }
-            this.pager = pager
-            // 背景宿主拥有 Pager；仅在此处接入公开 RecyclerView/SnapHelper 收尾接口。
-            val recycler = pager.getChildAt(0) as RecyclerView
-            val snap = recycler.onFlingListener as PagerSnapHelper
-            settleCurve = PagerSettleCurve(recycler, snap) {
-                !disposed && gate.canCommit && !pager.isFakeDragging
-            }
-            root.addView(pager)
-            container.addView(root)
-            beginAlignment(requireNextLayout = true)
-        } catch (failure: Throwable) {
-            dispose()
-            throw failure
-        }
+        container.addView(layersRoot, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
     }
 
     fun renderSelection(
@@ -192,246 +54,129 @@ class BackgroundHost(
         chuBackground: BackgroundSelection,
     ) {
         if (!attached || disposed) return
-        sameBackground = maiBackground == chuBackground ||
-            (maiBackground is BackgroundSelection.Html && chuBackground is BackgroundSelection.Html &&
-                maiBackground.theme.definition.htmlAssetPath == chuBackground.theme.definition.htmlAssetPath)
-        // 冷启动先加载当前页；切页必须主动加载目标，不能依赖旧页迟到的首帧。
-        sources.render(currentGame, maiBackground, chuBackground)
-        if (currentGame != committedGame) {
-            committedGame = currentGame
-            beginAlignment(requireNextLayout = true)
-        }
-        renderBackgroundFrame()
-        deliverInitialVisualReady()
+        committedGame = currentGame
+        maiSource = maiBackground.renderSource
+        chuSource = chuBackground.renderSource
+        updateLayers()
     }
 
-    /** 前景手势只更新背景透明度，背景页仍各自固定在视口原点。 */
     internal fun renderGameProgress(value: Float) {
         if (!attached || disposed || foregroundProgress == value) return
         foregroundProgress = value
-        renderBackgroundFrame()
+        if (maiSource != chuSource) renderBackgroundFrame()
     }
 
-    /** shell 已更新背景宿主的几何；同步关门，确认本次真实布局后再开放。 */
-    fun onViewportChanged() {
-        if (attached && !disposed) beginAlignment(requireNextLayout = true)
+    fun setMaterkitColors(colors: ThemeColors) {
+        materkitColors = colors
+        layers[BackgroundSource.Placeholder]?.page?.setMaterkitColors(colors)
     }
 
-    fun subscribe(listener: (BackgroundSnapshot) -> Unit): AutoCloseable = publisher.subscribe(listener)
+    fun setRenderingOptions(options: BackgroundRenderingOptions) {
+        rendering = options
+        layers.values.forEach { it.page.setRenderingOptions(options) }
+    }
 
-    /** 当前已提交音游的首帧回调；只交付一次，迟到页不覆盖新的遮罩。 */
+    fun setNoneBackgroundColor(color: Int, animate: Boolean = false) {
+        if (!disposed) noneColorTransition.setColor(color, animate && attached && resumed)
+    }
+
+    fun setResumed(resumed: Boolean) {
+        if (!attached || disposed || this.resumed == resumed) return
+        this.resumed = resumed
+        if (!resumed) noneColorTransition.finish()
+        layers.values.forEach { if (resumed) it.page.resume() else it.page.pause() }
+    }
+
     fun setOnFirstVisualReady(listener: (() -> Unit)?) {
+        if (disposed) return
         initialVisualReady = listener
         deliverInitialVisualReady()
     }
 
     private fun deliverInitialVisualReady() {
-        if (disposed || !sources.isReady(committedGame)) return
+        if (layers[committedSource]?.ready != true) return
         val listener = initialVisualReady
         initialVisualReady = null
         listener?.invoke()
     }
 
-    private fun onPageVisualReady(game: GameLine) {
-        if (disposed) return
-        sources.onVisualReady(game, committedGame)
+    private fun onPageVisualReady(page: BackgroundPage) {
+        val layer = layers[page.source] ?: return
+        if (layer.page !== page) return
+        layer.ready = true
+        updateLayers()
+    }
+
+    private fun updateLayers() {
+        val selected = committedSource
+        val selectedReady = layers[selected]?.ready == true
+        val iterator = layers.entries.iterator()
+        while (iterator.hasNext()) {
+            val (source, layer) = iterator.next()
+            // 换源期间保留上一张可见画面，直到已确认来源的首帧就绪。
+            if (source == maiSource || source == chuSource || (!selectedReady && layer === lastVisible)) continue
+            iterator.remove()
+            if (layer === lastVisible) lastVisible = null
+            release(layer.page)
+        }
+        mount(selected)
+        // 冷启动先显示当前来源，再预载另一个。两边同源时 mount 只执行一次。
+        if (selectedReady) mount(if (committedGame == GameLine.Mai) chuSource else maiSource)
         renderBackgroundFrame()
         deliverInitialVisualReady()
     }
 
-    fun setInputEnabled(enabled: Boolean) {
-        if (!attached || disposed || gate.inputEnabled == enabled) return
-        gate = gate.copy(inputEnabled = enabled)
-        if (enabled) syncPagerInput() else beginAlignment(requireNextLayout = false)
+    private fun mount(source: BackgroundSource) {
+        if (source in layers) return
+        val page = BackgroundPage(context, source, loader, materkitColors, ::onPageVisualReady)
+        layers[source] = Layer(page)
+        page.view.alpha = 0f
+        layersRoot.addView(page.view)
+        page.setRenderingOptions(rendering)
+        page.setNoneBackgroundColor(noneColor)
+        if (resumed) page.resume()
+        page.load()
     }
 
-    fun setResumed(resumed: Boolean) {
-        if (!attached || disposed || gate.resumed == resumed) return
-        gate = gate.copy(resumed = resumed)
-        if (resumed) {
-            pages.values.forEach(BackgroundPage::resume)
-            syncPagerInput()
-            // 屏障不按帧数过期；后台未布局时继续等待本轮布局/端点。
-            if (gate.barrierActive) touchRoot?.requestLayout()
+    private fun renderBackgroundFrame() {
+        val mai = layers[maiSource]?.takeIf { it.ready }
+        val chu = layers[chuSource]?.takeIf { it.ready }
+        val progress = foregroundProgress ?: if (committedGame == GameLine.Mai) 0f else 1f
+        val blend = mai != null && chu != null && mai !== chu
+        val primary = if (blend) {
+            if (progress < 0.5f) mai else chu
         } else {
-            noneColorTransition.finish()
-            beginAlignment(requireNextLayout = false)
-            pages.values.forEach(BackgroundPage::pause)
+            val selected = if (committedGame == GameLine.Mai) mai else chu
+            selected ?: lastVisible ?: mai ?: chu
         }
-    }
-
-    private fun beginAlignment(requireNextLayout: Boolean, deferPagerChanges: Boolean = false): Long {
-        val root = touchRoot ?: return gate.generation
-        val pager = pager ?: return gate.generation
-        gate = gate.beginAlignment()
-        val generation = gate.generation
-        positionedGeneration = null
-        removeAlignmentCorrection()
-        removeConfirmationListener()
-        val immediate = !requireNextLayout && layoutReady(root, pager) && isAtEndpoint(pager) &&
-            pager.scrollState == ViewPager2.SCROLL_STATE_IDLE
-        requiredLayoutEpoch = root.layoutEpoch + if (immediate) 0 else 1
-        if (!deferPagerChanges) {
-            syncPagerInput()
-            if (immediate) {
-                confirmAlignment(generation)
-                return generation
+        lastVisible = primary
+        for (layer in layers.values) {
+            val opacity = when {
+                blend && layer === mai -> 1f - progress
+                blend && layer === chu -> progress
+                layer === primary -> 1f
+                else -> 0f
             }
+            if (layer.page.view.alpha != opacity) layer.page.view.alpha = opacity
+            layer.page.setMediaVisible(opacity > 0f)
         }
-
-        val listener = ViewTreeObserver.OnPreDrawListener {
-            if (!disposed && generation == gate.generation) {
-                confirmAlignment(generation)
-                // 首次布局可能把提前指定的页回落到 0；只在本轮实际布局证实页码偏离后纠正。
-                // 回调退出后再定位，避免在 RecyclerView 的布局/回调遍历中修改它。
-                if (gate.barrierActive && root.layoutEpoch >= requiredLayoutEpoch &&
-                    layoutReady(root, pager) && positionedGeneration == generation &&
-                    pager.currentItem != BackgroundPagerMapping.pageFor(committedGame)
-                ) {
-                    scheduleAlignmentCorrection(generation)
-                }
-            }
-            true
-        }
-        confirmationObserver = root.viewTreeObserver
-        confirmationListener = listener
-        confirmationObserver?.addOnPreDrawListener(listener)
-        if (!deferPagerChanges) positionForAlignment(generation)
-        return generation
-    }
-
-    private fun positionForAlignment(generation: Long) {
-        if (disposed || generation != gate.generation || !gate.barrierActive) return
-        val pager = pager ?: return
-        syncPagerInput()
-        pager.setCurrentItem(BackgroundPagerMapping.pageFor(committedGame), false)
-        positionedGeneration = generation
-        // 同页 setCurrentItem(false) 可能没有回调；本轮布局和页根像素坐标同样能确认。
-        touchRoot?.requestLayout()
-    }
-
-    private fun scheduleAlignmentCorrection(generation: Long) {
-        if (alignmentCorrection != null) return
-        val root = touchRoot ?: return
-        val correction = Runnable {
-            alignmentCorrection = null
-            if (!disposed && generation == gate.generation && gate.barrierActive) {
-                positionForAlignment(generation)
-            }
-        }
-        alignmentCorrection = correction
-        root.post(correction)
-    }
-
-    private fun removeAlignmentCorrection() {
-        alignmentCorrection?.let { touchRoot?.removeCallbacks(it) }
-        alignmentCorrection = null
-    }
-
-    private fun confirmAlignment(generation: Long) {
-        val root = touchRoot ?: return
-        val pager = pager ?: return
-        val next = gate.confirmAlignment(
-            expectedGeneration = generation,
-            layoutCompleted = root.layoutEpoch >= requiredLayoutEpoch && layoutReady(root, pager),
-            atEndpoint = isAtEndpoint(pager),
-            // 无动画定位已停止惯性；取消后的公开 scrollState 可能残留 Settling。
-            // 必须再有本轮真实布局和页根像素端点，不能只凭 setCurrentItem 返回解锁。
-            motionStopped = pager.scrollState == ViewPager2.SCROLL_STATE_IDLE ||
-                positionedGeneration == generation,
-        )
-        if (next === gate) return
-        gate = next
-        removeAlignmentCorrection()
-        removeConfirmationListener()
-        progress = BackgroundPagerMapping.endpointProgress(committedGame)
-        phase = BackgroundPhase.Idle
-        pager.visibility = View.VISIBLE
-        pager.requestTransform()
-        syncPagerInput()
-        publishCurrent()
-    }
-
-    private fun layoutReady(root: BackgroundTouchFrameLayout, pager: ViewPager2): Boolean =
-        root.isAttachedToWindow && root.width > 0 && root.height > 0 &&
-            !container.isLayoutRequested && !root.isLayoutRequested && !pager.isLayoutRequested
-
-    private fun isAtEndpoint(pager: ViewPager2): Boolean =
-        pager.currentItem == BackgroundPagerMapping.pageFor(committedGame) &&
-            adapter?.isAtEndpoint(committedGame, pager.width, pager.height) == true
-
-    private fun syncPagerInput() {
-        pager?.isUserInputEnabled = !disposed && gate.canCommit
-    }
-
-    private fun removeConfirmationListener() {
-        val listener = confirmationListener ?: return
-        val observer = confirmationObserver?.takeIf { it.isAlive } ?: touchRoot?.viewTreeObserver
-        if (observer?.isAlive == true) observer.removeOnPreDrawListener(listener)
-        confirmationListener = null
-        confirmationObserver = null
     }
 
     fun dispose() {
         if (disposed) return
         disposed = true
         attached = false
-        noneColorTransition.dispose()
-        gate = gate.beginAlignment().copy(resumed = false, inputEnabled = false)
         initialVisualReady = null
-        sources.clear()
-        publisher.dispose()
-        removeAlignmentCorrection()
-        removeConfirmationListener()
-        cancelGeneration = null
-        positionedGeneration = null
-        val oldRoot = touchRoot
-        oldRoot?.beforeGestureCancel = null
-        oldRoot?.afterGestureCancel = null
-        val oldPager = pager
-        val oldSettleCurve = settleCurve
-        settleCurve = null
-        oldPager?.isUserInputEnabled = false
-        val oldPages = pages.values.toList()
-        pages.clear()
-        pager = null
-        adapter = null
-        touchRoot = null
-
-        val release = {
-            oldSettleCurve?.close()
-            oldPager?.unregisterOnPageChangeCallback(pageCallback)
-            oldPager?.setPageTransformer(null)
-            oldPager?.adapter = null
-            oldPages.forEach(BackgroundPage::destroy)
-            oldRoot?.removeAllViews()
-            if (oldRoot != null) container.removeView(oldRoot)
-        }
-        // ViewPager2 的外部回调集合不允许在遍历中增删；重入 dispose 先禁用，再退出回调栈释放。
-        if (callbackDepth > 0) Handler(Looper.getMainLooper()).post { release() } else release()
+        lastVisible = null
+        noneColorTransition.dispose()
+        val pages = layers.values.map { it.page }
+        layers.clear()
+        pages.forEach(::release)
+        container.removeView(layersRoot)
     }
 
-    private fun publishCurrent() {
-        if (!disposed && !gate.barrierActive) {
-            renderBackgroundFrame()
-            publisher.publish(BackgroundSnapshot(committedGame, progress, phase))
-        }
+    private fun release(page: BackgroundPage) {
+        layersRoot.removeView(page.view)
+        page.destroy()
     }
-
-    private fun renderBackgroundFrame() {
-        val endpoint = BackgroundPagerMapping.endpointProgress(committedGame)
-        val requested = foregroundProgress ?: progress
-        val incoming = if (committedGame == GameLine.Mai) GameLine.Chu else GameLine.Mai
-        val blend = if (sameBackground || (foregroundProgress != null && !sources.isReady(incoming))) endpoint else requested
-        for ((game, page) in pages) {
-            val opacity = if (game == GameLine.Mai) 1f - blend else blend
-            page.view.alpha = opacity
-            page.setMediaVisible(opacity > 0f)
-        }
-    }
-
-    private fun matchParentParams() = FrameLayout.LayoutParams(
-        ViewGroup.LayoutParams.MATCH_PARENT,
-        ViewGroup.LayoutParams.MATCH_PARENT,
-    )
 }

@@ -6,7 +6,7 @@ import android.animation.ValueAnimator
 import com.otokit.noharayh.ui.animation.common.MotionInterpolators
 import com.otokit.noharayh.ui.constants.motion.NoneBackgroundColorMotion
 
-/** 两页共享的无主题底色过渡；只输出颜色，重定向从当前显示帧接续。 */
+/** 无主题底色过渡；只输出颜色，重定向从当前显示帧接续。 */
 internal class NoneBackgroundColorRunner(
     initialColor: Int,
     private val onFrame: (Int) -> Unit,

@@ -56,6 +56,7 @@ import com.otokit.noharayh.ui.theme.BackgroundPalette
 import com.otokit.noharayh.ui.theme.NoneThemePalette
 import com.otokit.noharayh.ui.theme.ThemeColors
 import com.otokit.noharayh.ui.theme.BackgroundSelection
+import com.otokit.noharayh.ui.theme.BackgroundSource
 import com.otokit.noharayh.ui.theme.GameLine
 import com.otokit.noharayh.ui.theme.RegisteredTheme
 import com.otokit.noharayh.ui.theme.ThemeOption
@@ -63,6 +64,7 @@ import com.otokit.noharayh.ui.theme.ThemeOptions
 import com.otokit.noharayh.ui.theme.ThemeRegistry
 import com.otokit.noharayh.ui.theme.ThemeSelectionMode
 import com.otokit.noharayh.ui.theme.blendOpaqueRgb
+import com.otokit.noharayh.ui.theme.renderSource
 import com.otokit.noharayh.ui.window.PixelRect
 import com.otokit.noharayh.ui.window.WindowSnapshot
 import com.otokit.noharayh.ui.window.metrics.WindowMetricsSnapshot
@@ -170,16 +172,14 @@ class MainShell(
     private var backgroundSwitchScrim: View? = null
     private var backgroundSwitchRunner: BackgroundSwitchRunner? = null
     private var backgroundSwitching = false
-    private var lastMaiBackground: BackgroundSelection? = null
-    private var lastChuBackground: BackgroundSelection? = null
+    private var lastMaiBackground: BackgroundSource? = null
+    private var lastChuBackground: BackgroundSource? = null
     private var latestWindowSnapshot: WindowSnapshot? = null
     private var latestGameFrame: GameFrame? = null
     private var lastChromeDestination: Destination? = null
     private var contentWidthPx = 0
     private var contentHeightPx = 0
     private var chromeInsets = ChromeInsets.Zero
-    private var appliedBackgroundRect: PixelRect? = null
-    private var appliedBackgroundWindowRect: PixelRect? = null
 
     private var onCanHandleBackChanged: ((Boolean) -> Unit)? = null
     private var statusBarHiddenListener: ((Boolean) -> Unit)? = null
@@ -222,17 +222,19 @@ class MainShell(
         contentHost.selectedGame = { selection.state.currentGame }
         contentHost.onSelection = ::selectGame
         contentHost.onFrameChanged = ::applyGameFrame
-        background = BackgroundHost(backgroundHost, backgroundRendering) { selection.state.currentGame }.also { host ->
+        val mai = backgroundFor(current, GameLine.Mai)
+        val chu = backgroundFor(current, GameLine.Chu)
+        background = BackgroundHost(backgroundHost, backgroundRendering).also { host ->
             host.setNoneBackgroundColor(noneBackgroundColor())
             host.setMaterkitColors(materkitColors)
             host.attach(current.currentGame)
             host.renderSelection(
                 currentGame = current.currentGame,
-                maiBackground = backgroundFor(current, GameLine.Mai),
-                chuBackground = backgroundFor(current, GameLine.Chu),
+                maiBackground = mai,
+                chuBackground = chu,
             )
-            lastMaiBackground = backgroundFor(current, GameLine.Mai)
-            lastChuBackground = backgroundFor(current, GameLine.Chu)
+            lastMaiBackground = mai.renderSource
+            lastChuBackground = chu.renderSource
         }
         val veilView = BackgroundVeilView(backgroundHost.context)
         backgroundHost.addView(
@@ -390,8 +392,6 @@ class MainShell(
         mountedDestination = null
         appliedSettingsOpen = null
         mountedContent = null
-        appliedBackgroundRect = null
-        appliedBackgroundWindowRect = null
         latestWindowSnapshot = null
         chromeInsets = ChromeInsets.Zero
     }
@@ -595,11 +595,13 @@ class MainShell(
         mountedContent?.let(::updatePageThemeColors)
         val nextMai = backgroundFor(current, GameLine.Mai)
         val nextChu = backgroundFor(current, GameLine.Chu)
+        val maiSource = nextMai.renderSource
+        val chuSource = nextChu.renderSource
         val changed = lastMaiBackground != null && (
-            lastMaiBackground != nextMai || lastChuBackground != nextChu
+            lastMaiBackground != maiSource || lastChuBackground != chuSource
         )
-        lastMaiBackground = nextMai
-        lastChuBackground = nextChu
+        lastMaiBackground = maiSource
+        lastChuBackground = chuSource
         if (changed) {
             switchBackground(current, nextMai, nextChu)
         } else {
@@ -762,16 +764,6 @@ class MainShell(
         val rects = ContentGeometry.compute(snapshot, chromeInsets)
         applyContentRect(backgroundHost, rects.base, snapshot.metrics)
         applyContentRect(settingsScrim, rects.base, snapshot.metrics)
-        val backgroundRect = rects.base.relativeToRoot(
-            snapshot.metrics.rootLeftPx,
-            snapshot.metrics.rootTopPx,
-        )
-        // 同时比较窗口与根局部矩形，覆盖根和安全区一同平移、局部坐标不变的情况。
-        if (appliedBackgroundRect != backgroundRect || appliedBackgroundWindowRect != rects.base) {
-            appliedBackgroundRect = backgroundRect
-            appliedBackgroundWindowRect = rects.base
-            background?.onViewportChanged()
-        }
         applyContentRect(contentHost, rects.interactive, snapshot.metrics)
         applyContentRect(overlayHost, rects.scrollable, snapshot.metrics)
         settingsPage?.setBottomSafeInset(rects.scrollable.bottom - rects.interactive.bottom)
