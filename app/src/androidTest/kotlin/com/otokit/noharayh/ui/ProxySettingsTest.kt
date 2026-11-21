@@ -183,10 +183,13 @@ class ProxySettingsTest : UiComponentTestHost() {
 
     @Test fun listenPageValidatesAndEmptyInputsUseBuiltInDefaults() {
         val mounted = open(ProxySettingsSection.LISTEN)
+        lateinit var saved: SettingsHeaderStatus
         main {
+            saved = mounted.view.allViews.filterIsInstance<SettingsHeaderStatus>().single()
             edit(mounted, R.string.settings_proxy_entry_host).setText("0.0.0.0")
             action(mounted.view, R.string.settings_proxy_save).performClick()
             assertNull(settings.overrides().entryHost)
+            assertFalse(saved.isShown)
             assertEquals("0.0.0.0", edit(mounted, R.string.settings_proxy_entry_host).text.toString())
             edit(mounted, R.string.settings_proxy_entry_host).setText(" ")
             edit(mounted, R.string.settings_proxy_listen_host).setText("")
@@ -194,6 +197,10 @@ class ProxySettingsTest : UiComponentTestHost() {
             assertNull(settings.overrides().entryHost)
             assertNull(settings.overrides().proxyHost)
         }
+        awaitMain { saved.isShown && saved.alpha == 1f }
+        main { edit(mounted, R.string.settings_proxy_entry_host).setText("127.0.0.2") }
+        awaitMain { !saved.isShown }
+        assertNull(settings.overrides().entryHost)
     }
 
     @Test fun channelCheckIsInlineAndPageExitCancelsItsCredentialFreeRequest() {

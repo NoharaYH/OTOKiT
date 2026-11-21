@@ -100,7 +100,7 @@ internal class ProxySettingsContent(private val context: Context, private val st
             hint = context.getString(R.string.settings_proxy_default_value, defaults.entryHost))
         val proxy = field(R.string.settings_proxy_listen_host, values.proxyHost.orEmpty(),
             hint = context.getString(R.string.settings_proxy_default_value, defaults.proxyHost))
-        return form(R.string.settings_proxy_listen_message, column().apply { add(entry); add(proxy) }) {
+        return form(R.string.settings_proxy_listen_message, column().apply { add(entry); add(proxy) }, separateSave = true) {
             state.saveListen(entry.text, proxy.text)
         }
     }
