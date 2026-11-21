@@ -33,12 +33,20 @@ internal class ProxySettingsState(
         private set
     var checkReport: NetworkCheckReport? = null
         private set
+    var checkCancelled = false
+        private set
+    val checkStale: Boolean get() = checkRevision?.let { it != snapshot.revision } ?: false
     var onCheckChanged: (() -> Unit)? = null
     private val main = Handler(Looper.getMainLooper())
     private var checkJob: Closeable? = null
     private var generation = 0
+    private var checkRevision: Long? = null
 
-    fun refresh() { snapshot = settings.snapshot() }
+    fun refresh() {
+        val previous = snapshot.revision
+        snapshot = settings.snapshot()
+        if (snapshot.revision != previous) cancelCheck()
+    }
 
     fun saveUpstream(host: String, port: String, username: String, password: String, scopes: Set<ProxyScope>): String? = save {
         val value = host.trim().takeIf { it.isNotEmpty() }?.let {
@@ -55,7 +63,9 @@ internal class ProxySettingsState(
         settings.savePorts(port(entry), port(proxy))
     }
 
-    fun saveListen(entry: String?, proxy: String?): String? = save { settings.saveListen(entry, proxy) }
+    fun saveListen(entry: String?, proxy: String?): String? = save {
+        settings.saveListen(entry?.trim()?.takeIf(String::isNotEmpty), proxy?.trim()?.takeIf(String::isNotEmpty))
+    }
 
     fun saveUrl(target: RequestTarget, value: String): String? = save {
         val url = value.trim().takeIf(String::isNotEmpty)?.let { validateUrl(target, it) }
@@ -110,9 +120,11 @@ internal class ProxySettingsState(
     }
 
     fun startCheck(scope: ProxyScope, targetUrl: String) {
-        cancelCheck()
+        cancelCheck(notify = false)
         val request = generation
         checking = true
+        checkCancelled = false
+        checkRevision = snapshot.revision
         checkSteps = emptyList()
         checkReport = null
         onCheckChanged?.invoke()
@@ -125,16 +137,21 @@ internal class ProxySettingsState(
             checking = false
             checkJob = null
             checkReport = report
+            checkCancelled = report.cancelled
             onCheckChanged?.invoke()
         } })
     }
 
-    fun cancelCheck() {
+    fun cancelCheck() = cancelCheck(notify = true)
+
+    private fun cancelCheck(notify: Boolean) {
         generation++
         checkJob?.close()
         checkJob = null
+        if (checking) checkCancelled = true
         checking = false
+        if (notify) onCheckChanged?.invoke()
     }
 
-    override fun close() { cancelCheck(); onCheckChanged = null }
+    override fun close() { onCheckChanged = null; cancelCheck(notify = false) }
 }

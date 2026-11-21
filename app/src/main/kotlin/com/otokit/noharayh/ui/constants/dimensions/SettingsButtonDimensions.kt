@@ -2,6 +2,8 @@ package com.otokit.noharayh.ui.constants.dimensions
 
 internal object SettingsButtonDimensions {
     const val HEIGHT_DP = 40
+    const val CONTAINER_HEIGHT_DP = 48
+    const val CONTAINER_TEXT_SP = 18f
     const val RADIUS_DP = 4
     const val SELECTED_RADIUS_DP = HEIGHT_DP / 2
     const val INSET_DP = 16

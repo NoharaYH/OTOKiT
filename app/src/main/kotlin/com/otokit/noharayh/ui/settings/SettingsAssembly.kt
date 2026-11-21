@@ -24,6 +24,7 @@ import com.otokit.noharayh.ui.settings.subPages.PersonalizationSettingsPage
 import com.otokit.noharayh.ui.settings.subPages.AppSettingsPage
 import com.otokit.noharayh.ui.settings.subPages.ScoreArchivePage
 import com.otokit.noharayh.ui.settings.subPages.ScoreSyncLogPage
+import com.otokit.noharayh.ui.settings.subPages.ProxySettingsPage
 import com.otokit.noharayh.ui.shell.background.BackgroundRenderingOptions
 import com.otokit.noharayh.ui.theme.NoneThemeColorRole
 import com.otokit.noharayh.ui.theme.GameLine
@@ -55,10 +56,10 @@ class SettingsAssembly(
     private val onNoneThemeColorSelected: (NoneThemeColorRole, Int) -> Unit,
     private val onTransitionStart: (SettingsHeading, SettingsHeading, Float, Boolean) -> Unit,
     private val onTransitionFrame: (TransitionProgress) -> Unit,
-    private val onArchiveChanged: () -> Unit,
+    private val onSubpageChanged: () -> Unit,
 ) : FrameLayout(context) {
-    private data class Page(val section: SettingsSection?, val archive: SyncRecordPage? = null) {
-        val heading get() = SettingsHeading(archive?.title ?: TitleTexts.forSettings(section), TitleTexts.colorForSettings(section))
+    private data class Page(val section: SettingsSection?, val subpage: SyncSubpage? = null) {
+        val heading get() = SettingsHeading(subpage?.title ?: TitleTexts.forSettings(section), TitleTexts.colorForSettings(section))
     }
 
     private val rootPage = SettingsHome(context, onOpenSection)
@@ -175,7 +176,7 @@ class SettingsAssembly(
         if (!disposed && current.section != section) goTo(Page(section))
     }
 
-    val archiveTitle get() = current.archive?.title
+    val subpageTitle get() = current.subpage?.title
 
     private fun goTo(target: Page) {
         if (current == target) return
@@ -183,14 +184,14 @@ class SettingsAssembly(
             settlePage(current)
             prepare(current, target)
         }
-        val titleChanged = current.archive != target.archive
+        val titleChanged = current.subpage != target.subpage
         current = target
-        if (titleChanged) onArchiveChanged()
+        if (titleChanged) onSubpageChanged()
         runner.play(1f) { settlePage(target) }
     }
 
-    fun closeArchive(): Boolean {
-        if (current.archive == null) return false
+    fun closeSubpage(): Boolean {
+        if (current.subpage == null) return false
         goTo(Page(current.section))
         return true
     }
@@ -208,7 +209,7 @@ class SettingsAssembly(
     fun beginBackPreview(): Boolean {
         if (current.section == null) return false
         settlePage(current)
-        prepare(current, Page(current.section.takeIf { current.archive != null }))
+        prepare(current, Page(current.section.takeIf { current.subpage != null }))
         return true
     }
     fun preview(progress: Float) {
@@ -240,9 +241,9 @@ class SettingsAssembly(
             }
         }
         mount(page)
-        val titleChanged = current.archive != page.archive
+        val titleChanged = current.subpage != page.subpage
         current = page
-        if (titleChanged) onArchiveChanged()
+        if (titleChanged) onSubpageChanged()
         val section = page.section
         reset(rootPage)
         childPages.values.forEach(::reset)
@@ -261,7 +262,7 @@ class SettingsAssembly(
 
     private fun panesFor(page: Page): List<Page> = when {
         page.section == null -> emptyList()
-        split && page.archive != null -> listOf(Page(page.section), page)
+        split && page.subpage != null -> listOf(Page(page.section), page)
         else -> listOf(page)
     }
 
@@ -283,10 +284,10 @@ class SettingsAssembly(
         rootPage.visibility = if (split || from.section == null || to.section == null) VISIBLE else INVISIBLE
         childHost.visibility = VISIBLE
         transitioning = true
-        forward = to.section != null && (from.section != to.section || from.archive == null || to.archive != null)
-        val resizesSplit = split && from.section == to.section && ((from.archive == null) != (to.archive == null))
+        forward = to.section != null && (from.section != to.section || from.subpage == null || to.subpage != null)
+        val resizesSplit = split && from.section == to.section && ((from.subpage == null) != (to.subpage == null))
         when {
-            resizesSplit && to.archive != null -> runner.reset(SettingsTransition.ENTER_DURATION_MS, SettingsTransition.CURVE)
+            resizesSplit && to.subpage != null -> runner.reset(SettingsTransition.ENTER_DURATION_MS, SettingsTransition.CURVE)
             resizesSplit -> runner.reset(curve = SettingsPageTransition.SPLIT_EXIT_CURVE)
             else -> runner.reset(SettingsPageTransition.UNFOLD_DURATION_MS, SettingsPageTransition.UNFOLD_CURVE)
         }
@@ -300,8 +301,8 @@ class SettingsAssembly(
         val phoneUnfold = !split
         val pageProgress = if (phoneUnfold) SettingsPageFrames.phoneUnfoldProgress(frame.value, forward)
             else frame.value
-        if (split && (fromPage.archive != null || toPage.archive != null)) {
-            renderSplitArchiveFrame(frame.value)
+        if (split && (fromPage.subpage != null || toPage.subpage != null)) {
+            renderSplitSubpageFrame(frame.value)
         } else {
             viewFor(fromPage)?.let { if (!split || it !== rootPage) applyPageFrame(it, pageProgress, false) }
             viewFor(toPage)?.let { if (!split || it !== rootPage) applyPageFrame(it, pageProgress, true) }
@@ -321,20 +322,20 @@ class SettingsAssembly(
         runner.apply(view, visual)
     }
 
-    private fun renderSplitArchiveFrame(progress: Float) {
+    private fun renderSplitSubpageFrame(progress: Float) {
         when {
             fromPage.section != toPage.section -> {
                 applySplitSectionFrame(fromPage, progress, entering = false)
                 applySplitSectionFrame(toPage, progress, entering = true)
             }
-            fromPage.archive != null && toPage.archive != null -> {
+            fromPage.subpage != null && toPage.subpage != null -> {
                 childPages[fromPage]?.let { applyPageFrame(it, progress, false) }
                 childPages[toPage]?.let { applyPageFrame(it, progress, true) }
             }
             else -> {
                 // 右栏移出时已被右缘裁切，前半程保留更多不透明度，让标题随栏移动。
-                if (fromPage.archive != null) childPages[fromPage]?.alpha = 1f - progress * progress
-                if (toPage.archive != null) childPages[toPage]?.alpha = progress
+                if (fromPage.subpage != null) childPages[fromPage]?.alpha = 1f - progress * progress
+                if (toPage.subpage != null) childPages[toPage]?.alpha = progress
             }
         }
         layoutSplitPages()
@@ -343,7 +344,7 @@ class SettingsAssembly(
     private fun applySplitSectionFrame(page: Page, progress: Float, entering: Boolean) {
         val frame = SettingsPageFrames.unfoldPage(progress, entering, forward, resources.displayMetrics.density)
         childPages[Page(page.section)]?.let { runner.apply(it, frame) }
-        if (page.archive != null) childPages[page]?.let { runner.apply(it, frame) }
+        if (page.subpage != null) childPages[page]?.let { runner.apply(it, frame) }
     }
 
     private fun layoutSplitPages() {
@@ -351,11 +352,11 @@ class SettingsAssembly(
         val from = if (transitioning) fromPage else current
         val to = if (transitioning) toPage else current
         val switchesSection = from.section != to.section
-        val outgoingProgress = SettingsPageFrames.splitArchiveProgress(runner.progress, from.archive != null,
-            to.archive != null, switchesSection, entering = false)
+        val outgoingProgress = SettingsPageFrames.splitArchiveProgress(runner.progress, from.subpage != null,
+            to.subpage != null, switchesSection, entering = false)
         val incomingProgress = if (switchesSection) {
-            SettingsPageFrames.splitArchiveProgress(runner.progress, from.archive != null,
-                to.archive != null, switchesSection, entering = true)
+            SettingsPageFrames.splitArchiveProgress(runner.progress, from.subpage != null,
+                to.subpage != null, switchesSection, entering = true)
         } else outgoingProgress
         val gap = dp(SPLIT_GAP_DP)
         val outgoingPanes = SettingsPageFrames.splitPanes(width, gap, outgoingProgress)
@@ -365,10 +366,10 @@ class SettingsAssembly(
             val enteringSection = switchesSection && page.section == to.section
             val progress = if (enteringSection) incomingProgress else outgoingProgress
             val panes = if (enteringSection) incomingPanes else outgoingPanes
-            val archive = page.archive != null
-            val paneWidth = if (archive) panes.archiveWidth else panes.secondaryWidth
-            val left = if (archive) panes.archiveLeft - panes.secondaryLeft else 0
-            if (!archive && page.section == SettingsSection.ScoreSync) {
+            val isSubpage = page.subpage != null
+            val paneWidth = if (isSubpage) panes.archiveWidth else panes.secondaryWidth
+            val left = if (isSubpage) panes.archiveLeft - panes.secondaryLeft else 0
+            if (!isSubpage && page.section == SettingsSection.ScoreSync) {
                 val endInset = (margin * (1f - progress)).roundToInt()
                 if (view.paddingRight != endInset) view.setPadding(0, 0, endInset, view.paddingBottom)
             }
@@ -376,7 +377,7 @@ class SettingsAssembly(
             view.measure(exact(paneWidth), exact(paneHeight))
             view.layout(left, 0, left + paneWidth, paneHeight)
             val shift = view.translationX.roundToInt()
-            view.clipBounds = if (archive && !switchesSection && (progress < 1f || shift != 0)) {
+            view.clipBounds = if (isSubpage && !switchesSection && (progress < 1f || shift != 0)) {
                 val clipLeft = (-shift).coerceIn(0, paneWidth)
                 val clipRight = (width - panes.archiveLeft - shift).coerceIn(clipLeft, paneWidth)
                 Rect(clipLeft, 0, clipRight, paneHeight)
@@ -412,10 +413,11 @@ class SettingsAssembly(
     }
     private fun updatePadding() = rootPage.setContentMargins(margin, split)
 
-    private fun buildPage(page: Page): View = when (val record = page.archive) {
-        is SyncRecordPage.Archive -> ScoreArchivePage(context, record.kind, margin, split,
-            scoreArchiveQueries(context), scoreArchiveActions(context)) { closeArchive() }
-        SyncRecordPage.Logs -> ScoreSyncLogPage(context, margin, split, scoreSyncLogs(context)) { closeArchive() }
+    private fun buildPage(page: Page): View = when (val subpage = page.subpage) {
+        is SyncSubpage.Archive -> ScoreArchivePage(context, subpage.kind, margin, split,
+            scoreArchiveQueries(context), scoreArchiveActions(context)) { closeSubpage() }
+        SyncSubpage.Logs -> ScoreSyncLogPage(context, margin, split, scoreSyncLogs(context)) { closeSubpage() }
+        is SyncSubpage.Proxy -> ProxySettingsPage(context, margin, split, subpage.section) { closeSubpage() }
         null -> buildChild(requireNotNull(page.section))
     }
 
@@ -425,8 +427,9 @@ class SettingsAssembly(
         margin = margin,
         split = split,
         openLink = onOpenLink,
-        openArchive = { goTo(Page(SettingsSection.ScoreSync, SyncRecordPage.Archive(it))) },
-        openLogs = { goTo(Page(SettingsSection.ScoreSync, SyncRecordPage.Logs)) },
+        openArchive = { goTo(Page(SettingsSection.ScoreSync, SyncSubpage.Archive(it))) },
+        openLogs = { goTo(Page(SettingsSection.ScoreSync, SyncSubpage.Logs)) },
+        openProxy = { goTo(Page(SettingsSection.ScoreSync, SyncSubpage.Proxy(it))) },
         displayScale = displayScale,
         onDisplayScaleSelected = onDisplayScaleSelected,
         rendering = renderingProvider(),

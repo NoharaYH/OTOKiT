@@ -312,7 +312,7 @@ class MainShell(
             onNoneThemeColorSelected = ::selectNoneThemeColor,
             onTransitionStart = chrome::prepareSettingsPageTransition,
             onTransitionFrame = chrome::renderSettingsPageProgress,
-            onArchiveChanged = { chrome.render(chromeDisplay()) },
+            onSubpageChanged = { chrome.render(chromeDisplay()) },
         )
         settingsPage = page
         val settings = PageContent(page, disposeAction = page::dispose)
@@ -436,7 +436,7 @@ class MainShell(
     fun openSettingsSection(section: SettingsSection) {
         if (lifecycleState != LifecycleState.Attached || !controller.state.settingsOpen) return
         invalidateBackPreview()
-        if (controller.state.settingsSection == section && settingsPage?.closeArchive() == true) return
+        if (controller.state.settingsSection == section && settingsPage?.closeSubpage() == true) return
         // 子页接管前先结束整体入场，避免两个执行器竞争同一标题层。
         settingsRunner?.endPreview(true)
         chrome.settleTransitions()
@@ -456,7 +456,7 @@ class MainShell(
     private fun navigateSettingsBack() {
         if (lifecycleState != LifecycleState.Attached || !controller.state.settingsOpen) return
         invalidateBackPreview()
-        if (settingsPage?.closeArchive() == true) return
+        if (settingsPage?.closeSubpage() == true) return
         if (controller.consumeBack()) render()
     }
 
@@ -468,7 +468,7 @@ class MainShell(
         }
         if (chrome.consumeBack()) return true
         if (controller.state.settingsOpen && settingsPage?.closeThemePanel() == true) return true
-        if (controller.state.settingsOpen && settingsPage?.closeArchive() == true) return true
+        if (controller.state.settingsOpen && settingsPage?.closeSubpage() == true) return true
         if (controller.state.settingsOpen && controller.state.settingsSection == null) settingsPage?.settle(null)
         val consumed = controller.consumeBack()
         if (consumed) render()
@@ -842,7 +842,7 @@ class MainShell(
             currentGame = current.currentGame,
             settingsOpen = nav.settingsOpen,
             settingsSection = nav.settingsSection,
-            settingsTitle = settingsPage?.archiveTitle,
+            settingsTitle = settingsPage?.subpageTitle,
             themeColor = currentColors.primaryColor,
             maiTextColor = maiColors.primaryColor,
             chuTextColor = chuColors.primaryColor,
@@ -1067,7 +1067,7 @@ class MainShell(
 
             Target.SettingsChild -> {
                 if (!controller.state.settingsOpen || controller.state.settingsSection == null) return
-                if (settingsPage?.closeArchive() != true) {
+                if (settingsPage?.closeSubpage() != true) {
                     controller.backToSettingsRoot()
                     render()
                 }

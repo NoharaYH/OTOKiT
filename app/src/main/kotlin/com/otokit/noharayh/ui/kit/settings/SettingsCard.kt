@@ -20,7 +20,7 @@ import com.otokit.noharayh.ui.constants.motion.ContainerMotion
 
 /** 非交互复合容器，提供可选内容及尾部槽位；无内容时不留下间距。 */
 @android.annotation.SuppressLint("ViewConstructor") // 纯代码组件，需要显式内容与回调。
-internal class SettingsCard(context: Context, icon: Int, title: Int,
+internal class SettingsCard(context: Context, icon: Int?, title: Int,
     content: View? = null, trailing: View? = null,
     private val fillContent: Boolean = false,
     private val headerInfo: InfoIconButton? = null,
@@ -64,9 +64,11 @@ internal class SettingsCard(context: Context, icon: Int, title: Int,
             gravity = Gravity.CENTER_VERTICAL
             minimumHeight = dp(Dimensions.HEADER_HEIGHT_DP)
             clipChildren = false; clipToPadding = false
-            addView(ImageView(context).apply { setImageResource(icon); setColorFilter(Colors.TEXT) },
+            if (icon != null) addView(ImageView(context).apply { setImageResource(icon); setColorFilter(Colors.TEXT) },
                 LayoutParams(dp(Dimensions.ICON_DP), dp(Dimensions.ICON_DP)))
-            addView(titleView, LayoutParams(-2, -2).apply { marginStart = dp(Dimensions.HEADER_GAP_DP) })
+            addView(titleView, LayoutParams(-2, -2).apply {
+                if (icon != null) marginStart = dp(Dimensions.HEADER_GAP_DP)
+            })
             if (infoAnchor != null && headerInfo != null) addView(infoAnchor, LayoutParams(headerInfo.minimumWidth, 0))
             if (trailing != null) addView(trailing, LayoutParams(0, -2, 1f).apply { marginStart = dp(Dimensions.HEADER_GAP_DP) })
         }

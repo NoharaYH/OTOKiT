@@ -5,54 +5,55 @@ import android.text.InputType
 import android.text.format.DateFormat
 import android.view.View
 import android.widget.LinearLayout
+import androidx.core.view.allViews
 import com.otokit.noharayh.R
 import com.otokit.noharayh.network.*
 import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors as Colors
 import com.otokit.noharayh.ui.kit.common.ViewPrimitives
-import com.otokit.noharayh.ui.kit.common.dialog.MessageDialog
+import com.otokit.noharayh.ui.kit.common.PressFrontColumn
+import com.otokit.noharayh.ui.settings.subPages.ProxySettingsSection
 import com.otokit.noharayh.ui.kit.common.toggle.GroupedSwitchRow
 import com.otokit.noharayh.ui.kit.settings.SettingsButton
 import com.otokit.noharayh.ui.kit.settings.SettingsCard
 import com.otokit.noharayh.ui.kit.settings.SettingsCheckButton
 import com.otokit.noharayh.ui.kit.settings.SettingsGroup
+import com.otokit.noharayh.ui.kit.settings.SettingsHeaderActions
+import com.otokit.noharayh.ui.kit.settings.SettingsHeaderStatus
 import com.otokit.noharayh.ui.kit.settings.SettingsPageViews
 import com.otokit.noharayh.ui.kit.settings.SettingsTextField
 import java.io.Closeable
 
-/** 代理设置的业务组合；表单草稿只在确认时交给状态持有者。 */
-internal class ProxySettingsContent(private val context: Context, private val state: ProxySettingsState) : Closeable {
-    private var dialog: MessageDialog? = null
-    val view: View
-
-    init {
-        val rows = SettingsGroup(context)
-        fun action(label: Int, click: () -> Unit) {
-            rows.addView(SettingsPageViews.action(context, context.getString(label), deferClick = true, onClick = click),
-                LinearLayout.LayoutParams(-1, -2))
-        }
-        action(R.string.settings_proxy_upstream, ::editUpstream)
-        action(R.string.settings_proxy_ports, ::editPorts)
-        action(R.string.settings_proxy_listen, ::editListen)
-        action(R.string.settings_proxy_check, ::checkChannel)
-        action(R.string.settings_proxy_restore, ::restore)
-        action(R.string.settings_proxy_urls, ::chooseUrl)
-        view = SettingsCard(context, R.drawable.ic_route_24, R.string.settings_proxy, rows)
+/** 六个三级页的业务组合；草稿保留在当前页，确认后才交给配置入口。 */
+internal class ProxySettingsContent(private val context: Context, private val state: ProxySettingsState,
+    private val section: ProxySettingsSection,
+) : Closeable {
+    private val clearFormFeedback = mutableListOf<() -> Unit>()
+    val view: View = when (section) {
+        ProxySettingsSection.UPSTREAM -> editUpstream()
+        ProxySettingsSection.PORTS -> editPorts()
+        ProxySettingsSection.LISTEN -> editListen()
+        ProxySettingsSection.CHECK -> checkChannel()
+        ProxySettingsSection.RESTORE -> restore()
+        ProxySettingsSection.URLS -> chooseUrl()
     }
 
     fun refresh() = state.refresh()
 
-    private fun column() = LinearLayout(context).apply {
+    private fun column() = PressFrontColumn(context).apply {
         orientation = LinearLayout.VERTICAL
         clipChildren = false
         clipToPadding = false
     }
 
-    private fun LinearLayout.add(view: View) = addView(view, SettingsPageViews.gap(context))
+    private fun LinearLayout.add(view: View) = addView(view, SettingsPageViews.gap(context).apply {
+        // 首项由外层容器提供留白，避免说明、表单和首个输入重复叠加间距。
+        if (childCount == 0) topMargin = 0
+    })
 
     private fun field(label: Int, value: String, type: Int = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS,
                       hint: String? = null) = SettingsTextField(context, context.getString(label), value, type, hint)
 
-    private fun editUpstream() {
+    private fun editUpstream(): View {
         state.refresh()
         val current = state.snapshot.upstream
         val host = field(R.string.settings_proxy_host, current?.host.orEmpty())
@@ -63,23 +64,22 @@ internal class ProxySettingsContent(private val context: Context, private val st
         val scopes = state.snapshot.scopes.toMutableSet()
         val body = column().apply {
             add(host); add(port); add(username); add(password)
-            add(SettingsGroup(context).apply {
-                ProxyScope.entries.forEach { scope ->
-                    lateinit var row: GroupedSwitchRow
-                    row = GroupedSwitchRow(context, context.getString(scopeLabel(scope)), true, true, scope in scopes, { checked ->
-                        if (checked) scopes.add(scope) else scopes.remove(scope)
-                        row.isChecked = checked
-                    })
-                    addView(row, LinearLayout.LayoutParams(-1, -2))
-                }
-            })
         }
-        form(R.string.settings_proxy_upstream_message, body) {
+        val options = ProxyScope.entries.map { scope ->
+            lateinit var row: GroupedSwitchRow
+            row = GroupedSwitchRow(context, context.getString(scopeLabel(scope)), true, true, scope in scopes, { checked ->
+                if (checked) scopes.add(scope) else scopes.remove(scope)
+                row.isChecked = checked
+                clearFormStatus()
+            })
+            row
+        }
+        return form(R.string.settings_proxy_upstream_message, body, groupedOptions = options) {
             state.saveUpstream(host.text, port.text, username.text, password.text, scopes)
         }
     }
 
-    private fun editPorts() {
+    private fun editPorts(): View {
         state.refresh()
         val overrides = state.overrides
         val defaults = NetworkSnapshot.defaults()
@@ -87,39 +87,25 @@ internal class ProxySettingsContent(private val context: Context, private val st
             context.getString(R.string.settings_proxy_default_value, defaults.entryPort.toString()))
         val proxy = field(R.string.settings_proxy_listen_port, overrides.proxyPort?.toString().orEmpty(), InputType.TYPE_CLASS_NUMBER,
             context.getString(R.string.settings_proxy_default_value, defaults.proxyPort.toString()))
-        form(R.string.settings_proxy_ports_message, column().apply { add(entry); add(proxy) }) {
+        return form(R.string.settings_proxy_ports_message, column().apply { add(entry); add(proxy) }) {
             state.savePorts(entry.text, proxy.text)
         }
     }
 
-    private fun editListen() {
+    private fun editListen(): View {
         state.refresh()
-        val current = state.overrides
+        val values = state.overrides
         val defaults = NetworkSnapshot.defaults()
-        var entry = current.entryHost
-        var proxy = current.proxyHost
-        val body = column()
-        fun choices(label: Int, default: String, initial: String?, selected: (String?) -> Unit) {
-            body.add(ViewPrimitives.text(context, context.getString(label), 14f, Colors.TEXT, true))
-            val group = SettingsGroup(context)
-            val buttons = linkedMapOf<String?, SettingsButton>()
-            for (host in listOf(null, "127.0.0.1", "127.0.0.2")) {
-                val caption = host ?: context.getString(R.string.settings_proxy_use_default, default)
-                val button = SettingsPageViews.choice(context, caption, initial == host) {
-                    selected(host)
-                    buttons.forEach { (value, view) -> view.renderSelection(value == host) }
-                }
-                buttons[host] = button
-                group.addView(button, LinearLayout.LayoutParams(-1, -2))
-            }
-            body.add(group)
+        val entry = field(R.string.settings_proxy_entry_host, values.entryHost.orEmpty(),
+            hint = context.getString(R.string.settings_proxy_default_value, defaults.entryHost))
+        val proxy = field(R.string.settings_proxy_listen_host, values.proxyHost.orEmpty(),
+            hint = context.getString(R.string.settings_proxy_default_value, defaults.proxyHost))
+        return form(R.string.settings_proxy_listen_message, column().apply { add(entry); add(proxy) }) {
+            state.saveListen(entry.text, proxy.text)
         }
-        choices(R.string.settings_proxy_entry_host, defaults.entryHost, entry) { entry = it }
-        choices(R.string.settings_proxy_listen_host, defaults.proxyHost, proxy) { proxy = it }
-        form(R.string.settings_proxy_listen_message, body) { state.saveListen(entry, proxy) }
     }
 
-    private fun restore() {
+    private fun restore(): View {
         val selected = linkedSetOf<NetworkSection>()
         val body = SettingsGroup(context)
         val rows = linkedMapOf<NetworkSection, GroupedSwitchRow>()
@@ -129,6 +115,7 @@ internal class ProxySettingsContent(private val context: Context, private val st
             if (checked) selected.addAll(NetworkSection.entries)
             rows.forEach { (section, row) -> row.isChecked = section in selected }
             all.isChecked = checked
+            clearFormStatus()
         })
         body.addView(all, LinearLayout.LayoutParams(-1, -2))
         for (section in NetworkSection.entries) {
@@ -137,32 +124,25 @@ internal class ProxySettingsContent(private val context: Context, private val st
                 if (checked) selected.add(section) else selected.remove(section)
                 row.isChecked = checked
                 all.isChecked = selected.size == NetworkSection.entries.size
+                clearFormStatus()
             })
             rows[section] = row
             body.addView(row, LinearLayout.LayoutParams(-1, -2))
         }
-        form(R.string.settings_proxy_restore_message, body, R.string.settings_proxy_restore_confirm) {
+        return form(R.string.settings_proxy_restore_message, body, R.string.settings_proxy_restore_confirm) {
             if (selected.isEmpty()) context.getString(R.string.settings_proxy_restore_choose) else state.restore(selected)
         }
     }
 
-    private fun chooseUrl() {
-        val body = SettingsGroup(context)
-        for (target in RequestTarget.entries) {
-            body.addView(SettingsPageViews.action(context, context.getString(targetLabel(target)), deferClick = true) { editUrl(target) },
-                LinearLayout.LayoutParams(-1, -2))
-        }
-        show(MessageDialog(context, R.drawable.ic_route_24, context.getString(R.string.settings_proxy_urls_message),
-            context.getString(R.string.settings_proxy_close), null, accentColor = Colors.TEXT,
-            customContent = body, onConfirmed = {}))
+    private fun chooseUrl(): View = SettingsGroup(context).apply {
+        RequestTarget.entries.forEach { target -> addView(editUrl(target), LinearLayout.LayoutParams(-1, -2)) }
     }
 
-    private fun editUrl(target: RequestTarget) {
+    private fun editUrl(target: RequestTarget): View {
         state.refresh()
         val value = field(R.string.settings_proxy_url_override, state.overrides.urls[target].orEmpty(),
             InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
         val body = column().apply {
-            add(ViewPrimitives.text(context, context.getString(targetLabel(target)), 14f, Colors.TEXT, true))
             if (target == RequestTarget.OAUTH_FISH_ISSUER || target == RequestTarget.OAUTH_LXNS_ISSUER) {
                 add(ViewPrimitives.text(context, context.getString(R.string.settings_proxy_url_issuer_message), 13f, Colors.TEXT))
             }
@@ -173,10 +153,14 @@ internal class ProxySettingsContent(private val context: Context, private val st
             })
             add(value)
         }
-        form(R.string.settings_proxy_url_message, body) { state.saveUrl(target, value.text) }
+        return form(R.string.settings_proxy_url_message, body, title = targetLabel(target)) {
+            state.saveUrl(target, value.text).also { problem ->
+                if (problem == null) value.setText(state.overrides.urls[target].orEmpty())
+            }
+        }
     }
 
-    private fun checkChannel() {
+    private fun checkChannel(): View {
         state.refresh()
         var scope = ProxyScope.NET
         val target = field(R.string.settings_proxy_check_target,
@@ -184,10 +168,12 @@ internal class ProxySettingsContent(private val context: Context, private val st
             InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI)
         val choices = linkedMapOf<ProxyScope, SettingsButton>()
         val scopeGroup = SettingsGroup(context)
+        lateinit var renderCheck: () -> Unit
         for (value in ProxyScope.entries) {
             val button = SettingsPageViews.choice(context, context.getString(scopeLabel(value)), scope == value) {
                 scope = value
                 choices.forEach { (key, view) -> view.renderSelection(key == value) }
+                renderCheck()
             }
             choices[value] = button
             scopeGroup.addView(button, LinearLayout.LayoutParams(-1, -2))
@@ -199,23 +185,30 @@ internal class ProxySettingsContent(private val context: Context, private val st
         start = SettingsCheckButton(context, context.getString(R.string.settings_proxy_check_start)) {
             state.startCheck(scope, target.text)
         }
+        val cancel = SettingsPageViews.action(context, context.getString(R.string.settings_proxy_check_cancel), icon = null) {
+            state.cancelCheck()
+        }
         fun render() {
             val failed = state.checkSteps.any { it.status == NetworkCheckStatus.FAILED }
-            val cancelled = state.checkReport?.cancelled == true
+            val cancelled = state.checkCancelled
+            val draftStale = state.checkReport?.let { it.scope != scope || it.targetUrl != target.text } == true
             val (status, label) = when {
                 state.checking -> SettingsCheckButton.State.CHECKING to R.string.settings_proxy_check_running
+                state.checkStale || draftStale -> SettingsCheckButton.State.WARNING to R.string.settings_proxy_check_stale
                 cancelled -> SettingsCheckButton.State.WARNING to R.string.settings_proxy_check_cancelled
                 failed -> SettingsCheckButton.State.FAILURE to R.string.settings_proxy_check_failed
                 state.checkReport != null -> SettingsCheckButton.State.SUCCESS to R.string.settings_proxy_check_success
                 else -> SettingsCheckButton.State.READY to R.string.settings_proxy_check_start
             }
             start.render(status, context.getString(label))
+            cancel.isEnabled = state.checking
             target.setInputEnabled(!state.checking)
             choices.values.forEach { it.isEnabled = !state.checking }
             results.text = buildString {
                 state.checkReport?.let { report ->
                     append(context.getString(R.string.settings_proxy_check_header,
                         DateFormat.format("HH:mm:ss", report.startedAtMs), report.revision))
+                    append('\n').append(context.getString(scopeLabel(report.scope)))
                     append('\n').append(report.targetUrl)
                     if (state.checkSteps.isNotEmpty()) append("\n\n")
                 }
@@ -223,11 +216,14 @@ internal class ProxySettingsContent(private val context: Context, private val st
             }
         }
         state.onCheckChanged = ::render
-        val body = column().apply { add(target); add(scopeGroup); add(start); add(results) }
-        show(MessageDialog(context, R.drawable.ic_route_24, context.getString(R.string.settings_proxy_check_message),
-            context.getString(R.string.settings_proxy_close), null, accentColor = Colors.TEXT,
-            customContent = body, onConfirmed = {}))
+        renderCheck = ::render
+        target.onValueChanged = { render() }
+        val body = column().apply {
+            add(description(R.string.settings_proxy_check_message))
+            add(target); add(scopeGroup); add(start); add(cancel); add(results)
+        }
         render()
+        return card(section.titleRes, body)
     }
 
     private fun stepText(step: NetworkCheckStep): String {
@@ -261,40 +257,61 @@ internal class ProxySettingsContent(private val context: Context, private val st
         return text
     }
 
-    private fun form(message: Int, body: View, confirm: Int = R.string.settings_proxy_save, save: () -> String?) {
-        val error = ViewPrimitives.text(context, "", 14f, Colors.ERROR_TEXT).apply {
+    private fun description(message: Int) = ViewPrimitives.text(context, context.getString(message), 14f, Colors.TEXT)
+
+    private fun card(title: Int, body: View) = SettingsCard(context, null, title, content = body)
+
+    private fun form(message: Int, body: View, confirm: Int = R.string.settings_proxy_save,
+        title: Int = section.titleRes, groupedOptions: List<View> = emptyList(), save: () -> String?,
+    ): View {
+        val status = ViewPrimitives.text(context, "", 14f, Colors.ERROR_TEXT).apply {
             visibility = View.GONE
             accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
         }
-        val content = column().apply { add(body); add(error) }
-        show(MessageDialog(context, R.drawable.ic_route_24, context.getString(message), context.getString(confirm),
-            context.getString(R.string.settings_proxy_cancel), accentColor = Colors.SELECTED,
-            customContent = content, cancelOnTouchOutside = false, onSubmit = {
-                val problem = save()
-                error.text = problem.orEmpty()
-                error.visibility = if (problem == null) View.GONE else View.VISIBLE
-                problem == null
-            }, onConfirmed = {}))
+        val savedHeader = if (groupedOptions.isNotEmpty()) SettingsHeaderActions(context, null,
+            SettingsHeaderStatus(context).apply {
+                accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+                render(context.getString(R.string.settings_proxy_config_saved), R.drawable.ic_save_40, Colors.SELECTED)
+            }) else null
+        val clearFeedback = {
+            status.visibility = View.GONE
+            savedHeader?.showActions(false)
+            Unit
+        }
+        clearFormFeedback += clearFeedback
+        body.allViews.filterIsInstance<SettingsTextField>().forEach { field ->
+            field.onValueChanged = { clearFeedback() }
+        }
+        val action = SettingsButton(context, context.getString(confirm),
+            if (groupedOptions.isEmpty()) SettingsButton.Kind.Action else SettingsButton.Kind.ContainerAction,
+            trailingIcon = null) {
+            val problem = save()
+            savedHeader?.showActions(problem == null)
+            if (problem == null && savedHeader != null) status.visibility = View.GONE
+            else {
+                status.text = problem ?: context.getString(if (section == ProxySettingsSection.RESTORE)
+                    R.string.settings_proxy_restored else R.string.settings_proxy_saved)
+                status.setTextColor(if (problem == null) Colors.SELECTED else Colors.ERROR_TEXT)
+                status.visibility = View.VISIBLE
+            }
+        }.apply { deferClickUntilReleaseFeedback = true }
+        val card = SettingsCard(context, null, title, content = column().apply {
+            add(description(message)); add(body); add(status)
+            if (groupedOptions.isEmpty()) add(action)
+        }, trailing = savedHeader)
+        if (groupedOptions.isEmpty()) return card
+        return column().apply {
+            addView(SettingsGroup(context).apply {
+                addView(card, LinearLayout.LayoutParams(-1, -2))
+                groupedOptions.forEach { addView(it, LinearLayout.LayoutParams(-1, -2)) }
+            }, LinearLayout.LayoutParams(-1, -2))
+            add(action)
+        }
     }
 
-    private fun show(next: MessageDialog) {
-        val previous = dialog
-        dialog = next
-        previous?.dismiss()
-        next.setOnDismissListener { if (dialog === next) {
-            dialog = null
-            state.cancelCheck()
-            state.onCheckChanged = null
-        } }
-        next.showWithin(view.rootView.width)
-    }
+    override fun close() = state.close()
 
-    override fun close() {
-        state.close()
-        val previous = dialog
-        dialog = null
-        previous?.dismiss()
-    }
+    private fun clearFormStatus() { clearFormFeedback.forEach { it() } }
 
     private fun scopeLabel(scope: ProxyScope) = when (scope) {
         ProxyScope.WECHAT -> R.string.settings_proxy_scope_wechat

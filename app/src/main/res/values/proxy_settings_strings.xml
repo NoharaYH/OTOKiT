@@ -1,6 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="settings_proxy">代理与通道</string>
+    <string name="title_settings_proxy_upstream">Upstream Proxy</string>
+    <string name="title_settings_proxy_ports">Local Ports</string>
+    <string name="title_settings_proxy_listen">Listen Addresses</string>
+    <string name="title_settings_proxy_check">Channel Check</string>
+    <string name="title_settings_proxy_restore">Restore Defaults</string>
+    <string name="title_settings_proxy_urls">Request URLs</string>
+    <string name="settings_proxy_saved">已保存，下次任务使用此配置。</string>
+    <string name="settings_proxy_config_saved">配置已保存</string>
+    <string name="settings_proxy_restored">所选自定义配置已清除，现使用内置默认值。</string>
+    <string name="settings_proxy_check_cancel">取消检查</string>
+    <string name="settings_proxy_check_stale">配置已更改，请重新检查。</string>
     <string name="settings_proxy_upstream">自定义代理</string>
     <string name="settings_proxy_ports">端口</string>
     <string name="settings_proxy_listen">监听地址</string>

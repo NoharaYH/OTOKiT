@@ -16,7 +16,6 @@ import com.otokit.noharayh.auth.OAuthProvider
 import com.otokit.noharayh.composition.capturePreferences
 import com.otokit.noharayh.composition.exportPreferences
 import com.otokit.noharayh.composition.oauthConnections
-import com.otokit.noharayh.composition.networkSettings
 import com.otokit.noharayh.preferences.CapturePreferences
 import com.otokit.noharayh.preferences.ExportPreferences
 import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors
@@ -33,8 +32,6 @@ import com.otokit.noharayh.ui.kit.settings.SettingsGroup
 import com.otokit.noharayh.ui.kit.settings.ExpandableSwitchGroup
 import com.otokit.noharayh.ui.kit.settings.SettingsHeaderStatus
 import com.otokit.noharayh.ui.kit.settings.SettingsPageViews
-import com.otokit.noharayh.ui.settings.components.ProxySettingsContent
-import com.otokit.noharayh.ui.settings.components.ProxySettingsState
 import java.io.Closeable
 import java.util.Date
 
@@ -47,10 +44,9 @@ internal object ScoreSyncSettingsPage {
         openLink: (String) -> Unit,
         openArchive: (ScoreArchiveKind) -> Unit,
         openLogs: () -> Unit = {},
+        openProxy: (ProxySettingsSection) -> Unit = {},
     ): ScrollView {
         val state = ScoreSyncSettingsState(capturePreferences(context), exportPreferences(context))
-        val proxySettings = ProxySettingsContent(context, ProxySettingsState(networkSettings(context),
-            context.getString(R.string.settings_proxy_save_failed), context.getString(R.string.settings_proxy_invalid_port)))
         val oauth = oauthConnections(context)
         val body = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
@@ -173,7 +169,15 @@ internal object ScoreSyncSettingsPage {
             logOptions = ExpandableSwitchGroup(context, logToggle, htmlToggle, state.recordScoreSyncLogs)
             addView(logOptions, LinearLayout.LayoutParams(-1, -2))
         }, SettingsPageViews.gap(context))
-        body.addView(proxySettings.view, SettingsPageViews.gap(context))
+        val proxyEntries = SettingsGroup(context).apply {
+            for (section in ProxySettingsSection.entries) {
+                addView(SettingsPageViews.action(context, context.getString(section.titleRes), deferClick = true) {
+                    openProxy(section)
+                }, LinearLayout.LayoutParams(-1, -2))
+            }
+        }
+        body.addView(SettingsCard(context, R.drawable.ic_route_24, R.string.settings_proxy,
+            content = proxyEntries), SettingsPageViews.gap(context))
 
         return object : SettingsPageScrollView(context) {
             private var oauthSubscription: Closeable? = null
@@ -181,7 +185,6 @@ internal object ScoreSyncSettingsPage {
             override fun onWindowFocusChanged(hasWindowFocus: Boolean) {
                 super.onWindowFocusChanged(hasWindowFocus)
                 if (hasWindowFocus) {
-                    proxySettings.refresh()
                     state.refreshRedactExports()
                     redactToggle.isChecked = state.redactExports
                     htmlToggle.isChecked = state.includeHtmlWithLogs
@@ -224,7 +227,6 @@ internal object ScoreSyncSettingsPage {
             }
 
             override fun onDetachedFromWindow() {
-                proxySettings.close()
                 oauthSubscription?.close()
                 oauthSubscription = null
                 infoDialog?.dismiss()

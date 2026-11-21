@@ -27,12 +27,12 @@ internal object SettingsPageViews {
         addView(body, FrameLayout.LayoutParams(-1, -2))
     }
 
-    fun card(context: Context, icon: Int, title: Int, content: View? = null, trailing: View? = null) =
+    fun card(context: Context, icon: Int?, title: Int, content: View? = null, trailing: View? = null) =
         SettingsCard(context, icon, title, content, trailing)
 
     fun info(context: Context, label: String, value: String) = SettingsInfoRow(context, label, value)
 
-    fun action(context: Context, label: String, icon: SettingsButton.ActionIcon = SettingsButton.ActionIcon.Next,
+    fun action(context: Context, label: String, icon: SettingsButton.ActionIcon? = SettingsButton.ActionIcon.Next,
         deferClick: Boolean = false, onClick: () -> Unit,
     ) = SettingsButton(context, label, SettingsButton.Kind.Action, trailingIcon = icon, onClick = onClick).apply {
         deferClickUntilReleaseFeedback = deferClick

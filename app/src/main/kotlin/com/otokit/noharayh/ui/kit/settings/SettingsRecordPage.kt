@@ -61,7 +61,7 @@ internal class SettingsRecordPage(
             addView(status, LinearLayout.LayoutParams(-1, -2))
             addView(list, LinearLayout.LayoutParams(-1, 0, 1f))
         }
-        card = SettingsCard(context, R.drawable.ic_archive_record_24, title,
+        card = SettingsCard(context, null, title,
             content = viewport, trailing = header, fillContent = true)
         addView(card, LayoutParams(-1, -1))
         showStatus(null)

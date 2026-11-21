@@ -14,6 +14,7 @@ import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.animation.settings.SettingsChoiceTransitionRunner
 import com.otokit.noharayh.ui.constants.dimensions.SettingsButtonDimensions as Dimensions
 import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors as Colors
+import com.otokit.noharayh.ui.constants.dimensions.SettingsGroupDimensions
 import com.otokit.noharayh.ui.kit.common.PressSurface
 
 /** 成品操作/单选按钮；只发意图，由 renderSelection 接收确认状态。 */
@@ -26,9 +27,11 @@ internal class SettingsButton(context: Context, label: String, private val kind:
     onClick: () -> Unit,
 ) : PressSurface(context) {
     enum class ActionIcon { Next, ExternalLink, Back }
-    enum class Kind { Action, Choice }
-    private val labelView = ViewPrimitives.text(context, label, Dimensions.TEXT_SP, Colors.TEXT).apply {
-        gravity = Gravity.CENTER_VERTICAL
+    enum class Kind { Action, Choice, ContainerAction }
+    private val labelView = ViewPrimitives.text(context, label,
+        if (kind == Kind.ContainerAction) Dimensions.CONTAINER_TEXT_SP else Dimensions.TEXT_SP,
+        Colors.TEXT, bold = kind == Kind.ContainerAction).apply {
+        gravity = if (kind == Kind.ContainerAction) Gravity.CENTER else Gravity.CENTER_VERTICAL
         maxLines = 1
         ellipsize = android.text.TextUtils.TruncateAt.END
     }
@@ -67,14 +70,14 @@ internal class SettingsButton(context: Context, label: String, private val kind:
 
     fun setContentColor(color: Int?) {
         contentColor = color
-        val next = color ?: if (confirmed) selectedTextColor else Colors.TEXT
+        val next = color ?: if (confirmed || kind == Kind.ContainerAction) selectedTextColor else Colors.TEXT
         if (labelView.currentTextColor != next) labelView.setTextColor(next)
     }
     private fun dp(value: Int) = ViewPrimitives.dp(context, value)
 
     init {
         outerHaloEnabled = true
-        fillColor = Colors.CONTENT
+        fillColor = if (kind == Kind.ContainerAction) Colors.SURFACE else Colors.CONTENT
         contentDescription = label
         content.apply {
             gravity = Gravity.CENTER_VERTICAL
@@ -93,7 +96,8 @@ internal class SettingsButton(context: Context, label: String, private val kind:
                 setColorFilter(Colors.MUTED)
             }, LinearLayout.LayoutParams(dp(Dimensions.ICON_DP), dp(Dimensions.ICON_DP)).apply { marginStart = dp(Dimensions.ICON_GAP_DP) })
         }
-        addView(content, LayoutParams(-1, contentHeight))
+        addView(content, LayoutParams(-1, if (kind == Kind.ContainerAction)
+            dp(Dimensions.CONTAINER_HEIGHT_DP) else contentHeight))
         if (kind == Kind.Choice) configureSingleChoiceSemantics(selected)
         renderSelection(selected, animate = false)
         setOnClickListener { onClick() }
@@ -105,8 +109,9 @@ internal class SettingsButton(context: Context, label: String, private val kind:
     fun renderSelection(selected: Boolean, animate: Boolean = true) {
         confirmed = selected && kind == Kind.Choice
         isSelected = confirmed
-        val radius = dp(if (confirmed) Dimensions.SELECTED_RADIUS_DP else Dimensions.RADIUS_DP).toFloat()
-        val color = contentColor ?: if (confirmed) selectedTextColor else Colors.TEXT
+        val radius = dp(if (kind == Kind.ContainerAction) SettingsGroupDimensions.OUTER_RADIUS_DP
+            else if (confirmed) Dimensions.SELECTED_RADIUS_DP else Dimensions.RADIUS_DP).toFloat()
+        val color = contentColor ?: if (confirmed || kind == Kind.ContainerAction) selectedTextColor else Colors.TEXT
         if (kind == Kind.Choice && choiceIndicatorVisible) {
             indicator.background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
