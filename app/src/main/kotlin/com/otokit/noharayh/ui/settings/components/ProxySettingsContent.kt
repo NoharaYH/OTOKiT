@@ -74,7 +74,7 @@ internal class ProxySettingsContent(private val context: Context, private val st
             })
             row
         }
-        return form(R.string.settings_proxy_upstream_message, body, groupedOptions = options) {
+        return form(R.string.settings_proxy_upstream_message, body, groupedOptions = options, separateSave = true) {
             state.saveUpstream(host.text, port.text, username.text, password.text, scopes)
         }
     }
@@ -87,7 +87,7 @@ internal class ProxySettingsContent(private val context: Context, private val st
             context.getString(R.string.settings_proxy_default_value, defaults.entryPort.toString()))
         val proxy = field(R.string.settings_proxy_listen_port, overrides.proxyPort?.toString().orEmpty(), InputType.TYPE_CLASS_NUMBER,
             context.getString(R.string.settings_proxy_default_value, defaults.proxyPort.toString()))
-        return form(R.string.settings_proxy_ports_message, column().apply { add(entry); add(proxy) }) {
+        return form(R.string.settings_proxy_ports_message, column().apply { add(entry); add(proxy) }, separateSave = true) {
             state.savePorts(entry.text, proxy.text)
         }
     }
@@ -262,13 +262,14 @@ internal class ProxySettingsContent(private val context: Context, private val st
     private fun card(title: Int, body: View) = SettingsCard(context, null, title, content = body)
 
     private fun form(message: Int, body: View, confirm: Int = R.string.settings_proxy_save,
-        title: Int = section.titleRes, groupedOptions: List<View> = emptyList(), save: () -> String?,
+        title: Int = section.titleRes, groupedOptions: List<View> = emptyList(), separateSave: Boolean = false,
+        save: () -> String?,
     ): View {
         val status = ViewPrimitives.text(context, "", 14f, Colors.ERROR_TEXT).apply {
             visibility = View.GONE
             accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
         }
-        val savedHeader = if (groupedOptions.isNotEmpty()) SettingsHeaderActions(context, null,
+        val savedHeader = if (separateSave) SettingsHeaderActions(context, null,
             SettingsHeaderStatus(context).apply {
                 accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
                 render(context.getString(R.string.settings_proxy_config_saved), R.drawable.ic_save_40, Colors.SELECTED)
@@ -283,7 +284,7 @@ internal class ProxySettingsContent(private val context: Context, private val st
             field.onValueChanged = { clearFeedback() }
         }
         val action = SettingsButton(context, context.getString(confirm),
-            if (groupedOptions.isEmpty()) SettingsButton.Kind.Action else SettingsButton.Kind.ContainerAction,
+            if (separateSave) SettingsButton.Kind.ContainerAction else SettingsButton.Kind.Action,
             trailingIcon = null) {
             val problem = save()
             savedHeader?.showActions(problem == null)
@@ -297,14 +298,15 @@ internal class ProxySettingsContent(private val context: Context, private val st
         }.apply { deferClickUntilReleaseFeedback = true }
         val card = SettingsCard(context, null, title, content = column().apply {
             add(description(message)); add(body); add(status)
-            if (groupedOptions.isEmpty()) add(action)
+            if (!separateSave) add(action)
         }, trailing = savedHeader)
-        if (groupedOptions.isEmpty()) return card
+        if (!separateSave) return card
         return column().apply {
-            addView(SettingsGroup(context).apply {
+            val formGroup = if (groupedOptions.isEmpty()) card else SettingsGroup(context).apply {
                 addView(card, LinearLayout.LayoutParams(-1, -2))
                 groupedOptions.forEach { addView(it, LinearLayout.LayoutParams(-1, -2)) }
-            }, LinearLayout.LayoutParams(-1, -2))
+            }
+            addView(formGroup, LinearLayout.LayoutParams(-1, -2))
             add(action)
         }
     }

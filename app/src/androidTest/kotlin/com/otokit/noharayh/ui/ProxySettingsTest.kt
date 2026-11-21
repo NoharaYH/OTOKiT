@@ -112,7 +112,9 @@ class ProxySettingsTest : UiComponentTestHost() {
 
     @Test fun invalidPortsAndStorageFailureKeepInlineDrafts() {
         val mounted = open(ProxySettingsSection.PORTS)
+        lateinit var saved: SettingsHeaderStatus
         main {
+            saved = mounted.view.allViews.filterIsInstance<SettingsHeaderStatus>().single()
             edit(mounted, R.string.settings_proxy_entry_port).setText("99999")
             action(mounted.view, R.string.settings_proxy_save).performClick()
             assertEquals("99999", edit(mounted, R.string.settings_proxy_entry_port).text.toString())
@@ -123,16 +125,17 @@ class ProxySettingsTest : UiComponentTestHost() {
             assertTrue(mounted.view.allViews.filterIsInstance<TextView>()
                 .any { it.text.toString() == activity.getString(R.string.settings_proxy_save_failed) })
             assertNull(settings.overrides().entryPort)
+            assertFalse(saved.isShown)
             failWrites = false
             action(mounted.view, R.string.settings_proxy_save).performClick()
             assertEquals(0, settings.snapshot().entryPort)
-            val saved = mounted.view.allViews.filterIsInstance<TextView>()
-                .single { it.text.toString() == activity.getString(R.string.settings_proxy_saved) }
-            assertEquals(View.VISIBLE, saved.visibility)
+        }
+        awaitMain { saved.isShown && saved.alpha == 1f }
+        main {
             edit(mounted, R.string.settings_proxy_entry_port).setText("18084")
-            assertEquals(View.GONE, saved.visibility)
             assertEquals(0, settings.snapshot().entryPort)
         }
+        awaitMain { !saved.isShown }
     }
 
     @Test fun defaultsStayReadOnlyAndUrlsAreSavedIndividually() {
