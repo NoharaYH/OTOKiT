@@ -16,11 +16,13 @@ import com.otokit.noharayh.R
 import com.otokit.noharayh.ui.animation.common.ContentTransition
 import com.otokit.noharayh.ui.constants.motion.MotionCurve
 import com.otokit.noharayh.ui.constants.motion.NavigationTransition
+import com.otokit.noharayh.ui.constants.motion.PressHaloSpec
 import com.otokit.noharayh.ui.constants.motion.TransitionTiming
 import com.otokit.noharayh.ui.kit.common.AppTypography
 import com.otokit.noharayh.ui.kit.common.ContinuousCornerDrawable
 import com.otokit.noharayh.ui.chrome.ChromeDisplayInput
 import com.otokit.noharayh.ui.kit.common.PressSurface
+import com.otokit.noharayh.ui.kit.common.PressFrontColumn
 import com.otokit.noharayh.ui.kit.common.ViewPrimitives
 import com.otokit.noharayh.ui.shell.navigation.Destination
 import com.otokit.noharayh.ui.window.PixelRect
@@ -40,6 +42,8 @@ internal class FloatingNavigation(
     private fun dp(n: Int) = ViewPrimitives.dp(context, n)
     private val capsuleHeight = dp(55)
     private val edgeMargin = dp(20)
+    private val rowGap = dp(6)
+    private val haloSpace = dp(PressHaloSpec.PEAK_OUTSET_DP.toInt() + 1)
     private val indicatorInset = dp(4)
     val reservedHeight = edgeMargin + capsuleHeight + dp(10)
     private val fadeHeight = dp(120).toFloat()
@@ -60,9 +64,8 @@ internal class FloatingNavigation(
     private val shade = View(context)
     val heading = FloatingHeading(context)
     private val destinations = mutableMapOf<Destination, FloatingMenuItem>()
-    private val menu = LinearLayout(context)
+    private val menu = PressFrontColumn(context)
     private val menuViewport = android.widget.ScrollView(context)
-    private val menuWindow = FrameLayout(context)
     private val primary = PressSurface(context)
     private val icon = ImageView(context)
     private val track = FrameLayout(context)
@@ -83,9 +86,7 @@ internal class FloatingNavigation(
         shade.setOnClickListener { show(false) }
         shade.importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
         addView(shade, LayoutParams(-1, -1))
-        menu.orientation = LinearLayout.VERTICAL
-        menu.clipChildren = false
-        menu.clipToPadding = false
+        menu.setPadding(haloSpace, haloSpace, haloSpace, haloSpace)
         addDestination(Destination.ScoreSync, R.string.nav_score_sync_label, R.string.nav_score_sync_sub,
             R.drawable.ic_sync_24, 0xff4caf50.toInt())
         addDestination(Destination.MusicData, R.string.nav_music_data_label, R.string.nav_music_data_sub,
@@ -95,9 +96,9 @@ internal class FloatingNavigation(
         addItem(R.string.nav_settings, R.string.title_setting, R.drawable.ic_settings_24, 0xff9e9e9e.toInt(), settings)
         menuViewport.isVerticalScrollBarEnabled = false
         menuViewport.addView(menu)
-        menuWindow.addView(menuViewport, LayoutParams(-1, -2, Gravity.BOTTOM))
-        addView(menuWindow, LayoutParams(dp(214), -1, Gravity.BOTTOM or Gravity.LEFT).apply {
-            leftMargin = edgeMargin; bottomMargin = reservedHeight
+        addView(menuViewport, LayoutParams(dp(214) + 2 * haloSpace, -2, Gravity.BOTTOM or Gravity.LEFT).apply {
+            leftMargin = edgeMargin - haloSpace
+            bottomMargin = reservedHeight - haloSpace
         })
         menuViewport.addOnLayoutChangeListener { _, _, top, _, bottom, _, oldTop, _, oldBottom ->
             if (bottom - top != oldBottom - oldTop) positionMenu(visibleProgress)
@@ -162,7 +163,7 @@ internal class FloatingNavigation(
 
     private fun addItem(label: Int, subtitle: Int, icon: Int, color: Int, action: () -> Unit): FloatingMenuItem {
         val row = FloatingMenuItem(context, label, subtitle, icon, color) { show(false); action() }
-        menu.addView(row, LinearLayout.LayoutParams(-1, capsuleHeight).apply { bottomMargin = dp(6) })
+        menu.addView(row, LinearLayout.LayoutParams(-1, capsuleHeight).apply { bottomMargin = rowGap })
         return row
     }
 
@@ -197,9 +198,16 @@ internal class FloatingNavigation(
     private var visibleProgress = 0f
 
     private fun positionMenu(progress: Float) {
-        val travel = menuViewport.height.toFloat()
+        val travel = (menuViewport.height - 2 * haloSpace).coerceAtLeast(0)
         menuLift = travel * progress
-        menuViewport.translationY = travel - menuLift
+        val folded = (1f - progress).coerceAtLeast(0f)
+        // 各行从底部同一位置展开，避免整列滑过视口底边时被切成半颗。
+        val lastRowTop = menuViewport.scrollY + menuViewport.height - haloSpace - rowGap - capsuleHeight
+        for (index in 0 until menu.childCount) {
+            val row = menu.getChildAt(index)
+            row.translationY = (lastRowTop - row.top) * folded
+        }
+        menuViewport.translationY = (capsuleHeight + rowGap) * folded - (menuLift - travel).coerceAtLeast(0f)
         invalidate()
     }
 
@@ -230,7 +238,7 @@ internal class FloatingNavigation(
         bottomAccentPaint.alpha = (34 * p).roundToInt().coerceIn(0, 255)
         val visible = expanded || p > 0f
         shade.visibility = if (visible) VISIBLE else GONE
-        menuWindow.visibility = if (visible) VISIBLE else INVISIBLE
+        menuViewport.visibility = if (visible) VISIBLE else INVISIBLE
         shade.alpha = .2f * p.coerceIn(0f, 1f)
         menu.alpha = p.coerceIn(0f, 1f)
         positionMenu(p)
