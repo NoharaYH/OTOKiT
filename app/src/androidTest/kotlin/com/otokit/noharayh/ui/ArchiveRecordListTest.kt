@@ -9,16 +9,19 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewConfiguration
 import android.view.ViewGroup
+import android.view.accessibility.AccessibilityNodeInfo
 import android.widget.ImageView
 import android.widget.ScrollView
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.otokit.noharayh.ui.constants.dimensions.SettingsButtonDimensions
 import com.otokit.noharayh.ui.constants.dimensions.SettingsGroupDimensions
+import com.otokit.noharayh.ui.constants.motion.ContainerMotion
 import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors
 import com.otokit.noharayh.ui.kit.common.ContinuousCornerDrawable
 import com.otokit.noharayh.ui.kit.common.ViewPrimitives.dp
 import com.otokit.noharayh.ui.kit.settings.ArchiveRecordList
 import com.otokit.noharayh.ui.kit.settings.ArchiveRecordRow
+import com.otokit.noharayh.ui.kit.settings.ThemeScrollbar
 import org.junit.Assert.*
 import org.junit.Assume.assumeTrue
 import org.junit.Test
@@ -140,6 +143,122 @@ class ArchiveRecordListTest : UiComponentTestHost() {
             assertNull(first.parent)
             assertNull(third.parent)
             assertEquals(0, retained.top)
+        }
+    }
+
+    @Test fun scrollbarRetractsFromItsCurrentPositionWhileRowsExpandAfterDeletion() {
+        assumeTrue(ValueAnimator.areAnimatorsEnabled())
+        for ((fraction, remaining) in listOf(.5f to 3, 1f to 0)) {
+            val records = (0 until 20).map { ArchiveRecordList.Row("Fixture $it") {} }
+            lateinit var list: ArchiveRecordList
+            main { list = ArchiveRecordList(activity, "Records").apply { setRows(records) } }
+            mount(list, width = 800, height = 900)
+            val scroll = list.getChildAt(0) as ScrollView
+            val content = scroll.getChildAt(0)
+            val track = list.getChildAt(1)
+            val scrollbar = list.getChildAt(2) as ThemeScrollbar
+            lateinit var thumb: View
+            lateinit var refill: ValueAnimator
+            var originalMargin = 0
+            var originalWidth = 0
+            var originalLength = 0f
+            var originalTop = 0f
+            var finished = false
+            main {
+                scroll.scrollTo(0, ((content.height - scroll.height) * fraction).toInt())
+                thumb = scrollbar.getChildAt(0)
+                originalMargin = (scroll.layoutParams as ViewGroup.MarginLayoutParams).marginEnd
+                originalWidth = scroll.width
+                originalLength = thumb.height * thumb.scaleY
+                originalTop = thumb.translationY
+                assertTrue(originalMargin > 0)
+                assertTrue(originalTop > 0f)
+                list.removeRows(records.drop(remaining).toSet()) { finished = true }
+                removalAnimation(list).end()
+                refill = removalAnimation(list).apply { pause() }
+                assertEquals(View.VISIBLE, track.visibility)
+                assertEquals(1f, track.alpha, .001f)
+                assertEquals(originalMargin, (scroll.layoutParams as ViewGroup.MarginLayoutParams).marginEnd)
+                assertSame(scrollbar, thumb.parent)
+                assertEquals(originalTop, thumb.translationY, .01f)
+                assertEquals(originalLength, thumb.height * thumb.scaleY, .01f)
+                assertFalse(scrollbar.isFocusable)
+                assertFalse(scrollbar.performAccessibilityAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD, null))
+                refill.currentPlayTime = refill.duration / 2
+            }
+            instrumentation.waitForIdleSync()
+            main {
+                val margin = (scroll.layoutParams as ViewGroup.MarginLayoutParams).marginEnd
+                assertTrue("The track must fade through intermediate frames", track.alpha > 0f && track.alpha < 1f)
+                assertTrue("The reserved width must close progressively", margin in 1 until originalMargin)
+                assertTrue("Rows must expand progressively", scroll.width > originalWidth && scroll.width < list.width)
+                assertEquals(originalTop, thumb.translationY, .01f)
+                assertTrue("The thumb must shrink from its existing shape", thumb.height * thumb.scaleY in 0f..originalLength && thumb.height * thumb.scaleY < originalLength)
+                assertTrue(thumb.alpha > 0f && thumb.alpha < 1f)
+                assertEquals("The thumb and track must use the complete same progress", track.alpha, thumb.alpha, .001f)
+                assertEquals(originalLength * track.alpha, thumb.height * thumb.scaleY, .01f)
+                assertFalse(finished)
+                refill.end()
+            }
+            instrumentation.waitForIdleSync()
+            main {
+                assertTrue(finished)
+                assertEquals(View.INVISIBLE, track.visibility)
+                assertEquals(0, (scroll.layoutParams as ViewGroup.MarginLayoutParams).marginEnd)
+                assertEquals(list.width, scroll.width)
+                assertEquals(0, scrollbar.childCount)
+                assertEquals(0, scroll.scrollY)
+                host.removeView(list)
+            }
+        }
+    }
+
+    @Test fun deletingMiddleRowsClosesTheGapFromBothDirectionsWithTheContentTiming() {
+        assumeTrue(ValueAnimator.areAnimatorsEnabled())
+        val records = (0 until 20).map { ArchiveRecordList.Row("Fixture $it") {} }
+        lateinit var list: ArchiveRecordList
+        main { list = ArchiveRecordList(activity, "Records").apply { setRows(records) } }
+        mount(list, width = 800, height = 900)
+        val scroll = list.getChildAt(0) as ScrollView
+        val content = scroll.getChildAt(0)
+        val stride = dp(activity, SettingsButtonDimensions.HEIGHT_DP) + dp(activity, SettingsGroupDimensions.GAP_DP)
+        lateinit var above: ArchiveRecordRow
+        lateinit var below: ArchiveRecordRow
+        lateinit var refill: ValueAnimator
+        var aboveTop = 0
+        var belowTop = 0
+        main {
+            scroll.scrollTo(0, content.height - scroll.height - stride)
+            val first = scroll.scrollY / stride
+            above = row(list, records[first + 1])
+            below = row(list, records[first + 4])
+            aboveTop = above.top - scroll.scrollY
+            belowTop = below.top - scroll.scrollY
+            list.removeRows(setOf(records[first + 2], records[first + 3])) {}
+            removalAnimation(list).end()
+            refill = removalAnimation(list).apply { pause() }
+            assertEquals(ContainerMotion.CONTENT.durationMs, refill.duration)
+            assertEquals(aboveTop, above.top - scroll.scrollY)
+            assertEquals(belowTop, below.top - scroll.scrollY)
+            refill.currentPlayTime = refill.duration / 2
+        }
+        instrumentation.waitForIdleSync()
+        main {
+            val downward = above.top - scroll.scrollY - aboveTop
+            val upward = belowTop - (below.top - scroll.scrollY)
+            assertTrue("Rows above the gap must move down gradually", downward in 1 until stride)
+            assertTrue("Rows below the gap must move up gradually", upward in 1 until stride)
+            assertEquals("Both directions must share the same progress", downward, upward)
+            assertEquals(dp(activity, SettingsButtonDimensions.HEIGHT_DP), above.height)
+            assertEquals(above.height, below.height)
+            refill.end()
+        }
+        instrumentation.waitForIdleSync()
+        main {
+            assertEquals(stride, above.top - scroll.scrollY - aboveTop)
+            assertEquals(stride, belowTop - (below.top - scroll.scrollY))
+            assertEquals(View.VISIBLE, list.getChildAt(1).visibility)
+            assertTrue((list.getChildAt(2) as ThemeScrollbar).isFocusable)
         }
     }
 
@@ -319,6 +438,9 @@ class ArchiveRecordListTest : UiComponentTestHost() {
             }
         assertTrue(render(expected).sameAs(render(chip.background)))
     }
+
+    private fun removalAnimation(list: ArchiveRecordList) = ArchiveRecordList::class.java
+        .getDeclaredField("removalAnimation").apply { isAccessible = true }.get(list) as ValueAnimator
 
     private fun row(list: ArchiveRecordList, record: ArchiveRecordList.Row): ArchiveRecordRow {
         val rows = ((list.getChildAt(0) as ViewGroup).getChildAt(0) as ViewGroup)

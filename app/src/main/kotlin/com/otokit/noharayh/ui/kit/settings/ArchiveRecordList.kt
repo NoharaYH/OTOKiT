@@ -17,7 +17,6 @@ import com.otokit.noharayh.ui.constants.dimensions.SettingsButtonDimensions
 import com.otokit.noharayh.ui.constants.dimensions.SettingsGroupDimensions
 import com.otokit.noharayh.ui.constants.dimensions.ThemeSelectionDimensions
 import com.otokit.noharayh.ui.constants.motion.ArchiveRecordListMotion as Motion
-import com.otokit.noharayh.ui.constants.motion.SettingsChoiceMotion
 import com.otokit.noharayh.ui.constants.settings.SettingsComponentColors
 import com.otokit.noharayh.ui.kit.common.ContinuousCornerDrawable
 import com.otokit.noharayh.ui.kit.common.EdgePullScrollView
@@ -69,6 +68,8 @@ internal class ArchiveRecordList(
     private var previousFrames = emptyMap<Row, RowFrame>()
     private var refill = 1f
     private var maximum = 0
+    private var retractingScrollbar = false
+    private var scrollbarRetractionMargin = 0
     private var draggingThumb = false
     private var scrollFeedbackActive = false
     private var expansionFeedback = ListExpansionFeedback()
@@ -347,15 +348,25 @@ internal class ArchiveRecordList(
         }
         previousFrames = frames
         refill = 0f
+        if (maximum > 0 && maximumFor(retained.size) == 0) {
+            scrollbar.beginRetraction(1f)
+            retractingScrollbar = true
+            scrollbarRetractionMargin = (scroll.layoutParams as LayoutParams).marginEnd
+        }
         items = retained
         selected = selected - removed
         expansionFeedback = ListExpansionFeedback()
         updateRange()
         scroll.scrollTo(0, position)
-        animateRemoval(SettingsChoiceMotion.DURATION_MS, linear = false, { refill = it; renderRows() }) {
+        animateRemoval(Motion.REFILL.durationMs, linear = false, { refill = it; renderRows() }) {
             previousFrames = emptyMap()
             removing = emptySet()
             shrink = 0f
+            if (retractingScrollbar) {
+                retractingScrollbar = false
+                scrollbarRetractionMargin = 0
+                scrollbar.reset()
+            }
             renderRows()
             finished()
         }
@@ -364,7 +375,7 @@ internal class ArchiveRecordList(
     private fun animateRemoval(durationMs: Long, linear: Boolean, frame: (Float) -> Unit, finished: () -> Unit) {
         val animator = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = durationMs
-            interpolator = if (linear) LinearInterpolator() else MotionInterpolators.of(SettingsChoiceMotion.CURVE)
+            interpolator = if (linear) LinearInterpolator() else MotionInterpolators.of(Motion.REFILL.curve)
             addUpdateListener { frame(it.animatedValue as Float) }
             doOnEnd {
                 if (removalAnimation === it) {
@@ -381,14 +392,21 @@ internal class ArchiveRecordList(
         scroll.resetEdgePull()
         scrollFeedbackActive = false
         maximum = maximumFor(items.size)
-        track.visibility = if (maximum > 0) VISIBLE else INVISIBLE
-        val rowEndMargin = if (maximum > 0) trackWidth + gap else 0
+        renderTrack()
+        rows.requestLayout()
+    }
+
+    private fun renderTrack() {
+        val presence = if (retractingScrollbar) 1f - refill else if (maximum > 0) 1f else 0f
+        track.visibility = if (presence > 0f) VISIBLE else INVISIBLE
+        track.alpha = presence
+        val rowEndMargin = if (retractingScrollbar) (scrollbarRetractionMargin * presence).roundToInt()
+            else if (maximum > 0) trackWidth + gap else 0
         val params = scroll.layoutParams as LayoutParams
         if (params.marginEnd != rowEndMargin) {
             params.marginEnd = rowEndMargin
             scroll.layoutParams = params
         }
-        rows.requestLayout()
     }
 
     private fun maximumFor(count: Int) = (count * stride - gap - scroll.height).coerceAtLeast(0)
@@ -402,6 +420,7 @@ internal class ArchiveRecordList(
     }
 
     private fun renderRows(playFeedback: Boolean = false) {
+        renderTrack()
         val position = scroll.scrollY.coerceIn(0, maximum)
         val visible = visibleIndices(position, items.lastIndex)
         for (index in rowViews.keys.toList()) {
@@ -418,9 +437,11 @@ internal class ArchiveRecordList(
             place(index, top, fullyVisible)
             revealed = expansionFeedback.update(index, visibleHeight.toFloat() / rowHeight, fullyVisible) || revealed
         }
-        scrollbar.render(0f, scroll.height.toFloat(), if (maximum > 0) 1f else 0f,
+        scrollbar.render(0f, scroll.height.toFloat(), if (maximum > 0 || retractingScrollbar) 1f else 0f,
             if (maximum > 0) position.toFloat() / maximum else 0f,
-            canScroll = maximum > 0, enabled = maximum > 0, progress = 1f, retracting = false)
+            canScroll = maximum > 0, enabled = maximum > 0,
+            progress = 1f, retracting = retractingScrollbar,
+            retractionProgress = if (retractingScrollbar) refill else null)
         if (revealed && playFeedback && isAttachedToWindow && isShown && hasWindowFocus()) {
             performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
         }
@@ -463,6 +484,9 @@ internal class ArchiveRecordList(
         previousFrames = emptyMap()
         shrink = 0f
         refill = 1f
+        retractingScrollbar = false
+        scrollbarRetractionMargin = 0
+        renderTrack()
         draggingThumb = false
         scrollFeedbackActive = false
         super.onDetachedFromWindow()

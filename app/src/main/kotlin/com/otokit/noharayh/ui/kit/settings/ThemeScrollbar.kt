@@ -45,6 +45,7 @@ internal class ThemeScrollbar(
     private var compression = 0f
     private data class Retraction(val progress: Float, val top: Float, val width: Float, val length: Float, val alpha: Float)
     private var retraction: Retraction? = null
+    private var retractionProgress: Float? = null
     private var panelProgress = 0f
     private var pointer = MotionEvent.INVALID_POINTER_ID
     private var downY = 0f
@@ -70,8 +71,10 @@ internal class ThemeScrollbar(
     }
 
     fun render(upperEnd: Float, lowerStart: Float, gap: Float, scrollFraction: Float,
-        canScroll: Boolean, enabled: Boolean, progress: Float, retracting: Boolean) {
+        canScroll: Boolean, enabled: Boolean, progress: Float, retracting: Boolean,
+        retractionProgress: Float? = null) {
         panelProgress = progress
+        this.retractionProgress = retractionProgress
         val endGap = (trackEndInsetDp * density).coerceAtMost((lowerStart - upperEnd).coerceAtLeast(0f) / 2f)
         trackTop = upperEnd + endGap
         trackBottom = lowerStart - endGap
@@ -104,6 +107,7 @@ internal class ThemeScrollbar(
 
     fun beginRetraction(progress: Float) {
         if (retraction != null || thumb.parent == null || thumb.visibility != VISIBLE) return
+        retractionProgress = null
         // 从当前实际形状接管，即使拉伸弹簧尚未结束，也不会先跳回稳定尺寸。
         retraction = Retraction(progress, thumb.translationY,
             thumb.width * thumb.scaleX, thumb.height * thumb.scaleY, thumb.alpha)
@@ -122,7 +126,7 @@ internal class ThemeScrollbar(
         var top = trackTop + travel * fraction + Dimensions.SCROLLBAR_PULL_DP * density * pull * gapProgress
         var opacity = gapProgress
         retraction?.let { from ->
-            val remaining = 1f - ThemePanelFrames.scrollbarExit(from.progress, panelProgress)
+            val remaining = 1f - (retractionProgress ?: ThemePanelFrames.scrollbarExit(from.progress, panelProgress))
             thickness = Dimensions.FIELD_STROKE_DP * density + (from.width - Dimensions.FIELD_STROKE_DP * density) * remaining
             length = from.length * remaining
             top = from.top
@@ -247,6 +251,7 @@ internal class ThemeScrollbar(
     fun reset() {
         cancelTouch()
         retraction = null
+        retractionProgress = null
         gapProgress = 0f
         started = false
         motion.reset()
